@@ -1,3 +1,4 @@
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import type { FileMatch } from "@/utils/quickOpenFiltering";
 import { cn } from "@/utils";
 import { FileText } from "lucide-react";
@@ -175,6 +176,7 @@ export function QuickOpenOverlay({
           break;
         case "Escape":
           e.preventDefault();
+          clearPressedKeys();
           onClose();
           break;
         case "Tab":

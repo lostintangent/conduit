@@ -5,6 +5,7 @@
  * Similar to VS Code's keybinding editor.
  */
 
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -34,6 +35,7 @@ export function KeybindingRecorder({
 
       // Escape to cancel
       if (event.key === "Escape") {
+        clearPressedKeys();
         onCancel();
         return;
       }

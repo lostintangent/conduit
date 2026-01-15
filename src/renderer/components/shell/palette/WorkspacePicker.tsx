@@ -1,3 +1,4 @@
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { openWorkspace } from "@/store/actions/workspace";
 import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
@@ -44,6 +45,7 @@ export function WorkspacePicker({
         if (session) {
           void (async () => {
             await openWorkspace(session);
+            clearPressedKeys();
             onClose();
           })();
         }

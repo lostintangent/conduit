@@ -1,5 +1,6 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useCommand } from "@/commands/hooks/useCommand";
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import {
   Tooltip,
   TooltipContent,
@@ -87,6 +88,8 @@ const registerTerminalKeyHandler = ({
       !event.altKey &&
       event.key.toLowerCase() === "f"
     ) {
+      event.preventDefault();
+      clearPressedKeys();
       showSearchWidget();
       return false;
     }
@@ -98,6 +101,7 @@ const registerTerminalKeyHandler = ({
       (event.key === "/" || event.key === "?")
     ) {
       event.preventDefault();
+      clearPressedKeys();
       togglePromptMode();
       return false;
     }

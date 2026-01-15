@@ -24,6 +24,7 @@
  * ```
  */
 
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { FileText, X } from "lucide-react";
 import {
@@ -266,6 +267,7 @@ export function QuickOpenDialog({
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        clearPressedKeys();
         onOpenChange(false);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();

@@ -37,11 +37,11 @@ describe("viewHandlers", () => {
 
   describe("handleShowCommandPalette", () => {
     it("should set command palette open override to true", () => {
-      const setIsCommandPaletteOpenOverride = vi.fn();
+      const setIsCommandPaletteOpen = vi.fn();
 
-      handleShowCommandPalette(setIsCommandPaletteOpenOverride);
+      handleShowCommandPalette(setIsCommandPaletteOpen);
 
-      expect(setIsCommandPaletteOpenOverride).toHaveBeenCalledWith(true);
+      expect(setIsCommandPaletteOpen).toHaveBeenCalledWith(true);
     });
   });
 

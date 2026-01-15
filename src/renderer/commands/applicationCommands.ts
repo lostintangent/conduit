@@ -192,7 +192,7 @@ export function registerApplicationCommands(
       win: "Ctrl+Shift+P",
     },
     run: (context) => {
-      handleShowCommandPalette(context.setIsCommandPaletteOpenOverride);
+      handleShowCommandPalette(context.setIsCommandPaletteOpen);
     },
   });
 

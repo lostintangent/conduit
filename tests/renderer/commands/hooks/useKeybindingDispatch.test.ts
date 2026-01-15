@@ -3,10 +3,14 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
+import {
+  useKeybindingDispatch,
+  type KeybindingDispatchOptions,
+} from "@/commands/hooks/useKeybindingDispatch";
 import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
+import type { Tab } from "@/types";
 
 describe("useKeybindingDispatch", () => {
   let commandRegistry: CommandRegistry;
@@ -567,6 +571,372 @@ describe("useKeybindingDispatch", () => {
 
       await waitFor(() => {
         expect(mockCommandRun).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe("pre-command handlers", () => {
+    describe("Escape to exit modes", () => {
+      it("should exit focus mode on Escape", () => {
+        const setApplicationMode = vi.fn();
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "focus",
+          setApplicationMode,
+          tabs: [],
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(setApplicationMode).toHaveBeenCalledWith("normal");
+      });
+
+      it("should exit design mode on Escape", () => {
+        const setApplicationMode = vi.fn();
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "design",
+          setApplicationMode,
+          tabs: [],
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(setApplicationMode).toHaveBeenCalledWith("normal");
+      });
+
+      it("should exit overview mode on Escape", () => {
+        const setApplicationMode = vi.fn();
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "overview",
+          setApplicationMode,
+          tabs: [],
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(setApplicationMode).toHaveBeenCalledWith("normal");
+      });
+
+      it("should not change mode on Escape in normal mode", () => {
+        const setApplicationMode = vi.fn();
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode,
+          tabs: [],
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(setApplicationMode).not.toHaveBeenCalled();
+      });
+
+      it("should work in input fields (Escape is special)", () => {
+        const setApplicationMode = vi.fn();
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "focus",
+          setApplicationMode,
+          tabs: [],
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const textarea = document.createElement("textarea");
+        document.body.appendChild(textarea);
+        textarea.focus();
+
+        const event = new KeyboardEvent("keydown", {
+          key: "Escape",
+          bubbles: true,
+          cancelable: true,
+        });
+        Object.defineProperty(event, "target", {
+          value: textarea,
+          writable: false,
+        });
+        window.dispatchEvent(event);
+
+        // Should still exit mode even in input field
+        expect(setApplicationMode).toHaveBeenCalledWith("normal");
+
+        document.body.removeChild(textarea);
+      });
+    });
+
+    describe("Cmd+1-9 tab switching", () => {
+      const createMockTabs = (count: number): Tab[] => {
+        return Array.from({ length: count }, (_, i) => ({
+          id: `tab-${i + 1}`,
+          title: `Tab ${i + 1}`,
+          panes: {},
+          activePaneId: null,
+          paneLayout: { type: "single", paneId: "pane-1" },
+        })) as Tab[];
+      };
+
+      // jsdom doesn't report as Mac, so we need to mock navigator.platform for Mac tests
+      let originalPlatform: string;
+
+      beforeEach(() => {
+        originalPlatform = navigator.platform;
+      });
+
+      afterEach(() => {
+        Object.defineProperty(navigator, "platform", {
+          value: originalPlatform,
+          configurable: true,
+        });
+      });
+
+      it("should focus first tab on Cmd+1 (Mac)", async () => {
+        // Mock Mac platform
+        Object.defineProperty(navigator, "platform", {
+          value: "MacIntel",
+          configurable: true,
+        });
+
+        // Mock the focusTab action
+        const focusTabModule = await import("@/store/actions/tab");
+        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+
+        const tabs = createMockTabs(3);
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode: vi.fn(),
+          tabs,
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "1",
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(focusTabSpy).toHaveBeenCalledWith("tab-1");
+
+        focusTabSpy.mockRestore();
+      });
+
+      it("should focus third tab on Cmd+3 (Mac)", async () => {
+        Object.defineProperty(navigator, "platform", {
+          value: "MacIntel",
+          configurable: true,
+        });
+
+        const focusTabModule = await import("@/store/actions/tab");
+        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+
+        const tabs = createMockTabs(5);
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode: vi.fn(),
+          tabs,
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "3",
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(focusTabSpy).toHaveBeenCalledWith("tab-3");
+
+        focusTabSpy.mockRestore();
+      });
+
+      it("should focus last tab when number exceeds tab count", async () => {
+        Object.defineProperty(navigator, "platform", {
+          value: "MacIntel",
+          configurable: true,
+        });
+
+        const focusTabModule = await import("@/store/actions/tab");
+        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+
+        const tabs = createMockTabs(3);
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode: vi.fn(),
+          tabs,
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        // Press Cmd+9 with only 3 tabs
+        const event = new KeyboardEvent("keydown", {
+          key: "9",
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        // Should focus last tab (tab-3)
+        expect(focusTabSpy).toHaveBeenCalledWith("tab-3");
+
+        focusTabSpy.mockRestore();
+      });
+
+      it("should not switch tabs when command palette is open", async () => {
+        Object.defineProperty(navigator, "platform", {
+          value: "MacIntel",
+          configurable: true,
+        });
+
+        const focusTabModule = await import("@/store/actions/tab");
+        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+
+        const tabs = createMockTabs(3);
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode: vi.fn(),
+          tabs,
+          isCommandPaletteOpen: true, // Palette is open
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "1",
+          metaKey: true,
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(focusTabSpy).not.toHaveBeenCalled();
+
+        focusTabSpy.mockRestore();
+      });
+
+      it("should not switch tabs with Shift held", async () => {
+        Object.defineProperty(navigator, "platform", {
+          value: "MacIntel",
+          configurable: true,
+        });
+
+        const focusTabModule = await import("@/store/actions/tab");
+        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+
+        const tabs = createMockTabs(3);
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode: vi.fn(),
+          tabs,
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "1",
+          metaKey: true,
+          shiftKey: true, // Shift is held
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(focusTabSpy).not.toHaveBeenCalled();
+
+        focusTabSpy.mockRestore();
+      });
+
+      it("should use Ctrl on non-Mac platforms", async () => {
+        // Mock navigator.platform to be Windows
+        Object.defineProperty(navigator, "platform", {
+          value: "Win32",
+          configurable: true,
+        });
+
+        const focusTabModule = await import("@/store/actions/tab");
+        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+
+        const tabs = createMockTabs(3);
+        const options: KeybindingDispatchOptions = {
+          applicationMode: "normal",
+          setApplicationMode: vi.fn(),
+          tabs,
+          isCommandPaletteOpen: false,
+        };
+
+        renderHook(() =>
+          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
+        );
+
+        const event = new KeyboardEvent("keydown", {
+          key: "1",
+          ctrlKey: true, // Ctrl on Windows
+          bubbles: true,
+          cancelable: true,
+        });
+        window.dispatchEvent(event);
+
+        expect(focusTabSpy).toHaveBeenCalledWith("tab-1");
+
+        focusTabSpy.mockRestore();
       });
     });
   });

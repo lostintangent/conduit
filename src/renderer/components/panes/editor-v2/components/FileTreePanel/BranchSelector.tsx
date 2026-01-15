@@ -22,6 +22,7 @@
  * ```
  */
 
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { GitBranch } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -133,6 +134,7 @@ export function BranchSelector({
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        clearPressedKeys();
         onOpenChange(false);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();

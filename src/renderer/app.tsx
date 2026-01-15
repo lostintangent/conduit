@@ -37,7 +37,6 @@ import { InputDialog } from "@/components/ui/input-dialog";
 import { useAutoUpdater } from "@/hooks/useAutoUpdater";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
-import { useGlobalKeyHandlers } from "@/hooks/useGlobalKeyHandlers";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { useWorkspaces } from "@/hooks/useWorkspaces";
@@ -125,13 +124,10 @@ export function App() {
     });
   }, [theme, themeOverrides]);
 
-  const { isCommandPaletteOpen, openCommandPalette, closeCommandPalette } =
-    useGlobalKeyHandlers();
-
-  const [isCommandPaletteOpenOverride, setIsCommandPaletteOpenOverride] =
-    useState(false);
-  const commandPaletteOpen =
-    isCommandPaletteOpen || isCommandPaletteOpenOverride;
+  // Command palette state - single source of truth
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const openCommandPalette = () => setIsCommandPaletteOpen(true);
+  const closeCommandPalette = () => setIsCommandPaletteOpen(false);
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
@@ -238,7 +234,7 @@ export function App() {
     setShowAgentsEditor: (show: boolean) =>
       setSettingsTab(show ? "agents" : null),
     setShowAgentLauncher,
-    setIsCommandPaletteOpenOverride,
+    setIsCommandPaletteOpen,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
@@ -265,6 +261,12 @@ export function App() {
   useKeybindingDispatch(
     commandSystem?.commandRegistry,
     commandSystem?.keybindingRegistry,
+    {
+      applicationMode,
+      setApplicationMode,
+      tabs,
+      isCommandPaletteOpen,
+    },
   );
 
   useEffect(() => {
@@ -881,11 +883,8 @@ export function App() {
 
       {/* Global UI */}
       <CommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => {
-          closeCommandPalette();
-          setIsCommandPaletteOpenOverride(false);
-        }}
+        isOpen={isCommandPaletteOpen}
+        onClose={closeCommandPalette}
         commandItems={commandItems}
         onRunShellCommand={(command) =>
           runShellCommand(command, { trackHistory: true })

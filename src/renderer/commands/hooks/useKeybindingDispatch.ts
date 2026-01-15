@@ -1,14 +1,33 @@
+import { focusTab } from "@/store/actions/tab";
+import type { ApplicationMode } from "@/store/atoms";
+import type { Tab } from "@/types";
 import { useEffect, useRef } from "react";
 import type { ICommandRegistry } from "../core/CommandRegistry";
-import type { KeybindingRegistry } from "./KeybindingRegistry";
+import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";
 import {
   clearPressedKeys,
   trackKeyDown,
   trackKeyUp,
 } from "../keybindings/parser";
 
+export interface KeybindingDispatchOptions {
+  /** Current application mode (normal, focus, design, overview) */
+  applicationMode: ApplicationMode;
+  /** Setter for application mode - used for Escape to exit modes */
+  setApplicationMode: (mode: ApplicationMode) => void;
+  /** List of tabs - used for Cmd+1-9 tab switching */
+  tabs: Tab[];
+  /** Whether the command palette is open - prevents Cmd+1-9 when open */
+  isCommandPaletteOpen: boolean;
+}
+
 /**
  * Hook for dispatching keyboard events to commands
+ *
+ * This hook consolidates all keyboard handling:
+ * - Escape to exit focus/design/overview modes
+ * - Cmd+1-9 to switch tabs by index
+ * - All command-system keybindings
  *
  * The registries can be null/undefined on initial render - the hook will
  * activate once they are provided.
@@ -16,10 +35,15 @@ import {
 export function useKeybindingDispatch(
   commandRegistry: ICommandRegistry | null | undefined,
   keybindingRegistry: KeybindingRegistry | null | undefined,
+  options?: KeybindingDispatchOptions,
 ) {
   // Use refs to avoid re-creating the listener on every chord state change
   const currentChordRef = useRef<KeyboardEvent | null>(null);
   const chordTimeoutRef = useRef<number | null>(null);
+
+  // Use ref for options to avoid stale closures while keeping stable event listeners
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   useEffect(() => {
     // Early return if registries aren't ready yet
@@ -39,6 +63,48 @@ export function useKeybindingDispatch(
     const handleKeyDown = (event: KeyboardEvent) => {
       // Track pressed keys for multi-key chords (e.g., Cmd+Shift+B+Left)
       trackKeyDown(event);
+
+      // --- Pre-command handlers (run before command system) ---
+      // Use optionsRef.current to get fresh values without re-registering listeners
+      const opts = optionsRef.current;
+
+      // Escape: Exit focus/design/overview modes
+      // This runs before input element check because Escape should work even in input fields
+      if (
+        opts &&
+        event.key === "Escape" &&
+        ["focus", "overview", "design"].includes(opts.applicationMode)
+      ) {
+        event.preventDefault();
+        clearPressedKeys();
+        opts.setApplicationMode("normal");
+        return;
+      }
+
+      // Cmd+1-9: Focus tab by index
+      // Only when command palette is closed and no shift key
+      if (opts && !opts.isCommandPaletteOpen) {
+        const isMac = navigator.platform.toLowerCase().includes("mac");
+        const primaryModifier = isMac ? event.metaKey : event.ctrlKey;
+
+        if (primaryModifier && !event.shiftKey && !event.altKey) {
+          const key = event.key.toLowerCase();
+          const tabNumber = Number.parseInt(key, 10);
+
+          if (!Number.isNaN(tabNumber) && tabNumber >= 1) {
+            const targetIndex = Math.min(tabNumber, opts.tabs.length) - 1;
+            const targetTab = opts.tabs[targetIndex];
+            if (targetTab) {
+              event.preventDefault();
+              clearPressedKeys();
+              focusTab(targetTab.id);
+              return;
+            }
+          }
+        }
+      }
+
+      // --- End pre-command handlers ---
 
       // Fast path: Skip ALL processing for plain text in input elements
       // This handles the 99% case (typing in terminal) in <1 microsecond
@@ -112,7 +178,6 @@ export function useKeybindingDispatch(
         event.key.startsWith("Arrow")
       ) {
         // No command found for a modified arrow key combination (Cmd/Ctrl + Arrow)
-        // This is likely handled by another system (e.g., useGlobalKeyHandlers for pane navigation)
         // Clear pressed keys to prevent stale keys from blocking future keybindings
         // Note: We only clear for arrow keys to avoid breaking multi-key chords like Cmd+Shift+B+Left
         // where the intermediate key (B) wouldn't match any command

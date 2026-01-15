@@ -502,13 +502,13 @@ describe("applicationCommands", () => {
           ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
         )!;
         const mockContext: CommandContext = {
-          setIsCommandPaletteOpenOverride: vi.fn(),
+          setIsCommandPaletteOpen: vi.fn(),
         } as any;
 
         command.run(mockContext);
 
         expect(handlers.handleShowCommandPalette).toHaveBeenCalledWith(
-          mockContext.setIsCommandPaletteOpenOverride,
+          mockContext.setIsCommandPaletteOpen,
         );
       });
     });

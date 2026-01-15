@@ -46,7 +46,7 @@ export interface UseCommandSystemOptions {
   setShowPaneActionsEditor: (show: boolean) => void;
   setShowAgentsEditor: (show: boolean) => void;
   setShowAgentLauncher: (show: boolean) => void;
-  setIsCommandPaletteOpenOverride: (open: boolean) => void;
+  setIsCommandPaletteOpen: (open: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
   setShowWorkspacePicker: (show: boolean) => void;
   setIsUrlDialogOpen: (open: boolean) => void;
@@ -87,7 +87,7 @@ export function useCommandSystem(
     setShowPaneActionsEditor,
     setShowAgentsEditor,
     setShowAgentLauncher,
-    setIsCommandPaletteOpenOverride,
+    setIsCommandPaletteOpen,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
@@ -161,7 +161,7 @@ export function useCommandSystem(
         setShowPaneActionsEditor: () => {},
         setShowAgentsEditor: () => {},
         setShowAgentLauncher: () => {},
-        setIsCommandPaletteOpenOverride: () => {},
+        setIsCommandPaletteOpen: () => {},
         setShowRenameWorkspaceDialog: () => {},
         setShowWorkspacePicker: () => {},
         setIsUrlDialogOpen: () => {},
@@ -252,7 +252,7 @@ export function useCommandSystem(
       setShowPaneActionsEditor,
       setShowAgentsEditor,
       setShowAgentLauncher,
-      setIsCommandPaletteOpenOverride,
+      setIsCommandPaletteOpen,
       setShowRenameWorkspaceDialog,
       setShowWorkspacePicker,
       setIsUrlDialogOpen,
@@ -275,7 +275,7 @@ export function useCommandSystem(
     setShowPaneActionsEditor,
     setShowAgentsEditor,
     setShowAgentLauncher,
-    setIsCommandPaletteOpenOverride,
+    setIsCommandPaletteOpen,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
     setIsUrlDialogOpen,

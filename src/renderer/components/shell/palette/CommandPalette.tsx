@@ -1,3 +1,4 @@
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { Command } from "@/types";
@@ -303,6 +304,7 @@ export function CommandPalette({
           setSelectedIndex(0);
           return;
         }
+        clearPressedKeys();
         onClose();
         return;
       }

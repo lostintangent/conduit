@@ -1,3 +1,4 @@
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +64,7 @@ export function BranchSelector({
     (e: React.KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
+        clearPressedKeys();
         onOpenChange(false);
       } else if (e.key === "ArrowDown") {
         e.preventDefault();

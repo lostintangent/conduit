@@ -95,12 +95,12 @@ export function handleOpenKeyboardShortcuts(
 /**
  * Show the command palette
  *
- * @param setIsCommandPaletteOpenOverride - Function to override command palette open state
+ * @param setIsCommandPaletteOpen - Function to override command palette open state
  */
 export function handleShowCommandPalette(
-  setIsCommandPaletteOpenOverride: (open: boolean) => void,
+  setIsCommandPaletteOpen: (open: boolean) => void,
 ): void {
-  setIsCommandPaletteOpenOverride(true);
+  setIsCommandPaletteOpen(true);
 }
 
 /**

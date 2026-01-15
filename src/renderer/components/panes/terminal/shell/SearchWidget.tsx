@@ -1,3 +1,4 @@
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { resolveColor } from "@/utils/theme";
 import type { ISearchOptions } from "@xterm/addon-search";
 import {
@@ -229,6 +230,8 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
     xterm?.clearSelection();
     setSearchTerm("");
     clearSearchArtifacts();
+    // Clear any stale pressed keys to ensure global keybindings work after closing
+    clearPressedKeys();
     onClosed();
   };
 

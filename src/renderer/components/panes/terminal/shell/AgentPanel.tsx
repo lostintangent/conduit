@@ -1,3 +1,4 @@
+import { clearPressedKeys } from "@/commands/keybindings/parser";
 import {
   ChevronDown,
   ChevronUp,
@@ -80,6 +81,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape" && !isProcessing) {
+      clearPressedKeys();
       onClose();
     }
   };
