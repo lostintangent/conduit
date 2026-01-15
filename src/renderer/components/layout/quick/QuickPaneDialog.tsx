@@ -19,10 +19,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 export type PaneDescriptor = Omit<Pane, "id">;
 
 export type QuickPaneDescriptor = PaneDescriptor & {
-  isLocked?: boolean;
   closeOnSave?: boolean;
   onClose?: () => void;
-  hideFileTree?: boolean;
 };
 
 type QuickPaneDialogProps = {
@@ -130,7 +128,6 @@ export function QuickPaneDialog({
   const handleOpenAsTabClick = useCallback(() => {
     const {
       onClose: _onClose,
-      isLocked: _isLocked,
       closeOnSave: _closeOnSave,
       ...rest
     } = currentDescriptor;
@@ -189,8 +186,7 @@ export function QuickPaneDialog({
                 handleEditorUpdate({ treeMode: mode })
               }
               onFileOpen={handleFileOpen}
-              isLocked={currentDescriptor.isLocked}
-              hideFileTree={currentDescriptor.hideFileTree}
+              hideFileTree={currentDescriptor.closeOnSave}
               onSave={() => {
                 if (currentDescriptor.closeOnSave) {
                   onClose();
@@ -220,63 +216,61 @@ export function QuickPaneDialog({
           )}
         </div>
 
-        {!currentDescriptor.isLocked && (
-          <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
-            <div
-              className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur"
-              title={vmTitle}
-            >
-              {isVmTerminal && (
-                <Cloud
-                  size={16}
-                  className="text-white/80 mr-2"
-                  aria-hidden="true"
-                />
-              )}
-              {currentDescriptor.type === "terminal" && onOpenAsFloating && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={handleOpenAsFloatingClick}
-                      aria-label="Open as floating overlay"
-                      className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-                    >
-                      <PictureInPicture2 size={16} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Hyper Terminal</TooltipContent>
-                </Tooltip>
-              )}
+        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
+          <div
+            className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur"
+            title={vmTitle}
+          >
+            {isVmTerminal && (
+              <Cloud
+                size={16}
+                className="text-white/80 mr-2"
+                aria-hidden="true"
+              />
+            )}
+            {currentDescriptor.type === "terminal" && onOpenAsFloating && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={handleOpenAsTabClick}
-                    aria-label="Open in tab"
+                    onClick={handleOpenAsFloatingClick}
+                    aria-label="Open as floating overlay"
                     className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
                   >
-                    <ArrowUpRight size={16} />
+                    <PictureInPicture2 size={16} />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>Open in tab</TooltipContent>
+                <TooltipContent>Hyper Terminal</TooltipContent>
               </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Close dialog"
-                    className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
-                  >
-                    <X size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Close</TooltipContent>
-              </Tooltip>
-            </div>
+            )}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleOpenAsTabClick}
+                  aria-label="Open in tab"
+                  className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+                >
+                  <ArrowUpRight size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Open in tab</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close dialog"
+                  className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
