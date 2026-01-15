@@ -7,7 +7,7 @@ export default function (program: Command): Command {
   program
     .cliCommand(
       "editor-open",
-      async (request, filePath) => {
+      async (request, filePath: string, options: { quick?: boolean }) => {
         const resolvedPath = path.isAbsolute(filePath)
           ? filePath
           : path.resolve(process.cwd(), filePath);
@@ -20,8 +20,12 @@ export default function (program: Command): Command {
         }
 
         const target = stats.isDirectory()
-          ? { cwd: resolvedPath }
-          : { cwd: path.dirname(resolvedPath), filePath: resolvedPath };
+          ? { cwd: resolvedPath, quick: options.quick }
+          : {
+              cwd: path.dirname(resolvedPath),
+              filePath: resolvedPath,
+              quick: options.quick,
+            };
 
         await request(target);
       },
@@ -29,7 +33,11 @@ export default function (program: Command): Command {
     )
     .alias("open")
     .description("Open a file or directory in the Conduit editor")
-    .argument("<path>", "File or directory to open");
+    .argument("<path>", "File or directory to open")
+    .option(
+      "-q, --quick",
+      "Open in quick pane (modal dialog that closes on save)",
+    );
 
   return program;
 }

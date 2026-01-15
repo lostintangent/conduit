@@ -1,6 +1,10 @@
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
+import { getDefaultStore } from "jotai";
 import type { HandlerMap } from "./types";
+
+const store = getDefaultStore();
 
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
   Pick<
@@ -10,24 +14,44 @@ type EditorQuickDescriptor = Omit<EditorPane, "id"> &
 
 export const editorHandlers: Partial<HandlerMap> = {
   /**
-   * Handle $EDITOR requests from CLI tools (git commit, Claude Code Ctrl+G, etc.).
-   * Opens the file in a quick pane that closes on save, signaling completion
-   * back to the calling tool.
+   * Handle editor-open requests from the CLI.
+   *
+   * When --quick flag is passed (used by $EDITOR for git commit, etc.):
+   * - Opens in a modal quick pane that closes on save
+   * - Blocks until the user saves and closes the editor
+   *
+   * Without --quick flag (direct CLI usage like `conduit file.txt`):
+   * - Opens in the sidebar editor
+   * - Returns immediately without blocking
    */
   "editor-open": (args, context) => {
     const commandArgs = args ?? { cwd: "" };
 
-    return new Promise<void>((resolve) => {
-      const descriptor: EditorQuickDescriptor = {
-        type: "editor",
+    // Quick mode: open in modal dialog, block until closed
+    if (commandArgs.quick) {
+      return new Promise<void>((resolve) => {
+        const descriptor: EditorQuickDescriptor = {
+          type: "editor",
+          cwd: commandArgs.cwd,
+          file: commandArgs.filePath,
+          isLocked: true,
+          closeOnSave: true,
+          hideFileTree: true,
+          onClose: resolve,
+        };
+        context.onOpenFile(descriptor);
+      });
+    }
+
+    // Normal mode: open in sidebar, return immediately
+    store.set(sidebarStateAtom, {
+      isOpen: true,
+      view: "editor",
+      navigation: {
         cwd: commandArgs.cwd,
-        file: commandArgs.filePath,
-        isLocked: true,
-        closeOnSave: true,
-        hideFileTree: true,
-        onClose: resolve,
-      };
-      context.onOpenFile(descriptor);
+        editorTreeMode: "all",
+        editorFile: commandArgs.filePath,
+      },
     });
   },
 };
