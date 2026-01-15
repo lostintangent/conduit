@@ -83,9 +83,6 @@ export interface EditorPaneSwitcherProps {
   /** Callback when changes view mode changes */
   onChangesViewModeChange?: (mode: ChangesViewMode) => void;
 
-  /** Whether the pane is locked */
-  isLocked?: boolean;
-
   /** Hide the file tree and only show the editor */
   hideFileTree?: boolean;
 
@@ -130,7 +127,6 @@ export function EditorPaneSwitcher({
   onFileOpen,
   onTreeModeChange,
   onChangesViewModeChange,
-  isLocked,
   hideFileTree,
   onSave,
   hideIndividualSandboxIndicator,
@@ -209,7 +205,6 @@ export function EditorPaneSwitcher({
       onCwdChange={onCwdChange}
       onFileOpen={onFileOpen}
       onTreeModeChange={onTreeModeChange}
-      isLocked={isLocked}
       hideFileTree={hideFileTree}
       onSave={onSave}
       hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}

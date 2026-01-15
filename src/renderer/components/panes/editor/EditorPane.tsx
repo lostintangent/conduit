@@ -240,7 +240,6 @@ type EditorPaneProps = {
   onCwdChange?: (cwd: string) => void;
   onFileOpen?: (node: FileTreeNode) => void;
   onTreeModeChange?: (mode: EditorTreeMode) => void;
-  isLocked?: boolean;
   hideFileTree?: boolean;
   onSave?: () => void;
   hideIndividualSandboxIndicator?: boolean;
@@ -263,7 +262,6 @@ export function EditorPane({
   onCwdChange,
   onFileOpen,
   onTreeModeChange,
-  isLocked = false,
   hideFileTree = false,
   onSave,
   hideIndividualSandboxIndicator = false,
@@ -2066,7 +2064,7 @@ export function EditorPane({
                       </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {canNavigateUp && !isLocked && (
+                      {canNavigateUp && (
                         <button
                           type="button"
                           onClick={handleNavigateUp}
@@ -2276,7 +2274,7 @@ export function EditorPane({
                   <>
                     <div className="h-4 w-px bg-white/10 shrink-0" />
                     <div className="flex items-center gap-1 shrink-0">
-                      {canNavigateUp && !isLocked && (
+                      {canNavigateUp && (
                         <button
                           type="button"
                           onClick={handleNavigateUp}

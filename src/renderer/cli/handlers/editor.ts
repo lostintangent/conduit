@@ -7,10 +7,7 @@ import type { HandlerMap } from "./types";
 const store = getDefaultStore();
 
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
-  Pick<
-    QuickPaneDescriptor,
-    "isLocked" | "closeOnSave" | "onClose" | "hideFileTree"
-  >;
+  Pick<QuickPaneDescriptor, "closeOnSave" | "onClose" | "hideFileTree">;
 
 export const editorHandlers: Partial<HandlerMap> = {
   /**
@@ -34,7 +31,6 @@ export const editorHandlers: Partial<HandlerMap> = {
           type: "editor",
           cwd: commandArgs.cwd,
           file: commandArgs.filePath,
-          isLocked: true,
           closeOnSave: true,
           hideFileTree: true,
           onClose: resolve,
