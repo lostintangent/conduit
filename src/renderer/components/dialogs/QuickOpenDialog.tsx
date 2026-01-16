@@ -24,7 +24,7 @@
 
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { FileText, X, Terminal } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -207,10 +207,13 @@ export function QuickOpenDialog({
   // Virtual scrolling setup
   // ---------------------------------------------------------------------------
 
+  // Row height: 48px for commands (2 lines), 24px for files (1 line)
+  const rowHeight = isCommandMode ? 48 : 24;
+
   const virtualizer = useVirtualizer({
     count: activeResultsCount,
     getScrollElement: () => scrollContainerRef.current,
-    estimateSize: () => 24, // Row height in pixels
+    estimateSize: () => rowHeight,
     overscan: 5,
   });
 
@@ -501,14 +504,14 @@ export function QuickOpenDialog({
                 const index = virtualItem.index;
 
                 if (isCommandMode) {
-                  // Render command item
+                  // Render command item (2 lines: label + keybinding, then description)
                   const command = commandResults[index];
                   return (
                     <div
                       key={`${virtualItem.key}-${command.id}`}
                       data-index={index}
                       className={cn(
-                        "absolute top-0 left-0 w-full px-3 cursor-pointer transition-all duration-150 flex items-center",
+                        "absolute top-0 left-0 w-full px-3 py-1.5 cursor-pointer transition-all duration-150 flex flex-col justify-center",
                         "hover:bg-accent/50",
                         index === activeIndex && "bg-accent shadow-sm",
                       )}
@@ -524,39 +527,33 @@ export function QuickOpenDialog({
                       }}
                       onMouseLeave={() => setHoveredIndex(null)}
                     >
+                      {/* First line: label + keybinding */}
                       <div className="flex items-center gap-1.5 min-w-0 w-full">
-                        {/* Command icon */}
-                        <Terminal
-                          className="shrink-0 text-foreground"
-                          size={12}
-                        />
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          {/* Command label with highlights */}
-                          <span className="text-[13px] whitespace-nowrap shrink-0">
-                            {renderHighlightedText(
-                              command.label,
-                              command.labelHighlights,
-                              index === activeIndex,
-                            )}
-                          </span>
-                          {/* Description/category - truncates */}
-                          {(command.description || command.category) && (
-                            <span className="text-xs text-muted-foreground truncate min-w-0">
-                              {renderHighlightedText(
-                                command.description || command.category || "",
-                                command.descriptionHighlights,
-                                index === activeIndex,
-                              )}
-                            </span>
+                        <span className="text-[13px] whitespace-nowrap flex-1 min-w-0 truncate">
+                          {renderHighlightedText(
+                            command.label,
+                            command.labelHighlights,
+                            index === activeIndex,
                           )}
-                        </div>
-                        {/* Keybinding badge */}
+                        </span>
                         {command.keybinding && (
-                          <kbd className="ml-auto shrink-0 px-2 py-0.5 bg-muted rounded text-xs font-sans tracking-wider text-muted-foreground">
+                          <kbd className="shrink-0 px-2 py-0.5 bg-muted rounded text-xs font-sans tracking-wider text-muted-foreground">
                             {command.keybinding}
                           </kbd>
                         )}
                       </div>
+                      {/* Second line: description */}
+                      {(command.description || command.category) && (
+                        <div className="flex items-center min-w-0 w-full">
+                          <span className="text-xs text-muted-foreground truncate min-w-0">
+                            {renderHighlightedText(
+                              command.description || command.category || "",
+                              command.descriptionHighlights,
+                              index === activeIndex,
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 } else {
@@ -640,13 +637,13 @@ export function QuickOpenDialog({
                 }
               })}
 
-              {/* Divider between recent and other files */}
+              {/* Divider between recent and other files (file mode only) */}
               {lastRecentIndex > 0 && (
                 <div
                   className="absolute left-0 w-full px-3 pointer-events-none"
                   style={{
                     height: "1px",
-                    transform: `translateY(${lastRecentIndex * 24 - 4}px)`,
+                    transform: `translateY(${lastRecentIndex * rowHeight - 4}px)`,
                   }}
                 >
                   <div className="w-full h-px bg-border" />
