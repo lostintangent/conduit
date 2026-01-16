@@ -3,7 +3,7 @@
   "productName": "Conduit",
   "description": "A terminal-centric IDE (a \"DIY-DE\"), that's built for task parallelization with coding agents.",
   "main": ".vite/build/main.js",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "scripts": {
     "start": "electron-forge start",
