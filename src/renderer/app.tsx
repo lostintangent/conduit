@@ -24,7 +24,6 @@ import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
-import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
 import { QuickOpenDialog } from "@/components/dialogs/QuickOpenDialog";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
@@ -123,11 +122,6 @@ export function App() {
       updateTerminalThemes();
     });
   }, [theme, themeOverrides]);
-
-  // Command palette state - single source of truth
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const openCommandPalette = () => setIsCommandPaletteOpen(true);
-  const closeCommandPalette = () => setIsCommandPaletteOpen(false);
 
   const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
     useLayoutResizing();
@@ -231,7 +225,6 @@ export function App() {
     setShowAgentsEditor: (show: boolean) =>
       setSettingsTab(show ? "agents" : null),
     setShowAgentLauncher,
-    setIsCommandPaletteOpen,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
@@ -263,7 +256,7 @@ export function App() {
       applicationMode,
       setApplicationMode,
       tabs,
-      isCommandPaletteOpen,
+      isQuickOpenOpen,
     },
   );
 
@@ -809,7 +802,6 @@ export function App() {
           {/* Top positioned tabs */}
           {tabPosition === "top" && !shouldUseDrawer && (
             <TabStrip
-              onOpenCommandPalette={openCommandPalette}
               onTabContextMenu={handleContextMenu}
               position={tabPosition}
             />
@@ -819,7 +811,6 @@ export function App() {
             <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
               <DrawerContent side="top">
                 <TabStrip
-                  onOpenCommandPalette={openCommandPalette}
                   onTabContextMenu={handleContextMenu}
                   position={tabPosition}
                 />
@@ -856,7 +847,6 @@ export function App() {
           {/* Bottom positioned tabs */}
           {tabPosition === "bottom" && !shouldUseDrawer && (
             <TabStrip
-              onOpenCommandPalette={openCommandPalette}
               onTabContextMenu={handleContextMenu}
               position={tabPosition}
             />
@@ -866,7 +856,6 @@ export function App() {
             <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
               <DrawerContent side="bottom">
                 <TabStrip
-                  onOpenCommandPalette={openCommandPalette}
                   onTabContextMenu={handleContextMenu}
                   position={tabPosition}
                 />
@@ -878,44 +867,6 @@ export function App() {
           <Sidebar cwd={activeCwd} />
         </div>
       </TabContentPortalProvider>
-
-      {/* Global UI */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={closeCommandPalette}
-        commandItems={commandItems}
-        onRunShellCommand={(command) =>
-          runShellCommand(command, { trackHistory: true })
-        }
-        shellHistory={commandHistory}
-        onRemoveShellHistoryEntry={removeCommandHistoryEntry}
-        cwd={activeTab ? getActiveTabCwd(activeTab, homeDirectory) : null}
-        onOpenFile={(filePath) => {
-          if (!activeTab || !activeTab.activePaneId) {
-            return;
-          }
-
-          // Extract directory from file path
-          const cwd = path.dirname(filePath);
-
-          // Get sandboxId from active pane if it's a terminal or editor with VM
-          const activePane = activeTab.panes[activeTab.activePaneId];
-          const sandboxId =
-            activePane?.type === "terminal"
-              ? activePane.sandboxId
-              : activePane?.type === "editor"
-                ? activePane.sandboxId
-                : undefined;
-
-          // Create a quick pane with the file
-          setQuickPaneState({
-            type: "editor",
-            cwd,
-            file: filePath,
-            sandboxId,
-          });
-        }}
-      />
 
       <NotificationCenter />
 

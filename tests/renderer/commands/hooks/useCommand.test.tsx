@@ -5,6 +5,7 @@ import {
   getCommandRegistry,
   getKeybindingRegistry,
   initializeCommandSystem,
+  _resetCommandSystem,
 } from "@/commands";
 import {
   getCommandDisplayTitle,
@@ -19,7 +20,8 @@ describe("useCommand", () => {
   let store: ReturnType<typeof createStore>;
 
   beforeEach(() => {
-    // Initialize command system before each test
+    // Reset and initialize command system before each test
+    _resetCommandSystem();
     initializeCommandSystem();
 
     const registry = getCommandRegistry();

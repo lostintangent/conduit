@@ -583,7 +583,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "focus",
           setApplicationMode,
           tabs: [],
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -606,7 +606,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "design",
           setApplicationMode,
           tabs: [],
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -629,7 +629,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "overview",
           setApplicationMode,
           tabs: [],
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -652,7 +652,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode,
           tabs: [],
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -675,7 +675,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "focus",
           setApplicationMode,
           tabs: [],
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -745,7 +745,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
           tabs,
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -779,7 +779,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
           tabs,
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -813,7 +813,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
           tabs,
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -849,7 +849,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
           tabs,
-          isCommandPaletteOpen: true, // Palette is open
+          isQuickOpenOpen: true, // Palette is open
         };
 
         renderHook(() =>
@@ -883,7 +883,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
           tabs,
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>
@@ -919,7 +919,7 @@ describe("useKeybindingDispatch", () => {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
           tabs,
-          isCommandPaletteOpen: false,
+          isQuickOpenOpen: false,
         };
 
         renderHook(() =>

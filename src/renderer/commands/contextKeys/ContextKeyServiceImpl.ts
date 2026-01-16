@@ -98,6 +98,12 @@ export class ContextKeyService implements IContextKeyService {
   }
 
   setGlobal(key: string, value: unknown): void {
+    // Only update and notify if value actually changed
+    const currentValue = this.globalValues.get(key);
+    if (currentValue === value) {
+      return; // No change, skip update and notification
+    }
+
     this.globalValues.set(key, value);
     this.notifyChange(key, value);
 

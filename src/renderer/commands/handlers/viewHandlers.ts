@@ -93,17 +93,6 @@ export function handleOpenKeyboardShortcuts(
 }
 
 /**
- * Show the command palette
- *
- * @param setIsCommandPaletteOpen - Function to override command palette open state
- */
-export function handleShowCommandPalette(
-  setIsCommandPaletteOpen: (open: boolean) => void,
-): void {
-  setIsCommandPaletteOpen(true);
-}
-
-/**
  * Open the Quick Open dialog
  *
  * @param setIsQuickOpenOpen - Function to open the Quick Open dialog

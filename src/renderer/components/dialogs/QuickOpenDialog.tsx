@@ -80,7 +80,6 @@ export function QuickOpenDialog({
 
   const [query, setQuery] = useState(initialValue);
   const [fileResults, setFileResults] = useState<FileMatch[]>([]);
-  const [commandResults, setCommandResults] = useState<CommandMatch[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [fileList, setFileList] = useState<string[]>([]);
@@ -180,16 +179,21 @@ export function QuickOpenDialog({
   ]);
 
   // ---------------------------------------------------------------------------
-  // Filter commands when query changes (command mode only)
+  // Filter commands when query or commands change (command mode only)
+  // Uses useMemo instead of useEffect to ensure synchronous updates with latest data
   // ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (!open || !isCommandMode) return;
+  const commandResults = useMemo(() => {
+    if (!open || !isCommandMode) return [];
+    return filterCommands(effectiveQuery, commands);
+  }, [open, isCommandMode, effectiveQuery, commands]);
 
-    const filtered = filterCommands(effectiveQuery, commands);
-    setCommandResults(filtered);
-    setActiveIndex(0);
-  }, [effectiveQuery, commands, open, isCommandMode]);
+  // Reset active index when command results change
+  useEffect(() => {
+    if (isCommandMode) {
+      setActiveIndex(0);
+    }
+  }, [commandResults, isCommandMode]);
 
   // ---------------------------------------------------------------------------
   // Active Results (based on mode)
@@ -236,7 +240,6 @@ export function QuickOpenDialog({
       setHasMouseMoved(false);
       setHoverDelayPassed(false);
       setFileResults([]);
-      setCommandResults([]);
     }
   }, [open, initialValue]);
 

@@ -33,7 +33,6 @@ export interface CommandContext {
   readonly setApplicationMode?: (mode: ApplicationMode) => void;
   readonly setShowKeybindingsEditor?: (show: boolean) => void;
   readonly setShowAgentLauncher?: (show: boolean) => void;
-  readonly setIsCommandPaletteOpen?: (open: boolean) => void;
   readonly setShowCreateWorkspaceDialog?: (show: boolean) => void;
   readonly setShowRenameWorkspaceDialog?: (show: boolean) => void;
   readonly setShowDuplicateWorkspaceDialog?: (show: boolean) => void;

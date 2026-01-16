@@ -38,7 +38,6 @@ import {
   handleRenameWorkspace,
   handleResetLayout,
   handleSaveWorkspace,
-  handleShowCommandPalette,
   handleTerminate,
   handleToggleDesignMode,
   handleToggleSidebar,
@@ -91,9 +90,25 @@ export { ApplicationCommands };
  * This should be called during app initialization, after the command
  * system has been initialized.
  */
+let commandsRegistered = false;
+
+/**
+ * Reset the registration flag for testing purposes only
+ * @internal
+ */
+export function _resetCommandRegistration(): void {
+  commandsRegistered = false;
+}
+
 export function registerApplicationCommands(
   commandRegistry: ICommandRegistry,
 ): void {
+  // Only register once - subsequent calls are no-ops
+  if (commandsRegistered) {
+    return;
+  }
+  commandsRegistered = true;
+
   // View: Toggle Focus Mode
   commandRegistry.registerCommand({
     id: ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,

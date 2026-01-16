@@ -17,8 +17,8 @@ export interface KeybindingDispatchOptions {
   setApplicationMode: (mode: ApplicationMode) => void;
   /** List of tabs - used for Cmd+1-9 tab switching */
   tabs: Tab[];
-  /** Whether the command palette is open - prevents Cmd+1-9 when open */
-  isCommandPaletteOpen: boolean;
+  /** Whether the quick open dialog is open - prevents Cmd+1-9 when open */
+  isQuickOpenOpen: boolean;
 }
 
 /**
@@ -82,8 +82,8 @@ export function useKeybindingDispatch(
       }
 
       // Cmd+1-9: Focus tab by index
-      // Only when command palette is closed and no shift key
-      if (opts && !opts.isCommandPaletteOpen) {
+      // Only when quick open dialog is closed and no shift key
+      if (opts && !opts.isQuickOpenOpen) {
         const isMac = navigator.platform.toLowerCase().includes("mac");
         const primaryModifier = isMac ? event.metaKey : event.ctrlKey;
 

@@ -74,13 +74,11 @@ import React, {
 const isWindows = window.conduit.platform === "win32";
 
 type TabStripProps = {
-  onOpenCommandPalette?: () => void;
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   position?: TabPosition;
 };
 
 export const TabStrip = ({
-  onOpenCommandPalette,
   onTabContextMenu,
   position = "top",
 }: TabStripProps) => {
@@ -780,7 +778,7 @@ export const TabStrip = ({
                 type="button"
                 className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10"
                 aria-label="Show command palette"
-                onClick={onOpenCommandPalette}
+                onClick={showCommandPaletteCmd.execute}
               >
                 <MoreHorizontal size={18} />
               </button>

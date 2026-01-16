@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import {
   handleToggleDesignMode,
   handleOpenKeyboardShortcuts,
-  handleShowCommandPalette,
   handleResetLayout,
 } from "@/commands/handlers/viewHandlers";
 
@@ -32,16 +31,6 @@ describe("viewHandlers", () => {
       handleOpenKeyboardShortcuts(setShowKeybindingsEditor);
 
       expect(setShowKeybindingsEditor).toHaveBeenCalledWith(true);
-    });
-  });
-
-  describe("handleShowCommandPalette", () => {
-    it("should set command palette open override to true", () => {
-      const setIsCommandPaletteOpen = vi.fn();
-
-      handleShowCommandPalette(setIsCommandPaletteOpen);
-
-      expect(setIsCommandPaletteOpen).toHaveBeenCalledWith(true);
     });
   });
 

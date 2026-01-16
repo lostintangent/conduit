@@ -47,7 +47,6 @@ describe("useCommands", () => {
       setApplicationMode: vi.fn(),
       setShowKeybindingsEditor: vi.fn(),
       setShowPaneActionsEditor: vi.fn(),
-      setIsCommandPaletteOpen: vi.fn(),
       setShowRenameWorkspaceDialog: vi.fn(),
       setShowWorkspacePicker: vi.fn(),
       setIsUrlDialogOpen: vi.fn(),

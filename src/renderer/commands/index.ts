@@ -16,7 +16,6 @@ export {
   type KeybindingDispatchOptions,
 } from "./hooks/useKeybindingDispatch";
 export { useMenu } from "./menus/useMenu";
-export { useCommandPaletteData } from "./commandPalette/useCommandPaletteData";
 export { loadUserKeybindings } from "./keybindings/userKeybindings";
 export { watchKeybindingsFile } from "./keybindings/watchKeybindings";
 export {
@@ -36,7 +35,6 @@ export type {
 } from "./keybindings/types";
 export type { MenuId, MenuContribution, MenuItem } from "./menus/types";
 export type { MenuItemData } from "./menus/useMenu";
-export type { CommandPaletteItem } from "./commandPalette/useCommandPaletteData";
 export type { UserKeybinding } from "./keybindings/keybindingsFile";
 
 // Global instances (to be initialized in app startup)
@@ -46,6 +44,11 @@ let keybindingRegistry: KeybindingRegistry | null = null;
 let menuRegistry: MenuRegistry | null = null;
 
 export function initializeCommandSystem() {
+  // Only initialize once - subsequent calls are no-ops
+  if (commandRegistry) {
+    return;
+  }
+
   contextKeyService = new ContextKeyService();
   keybindingRegistry = new KeybindingRegistry();
   menuRegistry = new MenuRegistry();
@@ -54,6 +57,18 @@ export function initializeCommandSystem() {
     keybindingRegistry,
     menuRegistry,
   );
+}
+
+/**
+ * Reset the command system for testing purposes only.
+ * This resets all registries and allows re-initialization.
+ * @internal
+ */
+export function _resetCommandSystem(): void {
+  commandRegistry = null;
+  contextKeyService = null;
+  keybindingRegistry = null;
+  menuRegistry = null;
 }
 
 export function getCommandRegistry(): ICommandRegistry {

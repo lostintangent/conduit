@@ -46,7 +46,6 @@ export interface UseCommandSystemOptions {
   setShowPaneActionsEditor: (show: boolean) => void;
   setShowAgentsEditor: (show: boolean) => void;
   setShowAgentLauncher: (show: boolean) => void;
-  setIsCommandPaletteOpen: (open: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
   setShowWorkspacePicker: (show: boolean) => void;
   setIsUrlDialogOpen: (open: boolean) => void;
@@ -88,7 +87,6 @@ export function useCommandSystem(
     setShowPaneActionsEditor,
     setShowAgentsEditor,
     setShowAgentLauncher,
-    setIsCommandPaletteOpen,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
@@ -163,7 +161,6 @@ export function useCommandSystem(
         setShowPaneActionsEditor: () => {},
         setShowAgentsEditor: () => {},
         setShowAgentLauncher: () => {},
-        setIsCommandPaletteOpen: () => {},
         setShowRenameWorkspaceDialog: () => {},
         setShowWorkspacePicker: () => {},
         setIsUrlDialogOpen: () => {},
@@ -255,7 +252,6 @@ export function useCommandSystem(
       setShowPaneActionsEditor,
       setShowAgentsEditor,
       setShowAgentLauncher,
-      setIsCommandPaletteOpen,
       setShowRenameWorkspaceDialog,
       setShowWorkspacePicker,
       setIsUrlDialogOpen,
@@ -279,7 +275,6 @@ export function useCommandSystem(
     setShowPaneActionsEditor,
     setShowAgentsEditor,
     setShowAgentLauncher,
-    setIsCommandPaletteOpen,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
     setIsUrlDialogOpen,
@@ -335,17 +330,26 @@ export function useCommandSystem(
           "hasCwd",
           !!(activePane.type === "terminal" && activePane.cwd),
         );
+        // Active pane is never collapsed (you can't interact with collapsed panes)
+        contextKeyService.setGlobal("paneIsCollapsed", false);
+        // For command palette, assume pane can be collapsed if there are multiple panes
+        const paneCount = Object.keys(activeTab.panes || {}).length;
+        contextKeyService.setGlobal("paneCanBeCollapsed", paneCount > 1);
       } else {
         // Clear pane context keys if no active pane
         contextKeyService.setGlobal("activePaneType", "");
         contextKeyService.setGlobal("isInAgentSession", false);
         contextKeyService.setGlobal("hasCwd", false);
+        contextKeyService.setGlobal("paneIsCollapsed", false);
+        contextKeyService.setGlobal("paneCanBeCollapsed", false);
       }
     } else {
       // Clear pane context keys if no active pane
       contextKeyService.setGlobal("activePaneType", "");
       contextKeyService.setGlobal("isInAgentSession", false);
       contextKeyService.setGlobal("hasCwd", false);
+      contextKeyService.setGlobal("paneIsCollapsed", false);
+      contextKeyService.setGlobal("paneCanBeCollapsed", false);
     }
   }, [
     commandSystem,

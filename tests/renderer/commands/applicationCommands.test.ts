@@ -11,6 +11,7 @@ globalThis.window.conduit = {
 import {
   ApplicationCommands,
   registerApplicationCommands,
+  _resetCommandRegistration,
 } from "@/commands/applicationCommands";
 import type { ICommandRegistry } from "@/commands/core/CommandRegistry";
 import type { CommandContext, CommandDescriptor } from "@/commands/core/types";
@@ -29,6 +30,7 @@ describe("applicationCommands", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    _resetCommandRegistration(); // Reset idempotency flag for each test
     registeredCommands = new Map();
 
     mockRegistry = {
@@ -497,19 +499,19 @@ describe("applicationCommands", () => {
     });
 
     describe("VIEW_SHOW_COMMAND_PALETTE", () => {
-      it("should call handleShowCommandPalette handler", () => {
+      it("should open QuickOpen in command mode", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
         )!;
         const mockContext: CommandContext = {
-          setIsCommandPaletteOpen: vi.fn(),
+          setQuickOpenInitialValue: vi.fn(),
+          setIsQuickOpenOpen: vi.fn(),
         } as any;
 
         command.run(mockContext);
 
-        expect(handlers.handleShowCommandPalette).toHaveBeenCalledWith(
-          mockContext.setIsCommandPaletteOpen,
-        );
+        expect(mockContext.setQuickOpenInitialValue).toHaveBeenCalledWith(">");
+        expect(mockContext.setIsQuickOpenOpen).toHaveBeenCalledWith(true);
       });
     });
 
