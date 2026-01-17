@@ -58,6 +58,9 @@ export interface UseAutoOpenFileOptions {
 
   /** Callback to set the view mode */
   setViewMode: (mode: ViewMode) => void;
+
+  /** Callback to mark a file as seen (for unseen tracking) */
+  triggerRead?: (action: string, path: string) => void;
 }
 
 /**
@@ -78,6 +81,7 @@ export function useAutoOpenFile({
   baseBranch,
   preferDiffForModified,
   setViewMode,
+  triggerRead,
 }: UseAutoOpenFileOptions): void {
   // Track whether each step has been attempted (one-time execution)
   const autoOpenAttemptedRef = useRef(false);
@@ -140,6 +144,8 @@ export function useAutoOpenFile({
         if (!file || !relativePath || cancelled) return;
 
         setSelectedFile(file);
+        // Mark the auto-opened file as seen
+        triggerRead?.("file:select", relativePath);
 
         // Show diff view for modified files if user prefers
         const status = await git.getStatus();
@@ -170,5 +176,6 @@ export function useAutoOpenFile({
     preferDiffForModified,
     setViewMode,
     setSelectedFile,
+    triggerRead,
   ]);
 }

@@ -703,6 +703,7 @@ export function EditorPaneV2({
     baseBranch,
     preferDiffForModified,
     setViewMode,
+    triggerRead: trackUnseenChanges ? triggerRead : undefined,
   });
 
   // ---------------------------------------------------------------------------
@@ -937,6 +938,8 @@ export function EditorPaneV2({
               ? makeMapKey(relativePath, preferStaged)
               : relativePath,
           );
+          // Mark the auto-selected file as seen
+          triggerRead("file:select", relativePath);
         } else {
           // No dirty files left - clear selection
           setSelectedFile(null);
@@ -956,6 +959,7 @@ export function EditorPaneV2({
     treeViewMode,
     git,
     currentCwd,
+    triggerRead,
   ]);
 
   /**
@@ -979,9 +983,13 @@ export function EditorPaneV2({
 
     selectNextAvailableFile(git, currentCwd, {
       fallbackToCommitted: true,
-    }).then(({ file }) => {
+    }).then(({ file, relativePath }) => {
       if (cancelled) return;
       setSelectedFile(file);
+      // Mark the auto-selected file as seen
+      if (relativePath) {
+        triggerRead("file:select", relativePath);
+      }
     });
 
     return () => {
@@ -993,6 +1001,7 @@ export function EditorPaneV2({
     selectedFileModelState?.isOrphaned,
     currentCwd,
     git,
+    triggerRead,
   ]);
 
   /**
