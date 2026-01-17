@@ -10,13 +10,26 @@ if [[ -r ${ZDOTDIR:-$HOME}/.zshenv ]]; then
   . "${ZDOTDIR:-$HOME}/.zshenv"
 fi
 
+# Report current working directory via OSC 7
 __conduit_osc7() {
   printf '\e]7;file://%s%s\a' "${HOST}" "${PWD}"
 }
 
-# Register hooks to run before each prompt and on directory change
+# Report command name before execution via OSC 2 (window title)
+__conduit_preexec() {
+  printf '\e]2;%s\a' "$1"
+}
+
+# Reset title to shell name and report CWD after command completes
+__conduit_precmd() {
+  printf '\e]2;%s\a' "zsh"
+  __conduit_osc7
+}
+
+# Register shell integration hooks
 autoload -Uz add-zsh-hook
-add-zsh-hook precmd __conduit_osc7
+add-zsh-hook preexec __conduit_preexec
+add-zsh-hook precmd __conduit_precmd
 add-zsh-hook chpwd __conduit_osc7
 
 # Restore EDITOR/VISUAL after shell startup completes

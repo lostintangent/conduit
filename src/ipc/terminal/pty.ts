@@ -119,13 +119,19 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   }
 
   // Set Conduit as the default editor (if the user hasn't disabled this behavior)
-  // Shell integration scripts will set EDITOR/VISUAL from CONDUIT_EDITOR after
-  // user rc files run, ensuring Conduit overrides any EDITOR set in .zshrc, etc.
   const { useConduitAsEditor } = getCurrentUserSettings();
   if (useConduitAsEditor) {
     // Use --quick flag so $EDITOR invocations open in the quick pane (modal dialog)
     // Direct CLI usage (without --quick) will open in the sidebar editor
-    env.CONDUIT_EDITOR = `${commandName} --quick`;
+    const editor = `${commandName} --quick`;
+
+    // EDITOR/VISUAL are set directly for shells without integration scripts.
+    env.EDITOR = editor;
+    env.VISUAL = editor;
+
+    // CONDUIT_EDITOR is used by shell integration scripts to re-set EDITOR/VISUAL
+    // after user rc files run, ensuring Conduit overrides .zshrc/.bashrc settings.
+    env.CONDUIT_EDITOR = editor;
   }
 
   // Expose the IPC socket path and session ID to the terminal

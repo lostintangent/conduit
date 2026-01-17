@@ -12,7 +12,7 @@
     "publish": "electron-forge publish",
     "lint": "oxlint",
     "lint:ci": "oxlint --quiet",
-    "format": "biome format --write .",
+    "format": "biome format --write ./src",
     "rebuild": "electron-rebuild",
     "build:icon": "node build/scripts/macOS/generate-icon.js",
     "test": "vitest",
@@ -115,9 +115,9 @@
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx}": [
-      "biome format --write",
+      "biome format --write ./src",
       "oxlint"
     ],
-    "**/*.{json,css,md}": "biome format --write"
+    "**/*.{json,css,md}": "biome format --write ./src"
   }
 }

@@ -151,7 +151,7 @@ type TerminalPane = {
   id: string;
   sessionId: string; // PTY session ID
   cwd: string | null; // Working directory
-  processTitle: string; // Current process
+  title: string; // Current process
   vmId?: string; // Cloud VM ID (connection details managed by backend)
   agentSessionId?: string; // Agent context
 };

@@ -158,7 +158,7 @@ export async function openTab(
     type: "terminal",
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
-    processTitle: result.title,
+    title: result.title,
     sandboxId: result.sandboxId,
   };
 
@@ -225,7 +225,7 @@ export function openTabFromExistingSession({
     type: "terminal",
     sessionId,
     cwd: cwd ?? null,
-    processTitle: title ?? "Terminal",
+    title: title ?? "Terminal",
     sandboxId: sandboxId ?? undefined,
   };
 
@@ -248,7 +248,7 @@ export async function openTabFromExistingAgentSession(
     type: "terminal",
     sessionId: result.sessionId,
     cwd: result.cwd ?? session.worktreePath,
-    processTitle: result.title ?? session.branchName,
+    title: result.title ?? session.branchName,
     agentSessionId: session.id,
     agentBranchName: session.branchName,
     agentBaseBranch: session.baseBranch ?? undefined,
@@ -552,7 +552,7 @@ export async function duplicateTab(
         type: "terminal",
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
-        processTitle: result.title,
+        title: result.title,
         sandboxId: result.sandboxId,
         agentSessionId,
         agentBranchName,

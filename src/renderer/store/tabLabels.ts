@@ -78,13 +78,11 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
     switch (activePane?.type) {
       case "terminal": {
         label =
-          formatPathForLabel(activePane.cwd) ??
-          activePane.processTitle ??
-          "Shell";
+          formatPathForLabel(activePane.cwd) ?? activePane.title ?? "Shell";
 
         tooltip["CWD"] = activePane.cwd;
-        if (activePane.processTitle) {
-          tooltip["Command"] = activePane.processTitle;
+        if (activePane.title) {
+          tooltip["Command"] = activePane.title;
         }
 
         break;

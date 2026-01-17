@@ -41,7 +41,7 @@ export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
   AgentPaneMetadata & {
     sessionId: string;
     cwd: string | null;
-    processTitle: string;
+    title: string;
     sandboxId?: string;
   };
 

@@ -67,7 +67,7 @@ describe("workspaceHandlers", () => {
           type: "terminal",
           sessionId: `${paneId}-session`,
           cwd: null,
-          processTitle: "bash",
+          title: "bash",
         },
       },
       layout: { id: `${id}-layout`, type: "pane", paneId },

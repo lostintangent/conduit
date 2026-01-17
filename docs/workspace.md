@@ -87,7 +87,7 @@ type Pane = TerminalPane | BrowserPane | EditorPane;
 
 - Panes stored as `Record<string, Pane>` for fast access by ID
 - Layout tree references panes by `paneId`
-- Includes runtime-only fields like `sessionId` and `processTitle`
+- Includes runtime-only fields like `sessionId` and `title`
 - Terminal panes track agent session metadata
 
 **Example renderer terminal pane:**
@@ -98,7 +98,7 @@ type Pane = TerminalPane | BrowserPane | EditorPane;
   type: "terminal",
   sessionId: "sess-xyz789",      // Runtime PTY session
   cwd: "/Users/dev/project",
-  processTitle: "zsh",           // Current process name
+  title: "zsh",           // Current process name
   command: null,                 // Captured on save
   vmId: "vm-123"                 // Cloud VM ID (connection details managed by backend)
 }
@@ -405,7 +405,7 @@ type TerminalPane = {
 // Renderer (runtime)
 type TerminalPane = SharedTerminalPane & {
   sessionId: string; // PTY session reference
-  processTitle: string; // Current process name
+  title: string; // Current process name
   vmId?: string; // Cloud VM ID (connection details managed by backend)
   // Agent session metadata...
 };
@@ -450,7 +450,7 @@ Converts renderer state to workspace format for persistence:
 
 1. **Convert pane storage** - Transform `Record<string, Pane>` to `Pane[]`
 2. **Capture commands** - Query live terminal sessions for current command
-3. **Strip runtime fields** - Remove `sessionId`, `processTitle`, etc.
+3. **Strip runtime fields** - Remove `sessionId`, `title`, etc.
 
 ```typescript
 const serializedTabs = await serializeTabs(tabs);

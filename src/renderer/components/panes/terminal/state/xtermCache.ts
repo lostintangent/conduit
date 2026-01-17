@@ -222,9 +222,9 @@ export function getOrCreate(
 
     // Register onTitleChange handler for terminal title updates
     // This is triggered by OSC 0, 1, or 2 sequences from the shell
-    const onTitleChangeDisposable = terminal.onTitleChange((title) => {
-      if (title) {
-        updateTerminalSessionProperty(sessionId, { processTitle: title });
+    const onTitleChangeDisposable = terminal.onTitleChange((newTitle) => {
+      if (newTitle) {
+        updateTerminalSessionProperty(sessionId, { title: newTitle });
       }
     });
 

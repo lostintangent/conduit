@@ -675,7 +675,7 @@ export async function splitPane(
     type: "terminal",
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
-    processTitle: result.title,
+    title: result.title,
     sandboxId: result.sandboxId,
     agentSessionId,
     agentBranchName,
@@ -766,7 +766,7 @@ export async function splitTabLayoutAtRoot(
     type: "terminal",
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
-    processTitle: result.title,
+    title: result.title,
     sandboxId: result.sandboxId,
   };
 

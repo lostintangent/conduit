@@ -251,7 +251,7 @@ export function HyperTerminal({
               type: "terminal",
               sessionId: terminalId,
               cwd,
-              processTitle: "",
+              title: "",
             }}
             isActive
             fontSize={11}
