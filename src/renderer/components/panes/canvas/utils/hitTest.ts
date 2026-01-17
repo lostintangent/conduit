@@ -6,6 +6,7 @@
 import type {
   CanvasElement,
   ImageElement,
+  Rect,
   ShapeElement,
   StrokeElement,
   TextElement,
@@ -18,9 +19,31 @@ import {
   ROTATION_HANDLE_DISTANCE,
   ROTATION_HANDLE_RADIUS,
   distance,
+  transformPointToCanvas,
   transformPointToLocal,
   transformPointToVisualLocal,
 } from "./transformUtils";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/** Axis-aligned bounding box in world coordinates */
+type AABB = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+/** Check if an element is selectable (excludes eraser strokes) */
+function isSelectable(element: CanvasElement): boolean {
+  return !(element.type === "stroke" && element.isEraser);
+}
 
 // =============================================================================
 // Hit Test Functions
@@ -132,12 +155,7 @@ export function hitTestElements(
   // Check in reverse order (last element = topmost)
   for (let i = elements.length - 1; i >= 0; i--) {
     const element = elements[i];
-    // Skip eraser strokes - they should not be selectable
-    // Erasers are destructive operations, not drawable objects
-    if (element.type === "stroke" && element.isEraser) {
-      continue;
-    }
-    if (hitTestElement(point, element)) {
+    if (isSelectable(element) && hitTestElement(point, element)) {
       return element;
     }
   }
@@ -153,6 +171,74 @@ export function hitTestAllElements(
   elements: CanvasElement[],
 ): CanvasElement[] {
   return elements.filter((element) => hitTestElement(point, element));
+}
+
+/**
+ * Get the axis-aligned bounding box (AABB) of an element in world coordinates.
+ * Accounts for position, rotation, and scale transforms.
+ */
+function getElementAABB(element: CanvasElement): AABB {
+  const bounds = getElementBounds(element);
+  const { transform } = element;
+  const halfW = bounds.width / 2;
+  const halfH = bounds.height / 2;
+
+  // Local corners (before any transform)
+  const localCorners: Point[] = [
+    { x: -halfW, y: -halfH },
+    { x: halfW, y: -halfH },
+    { x: halfW, y: halfH },
+    { x: -halfW, y: halfH },
+  ];
+
+  // Transform to world space and find bounds
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const corner of localCorners) {
+    const world = transformPointToCanvas(corner, transform);
+    minX = Math.min(minX, world.x);
+    minY = Math.min(minY, world.y);
+    maxX = Math.max(maxX, world.x);
+    maxY = Math.max(maxY, world.y);
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
+/** Check if two axis-aligned bounding boxes intersect */
+function aabbIntersects(a: AABB, b: AABB): boolean {
+  return (
+    a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY
+  );
+}
+
+/** Convert a Rect to an AABB */
+function rectToAABB(rect: Rect): AABB {
+  return {
+    minX: rect.x,
+    minY: rect.y,
+    maxX: rect.x + rect.width,
+    maxY: rect.y + rect.height,
+  };
+}
+
+/**
+ * Find all elements that intersect with a selection rectangle.
+ * Uses axis-aligned bounding box (AABB) intersection for efficiency.
+ */
+export function getElementsInRect(
+  rect: Rect,
+  elements: CanvasElement[],
+): CanvasElement[] {
+  const selectionAABB = rectToAABB(rect);
+  return elements.filter(
+    (element) =>
+      isSelectable(element) &&
+      aabbIntersects(selectionAABB, getElementAABB(element)),
+  );
 }
 
 // =============================================================================

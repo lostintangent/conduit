@@ -1,5 +1,5 @@
 /**
- * QuickOpenDialog - Unified palette for files and commands
+ * CommandPalette - Unified palette for files and commands
  *
  * Architecture:
  * - Single global instance (NOT per-pane)
@@ -15,10 +15,10 @@
  * @example
  * ```tsx
  * // File mode (default)
- * <QuickOpenDialog open={isOpen} cwd={cwd} onOpenChange={setIsOpen} ... />
+ * <CommandPalette open={isOpen} cwd={cwd} onOpenChange={setIsOpen} ... />
  *
  * // Command mode (open with ">" prefix)
- * <QuickOpenDialog open={isOpen} initialValue=">" commands={commands} ... />
+ * <CommandPalette open={isOpen} initialValue=">" commands={commands} ... />
  * ```
  */
 
@@ -40,7 +40,7 @@ import { cn } from "@/utils";
 import type { Command } from "@/types";
 import type { IMatch } from "@/utils/fuzzy-matcher";
 
-export interface QuickOpenDialogProps {
+export interface CommandPaletteProps {
   /** Whether the dialog is open */
   open: boolean;
 
@@ -63,14 +63,14 @@ export interface QuickOpenDialogProps {
 /**
  * Global dialog for quick file opening via fuzzy search
  */
-export function QuickOpenDialog({
+export function CommandPalette({
   open,
   cwd,
   onOpenChange,
   onSelectFile,
   initialValue = "",
   commands = [],
-}: QuickOpenDialogProps) {
+}: CommandPaletteProps) {
   // ---------------------------------------------------------------------------
   // State
   // Note: query is initialized from initialValue prop, but the effect below
@@ -139,7 +139,7 @@ export function QuickOpenDialog({
         setFileList(files);
       })
       .catch((error) => {
-        console.error("[QuickOpenDialog] Failed to load cache:", error);
+        console.error("[CommandPalette] Failed to load cache:", error);
       })
       .finally(() => {
         setIsLoading(false);
@@ -450,7 +450,7 @@ export function QuickOpenDialog({
       <DialogContent
         className="max-w-[min(90vw,800px)] max-h-[min(70vh,600px)] p-0 flex flex-col gap-0 [&>button]:top-2.5"
         onKeyDown={handleKeyDown}
-        data-testid="quick-open-dialog"
+        data-testid="command-palette"
       >
         {/* Accessible title (hidden) */}
         <DialogTitle className="sr-only">Quick Open</DialogTitle>

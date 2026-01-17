@@ -52,6 +52,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "@vitest/coverage-v8": "^4.0.4",
     "@vitest/ui": "^4.0.4",
+    "biome": "^0.3.3",
     "cross-env": "^10.1.0",
     "electron": "^39.1.1",
     "husky": "^9.1.7",

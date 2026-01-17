@@ -5,6 +5,7 @@ import type {
   CanvasElement,
   CanvasTool,
   Point,
+  Rect,
   ShapeType,
   StrokePoint,
   Transform,
@@ -30,7 +31,11 @@ import { useCanvasState } from "./hooks/useCanvasState";
 import { useImageDrop } from "./hooks/useImageDrop";
 import { useViewport } from "./hooks/useViewport";
 import { CanvasToolbar } from "./toolbar/CanvasToolbar";
-import { getHandleAtPoint, hitTestElements } from "./utils/hitTest";
+import {
+  getElementsInRect,
+  getHandleAtPoint,
+  hitTestElements,
+} from "./utils/hitTest";
 import {
   applyStrokeStyle,
   calculateArrowHead,
@@ -239,6 +244,12 @@ export const CanvasPane = memo(function CanvasPane({
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Marquee selection state
+  const [isMarqueeSelecting, setIsMarqueeSelecting] = useState(false);
+  const marqueeStartRef = useRef<Point | null>(null);
+  const [marqueeRect, setMarqueeRect] = useState<Rect | null>(null);
+  const preMarqueeSelectionRef = useRef<string[]>([]); // For Shift+drag additive mode
 
   // Get device pixel ratio for crisp rendering on high-DPI displays
   const dpr = window.devicePixelRatio || 1;
@@ -600,6 +611,12 @@ export const CanvasPane = memo(function CanvasPane({
     resizeStartRef.current = null;
     transformBeforeRef.current = null;
     lineEndpointBeforeRef.current = null;
+
+    // Reset marquee selection state (selection is already live, just clear the visual)
+    setIsMarqueeSelecting(false);
+    setMarqueeRect(null);
+    marqueeStartRef.current = null;
+    preMarqueeSelectionRef.current = [];
   }, [
     isDrawing,
     isDragging,
@@ -987,8 +1004,17 @@ export const CanvasPane = memo(function CanvasPane({
             }
             dragElementStartPositions.current = positions;
           } else {
-            // Click on empty space - clear selection
-            clearSelection();
+            // Click on empty space - start marquee selection
+            setIsMarqueeSelecting(true);
+            marqueeStartRef.current = point;
+            setMarqueeRect({ x: point.x, y: point.y, width: 0, height: 0 });
+
+            // Store current selection for Shift+drag additive mode
+            preMarqueeSelectionRef.current = e.shiftKey ? [...selectedIds] : [];
+
+            if (!e.shiftKey) {
+              clearSelection();
+            }
           }
           break;
         }
@@ -1050,6 +1076,7 @@ export const CanvasPane = memo(function CanvasPane({
         !isDragging &&
         !isDrawing &&
         !isDrawingShape &&
+        !isMarqueeSelecting &&
         !activeHandle
       ) {
         return;
@@ -1163,6 +1190,29 @@ export const CanvasPane = memo(function CanvasPane({
         return;
       }
 
+      // Handle marquee selection - dynamically update selection as marquee changes
+      if (isMarqueeSelecting && marqueeStartRef.current) {
+        const start = marqueeStartRef.current;
+        const newRect = {
+          x: Math.min(start.x, point.x),
+          y: Math.min(start.y, point.y),
+          width: Math.abs(point.x - start.x),
+          height: Math.abs(point.y - start.y),
+        };
+        setMarqueeRect(newRect);
+
+        // Dynamically update selection based on intersection
+        const intersecting = getElementsInRect(newRect, elements);
+        const intersectingIds = intersecting.map((el) => el.id);
+
+        // Combine with pre-marquee selection (for Shift+drag additive mode)
+        const newSelection = [
+          ...new Set([...preMarqueeSelectionRef.current, ...intersectingIds]),
+        ];
+        selectElements(newSelection);
+        return;
+      }
+
       // Check if hovering over any element or handle (for cursor feedback)
       // Only runs when not actively dragging, so hover states update correctly
       if (tool === "select") {
@@ -1233,6 +1283,7 @@ export const CanvasPane = memo(function CanvasPane({
       isDragging,
       isDrawing,
       isDrawingShape,
+      isMarqueeSelecting,
       activeHandle,
       tool,
       shapeType,
@@ -1244,6 +1295,7 @@ export const CanvasPane = memo(function CanvasPane({
       updateElementPosition,
       updateCursorPreview,
       renderCanvas,
+      selectElements,
     ],
   );
 
@@ -1762,6 +1814,22 @@ export const CanvasPane = memo(function CanvasPane({
             })()}
           </svg>
         )}
+
+        {/* Marquee selection rectangle */}
+        {isMarqueeSelecting &&
+          marqueeRect &&
+          marqueeRect.width > 0 &&
+          marqueeRect.height > 0 && (
+            <div
+              className="absolute border border-accent bg-accent/10 pointer-events-none"
+              style={{
+                left: (marqueeRect.x + viewport.panX) * viewport.zoom,
+                top: (marqueeRect.y + viewport.panY) * viewport.zoom,
+                width: marqueeRect.width * viewport.zoom,
+                height: marqueeRect.height * viewport.zoom,
+              }}
+            />
+          )}
 
         {/* Text input overlay */}
         {isAddingText && textInputScreenPos && (

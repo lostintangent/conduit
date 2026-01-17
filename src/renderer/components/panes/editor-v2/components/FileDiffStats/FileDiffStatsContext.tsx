@@ -43,10 +43,7 @@ import {
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import { useGitDiffSubscription } from "@/hooks/useGitDiffSubscription";
-import type {
-  FileDiffStat,
-  SplitPerFileDiffStats,
-} from "@/api/GitV2API";
+import type { FileDiffStat, SplitPerFileDiffStats } from "@/api/GitV2API";
 
 // Re-export for convenience
 export type { FileDiffStat };

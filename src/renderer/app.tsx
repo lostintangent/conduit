@@ -25,7 +25,7 @@ import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
-import { QuickOpenDialog } from "@/components/dialogs/QuickOpenDialog";
+import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
@@ -891,7 +891,7 @@ export function App() {
       )}
 
       {isQuickOpenOpen && (
-        <QuickOpenDialog
+        <CommandPalette
           open={isQuickOpenOpen}
           cwd={activeCwd}
           onOpenChange={(open) => {

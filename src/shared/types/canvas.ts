@@ -15,6 +15,16 @@ export interface Point {
   y: number;
 }
 
+/**
+ * A rectangle with position (top-left) and size.
+ */
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 // =============================================================================
 // Transform
 // =============================================================================
