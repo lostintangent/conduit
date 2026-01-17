@@ -9,7 +9,7 @@ import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
-import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
+import { EditorPaneAnchor } from "@/components/panes/editor-v2";
 import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type {
@@ -521,15 +521,10 @@ export function TabLayout({
                 onContextMenu={onPaneContextMenu}
                 onMouseDown={onPaneActivate}
               >
-                <EditorPaneSwitcher
+                <EditorPaneAnchor
                   key={pane.id}
                   paneId={pane.id}
-                  cwd={pane.cwd}
-                  file={pane.file}
-                  sandboxId={pane.sandboxId}
-                  agentSessionId={pane.agentSessionId}
-                  treeMode={pane.treeMode}
-                  changesViewMode={pane.changesViewMode}
+                  pane={pane}
                   onFileChange={(fileData) =>
                     handleEditorUpdate(tab.id, pane.id, {
                       file: fileData.file,
@@ -567,9 +562,9 @@ export function TabLayout({
                       setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
                   }}
-                  hideIndividualSandboxIndicator={hasUnifiedSandbox}
                   isInPreview={isInPreview}
                   onClose={() => closePane(tab.id, pane.id)}
+                  className="h-full w-full"
                 />
               </div>
             ) : pane.type === "browser" ? (

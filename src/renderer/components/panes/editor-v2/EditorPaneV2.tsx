@@ -706,6 +706,37 @@ export function EditorPaneV2({
   });
 
   // ---------------------------------------------------------------------------
+  // External File Rename Handling
+  // ---------------------------------------------------------------------------
+
+  // Subscribe to file rename events from the v2 file system API.
+  // When a file is renamed externally (terminal, Finder, other editor),
+  // update selectedFile if it matches the renamed file.
+  useEffect(() => {
+    if (!fs?.onAnyFileRenamed) {
+      return;
+    }
+
+    const cleanup = fs.onAnyFileRenamed((oldPath, newPath) => {
+      // Check if the renamed file is the currently open file
+      // Use case-insensitive comparison for macOS which has a case-insensitive file system
+      if (
+        selectedFile &&
+        selectedFile.path.toLowerCase() === oldPath.toLowerCase()
+      ) {
+        const newName = newPath.split("/").pop() ?? "";
+        setSelectedFile({
+          ...selectedFile,
+          path: newPath,
+          name: newName,
+        });
+      }
+    });
+
+    return cleanup;
+  }, [fs, selectedFile]);
+
+  // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
 
@@ -794,6 +825,41 @@ export function EditorPaneV2({
       triggerRead,
       trackUnseenChanges,
     ],
+  );
+
+  /**
+   * Handle file or folder rename.
+   *
+   * Updates selectedFile if the renamed path matches the currently open file,
+   * and also updates unseen tracking if enabled.
+   */
+  const handlePathRename = useCallback(
+    (oldPath: string, newPath: string) => {
+      // Update unseen tracking if enabled
+      if (trackUnseenChanges) {
+        unseenTracking.handlePathRename(oldPath, newPath);
+      }
+
+      // The callback receives relative paths, but selectedFile.path is absolute
+      // Convert relative paths to absolute for comparison
+      const oldAbsolute = oldPath.startsWith("/")
+        ? oldPath
+        : `${currentCwd}/${oldPath}`;
+      const newAbsolute = newPath.startsWith("/")
+        ? newPath
+        : `${currentCwd}/${newPath}`;
+
+      // Update selectedFile if the renamed file is currently open
+      if (selectedFile && selectedFile.path === oldAbsolute) {
+        const newName = newAbsolute.split("/").pop() ?? "";
+        setSelectedFile({
+          ...selectedFile,
+          path: newAbsolute,
+          name: newName,
+        });
+      }
+    },
+    [selectedFile, trackUnseenChanges, unseenTracking, currentCwd],
   );
 
   /**
@@ -1644,9 +1710,7 @@ export function EditorPaneV2({
             isFileUnseen={
               trackUnseenChanges ? unseenTracking.isUnseen : undefined
             }
-            onPathRename={
-              trackUnseenChanges ? unseenTracking.handlePathRename : undefined
-            }
+            onPathRename={handlePathRename}
             triggerRead={trackUnseenChanges ? triggerRead : undefined}
             // Dirty file checking (for preventing staging unsaved files)
             isFileDirty={isFileDirty}

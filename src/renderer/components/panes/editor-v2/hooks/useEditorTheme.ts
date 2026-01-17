@@ -4,7 +4,7 @@
  * Reads the user's theme preference and returns the appropriate Monaco
  * theme name. Supports system theme detection and reacts to changes.
  *
- * @returns Monaco theme name ("light-plus" or "dark-plus")
+ * @returns Monaco theme name ("vs" or "vs-dark")
  */
 
 import { useState, useEffect } from "react";
@@ -20,7 +20,7 @@ import { resolveTheme, watchSystemTheme } from "@/utils/theme";
  * - System theme detection when mode is "system"
  * - Reactive updates when system theme changes
  *
- * @returns Monaco theme name ("light-plus" or "dark-plus")
+ * @returns Monaco theme name ("vs" or "vs-dark")
  */
 export function useEditorTheme(): string {
   const { theme: themeMode } = useAtomValue(userSettingsAtom);
@@ -43,6 +43,6 @@ export function useEditorTheme(): string {
     return cleanup;
   }, [themeMode]);
 
-  // Map resolved theme to Monaco theme name
-  return resolvedTheme === "light" ? "light-plus" : "dark-plus";
+  // Map resolved theme to Monaco built-in theme name
+  return resolvedTheme === "light" ? "vs" : "vs-dark";
 }

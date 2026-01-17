@@ -34,6 +34,10 @@ import * as monaco from "monaco-editor";
 import type { EditorMetadata } from "../types";
 import { EventEmitter } from "@shared/EventEmitter";
 import { ViewStateRegistry } from "./ViewStateRegistry";
+import { configureMonaco } from "../utils";
+
+// Configure Monaco global settings (runs once)
+configureMonaco();
 
 /**
  * Internal editor entry for tracking.
