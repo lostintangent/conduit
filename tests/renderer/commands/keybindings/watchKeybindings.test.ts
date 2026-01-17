@@ -4,104 +4,128 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
 
-// Helper to create a minimal mock of window.conduit
+// Helper to create a minimal mock of window.conduit with fsv2
 function createMockConduit(
-  overrides: Partial<typeof window.conduit> = {},
+  overrides: {
+    fsv2?: {
+      subscribe?: ReturnType<typeof vi.fn>;
+      unsubscribe?: ReturnType<typeof vi.fn>;
+      onFileContentChanged?: ReturnType<typeof vi.fn>;
+    };
+  } = {},
 ): typeof window.conduit {
   return {
     platform: "darwin",
-    createTerminal: vi.fn(),
-    closeTerminal: vi.fn(),
-    sendKeypress: vi.fn(),
-    resize: vi.fn(),
-    markTerminalReady: vi.fn(),
-    onData: vi.fn(),
-    onTitle: vi.fn(),
-    onCwd: vi.fn(),
-    onExit: vi.fn(),
-    onNewTabRequest: vi.fn(),
-    onOpenWorkspaceRequest: vi.fn(),
-    onContextMenuAction: vi.fn(),
-    onBeforeClose: vi.fn(),
-    onTabPositionChange: vi.fn(),
-    onAlwaysShowTabsChange: vi.fn(),
-    onShowTerminalRulerChange: vi.fn(),
-    getSettings: vi.fn(),
-    updateSettings: vi.fn(),
-    showContextMenu: vi.fn(),
-    addCommandHistoryEntry: vi.fn(),
-    removeCommandHistoryEntry: vi.fn(),
-    addUrlToHistory: vi.fn(),
-    addStarredPage: vi.fn(),
-    removeStarredPage: vi.fn(),
-    runBackgroundCommand: vi.fn(),
-    openExternal: vi.fn(),
-    hasSessions: vi.fn(),
-    loadSessions: vi.fn(),
-    saveSession: vi.fn(),
-    deleteSession: vi.fn(),
-    renameWorkspace: vi.fn(),
-    hasLastWorkspace: vi.fn(),
-    loadLastWorkspace: vi.fn(),
-    saveLastWorkspace: vi.fn(),
-    spawnAgentSession: vi.fn(),
-    listAgentSessions: vi.fn(),
-    hasGitRepository: vi.fn(),
-    finalizeAgentSession: vi.fn(),
-    cleanupAgentSession: vi.fn(),
-    listDirectory: vi.fn(),
-    readFile: vi.fn(),
-    writeFile: vi.fn(),
-    watchFile: vi.fn(),
-    ...overrides,
-  } as typeof window.conduit;
+    fsv2: {
+      subscribe:
+        overrides.fsv2?.subscribe ?? vi.fn().mockResolvedValue("sub-1"),
+      unsubscribe: overrides.fsv2?.unsubscribe ?? vi.fn(),
+      onFileContentChanged:
+        overrides.fsv2?.onFileContentChanged ?? vi.fn(() => () => {}),
+      readDirectory: vi.fn(),
+      readFile: vi.fn(),
+      readTextFile: vi.fn(),
+      writeFile: vi.fn(),
+      stat: vi.fn(),
+      exists: vi.fn(),
+      delete: vi.fn(),
+      rename: vi.fn(),
+      createDirectory: vi.fn(),
+      onDirectoryListingChanged: vi.fn(),
+      onFileDeleted: vi.fn(),
+      onFileRenamed: vi.fn(),
+      warmFileCache: vi.fn(),
+      getPreWarmedCache: vi.fn(),
+      clearFileCache: vi.fn(),
+    },
+  } as unknown as typeof window.conduit;
 }
 
 describe("watchKeybindingsFile", () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let originalConduit: typeof window.conduit;
 
   beforeEach(() => {
     consoleLogSpy = vi
       .spyOn(console, "log")
       .mockImplementation(() => {}) as any;
+    consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => {}) as any;
+    consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {}) as any;
     originalConduit = window.conduit;
   });
 
   afterEach(() => {
     consoleLogSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
     window.conduit = originalConduit;
   });
 
-  it("should set up file watcher", () => {
-    const mockDispose = vi.fn();
-    const mockWatchFile = vi.fn().mockReturnValue({ dispose: mockDispose });
+  it("should set up file watcher using fsv2 subscription", async () => {
+    const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
+    const mockOnFileContentChanged = vi.fn(() => () => {});
 
-    window.conduit = createMockConduit({ watchFile: mockWatchFile });
-
-    const callback = vi.fn();
-    watchKeybindingsFile("/path/to/keybindings.json", callback);
-
-    expect(mockWatchFile).toHaveBeenCalledWith(
-      "/path/to/keybindings.json",
-      expect.any(Function),
-    );
-  });
-
-  it("should call callback when file changes", () => {
-    let watchCallback: (() => void) | undefined;
-    const mockWatchFile = vi.fn().mockImplementation((path, cb) => {
-      watchCallback = cb;
-      return { dispose: vi.fn() };
+    window.conduit = createMockConduit({
+      fsv2: {
+        subscribe: mockSubscribe,
+        onFileContentChanged: mockOnFileContentChanged,
+      },
     });
 
-    window.conduit = createMockConduit({ watchFile: mockWatchFile });
+    const callback = vi.fn();
+    watchKeybindingsFile("/path/to/keybindings.json", callback);
+
+    // Wait for async subscription
+    await vi.waitFor(() => {
+      expect(mockSubscribe).toHaveBeenCalledWith(
+        "/path/to",
+        "file",
+        "/path/to/keybindings.json",
+      );
+    });
+  });
+
+  it("should call callback when file changes", async () => {
+    let fileChangedListener:
+      | ((payload: { subscriptionId: string; path: string }) => void)
+      | null = null;
+
+    const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
+    const mockOnFileContentChanged = vi.fn(
+      (
+        callback: (payload: { subscriptionId: string; path: string }) => void,
+      ) => {
+        fileChangedListener = callback;
+        return () => {};
+      },
+    );
+
+    window.conduit = createMockConduit({
+      fsv2: {
+        subscribe: mockSubscribe,
+        onFileContentChanged: mockOnFileContentChanged,
+      },
+    });
 
     const callback = vi.fn();
     watchKeybindingsFile("/path/to/keybindings.json", callback);
 
+    // Wait for async subscription
+    await vi.waitFor(() => {
+      expect(fileChangedListener).not.toBeNull();
+    });
+
     // Simulate file change
-    watchCallback?.();
+    fileChangedListener?.({
+      subscriptionId: "sub-1",
+      path: "/path/to/keybindings.json",
+    });
 
     expect(callback).toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -109,17 +133,28 @@ describe("watchKeybindingsFile", () => {
     );
   });
 
-  it("should return cleanup function", () => {
-    const mockDispose = vi.fn();
-    const mockWatchFile = vi.fn().mockReturnValue({ dispose: mockDispose });
+  it("should return cleanup function that unsubscribes", async () => {
+    const mockUnsubscribe = vi.fn();
+    const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
 
-    window.conduit = createMockConduit({ watchFile: mockWatchFile });
+    window.conduit = createMockConduit({
+      fsv2: {
+        subscribe: mockSubscribe,
+        unsubscribe: mockUnsubscribe,
+      },
+    });
 
     const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
+    // Wait for subscription
+    await vi.waitFor(() => {
+      expect(mockSubscribe).toHaveBeenCalled();
+    });
+
+    // Cleanup should unsubscribe
     cleanup();
 
-    expect(mockDispose).toHaveBeenCalled();
+    expect(mockUnsubscribe).toHaveBeenCalledWith("sub-1");
   });
 
   it("should handle undefined window.conduit", () => {
@@ -129,46 +164,97 @@ describe("watchKeybindingsFile", () => {
 
     // Should not throw
     expect(cleanup).toBeDefined();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "window.conduit.fsv2.subscribe is not available",
+    );
     cleanup(); // Should not throw
   });
 
-  it("should handle undefined watchFile", () => {
-    window.conduit = createMockConduit({ watchFile: undefined as any });
+  it("should handle undefined fsv2.subscribe", () => {
+    window.conduit = {
+      fsv2: {},
+    } as unknown as typeof window.conduit;
 
     const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
     // Should not throw
     expect(cleanup).toBeDefined();
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "window.conduit.fsv2.subscribe is not available",
+    );
     cleanup(); // Should not throw
   });
 
-  it("should handle watchFile returning undefined", () => {
-    const mockWatchFile = vi.fn().mockReturnValue(undefined);
+  it("should handle subscription error", async () => {
+    const mockSubscribe = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    window.conduit = createMockConduit({ watchFile: mockWatchFile });
-
-    const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
-
-    // Should not throw
-    expect(cleanup).toBeDefined();
-    cleanup(); // Should not throw
-  });
-
-  it("should log on file change", () => {
-    let watchCallback: (() => void) | undefined;
-    const mockWatchFile = vi.fn().mockImplementation((path, cb) => {
-      watchCallback = cb;
-      return { dispose: vi.fn() };
+    window.conduit = createMockConduit({
+      fsv2: {
+        subscribe: mockSubscribe,
+      },
     });
 
-    window.conduit = createMockConduit({ watchFile: mockWatchFile });
+    const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
-    watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
+    // Wait for error to be logged
+    await vi.waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to watch keybindings file:",
+        expect.any(Error),
+      );
+    });
 
-    watchCallback?.();
+    // Should not throw
+    expect(cleanup).toBeDefined();
+    cleanup(); // Should not throw
+  });
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      "Keybindings file changed, reloading...",
+  it("should only trigger callback for matching subscriptionId", async () => {
+    let fileChangedListener:
+      | ((payload: { subscriptionId: string; path: string }) => void)
+      | null = null;
+
+    const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
+    const mockOnFileContentChanged = vi.fn(
+      (
+        callback: (payload: { subscriptionId: string; path: string }) => void,
+      ) => {
+        fileChangedListener = callback;
+        return () => {};
+      },
     );
+
+    window.conduit = createMockConduit({
+      fsv2: {
+        subscribe: mockSubscribe,
+        onFileContentChanged: mockOnFileContentChanged,
+      },
+    });
+
+    const callback = vi.fn();
+    watchKeybindingsFile("/path/to/keybindings.json", callback);
+
+    // Wait for async subscription
+    await vi.waitFor(() => {
+      expect(fileChangedListener).not.toBeNull();
+    });
+
+    // Simulate file change with different subscription ID
+    fileChangedListener?.({
+      subscriptionId: "different-sub",
+      path: "/path/to/keybindings.json",
+    });
+
+    // Should NOT trigger callback
+    expect(callback).not.toHaveBeenCalled();
+
+    // Now trigger with correct subscription ID
+    fileChangedListener?.({
+      subscriptionId: "sub-1",
+      path: "/path/to/keybindings.json",
+    });
+
+    // Should trigger callback
+    expect(callback).toHaveBeenCalled();
   });
 });

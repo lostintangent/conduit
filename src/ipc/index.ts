@@ -5,8 +5,6 @@ import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { initialize as initializeDotfiles } from "./dotfiles";
-import { initializeFsHandlers } from "./fs";
-import { initializeFileWatcherHandlers } from "./fs/watcher";
 import {
   cleanupFileSystemV2Handlers,
   handleWindowClose as handleFsWindowClose,
@@ -62,14 +60,12 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeTerminalHandlers(sendToRenderer);
 
   initializeUIHandlers(window);
-  initializeFsHandlers();
   await initializeAgentHandlers();
-  initializeFileWatcherHandlers();
   initializeVMHandlers();
   initializeBrowserHandlers();
   registerSearchHandlers();
 
-  // Initialize v2 filesystem and git handlers
+  // Initialize filesystem and git handlers (v2)
   initializeFileSystemV2Handlers();
   initializeGitV2Handlers();
 

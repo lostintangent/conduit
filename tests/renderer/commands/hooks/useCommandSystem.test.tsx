@@ -483,11 +483,20 @@ describe("useCommandSystem", () => {
 
   describe("file watching", () => {
     it("should not watch keybindings file when homeDirectory is not provided", async () => {
-      const mockWatchFile = vi.fn(() => ({ dispose: vi.fn() }));
+      const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const originalConduit = window.conduit;
 
-      // Mock window.conduit.watchFile
-      window.conduit = { ...window.conduit, watchFile: mockWatchFile };
+      // Mock window.conduit.fsv2.subscribe
+      window.conduit = {
+        ...window.conduit,
+        fsv2: {
+          ...window.conduit?.fsv2,
+          subscribe: mockSubscribe,
+          unsubscribe: vi.fn(),
+          onFileContentChanged: vi.fn(() => () => {}),
+          readTextFile: vi.fn().mockResolvedValue("[]"),
+        },
+      } as unknown as typeof window.conduit;
 
       renderHook(
         () =>
@@ -508,19 +517,28 @@ describe("useCommandSystem", () => {
         // Give time for effects to run
       });
 
-      expect(mockWatchFile).not.toHaveBeenCalled();
+      expect(mockSubscribe).not.toHaveBeenCalled();
 
       // Restore
       window.conduit = originalConduit;
     });
 
     it("should watch keybindings file when homeDirectory is provided", async () => {
-      const mockDispose = vi.fn();
-      const mockWatchFile = vi.fn(() => ({ dispose: mockDispose }));
+      const mockUnsubscribe = vi.fn();
+      const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const originalConduit = window.conduit;
 
-      // Mock window.conduit.watchFile
-      window.conduit = { ...window.conduit, watchFile: mockWatchFile };
+      // Mock window.conduit.fsv2
+      window.conduit = {
+        ...window.conduit,
+        fsv2: {
+          ...window.conduit?.fsv2,
+          subscribe: mockSubscribe,
+          unsubscribe: mockUnsubscribe,
+          onFileContentChanged: vi.fn(() => () => {}),
+          readTextFile: vi.fn().mockResolvedValue("[]"),
+        },
+      } as unknown as typeof window.conduit;
 
       const { unmount } = renderHook(
         () =>
@@ -538,36 +556,51 @@ describe("useCommandSystem", () => {
       );
 
       await waitFor(() => {
-        expect(mockWatchFile).toHaveBeenCalledWith(
+        expect(mockSubscribe).toHaveBeenCalledWith(
+          "/test/home/.conduit",
+          "file",
           "/test/home/.conduit/keybindings.json",
-          expect.any(Function),
         );
       });
 
-      // Cleanup should dispose watcher
+      // Cleanup should unsubscribe
       unmount();
-      expect(mockDispose).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(mockUnsubscribe).toHaveBeenCalledWith("sub-1");
+      });
 
       // Restore
       window.conduit = originalConduit;
     });
 
     it("should handle file changes and reload keybindings", async () => {
-      let changeCallback: (() => void) | null = null;
-      const mockDispose = vi.fn();
-      const mockWatchFile = vi.fn((path: string, callback: () => void) => {
-        changeCallback = callback;
-        return { dispose: mockDispose };
-      });
+      let fileChangedListener:
+        | ((payload: { subscriptionId: string; path: string }) => void)
+        | null = null;
+      const mockUnsubscribe = vi.fn();
+      const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
+      const mockOnFileContentChanged = vi.fn(
+        (
+          callback: (payload: { subscriptionId: string; path: string }) => void,
+        ) => {
+          fileChangedListener = callback;
+          return () => {};
+        },
+      );
       const originalConduit = window.conduit;
-      const mockReadFile = vi.fn().mockResolvedValue("[]");
+      const mockReadTextFile = vi.fn().mockResolvedValue("[]");
 
-      // Mock window.conduit
+      // Mock window.conduit.fsv2
       window.conduit = {
         ...window.conduit,
-        watchFile: mockWatchFile,
-        readFile: mockReadFile,
-      };
+        fsv2: {
+          ...window.conduit?.fsv2,
+          subscribe: mockSubscribe,
+          unsubscribe: mockUnsubscribe,
+          onFileContentChanged: mockOnFileContentChanged,
+          readTextFile: mockReadTextFile,
+        },
+      } as unknown as typeof window.conduit;
 
       const { result } = renderHook(
         () =>
@@ -588,15 +621,23 @@ describe("useCommandSystem", () => {
         expect(result.current).not.toBeNull();
       });
 
+      // Wait for subscription to be set up
+      await waitFor(() => {
+        expect(fileChangedListener).not.toBeNull();
+      });
+
       // Trigger file change
-      expect(changeCallback).not.toBeNull();
-      if (changeCallback) {
-        await changeCallback();
+      if (fileChangedListener) {
+        fileChangedListener({
+          subscriptionId: "sub-1",
+          path: "/test/home/.conduit/keybindings.json",
+        });
       }
 
       // Should have attempted to read the file
       await waitFor(() => {
-        expect(mockReadFile).toHaveBeenCalledWith(
+        expect(mockReadTextFile).toHaveBeenCalledWith(
+          "/test/home/.conduit",
           "/test/home/.conduit/keybindings.json",
         );
       });

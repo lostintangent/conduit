@@ -696,7 +696,7 @@ export function App() {
 
       // Validate that the directory exists
       try {
-        await api.listDirectory(trimmedCwd);
+        await api.fsv2.readDirectory(trimmedCwd, trimmedCwd);
       } catch (error) {
         enqueueNotification({
           kind: "error",
