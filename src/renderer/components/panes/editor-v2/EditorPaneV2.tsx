@@ -1196,7 +1196,6 @@ export function EditorPaneV2({
       if (baseBranch !== null) {
         setBaseBranch(null);
       }
-      console.log(`[EditorPaneV2] Branch switched to: ${newBranch}`);
     },
     [baseBranch],
   );

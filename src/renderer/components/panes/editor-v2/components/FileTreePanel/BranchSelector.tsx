@@ -73,9 +73,10 @@ export function BranchSelector({
   const listRef = useRef<HTMLDivElement>(null);
 
   // Fetch branches when dialog opens
+  // Include remote branches for comparison (like GitHub PR view)
   const { branches, isLoading, error } = useBranches(git, {
     enabled: open,
-    includeRemote: false,
+    includeRemote: true,
     currentBranchFirst: false, // We'll handle sorting ourselves
   });
 
@@ -284,6 +285,11 @@ export function BranchSelector({
                             <span className="font-medium text-sm truncate">
                               {branch.name}
                             </span>
+                            {branch.isRemote && (
+                              <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded flex-shrink-0">
+                                remote
+                              </span>
+                            )}
                             {branch.isCurrent && (
                               <span className="text-xs px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded flex-shrink-0">
                                 current

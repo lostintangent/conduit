@@ -26,18 +26,25 @@ describe("fileOperations", () => {
     await mkdir(testDir, { recursive: true });
     testFilePath = join(testDir, "paneactions.json");
 
-    // Mock window.conduit API
+    // Mock window.conduit API with v2 file system API
     (global as any).window = {
       conduit: {
-        readFile: async (path: string) => {
-          return await readFile(path, "utf-8");
-        },
-        writeFile: async (path: string, content: string) => {
-          // Ensure parent directory exists
-          const { dirname } = await import("path");
-          const parentDir = dirname(path);
-          await mkdir(parentDir, { recursive: true });
-          await writeFile(path, content, "utf-8");
+        fsv2: {
+          readTextFile: async (_cwd: string, path: string) => {
+            return await readFile(path, "utf-8");
+          },
+          writeFile: async (
+            _cwd: string,
+            path: string,
+            contentBytes: Uint8Array,
+          ) => {
+            // Ensure parent directory exists
+            const { dirname } = await import("path");
+            const parentDir = dirname(path);
+            await mkdir(parentDir, { recursive: true });
+            const content = new TextDecoder().decode(contentBytes);
+            await writeFile(path, content, "utf-8");
+          },
         },
       },
     };
@@ -52,9 +59,8 @@ describe("fileOperations", () => {
 
   describe("getUserPaneActionsPath", () => {
     it("should return path to ~/.conduit/paneactions.json", () => {
-      const path = getUserPaneActionsPath();
-      expect(path).toContain(".conduit");
-      expect(path).toContain("paneactions.json");
+      const path = getUserPaneActionsPath("/home/testuser");
+      expect(path).toBe("/home/testuser/.conduit/paneactions.json");
     });
   });
 

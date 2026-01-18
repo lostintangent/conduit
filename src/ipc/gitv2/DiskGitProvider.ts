@@ -494,11 +494,12 @@ export class DiskGitProvider implements GitProvider {
   /**
    * Get git status relative to a base branch.
    *
-   * Returns files that have been added, modified, or deleted
-   * in the current branch compared to the base branch, WITH their proper
-   * status (added, modified, deleted, renamed).
+   * Compares the base branch tip directly to the working directory.
+   * This shows ALL files that differ between the base branch and your
+   * current working state (both committed and uncommitted changes).
    *
-   * Also overlays working tree changes (uncommitted modifications).
+   * For example, comparing to "main" shows what a PR would contain:
+   * all differences between the tip of main and your working directory.
    */
   async getStatusFromBranch(
     baseBranch: string,
@@ -506,15 +507,9 @@ export class DiskGitProvider implements GitProvider {
     const statusMap = new Map<string, GitFileStatus>();
 
     try {
-      // Get the merge base between current HEAD and base branch
-      const mergeBase = await this.git.raw(["merge-base", "HEAD", baseBranch]);
-
-      // Get files changed since the merge base with status codes
-      const result = await this.git.diff([
-        "--name-status",
-        mergeBase.trim(),
-        "HEAD",
-      ]);
+      // Compare base branch directly to working directory
+      // This shows all files that differ, regardless of commit history
+      const result = await this.git.diff(["--name-status", baseBranch]);
 
       const lines = result.split("\n");
       for (const line of lines) {
@@ -547,18 +542,9 @@ export class DiskGitProvider implements GitProvider {
 
         statusMap.set(filePath, {
           status,
-          staged: true, // Changes in commits are considered "staged"
+          staged: false, // These are differences vs the branch, not staged
           path: filePath,
         });
-      }
-
-      // Overlay working tree changes (uncommitted)
-      const workingTreeStatus = await this.getStatus();
-      if (workingTreeStatus?.files) {
-        for (const [relativePath, status] of workingTreeStatus.files) {
-          // Working tree changes override committed changes
-          statusMap.set(relativePath, status);
-        }
       }
     } catch (error) {
       console.error(
