@@ -251,10 +251,18 @@ export class DiskGitProvider implements GitProvider {
 
     // Subscribe to all watcher events - any change triggers status refresh
     this.watcherSubscriptions.push(
-      this.watcher.onCreated(() => this.scheduleStatusRefresh()),
-      this.watcher.onModified(() => this.scheduleStatusRefresh()),
-      this.watcher.onDeleted(() => this.scheduleStatusRefresh()),
-      this.watcher.onRenamed(() => this.scheduleStatusRefresh()),
+      this.watcher.onCreated(() => {
+        this.scheduleStatusRefresh();
+      }),
+      this.watcher.onModified(() => {
+        this.scheduleStatusRefresh();
+      }),
+      this.watcher.onDeleted(() => {
+        this.scheduleStatusRefresh();
+      }),
+      this.watcher.onRenamed(() => {
+        this.scheduleStatusRefresh();
+      }),
     );
 
     // Start watching
@@ -1963,11 +1971,14 @@ export class DiskGitProvider implements GitProvider {
    * Schedule a status refresh with debouncing.
    */
   private scheduleStatusRefresh(): void {
-    if (this.disposed || this.activeOperations > 0) {
+    if (this.disposed) {
+      return;
+    }
+    if (this.activeOperations > 0) {
       return;
     }
 
-    // Clear existing timer
+    // Clear existing timer (debounce)
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
     }
@@ -2001,17 +2012,21 @@ export class DiskGitProvider implements GitProvider {
 
         // Fire if files changed OR if ahead/behind counts changed (push/pull/fetch)
         // OR if HEAD changed (new commits from pull/fetch even when already up-to-date)
+        // OR if upstream changed (new branch published)
         const aheadBehindChanged =
           this.lastStatus.ahead !== currentStatus.ahead ||
           this.lastStatus.behind !== currentStatus.behind;
         const headChanged = this.lastHead !== currentHead;
+        const upstreamChanged =
+          this.lastStatus.upstream !== currentStatus.upstream;
 
         if (
           delta.added.length > 0 ||
           delta.modified.length > 0 ||
           delta.removed.length > 0 ||
           aheadBehindChanged ||
-          headChanged
+          headChanged ||
+          upstreamChanged
         ) {
           this._onStatusChanged.fire({
             status: currentStatus,
