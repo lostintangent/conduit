@@ -317,17 +317,19 @@ async function setupFileTest() {
 
   await mkdir(testDir, { recursive: true });
 
-  // Mock window.conduit API
+  // Mock window.conduit.fsv2 API (matches fileOperations.ts expectations)
   (global as any).window = {
     conduit: {
-      readFile: async (path: string) => {
-        return await readFile(path, "utf-8");
-      },
-      writeFile: async (path: string, content: string) => {
-        // Ensure parent directory exists
-        const parentDir = dirname(path);
-        await mkdir(parentDir, { recursive: true });
-        await writeFile(path, content, "utf-8");
+      fsv2: {
+        readTextFile: async (_cwd: string, path: string) => {
+          return await readFile(path, "utf-8");
+        },
+        writeFile: async (_cwd: string, path: string, content: Uint8Array) => {
+          // Ensure parent directory exists
+          const parentDir = dirname(path);
+          await mkdir(parentDir, { recursive: true });
+          await writeFile(path, content);
+        },
       },
     },
   };
