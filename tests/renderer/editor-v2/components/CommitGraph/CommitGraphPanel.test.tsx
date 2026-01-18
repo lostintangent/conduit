@@ -93,6 +93,7 @@ function createMockGitApi(): GitV2API {
     }),
     onStatusChanged: vi.fn().mockReturnValue(() => {}),
     onHeadChanged: vi.fn().mockReturnValue(() => {}),
+    onBranchChanged: vi.fn().mockReturnValue(() => {}),
     cwd: "/test/cwd",
   } as unknown as GitV2API;
 }
@@ -262,7 +263,7 @@ describe("CommitGraphPanel", () => {
   });
 
   describe("auto-refresh", () => {
-    it("should subscribe to onHeadChanged for commit/pull/branch switch detection", async () => {
+    it("should subscribe to onHeadChanged for commit/pull detection", async () => {
       const git = createMockGitApi();
 
       await act(async () => {
@@ -272,7 +273,17 @@ describe("CommitGraphPanel", () => {
       expect(git.onHeadChanged).toHaveBeenCalled();
     });
 
-    it("should subscribe to onStatusChanged for push detection", async () => {
+    it("should subscribe to onBranchChanged for branch switch detection", async () => {
+      const git = createMockGitApi();
+
+      await act(async () => {
+        renderWithProvider(<CommitGraphPanel git={git} />);
+      });
+
+      expect(git.onBranchChanged).toHaveBeenCalled();
+    });
+
+    it("should subscribe to onStatusChanged for push/upstream detection", async () => {
       const git = createMockGitApi();
 
       await act(async () => {
@@ -282,12 +293,16 @@ describe("CommitGraphPanel", () => {
       expect(git.onStatusChanged).toHaveBeenCalled();
     });
 
-    it("should cleanup subscriptions on unmount", async () => {
+    it("should cleanup all subscriptions on unmount", async () => {
       const git = createMockGitApi();
       const headCleanup = vi.fn();
+      const branchCleanup = vi.fn();
       const statusCleanup = vi.fn();
       (git.onHeadChanged as ReturnType<typeof vi.fn>).mockReturnValue(
         headCleanup,
+      );
+      (git.onBranchChanged as ReturnType<typeof vi.fn>).mockReturnValue(
+        branchCleanup,
       );
       (git.onStatusChanged as ReturnType<typeof vi.fn>).mockReturnValue(
         statusCleanup,
@@ -300,6 +315,7 @@ describe("CommitGraphPanel", () => {
       unmount();
 
       expect(headCleanup).toHaveBeenCalled();
+      expect(branchCleanup).toHaveBeenCalled();
       expect(statusCleanup).toHaveBeenCalled();
     });
   });

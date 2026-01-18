@@ -35,7 +35,16 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
+import { randomUUID } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { getSandboxClient } from "../vm/store";
+import {
+  warmFileCache,
+  getPreWarmedCache,
+  clearFileCache,
+} from "./fileCacheWarmer";
 import { FileSystemProviderService } from "./FileSystemProviderService";
 import { pathEquals, pathStartsWith } from "./pathUtils";
 import { VMFileSystemProvider } from "./VMFileSystemProvider";
@@ -637,6 +646,66 @@ export function initializeFileSystemV2Handlers(): void {
       }
     },
   );
+
+  // -------------------------------------------------------------------------
+  // Temporary File Handler
+  // -------------------------------------------------------------------------
+
+  /**
+   * Write content to a temporary file.
+   * Used for features like canvas capture that need to write temporary files.
+   */
+  ipcMain.handle(
+    "fs:write-temp-file",
+    async (
+      _,
+      { content, extension }: { content: Uint8Array; extension?: string },
+    ) => {
+      try {
+        const ext = extension ? `.${extension}` : "";
+        const filePath = path.join(tmpdir(), `conduit-${randomUUID()}${ext}`);
+        await fs.writeFile(filePath, content);
+        return filePath;
+      } catch (error) {
+        console.error("[FS-V2] Failed to write temp file:", error);
+        throw error;
+      }
+    },
+  );
+
+  // -------------------------------------------------------------------------
+  // Quick Open Cache Handlers
+  //
+  // These handlers support the Quick Open feature by pre-warming a file
+  // cache in the background using ripgrep for fast scanning.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Start warming the file cache for a workspace.
+   * Uses ripgrep for ultra-fast file scanning.
+   */
+  ipcMain.handle("fs:warm-file-cache", async (_, workspaceRoot: string) => {
+    await warmFileCache(workspaceRoot);
+  });
+
+  /**
+   * Get the pre-warmed cache if available and valid.
+   * Returns cached file list with validity status.
+   */
+  ipcMain.handle(
+    "fs:get-pre-warmed-cache",
+    async (_, workspaceRoot: string) => {
+      return getPreWarmedCache(workspaceRoot);
+    },
+  );
+
+  /**
+   * Clear the file cache for a workspace.
+   * Optionally clears all caches if workspaceRoot is not provided.
+   */
+  ipcMain.handle("fs:clear-file-cache", async (_, workspaceRoot?: string) => {
+    clearFileCache(workspaceRoot);
+  });
 }
 
 /**

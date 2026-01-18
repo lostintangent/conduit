@@ -9,21 +9,6 @@ import type {
 import { atom } from "jotai";
 import { atomWithImmer } from "jotai-immer";
 
-/**
- * Check if Editor v2 should be enabled via environment variable.
- * Usage: VITE_USE_EDITOR_V2=true npm start
- *
- * Note: This is the initial value for the atom. The main process settings.ts
- * also checks this env var and will override saved settings when the env var is set.
- * This ensures developers can easily switch between v1 and v2 for testing.
- */
-const shouldUseEditorV2 = (): boolean => {
-  const envValue = import.meta.env.VITE_USE_EDITOR_V2;
-  if (envValue === "true" || envValue === "1") return true;
-  if (envValue === "false" || envValue === "0") return false;
-  return false; // Default to v1
-};
-
 export const userSettingsAtom = atom<UserSettings>({
   // UI/Layout settings
   tabPosition: "bottom",
@@ -39,7 +24,6 @@ export const userSettingsAtom = atom<UserSettings>({
 
   // Editor settings
   useConduitAsEditor: true,
-  useEditorV2: shouldUseEditorV2(), // Controlled by VITE_USE_EDITOR_V2 env var
   trackUnseenChangesInReviewMode: true,
 
   // Workspace settings

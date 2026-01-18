@@ -1,4 +1,4 @@
-import { FileSystemProviderService } from "../fsv2/FileSystemProviderService";
+import { FileSystemProviderService } from "./FileSystemProviderService";
 import {
   scanDirectoryWithRipgrep,
   type RipgrepScanResult,

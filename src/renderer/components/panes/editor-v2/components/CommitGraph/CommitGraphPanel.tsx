@@ -142,15 +142,17 @@ function CommitGraphPanelComponent({
   // Effects
   // ---------------------------------------------------------------------------
 
-  // Track ahead/behind for push detection
-  const lastAheadBehindRef = useRef<{ ahead: number; behind: number } | null>(
-    null,
-  );
+  // Track ahead/behind/upstream for push detection
+  const lastStatusRef = useRef<{
+    ahead: number;
+    behind: number;
+    upstream: string | undefined;
+  } | null>(null);
 
   /**
    * Auto-refresh commit list when HEAD changes.
    *
-   * This catches commits, pulls, and branch switches.
+   * This catches commits, pulls, and fetches that change HEAD.
    */
   useEffect(() => {
     const cleanup = git.onHeadChanged(() => {
@@ -161,23 +163,41 @@ function CommitGraphPanelComponent({
   }, [git, refresh]);
 
   /**
-   * Also refresh when ahead/behind changes (catches push).
+   * Auto-refresh commit list when branch changes.
+   *
+   * This catches branch switches where HEAD commit stays the same
+   * (e.g., switching to a branch that points to the same commit).
+   * The graph needs to refresh to show the correct current branch indicator.
+   */
+  useEffect(() => {
+    const cleanup = git.onBranchChanged(() => {
+      refresh();
+    });
+
+    return cleanup;
+  }, [git, refresh]);
+
+  /**
+   * Also refresh when ahead/behind/upstream changes (catches push).
    *
    * Push doesn't change HEAD, but it does change the ahead count.
-   * We track ahead/behind to avoid refreshing on file edits.
+   * New branch publish changes the upstream from undefined to the remote branch.
+   * We track these values to avoid refreshing on file edits.
    */
   useEffect(() => {
     const cleanup = git.onStatusChanged((event) => {
-      const { ahead, behind } = event.status;
-      const last = lastAheadBehindRef.current;
+      const { ahead, behind, upstream } = event.status;
+      const last = lastStatusRef.current;
 
-      // Update tracked values
-      const changed =
+      // Check what changed
+      const aheadBehindChanged =
         last !== null && (last.ahead !== ahead || last.behind !== behind);
-      lastAheadBehindRef.current = { ahead, behind };
+      const upstreamChanged = last !== null && last.upstream !== upstream;
 
-      // Only refresh if ahead/behind actually changed
-      if (changed) {
+      lastStatusRef.current = { ahead, behind, upstream };
+
+      // Refresh if ahead/behind changed (push/pull) or upstream changed (new branch publish)
+      if (aheadBehindChanged || upstreamChanged) {
         refresh();
       }
     });

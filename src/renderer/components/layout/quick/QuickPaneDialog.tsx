@@ -1,6 +1,6 @@
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
-import { EditorPaneSwitcher } from "@/components/panes/editor/EditorPaneSwitcher";
+import { EditorPaneAnchor } from "@/components/panes/editor-v2";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -172,13 +172,16 @@ export function QuickPaneDialog({
             />
           )}
           {currentDescriptor.type === "editor" && (
-            <EditorPaneSwitcher
+            <EditorPaneAnchor
               paneId={quickPaneId}
-              cwd={currentDescriptor.cwd}
-              file={currentDescriptor.file}
-              treeMode={currentDescriptor.treeMode}
-              sandboxId={(currentDescriptor as EditorPaneType).sandboxId}
-              agentSessionId={undefined}
+              pane={{
+                id: quickPaneId,
+                type: "editor",
+                cwd: currentDescriptor.cwd,
+                file: currentDescriptor.file,
+                treeMode: currentDescriptor.treeMode,
+                sandboxId: (currentDescriptor as EditorPaneType).sandboxId,
+              }}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
               onFileChange={({ file }) => handleEditorUpdate({ file })}
               onClearFile={() => handleEditorUpdate({ file: undefined })}
@@ -193,6 +196,7 @@ export function QuickPaneDialog({
                 }
               }}
               onClose={onClose}
+              className="h-full w-full"
             />
           )}
           {currentDescriptor.type === "browser" && (

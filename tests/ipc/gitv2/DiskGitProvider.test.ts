@@ -824,26 +824,16 @@ describe("DiskGitProvider", () => {
 
   describe("getStatusFromBranch()", () => {
     it("should return files with proper status codes", async () => {
-      mockGit.raw.mockResolvedValue("abc123def456\n"); // merge-base result
       // Format: <status>\t<path> (A=added, M=modified, D=deleted)
       mockGit.diff.mockResolvedValue(
         "A\tsrc/newFile.ts\nM\tsrc/modified.ts\nD\tsrc/deleted.ts\n",
       );
-      // Mock getStatus for working tree overlay
-      mockGit.status.mockResolvedValue({
-        files: [],
-        isClean: () => true,
-      });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const statusMap = await provider.getStatusFromBranch("main");
 
-      expect(mockGit.raw).toHaveBeenCalledWith(["merge-base", "HEAD", "main"]);
-      expect(mockGit.diff).toHaveBeenCalledWith([
-        "--name-status",
-        "abc123def456",
-        "HEAD",
-      ]);
+      // Should diff directly against the branch
+      expect(mockGit.diff).toHaveBeenCalledWith(["--name-status", "main"]);
 
       expect(statusMap.get("src/newFile.ts")?.status).toBe("added");
       expect(statusMap.get("src/modified.ts")?.status).toBe("modified");
@@ -851,13 +841,8 @@ describe("DiskGitProvider", () => {
     });
 
     it("should handle renamed files", async () => {
-      mockGit.raw.mockResolvedValue("abc123\n");
       // Renamed format: R<score>\t<old-path>\t<new-path>
       mockGit.diff.mockResolvedValue("R100\told/path.ts\tnew/path.ts\n");
-      mockGit.status.mockResolvedValue({
-        files: [],
-        isClean: () => true,
-      });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const statusMap = await provider.getStatusFromBranch("main");
@@ -866,12 +851,7 @@ describe("DiskGitProvider", () => {
     });
 
     it("should return empty map when no changes", async () => {
-      mockGit.raw.mockResolvedValue("abc123\n");
       mockGit.diff.mockResolvedValue("");
-      mockGit.status.mockResolvedValue({
-        files: [],
-        isClean: () => true,
-      });
 
       const provider = new DiskGitProvider(testGitRoot, testGitRoot);
       const statusMap = await provider.getStatusFromBranch("main");

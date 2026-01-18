@@ -68,25 +68,3 @@ export type FileDiffResult = {
   status: "modified" | "added" | "deleted" | "binary";
   isBinary: boolean;
 };
-
-/* File watcher event payloads */
-
-export type FileChangedEvent = {
-  cwd: string;
-  filePath: string;
-  relativePath: string;
-  eventType: "changed" | "deleted";
-};
-
-export type TreeChangedEvent = {
-  cwd: string;
-};
-
-export type FileRenamedEvent = {
-  cwd: string;
-  oldPath: string;
-  newPath: string;
-  oldRelativePath: string;
-  newRelativePath: string;
-  isDirectory: boolean;
-};

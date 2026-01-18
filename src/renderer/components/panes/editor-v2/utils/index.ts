@@ -55,3 +55,4 @@ export {
   getFriendlyGitError,
   type FriendlyGitError,
 } from "./gitErrorMessages";
+export { configureMonaco } from "./monacoSetup";

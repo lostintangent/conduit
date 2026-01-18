@@ -16,19 +16,29 @@ export function getUserKeybindingsPath(homeDirectory: string): string {
 }
 
 /**
+ * Get the parent directory of a file path.
+ * Used to determine the cwd for fsv2 operations.
+ */
+function getParentDirectory(filePath: string): string {
+  const lastSlash = filePath.lastIndexOf("/");
+  return lastSlash > 0 ? filePath.substring(0, lastSlash) : "/";
+}
+
+/**
  * Read user keybindings from file
  * Returns empty array if file doesn't exist
  */
 async function readUserKeybindingsFile(
   filePath: string,
 ): Promise<UserKeybinding[]> {
-  if (!window.conduit?.readFile) {
-    console.warn("window.conduit.readFile is not available");
+  if (!window.conduit?.fsv2?.readTextFile) {
+    console.warn("window.conduit.fsv2.readTextFile is not available");
     return [];
   }
 
   try {
-    const content = await window.conduit.readFile(filePath);
+    const cwd = getParentDirectory(filePath);
+    const content = await window.conduit.fsv2.readTextFile(cwd, filePath);
     if (!content) return [];
     return parseKeybindingsFile(content);
   } catch (error: any) {
@@ -47,12 +57,14 @@ async function writeUserKeybindingsFile(
   filePath: string,
   bindings: UserKeybinding[],
 ): Promise<void> {
-  if (!window.conduit?.writeFile) {
-    throw new Error("window.conduit.writeFile is not available");
+  if (!window.conduit?.fsv2?.writeFile) {
+    throw new Error("window.conduit.fsv2.writeFile is not available");
   }
 
   const json = JSON.stringify(bindings, null, 2);
-  await window.conduit.writeFile(filePath, json);
+  const cwd = getParentDirectory(filePath);
+  const encoder = new TextEncoder();
+  await window.conduit.fsv2.writeFile(cwd, filePath, encoder.encode(json));
 }
 
 /**
@@ -65,8 +77,9 @@ export async function loadUserKeybindings(
   filePath: string,
 ): Promise<void> {
   try {
-    // Read file (use fs in Electron main process)
-    const content = await window.conduit?.readFile?.(filePath);
+    // Read file using fsv2 API
+    const cwd = getParentDirectory(filePath);
+    const content = await window.conduit?.fsv2?.readTextFile?.(cwd, filePath);
     if (!content) return;
 
     const userBindings = parseKeybindingsFile(content);

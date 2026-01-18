@@ -6,19 +6,12 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
-  Branch,
   BrowserPage,
   CreateVMPayload,
   DeleteVMPayload,
   DotfilesStatus,
-  FileChangedEvent,
-  FileDiffResult,
-  FileRenamedEvent,
-  FileStats,
-  FileTreeNode,
   ForkVMPayload,
   ForwardPortResponse,
-  GitFileStatus,
   ListVMsPayload,
   NotificationKind,
   TerminalCaptureCommandResponse,
@@ -30,7 +23,6 @@ import type {
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
   TerminalSSHStatePayload,
-  TreeChangedEvent,
   UserSettings,
   VMInfo,
 } from "@shared/types";
@@ -343,161 +335,6 @@ const conduitAPI = {
       payload,
     ) as Promise<AgentSessionCleanupResult>,
 
-  /* File system methods (UI->main) */
-
-  /**
-   * Lists the contents of a directory.
-   *
-   * @param directoryPath - The directory to list
-   * @param rootPath - Optional root path for computing relative paths (used for git status matching)
-   */
-  listDirectory: (directoryPath: string, rootPath?: string) =>
-    ipcRenderer.invoke("fs:list-directory", directoryPath, rootPath) as Promise<
-      FileTreeNode[]
-    >,
-
-  readFile: (filePath: string) =>
-    ipcRenderer.invoke("fs:read-file", filePath) as Promise<string>,
-
-  writeFile: (filePath: string, content: string) =>
-    ipcRenderer.invoke("fs:write-file", filePath, content) as Promise<void>,
-
-  deleteFile: (filePath: string) =>
-    ipcRenderer.invoke("fs:delete-file", filePath) as Promise<void>,
-
-  fileExists: (filePath: string) =>
-    ipcRenderer.invoke("fs:file-exists", filePath) as Promise<boolean>,
-
-  getFileStats: (filePath: string) =>
-    ipcRenderer.invoke("fs:get-stats", filePath) as Promise<FileStats>,
-
-  writeTempFile: (content: Uint8Array, extension?: string) =>
-    ipcRenderer.invoke("fs:write-temp-file", {
-      content,
-      extension,
-    }) as Promise<string>,
-
-  /* File watcher methods (UI->main) */
-
-  subscribeFileWatcher: (cwd: string, paneId: string) =>
-    ipcRenderer.invoke("file-watcher:subscribe", cwd, paneId) as Promise<{
-      success: boolean;
-      error?: string;
-    }>,
-
-  unsubscribeFileWatcher: (cwd: string, paneId: string) =>
-    ipcRenderer.invoke("file-watcher:unsubscribe", cwd, paneId) as Promise<{
-      success: boolean;
-      error?: string;
-    }>,
-
-  onFileChanged: (listener: (payload: FileChangedEvent) => void) =>
-    createEventListener<FileChangedEvent>(
-      "file-watcher:file-changed",
-      listener,
-    ),
-
-  onFileRenamed: (listener: (payload: FileRenamedEvent) => void) =>
-    createEventListener<FileRenamedEvent>(
-      "file-watcher:file-renamed",
-      listener,
-    ),
-
-  onTreeChanged: (listener: (payload: TreeChangedEvent) => void) =>
-    createEventListener<TreeChangedEvent>(
-      "file-watcher:tree-changed",
-      listener,
-    ),
-
-  /* Git status methods (UI->main) */
-
-  getGitStatus: (cwd: string) =>
-    ipcRenderer.invoke("git:get-status", cwd) as Promise<{
-      success: boolean;
-      gitStatus: Record<string, GitFileStatus> | null;
-      error?: string;
-    }>,
-
-  setBaseBranch: (cwd: string, baseBranch: string | null) =>
-    ipcRenderer.invoke("git:set-base-branch", cwd, baseBranch) as Promise<{
-      success: boolean;
-      error?: string;
-    }>,
-
-  getBranches: (cwd: string) =>
-    ipcRenderer.invoke("git:get-branches", cwd) as Promise<{
-      success: boolean;
-      branches: Branch[];
-      error?: string;
-    }>,
-
-  getMostRecentFile: (cwd: string) =>
-    ipcRenderer.invoke("git:get-most-recent-file", cwd) as Promise<{
-      success: boolean;
-      file: string | null;
-      error?: string;
-    }>,
-
-  refreshGitStatus: (cwd: string) =>
-    ipcRenderer.invoke("git:refresh-status", cwd) as Promise<{
-      success: boolean;
-      error?: string;
-    }>,
-
-  getFileDiff: (filePath: string, cwd: string, baseBranch?: string | null) =>
-    ipcRenderer.invoke(
-      "git:get-file-diff",
-      filePath,
-      cwd,
-      baseBranch,
-    ) as Promise<{
-      success: boolean;
-      diff: FileDiffResult | null;
-      error?: string;
-    }>,
-
-  getDiffStats: (cwd: string) =>
-    ipcRenderer.invoke("git:get-diff-stats", cwd) as Promise<{
-      success: boolean;
-      stats?: { added: number; removed: number; files: number };
-      error?: string;
-    }>,
-
-  onGitStatusChanged: (
-    listener: (payload: {
-      cwd: string;
-      gitStatus: Record<string, GitFileStatus> | null;
-      baseBranch: string | null;
-      currentBranch: string | null;
-    }) => void,
-  ) => createEventListener("git:status-changed", listener),
-
-  /* Legacy file watcher (deprecated - use file watcher methods above) */
-
-  watchFile: (filePath: string, onChange: () => void) => {
-    const watcherId = `file-watcher-${Math.random().toString(36).substring(7)}`;
-
-    // Set up listener for file changes
-    const removeListener = createEventListener<{
-      watcherId: string;
-      filePath: string;
-    }>("fs:file-changed", (payload) => {
-      if (payload.watcherId === watcherId && payload.filePath === filePath) {
-        onChange();
-      }
-    });
-
-    // Register the watcher in main process
-    ipcRenderer.invoke("fs:watch-file", filePath, watcherId);
-
-    return {
-      dispose: () => {
-        ipcRenderer.invoke("fs:unwatch-file", watcherId);
-        removeListener();
-      },
-    };
-  },
-
   /* VM methods (UI->main) */
 
   createVM: (payload?: CreateVMPayload) =>
@@ -548,6 +385,14 @@ const conduitAPI = {
 
   reloadVMConfig: () =>
     ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
+
+  /* Temporary file operations */
+
+  writeTempFile: (content: Uint8Array, extension?: string) =>
+    ipcRenderer.invoke("fs:write-temp-file", {
+      content,
+      extension,
+    }) as Promise<string>,
 
   browser: configureBrowserModule,
   cli: configureCliModule,

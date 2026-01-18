@@ -50,6 +50,14 @@ export interface PaneActionsWatcher {
 }
 
 /**
+ * Get the parent directory of a file path.
+ */
+function getParentDirectory(filePath: string): string {
+  const lastSlash = filePath.lastIndexOf("/");
+  return lastSlash > 0 ? filePath.substring(0, lastSlash) : "/";
+}
+
+/**
  * Watch pane actions file for external changes
  *
  * When the file changes:
@@ -71,6 +79,8 @@ export function watchPaneActionsFile(
   // This helps with debouncing (some editors trigger multiple change events)
   let isProcessing = false;
   let debounceTimer: NodeJS.Timeout | null = null;
+  let subscriptionId: string | null = null;
+  let ipcCleanup: (() => void) | null = null;
 
   // Handler when file changes
   const handleFileChange = async () => {
@@ -120,8 +130,29 @@ export function watchPaneActionsFile(
     }, 100);
   };
 
-  // Set up file watcher using window.conduit.watchFile
-  const watcher = window.conduit.watchFile(filePath, handleFileChange);
+  // Set up file watcher using fsv2 subscription API
+  const cwd = getParentDirectory(filePath);
+
+  // Subscribe to file content changes for this specific file
+  window.conduit.fsv2
+    .subscribe(cwd, "file", filePath)
+    .then((subId) => {
+      subscriptionId = subId;
+
+      // Listen for file content changes
+      ipcCleanup = window.conduit.fsv2.onFileContentChanged((payload) => {
+        // Only handle events for our subscription
+        if (payload.subscriptionId !== subscriptionId) {
+          return;
+        }
+
+        // Handle the file change
+        handleFileChange();
+      });
+    })
+    .catch((error) => {
+      console.error("Failed to subscribe to file changes:", error);
+    });
 
   return {
     dispose: () => {
@@ -131,8 +162,19 @@ export function watchPaneActionsFile(
         debounceTimer = null;
       }
 
-      // Dispose the underlying watcher
-      watcher.dispose();
+      // Clean up IPC listener
+      if (ipcCleanup) {
+        ipcCleanup();
+        ipcCleanup = null;
+      }
+
+      // Unsubscribe from file changes
+      if (subscriptionId) {
+        window.conduit.fsv2.unsubscribe(subscriptionId).catch((error) => {
+          console.error("Failed to unsubscribe from file changes:", error);
+        });
+        subscriptionId = null;
+      }
     },
   };
 }

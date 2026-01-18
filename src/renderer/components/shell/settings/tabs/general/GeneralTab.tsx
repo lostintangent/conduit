@@ -369,14 +369,6 @@ export function GeneralTab({
         />
 
         <CheckboxSetting
-          id="useEditorV2"
-          label="Use Editor v2"
-          description="Enable the new editor implementation (experimental)"
-          checked={userSettings.useEditorV2}
-          onChange={(checked) => onUpdateSettings({ useEditorV2: checked })}
-        />
-
-        <CheckboxSetting
           id="trackUnseenChangesInReviewMode"
           label="Track unseen changes in Review Mode"
           description="Show indicators for files modified by external processes while in Review Mode"

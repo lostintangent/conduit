@@ -9,6 +9,14 @@ import type { Action } from "../core/types";
 import { validatePaneActionsConfig, ValidationError } from "./validation";
 
 /**
+ * Get the parent directory of a file path.
+ */
+function getParentDirectory(filePath: string): string {
+  const lastSlash = filePath.lastIndexOf("/");
+  return lastSlash > 0 ? filePath.substring(0, lastSlash) : "/";
+}
+
+/**
  * Get the path to the user's pane actions configuration file
  *
  * @param homeDirectory - Home directory path
@@ -30,12 +38,13 @@ export async function readPaneActionsFile(
   filePath: string,
 ): Promise<Action[] | null> {
   const api = window.conduit;
-  if (!api) {
-    throw new Error("Conduit API not available");
+  if (!api?.fsv2?.readTextFile) {
+    throw new Error("Conduit fsv2 API not available");
   }
 
   try {
-    const content = await api.readFile(filePath);
+    const cwd = getParentDirectory(filePath);
+    const content = await api.fsv2.readTextFile(cwd, filePath);
     return parsePaneActionsContent(content);
   } catch (error) {
     // File doesn't exist - this is expected on first run
@@ -88,8 +97,8 @@ export async function writePaneActionsFile(
   actions: Action[],
 ): Promise<void> {
   const api = window.conduit;
-  if (!api) {
-    throw new Error("Conduit API not available");
+  if (!api?.fsv2?.writeFile) {
+    throw new Error("Conduit fsv2 API not available");
   }
 
   // Validate before writing
@@ -97,7 +106,9 @@ export async function writePaneActionsFile(
 
   // Write with pretty formatting (2 space indent)
   const content = JSON.stringify(actions, null, 2);
-  await api.writeFile(filePath, content);
+  const cwd = getParentDirectory(filePath);
+  const contentBytes = new TextEncoder().encode(content);
+  await api.fsv2.writeFile(cwd, filePath, contentBytes);
 }
 
 /**
