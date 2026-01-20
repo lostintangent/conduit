@@ -95,7 +95,7 @@ export function notifyDataReceived(sessionId: string): void {
       session.consecutiveActivitySeconds = 0;
       session.idleToRunningTimer = setTimeout(
         () => checkForSustainedActivity(session, sessionId),
-        1000,
+        ACTIVITY_CHECK_INTERVAL_MS,
       );
     }
   } else {
@@ -112,7 +112,7 @@ export function notifyDataReceived(sessionId: string): void {
  * Callback is invoked when a session transitions between idle and running.
  *
  * @param callback - The callback to trigger when a session's state changes.
- * @returns - An unsubscribe function/
+ * @returns An unsubscribe function.
  */
 export function onSessionStateChange(
   callback: (sessionId: string, state: SessionState) => void,
@@ -124,6 +124,10 @@ export function onSessionStateChange(
 /**
  * Immediately mark a session as idle.
  * Resolves pending wait requests but does not notify UI subscribers.
+ *
+ * This is used by the CLI `notify` command to signal task completion externally.
+ * UI updates are handled separately via the tab state system, so broadcasting
+ * to state change subscribers would be redundant.
  */
 export function markAsIdle(sessionId: string): void {
   const session = sessionStateMap.get(sessionId);
@@ -135,8 +139,7 @@ export function markAsIdle(sessionId: string): void {
   }
   clearIdleToRunningCheck(session);
 
-  session.state = "idle";
-  session.pendingWaitRequests.forEach((resolve) => resolve());
+  transitionToIdle(session);
 }
 
 /**
@@ -200,6 +203,7 @@ export function waitForIdle(
 
 // Idle -> Running
 
+const ACTIVITY_CHECK_INTERVAL_MS = 1000;
 const REQUIRED_CONSECUTIVE_SECONDS = 3;
 
 /**
@@ -234,7 +238,7 @@ function checkForSustainedActivity(
       // Keep checking
       session.idleToRunningTimer = setTimeout(
         () => checkForSustainedActivity(session, sessionId),
-        1000,
+        ACTIVITY_CHECK_INTERVAL_MS,
       );
     }
   } else {
@@ -261,13 +265,21 @@ function clearIdleToRunningCheck(session: TrackedSession): void {
 const RUNNING_TO_IDLE_MS = 2000;
 
 /**
+ * Transition session to idle state and resolve all pending wait requests.
+ */
+function transitionToIdle(session: TrackedSession): void {
+  session.state = "idle";
+  session.pendingWaitRequests.forEach((resolve) => resolve());
+  session.pendingWaitRequests.clear();
+}
+
+/**
  * Start the running→idle timer.
  * After RUNNING_TO_IDLE_MS of inactivity, transitions to idle.
  */
 function startIdleTimer(session: TrackedSession, sessionId: string): void {
   session.runningToIdleTimer = setTimeout(() => {
-    session.state = "idle";
-    session.pendingWaitRequests.forEach((resolve) => resolve());
+    transitionToIdle(session);
     if (!session.notificationsPaused) {
       stateChangeSubscribers.forEach((cb) => cb(sessionId, "idle"));
     }
