@@ -6,7 +6,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { exitFocusMode } from "@/store/actions/focusMode";
 import {
   isHyperTerminal,
   openHyperTerminal,
@@ -23,10 +22,10 @@ import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
 import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
-import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { CloudTerminalOverlay } from "./shell/sandbox/CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
+import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { createFitController } from "./state/fitController";
 import { attach, getOrCreate, serializeSession } from "./state/xtermCache";
 import { useImageDrop } from "./useImageDrop";
@@ -41,16 +40,12 @@ const registerTerminalKeyHandler = ({
   sessionId,
   showSearchWidget,
   togglePromptMode,
-  getApplicationMode,
-  setNormalMode,
   onSynchronizedInput,
 }: {
   entry: TerminalInstance;
   sessionId: string;
   showSearchWidget: () => void;
   togglePromptMode: () => void;
-  getApplicationMode: () => ApplicationMode;
-  setNormalMode: () => void;
   onSynchronizedInput?: (input: string) => void;
 }): (() => void) => {
   const terminal = entry.terminal;
@@ -66,22 +61,7 @@ const registerTerminalKeyHandler = ({
 
     const isCtrlOrMeta = event.ctrlKey || event.metaKey;
 
-    if (!isCtrlOrMeta && event.key === "Escape") {
-      const mode = getApplicationMode();
-      if (mode === "focus") {
-        event.preventDefault();
-        exitFocusMode();
-        return false;
-      }
-      if (mode === "overview") {
-        event.preventDefault();
-        setNormalMode();
-        return false;
-      }
-      // If not in focus or overview mode, let escape go through and broadcast it
-      onSynchronizedInput?.("\x1b");
-    }
-
+    // Cmd+f / Ctrl+f: Show search widget
     if (
       isCtrlOrMeta &&
       !event.shiftKey &&
@@ -134,6 +114,7 @@ const registerTerminalKeyHandler = ({
       !event.altKey &&
       event.key.toLowerCase() === "t"
     ) {
+
       // Ctrl+T / Cmd+T: Open new terminal tab, let the global handler deal with it
       // If we don't do this, the Windows terminal will capture the event and insert a '^T' character.
       return false;
@@ -496,8 +477,6 @@ export const TerminalPane = ({
       sessionId,
       showSearchWidget,
       togglePromptMode: handleTogglePromptMode,
-      getApplicationMode: () => applicationModeRef.current,
-      setNormalMode: () => setApplicationModeRef.current("normal"),
       onSynchronizedInput: isTabSynchronized
         ? handleSynchronizedInput
         : undefined,
