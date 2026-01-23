@@ -70,6 +70,9 @@ type CanvasToolbarProps = {
   tabId?: string;
   // Whether canvas is empty (disables some actions)
   isEmpty?: boolean;
+  // Dot grid visibility
+  showDotGrid: boolean;
+  onToggleDotGrid: () => void;
 };
 
 // =============================================================================
@@ -344,6 +347,8 @@ export function CanvasToolbar({
   isSpacePressed,
   tabId,
   isEmpty,
+  showDotGrid,
+  onToggleDotGrid,
 }: CanvasToolbarProps) {
   // When select tool is active with a stylable selection, use selected element's values
   const isEditingSelection = tool === "select" && hasStylableSelection;
@@ -506,6 +511,8 @@ export function CanvasToolbar({
         onAddImage={onAddImage}
         onClear={onClear}
         showCopySuccess={showCopySuccess}
+        showDotGrid={showDotGrid}
+        onToggleDotGrid={onToggleDotGrid}
         tabId={tabId}
         isEmpty={isEmpty}
       />

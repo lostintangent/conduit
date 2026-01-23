@@ -11,7 +11,7 @@ import type {
   StrokeElement,
   TextElement,
 } from "@shared/types/canvas";
-import { getElementBounds } from "./renderElement";
+import { getElementBounds } from "../render/elements";
 import {
   type HandleType,
   type Point,

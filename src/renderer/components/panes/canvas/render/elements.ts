@@ -14,7 +14,7 @@ import {
   HANDLE_SIZE,
   ROTATION_HANDLE_DISTANCE,
   ROTATION_HANDLE_RADIUS,
-} from "./transformUtils";
+} from "../utils/transformUtils";
 
 // =============================================================================
 // Constants

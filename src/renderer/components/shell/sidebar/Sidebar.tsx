@@ -43,8 +43,8 @@ export function Sidebar({ cwd }: SidebarProps) {
 
   const applicationMode = useAtomValue(applicationModeAtom);
 
-  // Expanded state (full width) - not persisted, resets on close
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Maximized state (full width) - not persisted, resets on close
+  const [isMaximized, setIsMaximized] = useState(false);
 
   // Locked state - freezes sidebar at current CWD
   const [isLocked, setIsLocked] = useState(false);
@@ -59,10 +59,10 @@ export function Sidebar({ cwd }: SidebarProps) {
     }
   }, [applicationMode, setSidebarState]);
 
-  // Reset expanded and locked state when sidebar closes
+  // Reset maximized and locked state when sidebar closes
   useEffect(() => {
     if (!isOpen) {
-      setIsExpanded(false);
+      setIsMaximized(false);
       setIsLocked(false);
       setLockedCwd(null);
     }
@@ -87,7 +87,10 @@ export function Sidebar({ cwd }: SidebarProps) {
     [setSidebarState],
   );
 
-  const toggleExpanded = useCallback(() => setIsExpanded((prev) => !prev), []);
+  const toggleMaximized = useCallback(
+    () => setIsMaximized((prev) => !prev),
+    [],
+  );
 
   const toggleLocked = useCallback(() => {
     if (isLocked) {
@@ -119,7 +122,7 @@ export function Sidebar({ cwd }: SidebarProps) {
     <ResizablePanel
       storageKey={SIDEBAR_WIDTH_STORAGE_KEY}
       isOpen={isOpen}
-      isExpanded={isExpanded}
+      isMaximized={isMaximized}
       defaultWidthPercent={0.5}
       onTransitionEnd={handleTransitionEnd}
     >
@@ -131,8 +134,8 @@ export function Sidebar({ cwd }: SidebarProps) {
             onViewChange={setView}
             isLocked={isLocked}
             onLockToggle={toggleLocked}
-            isExpanded={isExpanded}
-            onExpandToggle={toggleExpanded}
+            isMaximized={isMaximized}
+            onMaximizeToggle={toggleMaximized}
             onClose={closeSidebar}
           />
 

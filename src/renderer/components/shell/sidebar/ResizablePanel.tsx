@@ -38,8 +38,8 @@ interface ResizablePanelProps {
   /** Whether the panel is open (visible) */
   isOpen: boolean;
 
-  /** Whether the panel is expanded to full width */
-  isExpanded?: boolean;
+  /** Whether the panel is maximized to full width */
+  isMaximized?: boolean;
 
   /** Panel content */
   children: React.ReactNode;
@@ -90,7 +90,7 @@ function getInitialWidth(
 export function ResizablePanel({
   storageKey,
   isOpen,
-  isExpanded = false,
+  isMaximized = false,
   children,
   defaultWidthPercent = DEFAULT_WIDTH_PERCENT,
   minWidthPercent = DEFAULT_MIN_WIDTH_PERCENT,
@@ -170,18 +170,18 @@ export function ResizablePanel({
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
-      // Don't allow resizing when expanded
-      if (isExpanded) return;
+      // Don't allow resizing when maximized
+      if (isMaximized) return;
       e.preventDefault();
       setIsResizing(true);
     },
-    [isExpanded],
+    [isMaximized],
   );
 
   const showAccentBorder = isResizing || isHoveringHandle;
 
-  // Use full width when expanded, otherwise use the resizable width
-  const effectiveWidth = isExpanded ? 1 : widthPercent;
+  // Use full width when maximized, otherwise use the resizable width
+  const effectiveWidth = isMaximized ? 1 : widthPercent;
 
   const handleTransitionEnd = useCallback(
     (e: React.TransitionEvent<HTMLDivElement>) => {
@@ -198,8 +198,8 @@ export function ResizablePanel({
       className={cn(
         "absolute top-0 right-0 bottom-0 z-40 flex",
         "bg-background shadow-2xl",
-        // Only show left border when not expanded
-        !isExpanded && "border-l border-border",
+        // Only show left border when visible and not maximized
+        isOpen && !isMaximized && "border-l border-border",
         className,
       )}
       style={{
@@ -211,8 +211,8 @@ export function ResizablePanel({
       }}
       onTransitionEnd={handleTransitionEnd}
     >
-      {/* Resize handle on left edge - hidden when expanded */}
-      {!isExpanded && (
+      {/* Resize handle on left edge - hidden when maximized or closed */}
+      {isOpen && !isMaximized && (
         <div className="relative flex items-center justify-center shrink-0">
           {/* Visible border line - thin by default, thicker accent on hover/drag */}
           <div

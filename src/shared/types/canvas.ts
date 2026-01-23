@@ -25,6 +25,14 @@ export interface Rect {
   height: number;
 }
 
+/**
+ * Dimensions without position.
+ */
+export interface Size {
+  width: number;
+  height: number;
+}
+
 // =============================================================================
 // Transform
 // =============================================================================

@@ -15,6 +15,7 @@ import { ApplicationCommands } from "@shared/commands";
 import {
   Check,
   Copy,
+  Grid3x3,
   ImagePlus,
   Minimize2,
   MoreHorizontal,
@@ -31,6 +32,8 @@ type ActionsMenuProps = {
   onAddImage: () => void;
   onClear: () => void;
   showCopySuccess?: boolean;
+  showDotGrid: boolean;
+  onToggleDotGrid: () => void;
   tabId?: string;
   isEmpty?: boolean;
 };
@@ -44,6 +47,8 @@ export function ActionsMenu({
   onAddImage,
   onClear,
   showCopySuccess,
+  showDotGrid,
+  onToggleDotGrid,
   tabId,
   isEmpty,
 }: ActionsMenuProps) {
@@ -78,6 +83,12 @@ export function ActionsMenu({
         <DropdownMenuItem onClick={onAddImage}>
           <ImagePlus size={14} className="mr-2" />
           Insert image
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onToggleDotGrid}>
+          <Grid3x3 size={14} className="mr-2" />
+          Show dot grid
+          {showDotGrid && <Check size={14} className="ml-auto" />}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onClear} disabled={isEmpty}>

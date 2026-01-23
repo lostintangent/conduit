@@ -21,8 +21,8 @@ interface SidebarActivityBarProps {
   onViewChange: (view: SidebarView) => void;
   isLocked: boolean;
   onLockToggle: () => void;
-  isExpanded: boolean;
-  onExpandToggle: () => void;
+  isMaximized: boolean;
+  onMaximizeToggle: () => void;
   onClose: () => void;
 }
 
@@ -69,8 +69,8 @@ export function SidebarActivityBar({
   onViewChange,
   isLocked,
   onLockToggle,
-  isExpanded,
-  onExpandToggle,
+  isMaximized,
+  onMaximizeToggle,
   onClose,
 }: SidebarActivityBarProps) {
   return (
@@ -107,10 +107,10 @@ export function SidebarActivityBar({
         />
 
         <ActivityBarButton
-          icon={isExpanded ? <Minimize size={14} /> : <Maximize size={14} />}
-          tooltip={isExpanded ? "Collapse" : "Expand"}
+          icon={isMaximized ? <Minimize size={14} /> : <Maximize size={14} />}
+          tooltip={isMaximized ? "Restore" : "Maximize"}
           active={false}
-          onClick={onExpandToggle}
+          onClick={onMaximizeToggle}
         />
 
         {/* Separator */}

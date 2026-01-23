@@ -4,7 +4,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { applicationModeAtom } from "@/store/atoms";
-import { getHashedColor } from "@/utils/theme";
+import { getHashedColor } from "@/utils/color";
 import { useAtomValue } from "jotai";
 import { Cloud, GitFork, GitMerge, Trash2 } from "lucide-react";
 import { useMemo } from "react";

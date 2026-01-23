@@ -30,12 +30,7 @@ import { type Position, type ShapeSize, useCanvasHistory } from "./history";
 import { useCanvasState } from "./hooks/useCanvasState";
 import { useImageDrop } from "./hooks/useImageDrop";
 import { useViewport } from "./hooks/useViewport";
-import { CanvasToolbar } from "./toolbar/CanvasToolbar";
-import {
-  getElementsInRect,
-  getHandleAtPoint,
-  hitTestElements,
-} from "./utils/hitTest";
+import { renderDotGrid } from "./render/dotGrid";
 import {
   applyStrokeStyle,
   calculateArrowHead,
@@ -45,7 +40,13 @@ import {
   renderLineEndpointHandles,
   renderSelectionBox,
   renderSelectionHandles,
-} from "./utils/renderElement";
+} from "./render/elements";
+import { CanvasToolbar } from "./toolbar/CanvasToolbar";
+import {
+  getElementsInRect,
+  getHandleAtPoint,
+  hitTestElements,
+} from "./utils/hitTest";
 import {
   type HandleType,
   calculateResizeScale,
@@ -184,6 +185,7 @@ export const CanvasPane = memo(function CanvasPane({
     elements,
     selectedIds,
     backgroundColor,
+    showDotGrid,
     addElement,
     updateElement,
     deleteElements,
@@ -192,6 +194,7 @@ export const CanvasPane = memo(function CanvasPane({
     clearSelection,
     clearCanvas,
     setBackgroundColor,
+    toggleDotGrid,
     setElements,
     addElementsAtIndices,
     updateElementPosition,
@@ -445,6 +448,11 @@ export const CanvasPane = memo(function CanvasPane({
       viewport.panY * dpr * viewport.zoom,
     );
 
+    // Render dot grid if enabled
+    if (showDotGrid) {
+      renderDotGrid(ctx, viewport, backgroundColor, canvasSize);
+    }
+
     // Render all elements
     renderAllElements(ctx, elements);
 
@@ -496,10 +504,12 @@ export const CanvasPane = memo(function CanvasPane({
     }
   }, [
     backgroundColor,
+    canvasSize,
     dpr,
     viewport,
     elements,
     selectedIds,
+    showDotGrid,
     tool,
     strokeColor,
     strokeWidth,
@@ -1689,6 +1699,8 @@ export const CanvasPane = memo(function CanvasPane({
         isSpacePressed={isSpacePressed}
         tabId={_tabId}
         isEmpty={elements.length === 0}
+        showDotGrid={showDotGrid}
+        onToggleDotGrid={toggleDotGrid}
       />
 
       {/* Canvas container - fills remaining space */}

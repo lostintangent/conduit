@@ -4,8 +4,8 @@
  * unmount/remount cycles (e.g., switching tabs, rearranging panes).
  */
 
-import { clearImageCache } from "@/components/panes/canvas/utils/renderElement";
 import type { CanvasCommand } from "@/components/panes/canvas/history/canvasHistory";
+import { clearImageCache } from "@/components/panes/canvas/render/elements";
 import type { CanvasElement } from "@shared/types/canvas";
 import { atom, getDefaultStore } from "jotai";
 import { atomFamily } from "jotai/utils";
@@ -45,6 +45,7 @@ export interface CanvasState {
   selectedIds: string[];
   viewport: ViewportState;
   history: CanvasHistoryState;
+  showDotGrid: boolean;
 }
 
 // =============================================================================
@@ -61,6 +62,7 @@ export const DEFAULT_CANVAS_STATE: CanvasState = {
     panY: 0,
   },
   history: EMPTY_HISTORY,
+  showDotGrid: true,
 };
 
 // =============================================================================

@@ -3,9 +3,6 @@
  * Provides convenience methods for common operations.
  */
 
-import type { CanvasElement } from "@shared/types/canvas";
-import { useAtomValue } from "jotai";
-import { useCallback } from "react";
 import {
   canvasStateAtomFamily,
   addElement as storeAddElement,
@@ -17,6 +14,9 @@ import {
   updateCanvasState,
   type ViewportState,
 } from "@/store/canvasStore";
+import type { CanvasElement } from "@shared/types/canvas";
+import { useAtomValue } from "jotai";
+import { useCallback } from "react";
 
 // =============================================================================
 // Hook
@@ -205,6 +205,13 @@ export function useCanvasState(paneId: string) {
     [paneId],
   );
 
+  const toggleDotGrid = useCallback(() => {
+    updateCanvasState(paneId, (s) => ({
+      ...s,
+      showDotGrid: !s.showDotGrid,
+    }));
+  }, [paneId]);
+
   // ---------------------------------------------------------------------------
   // Viewport Operations
   // ---------------------------------------------------------------------------
@@ -237,6 +244,7 @@ export function useCanvasState(paneId: string) {
     selectedIds: state.selectedIds,
     viewport: state.viewport,
     backgroundColor: state.backgroundColor,
+    showDotGrid: state.showDotGrid,
 
     // Element operations
     addElement,
@@ -252,6 +260,7 @@ export function useCanvasState(paneId: string) {
     // Canvas operations
     clearCanvas,
     setBackgroundColor,
+    toggleDotGrid,
     setElements,
     addElementsAtIndices,
     updateElementPosition,
