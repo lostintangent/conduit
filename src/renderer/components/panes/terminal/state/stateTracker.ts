@@ -17,6 +17,10 @@ type TrackedSession = {
   notificationsPaused: boolean;
   pendingWaitRequests: Set<() => void>;
 
+  // Suppress activity that occurs directly after user input
+  // under the assumption it's echo or related output.
+  inputSuppressionUntil: number | null;
+
   // running -> idle transition
   runningToIdleTimer: NodeJS.Timeout | null;
 
@@ -24,12 +28,17 @@ type TrackedSession = {
   idleToRunningTimer: NodeJS.Timeout | null;
   sawActivitySinceLastCheck: boolean;
   consecutiveActivitySeconds: number;
+
+  // Runtime tracking timestamps
+  runningStartedAt: number | null; // When terminal transitioned to running
+  idleSince: number | null; // When terminal transitioned to idle
 };
 
 const sessionStateMap = new Map<string, TrackedSession>();
 const stateChangeSubscribers = new Set<
   (sessionId: string, state: SessionState) => void
 >();
+const runtimeResetSubscribers = new Set<(sessionId: string) => void>();
 
 // ============================================================================
 // Public API
@@ -44,6 +53,26 @@ export function getSessionState(sessionId: string): SessionState {
 }
 
 /**
+ * Runtime timestamps for a terminal session.
+ */
+export type RuntimeTimestamps = {
+  runningStartedAt: number | null;
+  idleSince: number | null;
+};
+
+/**
+ * Get the runtime timestamps for a session.
+ * Returns null values if the session is not tracked.
+ */
+export function getRuntimeTimestamps(sessionId: string): RuntimeTimestamps {
+  const session = sessionStateMap.get(sessionId);
+  return {
+    runningStartedAt: session?.runningStartedAt ?? null,
+    idleSince: session?.idleSince ?? null,
+  };
+}
+
+/**
  * Start tracking state for a terminal session.
  * Called when a new terminal session is created.
  * Initializes the session in the "idle" state.
@@ -53,10 +82,13 @@ export function trackSession(sessionId: string): void {
     state: "idle",
     notificationsPaused: false,
     pendingWaitRequests: new Set(),
+    inputSuppressionUntil: null,
     runningToIdleTimer: null,
     idleToRunningTimer: null,
     sawActivitySinceLastCheck: false,
     consecutiveActivitySeconds: 0,
+    runningStartedAt: null,
+    idleSince: null,
   });
 }
 
@@ -88,6 +120,16 @@ export function notifyDataReceived(sessionId: string): void {
   if (!session) return;
 
   if (session.state === "idle") {
+    // Only suppress echo-driven activity when idle - we don't want
+    // user input to accidentally trigger an idle→running transition.
+    // When running, we still want output to reset the idle timer.
+    if (
+      session.inputSuppressionUntil !== null &&
+      Date.now() < session.inputSuppressionUntil
+    ) {
+      return;
+    }
+
     session.sawActivitySinceLastCheck = true;
 
     if (!session.idleToRunningTimer) {
@@ -107,6 +149,38 @@ export function notifyDataReceived(sessionId: string): void {
   }
 }
 
+// How long to suppress output-driven activity after input is sent to the PTY.
+// This filters out echo and prompt redraws from being treated as command output.
+const INPUT_ECHO_SUPPRESSION_MS = 500;
+
+/**
+ * Signal that input was just sent to the PTY.
+ *
+ * This temporarily suppresses output-driven activity detection, since the
+ * immediate output is likely echo or prompt redraw rather than command output.
+ *
+ * If the session is idle, also clears the previous runtime since new input
+ * represents the start of a new "session" for timing purposes.
+ *
+ * Called from two places:
+ * - xtermCache.ts: when user types directly in a terminal
+ * - synchronizeInput.ts: when input is broadcast to synchronized terminals
+ */
+export function notifyUserInput(sessionId: string): void {
+  const session = sessionStateMap.get(sessionId);
+  if (!session) return;
+
+  session.inputSuppressionUntil = Date.now() + INPUT_ECHO_SUPPRESSION_MS;
+
+  // Clear previous runtime when idle - new input starts a fresh timing session.
+  if (session.state === "idle" && session.runningStartedAt !== null) {
+    session.runningStartedAt = null;
+    session.idleSince = null;
+    // Notify runtime subscribers so timer UI can clear stale display
+    runtimeResetSubscribers.forEach((cb) => cb(sessionId));
+  }
+}
+
 /**
  * Subscribe to state change events for any terminal session.
  * Callback is invoked when a session transitions between idle and running.
@@ -119,6 +193,20 @@ export function onSessionStateChange(
 ): () => void {
   stateChangeSubscribers.add(callback);
   return () => stateChangeSubscribers.delete(callback);
+}
+
+/**
+ * Subscribe to runtime reset events for any terminal session.
+ * Callback is invoked when runtime timestamps are cleared (e.g., user input while idle).
+ *
+ * @param callback - The callback to trigger when a session's runtime is reset.
+ * @returns An unsubscribe function.
+ */
+export function onRuntimeReset(
+  callback: (sessionId: string) => void,
+): () => void {
+  runtimeResetSubscribers.add(callback);
+  return () => runtimeResetSubscribers.delete(callback);
 }
 
 /**
@@ -230,6 +318,8 @@ function checkForSustainedActivity(
       // Sustained activity confirmed - transition to running
       clearIdleToRunningCheck(session);
       session.state = "running";
+      session.runningStartedAt = Date.now();
+      session.idleSince = null;
       if (!session.notificationsPaused) {
         stateChangeSubscribers.forEach((cb) => cb(sessionId, "running"));
       }
@@ -266,9 +356,11 @@ const RUNNING_TO_IDLE_MS = 2000;
 
 /**
  * Transition session to idle state and resolve all pending wait requests.
+ * Captures the idle timestamp for runtime tracking.
  */
 function transitionToIdle(session: TrackedSession): void {
   session.state = "idle";
+  session.idleSince = Date.now();
   session.pendingWaitRequests.forEach((resolve) => resolve());
   session.pendingWaitRequests.clear();
 }

@@ -1,3 +1,4 @@
+import { notifyUserInput } from "@/components/panes/terminal/state/stateTracker";
 import { activeTabAtom } from "@/store/atoms";
 import { getDefaultStore } from "jotai";
 
@@ -33,6 +34,9 @@ export function broadcastTerminalInput(sourcePaneId: string, input: string) {
       return;
     }
 
+    // Suppress echo detection for broadcast targets' upcoming output.
+    // The source pane handles its own suppression in xtermCache.ts.
+    notifyUserInput(pane.sessionId);
     api.sendKeypress(pane.sessionId, input);
   });
 }

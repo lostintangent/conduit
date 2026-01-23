@@ -190,6 +190,9 @@ export function getOrCreate(
     panesBySession.get(sessionId)!.add(paneId);
 
     const onDataDispose = terminal.onData((input) => {
+      // Suppress echo detection for this terminal's upcoming output.
+      // See also: synchronizeInput.ts which does the same for broadcast targets.
+      stateTracker.notifyUserInput(sessionId);
       api.sendKeypress(sessionId, input);
       inputHandlerRef.current?.(input);
     });

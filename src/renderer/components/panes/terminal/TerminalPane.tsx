@@ -15,7 +15,6 @@ import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@/utils/terminalPrompt";
-import { broadcastTerminalInput } from "@/utils/terminalSync";
 import { generateId } from "@shared/utils";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Keyboard } from "lucide-react";
@@ -27,8 +26,10 @@ import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
 import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { createFitController } from "./state/fitController";
+import { broadcastTerminalInput } from "./state/synchronizeInput";
 import { attach, getOrCreate, serializeSession } from "./state/xtermCache";
 import { useImageDrop } from "./useImageDrop";
+import { useRuntimeTimer } from "./useRuntimeTimer";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -222,6 +223,12 @@ export const TerminalPane = ({
   const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
     sessionId,
   });
+
+  const { display: runtimeDisplay, isRunning: isRuntimeRunning } =
+    useRuntimeTimer({
+      sessionId,
+      enabled: isTabSynchronized,
+    });
 
   const handleSynchronizedInput = useCallback(
     (input: string) => {
@@ -587,9 +594,16 @@ export const TerminalPane = ({
                   e.stopPropagation();
                   toggleSyncCmd.execute();
                 }}
-                className="flex rounded-full bg-elevated border-elevated-border border px-2 py-1 text-[0.65rem] hover:bg-accent"
+                className="flex items-center gap-1.5 rounded-full bg-elevated border-elevated-border border px-2 py-1 text-[0.65rem] hover:bg-accent"
               >
                 <Keyboard size={12} />
+                {runtimeDisplay && (
+                  <span
+                    className={`font-mono tabular-nums ${isRuntimeRunning ? "text-foreground" : "text-muted-foreground"}`}
+                  >
+                    {runtimeDisplay}
+                  </span>
+                )}
               </button>
             </TooltipTrigger>
             <TooltipContent>Stop synchronizing</TooltipContent>
