@@ -51,17 +51,6 @@ import type * as monaco from "monaco-editor";
 const DEFAULT_MAX_ENTRIES = 200;
 
 /**
- * Key for identifying a ViewState entry.
- *
- * ViewState is specific to both the editor AND the file, because different
- * editors can have different scroll/cursor positions for the same file.
- */
-interface ViewStateKey {
-  editorId: string;
-  filePath: string;
-}
-
-/**
  * Internal entry that wraps ViewState with metadata for LRU eviction.
  */
 interface ViewStateEntry {

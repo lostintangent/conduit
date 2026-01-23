@@ -26,8 +26,8 @@ import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
-import type { ChangesViewMode } from "@shared/types";
 import { cn } from "@/utils";
+import type { ChangesViewMode } from "@shared/types";
 import { useAtomValue } from "jotai";
 import {
   startTransition,
@@ -45,6 +45,10 @@ import {
   TreeResizer,
   type FileTreePanelHandle,
 } from "./components";
+import type {
+  CommitFileSelectEvent,
+  CommitViewEvent,
+} from "./components/CommitGraph/types";
 import {
   useAutoOpenFile,
   useEditorTheme,
@@ -53,26 +57,22 @@ import {
   useReviewModeState,
   useUnseenTracking,
 } from "./hooks";
+import { MonacoModelRegistry, createModelKey } from "./registry";
 import type { FileNode, TreeViewMode, ViewMode } from "./types";
-import type {
-  CommitFileSelectEvent,
-  CommitViewEvent,
-} from "./components/CommitGraph/types";
 import {
-  detectLanguage,
-  getRelativePath,
-  getFileStatusForEntry,
-  isDiffableStatus,
   computeStagedForChangesMode,
+  detectLanguage,
   getFileEntryPresence,
-  selectNextAvailableFile,
+  getFileStatusForEntry,
   getFriendlyGitError,
+  getRelativePath,
+  isDiffableStatus,
+  isUnstagedMapKey,
   // MapKey helpers (centralized operations)
   makeMapKey,
   mapKeyToPath,
-  isUnstagedMapKey,
+  selectNextAvailableFile,
 } from "./utils";
-import { MonacoModelRegistry, createModelKey } from "./registry";
 
 /** Image extensions for auto-preview */
 const IMAGE_EXTENSIONS = [
@@ -1199,7 +1199,7 @@ export function EditorPaneV2({
    * additional actions needed when the user explicitly switches branches.
    */
   const handleBranchSwitch = useCallback(
-    (newBranch: string) => {
+    (_newBranch: string) => {
       // Clear comparison mode when switching branches
       // (comparison to old base branch doesn't make sense on new branch)
       if (baseBranch !== null) {

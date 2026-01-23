@@ -44,7 +44,7 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
         const hasRepo = await api.hasGitRepository(cwd);
         setHasGitRepoCache((prev) => ({ ...prev, [cwd]: hasRepo }));
         return hasRepo;
-      } catch (error) {
+      } catch {
         setHasGitRepoCache((prev) => ({ ...prev, [cwd]: false }));
         return false;
       }

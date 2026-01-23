@@ -43,10 +43,9 @@ import type {
   ModelState,
   ViewMode,
 } from "../../types";
-import { joinCwdPath } from "../../utils";
-import { ReviewWorkingPane } from "../ReviewWorking";
-import { ReviewCommitPane } from "../ReviewCommit";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
+import { ReviewCommitPane } from "../ReviewCommit";
+import { ReviewWorkingPane } from "../ReviewWorking";
 import { EditorToolbar } from "../Toolbar";
 import { FileEditor } from "../shared";
 import { DeletedFileBanner } from "./DeletedFileBanner";

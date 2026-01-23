@@ -106,7 +106,7 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
         respondToCli(requestId, {
           result: filePath,
         });
-      } catch (error) {
+      } catch {
         respondToCli(requestId, {
           error: "Failed to capture browser pane",
         });

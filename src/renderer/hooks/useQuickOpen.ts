@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { QuickOpenAPI } from "@/api/QuickOpenAPI";
 import { filterFiles, type FileMatch } from "@/utils/quickOpenFiltering";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuickOpenRecentFiles } from "./useQuickOpenRecentFiles";
 
 /**
@@ -30,7 +30,7 @@ export function useQuickOpen(cwd: string) {
     // Don't warm cache for home directory or root - too broad
     const isSafeDirectory =
       cwd &&
-      !cwd.match(/^(\/|\/Users\/[^\/]+|\/home\/[^\/]+|C:\\Users\\[^\\]+)$/);
+      !cwd.match(/^(\/|\/Users\/[^/]+|\/home\/[^/]+|C:\\Users\\[^\\]+)$/);
 
     if (!isSafeDirectory) {
       console.log(

@@ -97,7 +97,7 @@ export function usePaneActionsSystem(
         const filePath = getUserPaneActionsPath(homeDirectory);
 
         // Try to load user config
-        const loaded = await registry.loadFromFile(filePath);
+        await registry.loadFromFile(filePath);
 
         if (!isMounted) return;
 

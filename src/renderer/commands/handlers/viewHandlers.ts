@@ -12,7 +12,7 @@ import { getDefaultStore } from "jotai";
 
 const store = getDefaultStore();
 
-const layoutHasCustomSizes = (node: LayoutNode): boolean => {
+const _layoutHasCustomSizes = (node: LayoutNode): boolean => {
   let hasCustomSize = false;
   walkLayout(node, ({ node: current }) => {
     if (current.size !== undefined) {

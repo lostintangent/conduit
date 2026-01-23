@@ -7,12 +7,12 @@
 
 import type {
   Action,
-  PaneType,
-  PaneConfig,
-  TerminalConfig,
-  EditorConfig,
   BrowserConfig,
   CanvasConfig,
+  EditorConfig,
+  PaneConfig,
+  PaneType,
+  TerminalConfig,
 } from "../core/types";
 import { MAX_ACTIONS } from "../core/types";
 
@@ -295,8 +295,8 @@ function validateBrowserConfig(
  * Validate canvas configuration
  */
 function validateCanvasConfig(
-  data: Record<string, unknown>,
-  context: string,
+  _data: Record<string, unknown>,
+  _context: string,
 ): CanvasConfig {
   // Canvas has no configuration properties
   // Just return an empty object

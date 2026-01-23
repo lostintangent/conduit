@@ -7,13 +7,12 @@
 
 import path from "path-browserify";
 import {
+  compareItemsByFuzzyScore,
   prepareQuery,
   scoreItemFuzzy,
-  compareItemsByFuzzyScore,
-  type IPreparedQuery,
+  type FuzzyScorerCache,
   type IItemAccessor,
   type IMatch,
-  type FuzzyScorerCache,
 } from "./fuzzy-matcher";
 
 export interface FileMatch {
@@ -68,7 +67,7 @@ export function filterFiles(
   const {
     maxResults = 1000,
     recentFiles = new Set(),
-    currentDirectory = null,
+    _currentDirectory = null,
     workspaceRoot = "", // Default to empty string (caller should always provide this)
   } = options;
 

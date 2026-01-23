@@ -460,7 +460,7 @@ export function PaneActionsTab({
               const isExpanded = expandedActions.has(action.name);
 
               return (
-                <React.Fragment key={index}>
+                <React.Fragment key={action.name}>
                   {/* Main action row */}
                   <tr
                     draggable

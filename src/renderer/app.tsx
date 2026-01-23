@@ -20,13 +20,13 @@ import {
   disposeSession,
   updateTerminalThemes,
 } from "@/components/panes/terminal/state/xtermCache";
-import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
-import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
+import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
+import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
@@ -48,13 +48,16 @@ import {
   openHyperTerminal,
   updateHyperTerminalPosition,
 } from "@/store/actions/hyperTerminal";
-import { updatePaneProperty } from "@/store/actions/pane";
 import {
   dismissNotification,
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { openBrowserPane, removePane } from "@/store/actions/pane";
+import {
+  openBrowserPane,
+  removePane,
+  updatePaneProperty,
+} from "@/store/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -68,7 +71,6 @@ import {
   activeTabAtom,
   applicationModeAtom,
   hyperTerminalsAtom,
-  keybindingsAtom,
   quickPaneAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -76,8 +78,7 @@ import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
-import { getDefaultStore, useAtom, useAtomValue, useSetAtom } from "jotai";
-import path from "path-browserify";
+import { getDefaultStore, useAtom, useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
@@ -87,24 +88,17 @@ export function App() {
   const [tabs, setTabs] = useAtom(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
-  const setKeybindings = useSetAtom(keybindingsAtom);
   const hyperTerminals = useAtomValue(hyperTerminalsAtom);
 
   const userSettings = useUserSettings();
   const {
     tabPosition,
     alwaysShowTabs,
-    commandHistory,
     homeDirectory,
     theme,
     themeOverrides,
-    terminalFontFamily,
-    terminalFontSize,
     agents,
     launchGroups,
-    updateSettings,
-    addCommandHistoryEntry: recordCommandHistoryEntry,
-    removeCommandHistoryEntry,
   } = userSettings;
 
   // Apply theme on mount and when it changes
@@ -123,7 +117,7 @@ export function App() {
     });
   }, [theme, themeOverrides]);
 
-  const { resizingNode, handleResizeStart, hasCustomLayout, resetLayoutSizes } =
+  const { resizingNode, handleResizeStart, hasCustomLayout } =
     useLayoutResizing();
 
   const [titleModalState, setTitleModalState] = useState<{
@@ -449,7 +443,7 @@ export function App() {
   );
 
   const handleContextMenu = useContextMenu({
-    canChangeTitle: (tabId: string) => {
+    canChangeTitle: (_tabId: string) => {
       if (tabs.length > 1) {
         return true;
       }
@@ -461,48 +455,6 @@ export function App() {
       return false;
     },
   });
-
-  const runShellCommand = useCallback(
-    async (
-      rawCommand: string,
-      options: { cwd?: string; trackHistory?: boolean } = {},
-    ) => {
-      const command = rawCommand.trim();
-      if (command.length === 0) {
-        return;
-      }
-
-      if (quickPaneState?.type === "terminal") {
-        api.closeTerminal(quickPaneState.sessionId);
-        disposeSession(quickPaneState.sessionId);
-        setQuickPaneState(null);
-      }
-
-      const requestedCwd =
-        typeof options.cwd === "string" && options.cwd.length > 0
-          ? options.cwd
-          : undefined;
-
-      const result = await api.createTerminal({
-        cwd: requestedCwd,
-        command,
-      });
-      if (!result) {
-        return;
-      }
-
-      setQuickPaneState({
-        type: "terminal",
-        sessionId: result.sessionId,
-        cwd: result.cwd ?? requestedCwd ?? null,
-      });
-
-      if (options.trackHistory) {
-        await recordCommandHistoryEntry(command);
-      }
-    },
-    [recordCommandHistoryEntry, quickPaneState],
-  );
 
   const handleVMRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {
@@ -692,7 +644,7 @@ export function App() {
       // Validate that the directory exists
       try {
         await api.fs.readDirectory(trimmedCwd, trimmedCwd);
-      } catch (error) {
+      } catch {
         enqueueNotification({
           kind: "error",
           message: `Directory not found: ${trimmedCwd}`,

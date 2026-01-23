@@ -109,7 +109,7 @@ export function KeybindingRecorder({
       <div className="flex items-center gap-1">
         {displayKeys.length > 0 ? (
           displayKeys.map((chord, i) => (
-            <span key={i} className="flex items-center gap-1">
+            <span key={`${chord}-${i}`} className="flex items-center gap-1">
               {i > 0 && <span className="text-gray-400 mx-1">then</span>}
               <kbd className="px-2 py-1 bg-gray-700 rounded font-sans text-xs text-gray-200 tracking-wider">
                 {formatKeybindingDisplay(chord)}

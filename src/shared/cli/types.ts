@@ -26,7 +26,7 @@ export type CliRequest = {
 export type DefineCommand<
   Name extends string,
   Args extends object = object,
-  Result = void,
+  _Result = void,
 > = {
   name: Name;
   args?: Args;

@@ -53,7 +53,6 @@ import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
-  activatePane,
   cloneTerminalPane,
   closeAgentSessionPanes,
   closePane,
@@ -1604,7 +1603,7 @@ export function registerApplicationCommands(
       }
 
       // Show progress notification
-      const notifId = enqueueNotification({
+      const _notifId = enqueueNotification({
         kind: "info",
         message: `Deleting ${agentSessionIds.size} worktree${agentSessionIds.size > 1 ? "s" : ""}...`,
       });

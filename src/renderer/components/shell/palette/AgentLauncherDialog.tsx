@@ -68,7 +68,7 @@ export function AgentLauncherDialog({
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(
     new Set(),
   );
-  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  const [_expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [launchTarget, setLaunchTarget] = useState<
     "same-folder" | "worktree" | "cloud-vm"
   >("worktree");

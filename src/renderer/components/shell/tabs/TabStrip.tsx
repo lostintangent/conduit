@@ -32,7 +32,6 @@ import {
 import {
   focusTab,
   getActiveTabCwd,
-  getActiveTabSandboxId,
   moveTab,
   openTab,
 } from "@/store/actions/tab";
@@ -71,8 +70,6 @@ import React, {
   useState,
 } from "react";
 
-const isWindows = window.conduit.platform === "win32";
-
 type TabStripProps = {
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   position?: TabPosition;
@@ -94,10 +91,9 @@ export const TabStrip = ({
     activeTab?.activePaneId !== undefined
       ? activeTab?.panes[activeTab.activePaneId]
       : null;
-  const { homeDirectory, alwaysShowTabs, showLaunchButton, playButtonTarget } =
+  const { homeDirectory, alwaysShowTabs, showLaunchButton } =
     useAtomValue(userSettingsAtom);
   const shouldShowLaunchButton = showLaunchButton ?? false;
-  const scriptTarget = playButtonTarget ?? "newPane";
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const setQuickPaneState = useSetAtom(quickPaneAtom);
   const isDesignMode = applicationMode === "design";
@@ -618,12 +614,6 @@ export const TabStrip = ({
   const handleOpenQuickCloudTerminal = useCallback(() => {
     setIsRepoDialogOpen(true);
   }, []);
-
-  const handleOpenQuickFileExplorer = useCallback(() => {
-    const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const sandboxId = getActiveTabSandboxId(activeTab);
-    setQuickPaneState({ type: "editor", cwd, sandboxId });
-  }, [activeTab, homeDirectory, setQuickPaneState]);
 
   const handleRepoSubmit = useCallback(
     async (repo?: { owner: string; name: string }) => {

@@ -3,7 +3,7 @@
  */
 
 import type { GitFileStatus } from "@/api/GitV2API";
-import type { SelectableItem, FolderNode, FileEntry } from "./types";
+import type { FolderNode, SelectableItem } from "./types";
 
 /**
  * Get the directory path from a file path.

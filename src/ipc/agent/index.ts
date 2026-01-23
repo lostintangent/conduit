@@ -214,7 +214,7 @@ export async function spawnAgentSession(
       const commit = await runGit(repoRoot, ["rev-parse", "HEAD"]);
       baseRef = commit.stdout.trim();
     }
-  } catch (error) {
+  } catch {
     // Repository has no commits yet - can't create worktree
     throw new Error(
       "Cannot create worktree: Repository has no commits yet. Please make an initial commit first.",

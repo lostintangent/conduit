@@ -22,23 +22,23 @@
  * ```
  */
 
+import { QuickOpenAPI } from "@/api/QuickOpenAPI";
 import { clearPressedKeys } from "@/commands/keybindings/parser";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { FileText, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { QuickOpenAPI } from "@/api/QuickOpenAPI";
-import { filterFiles, type FileMatch } from "@/utils/quickOpenFiltering";
-import { filterCommands, type CommandMatch } from "@/utils/commandFiltering";
 import { useQuickOpenRecentFiles } from "@/hooks/useQuickOpenRecentFiles";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { cn } from "@/utils";
 import type { Command } from "@/types";
+import { cn } from "@/utils";
+import { filterCommands, type CommandMatch } from "@/utils/commandFiltering";
 import type { IMatch } from "@/utils/fuzzy-matcher";
+import { filterFiles, type FileMatch } from "@/utils/quickOpenFiltering";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { FileText, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export interface CommandPaletteProps {
   /** Whether the dialog is open */
@@ -112,7 +112,7 @@ export function CommandPalette({
     // Don't scan unsafe/broad directories
     const isSafeDirectory =
       cwd &&
-      !cwd.match(/^(\/|\/Users\/[^\/]+|\/home\/[^\/]+|C:\\Users\\[^\\]+)$/);
+      !cwd.match(/^(\/|\/Users\/[^/]+|\/home\/[^/]+|C:\\Users\\[^\\]+)$/);
 
     if (!isSafeDirectory) {
       setIsLoading(false);
@@ -667,7 +667,7 @@ function SkeletonRows() {
     <div className="py-1 space-y-0">
       {Array.from({ length: 15 }).map((_, i) => (
         <div
-          key={i}
+          key={`skeleton-${i}`}
           className="h-6 px-3 flex items-center gap-1.5 opacity-50"
           style={{ animationDelay: `${i * 30}ms` }}
         >

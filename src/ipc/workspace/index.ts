@@ -83,7 +83,7 @@ async function loadWorkspaceState(): Promise<void> {
   try {
     const data = await fs.readFile(workspacesFilePath, "utf-8");
     workspaceState = JSON.parse(data) as WorkspaceState;
-  } catch (error) {
+  } catch {
     // The workspace state is already initialized to an empty state,
     // so if the file doesn't exist or fails to read, we can safely ignore the error.
   }

@@ -38,8 +38,8 @@ function buildCheckForUpdatesMenuItem(): Electron.MenuItemConstructorOptions {
 
 export async function updateApplicationMenu(
   window: BrowserWindow,
-  settings: UserSettings,
-  saveSettings: (settings: UserSettings) => Promise<void>,
+  _settings: UserSettings,
+  _saveSettings: (settings: UserSettings) => Promise<void>,
 ) {
   const workspaces = await getWorkspaces();
   const updateMenuItem = buildCheckForUpdatesMenuItem();

@@ -1,10 +1,10 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
-import type { FileMatch } from "@/utils/quickOpenFiltering";
 import { cn } from "@/utils";
-import { FileText } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
+import type { FileMatch } from "@/utils/quickOpenFiltering";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { FileText } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 // Global singleton portal container - shared across all instances
 let globalPortalContainer: HTMLDivElement | null = null;

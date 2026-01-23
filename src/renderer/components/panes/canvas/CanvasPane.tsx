@@ -103,7 +103,7 @@ const TEXT_INPUT_FOCUS_DELAY_MS = 10;
 // Helpers
 // =============================================================================
 
-const api = window.conduit;
+const _api = window.conduit;
 
 /**
  * Get theme-aware background color using the same approach as terminal pane.

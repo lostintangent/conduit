@@ -375,7 +375,7 @@ export function usePaneDragDrop({
           const zone = getDropZone(e, e.currentTarget as HTMLElement);
           setDropZone(zone);
         },
-        onDragLeave: (e: React.DragEvent) => {
+        onDragLeave: (_e: React.DragEvent) => {
           setDropZone(null);
           setIsFocusModeDrag(false);
 

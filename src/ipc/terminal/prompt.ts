@@ -83,7 +83,7 @@ async function handlePromptRequest(
       try {
         child.stdin.write(prompt);
         child.stdin.end();
-      } catch (error) {
+      } catch {
         // Ignore write errors - process may have already closed
       }
     }

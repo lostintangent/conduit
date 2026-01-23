@@ -764,7 +764,7 @@ export async function hasUpstreamBranch(cwd: string): Promise<boolean> {
       "@{u}",
     ]);
     return result.stdout.trim().length > 0;
-  } catch (error) {
+  } catch {
     // Command fails if no upstream is set
     return false;
   }
@@ -841,7 +841,7 @@ export async function gitRevert(
     // Try git restore first (restores working tree from index)
     const args = ["restore", "--", ...relativePaths];
     return await runGit(gitRoot, args);
-  } catch (error) {
+  } catch {
     // Fall back to git checkout for older git versions
     const args = ["checkout", "--", ...relativePaths];
     return await runGit(gitRoot, args);

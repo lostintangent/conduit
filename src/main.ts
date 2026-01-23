@@ -38,7 +38,7 @@ function hydrateEnvFromLoginShell() {
           process.env.PATH = output.trim();
         }
         return; // Success, exit function
-      } catch (error) {
+      } catch {
         // Continue to next shell
       }
     }

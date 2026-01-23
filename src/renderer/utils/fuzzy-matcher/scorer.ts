@@ -13,9 +13,8 @@
  * their behavior exactly for Quick Open file search.
  */
 
-import { matchesPrefix, type IMatch } from "./filters";
-import { isUpper } from "./filters";
 import { CharCode } from "./charCode";
+import { isUpper, matchesPrefix, type IMatch } from "./filters";
 
 // Path separator for normalization
 // In Electron renderer, we normalize everything to "/" for consistency
@@ -204,7 +203,7 @@ function normalizeQuery(original: string): {
   // - ellipsis: sometimes used to indicate any path segments
   // - trailing hash: used by some language servers (e.g. rust-analyzer) as query modifiers
   const normalized = pathNormalized
-    .replace(/[\*\u2026\s"]/g, "")
+    .replace(/[*\u2026\s"]/g, "")
     .replace(/(?<=.)#$/, "");
 
   return {
@@ -658,7 +657,7 @@ function doScoreItemFuzzySingle(
   // Finally compute description + label scores if we have a description
   if (description) {
     let descriptionPrefix = description;
-    if (!!path) {
+    if (path) {
       descriptionPrefix = `${description}${sep}`; // assume this is a file path
     }
 

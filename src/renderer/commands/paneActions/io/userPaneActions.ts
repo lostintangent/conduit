@@ -1,7 +1,7 @@
-import { getUserPaneActionsPath, writePaneActionsFile } from "./fileOperations";
-import { updatePaneActionsAtom } from "./updatePaneActionsAtom";
 import { getDefaultActions } from "../core/defaults";
 import type { Action } from "../core/types";
+import { getUserPaneActionsPath, writePaneActionsFile } from "./fileOperations";
+import { updatePaneActionsAtom } from "./updatePaneActionsAtom";
 
 /**
  * Save pane actions to file and update the atom
@@ -73,7 +73,7 @@ export async function hasUserPaneActionsFile(
   try {
     await api.readFile(filePath);
     return true;
-  } catch (error) {
+  } catch {
     // File doesn't exist
     return false;
   }

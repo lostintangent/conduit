@@ -5,16 +5,15 @@
  * to provide intelligent command search with match highlighting.
  */
 
+import type { Command } from "@/types";
 import {
+  compareItemsByFuzzyScore,
   prepareQuery,
   scoreItemFuzzy,
-  compareItemsByFuzzyScore,
-  type IPreparedQuery,
+  type FuzzyScorerCache,
   type IItemAccessor,
   type IMatch,
-  type FuzzyScorerCache,
 } from "./fuzzy-matcher";
-import type { Command } from "@/types";
 
 export interface CommandMatch {
   id: string;

@@ -24,7 +24,7 @@ export function DiffStat({
   // Calculate blocks to show (capped at maxBlocks)
   const totalBlocks = Math.min(maxBlocks, Math.ceil(total / 100));
   const addedBlocks = total > 0 ? Math.round((added / total) * totalBlocks) : 0;
-  const removedBlocks = totalBlocks - addedBlocks;
+  const _removedBlocks = totalBlocks - addedBlocks;
 
   return (
     <div className={cn("flex items-center gap-1.5 text-xs", className)}>
@@ -40,7 +40,7 @@ export function DiffStat({
           const isAdded = i < addedBlocks;
           return (
             <div
-              key={i}
+              key={`block-${i}`}
               className={cn(
                 "w-2 h-2 rounded-sm",
                 isAdded ? "bg-green-500" : "bg-red-500",

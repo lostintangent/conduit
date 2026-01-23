@@ -24,7 +24,7 @@ export async function warmFileCache(workspaceRoot: string): Promise<void> {
   const isSafeDirectory =
     workspaceRoot &&
     !workspaceRoot.match(
-      /^(\/|\/Users\/[^\/]+|\/home\/[^\/]+|C:\\Users\\[^\\]+)$/,
+      /^(\/|\/Users\/[^/]+|\/home\/[^/]+|C:\\Users\\[^\\]+)$/,
     );
 
   if (!isSafeDirectory) {

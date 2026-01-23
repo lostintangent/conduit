@@ -1180,7 +1180,7 @@ export class MonacoModelRegistry {
           // Reuse existing external change handling logic
           await this.handleExternalFileChange(uri, entry);
         }
-      } catch (error) {
+      } catch {
         // Silently ignore errors (file might be deleted, permission issues, etc.)
         // The user will see the cached content which is fine
       }

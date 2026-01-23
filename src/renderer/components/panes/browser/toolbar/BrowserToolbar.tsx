@@ -23,7 +23,7 @@ import { BrowserMenu } from "./BrowserMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
 import { StarredPagesMenu } from "./StarredPagesMenu";
 
-const api = window.conduit;
+const _api = window.conduit;
 
 type BrowserToolbarProps = {
   currentPage: BrowserPage;

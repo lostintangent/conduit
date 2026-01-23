@@ -1138,7 +1138,7 @@ export class DiskGitProvider implements GitProvider {
       const relativePath = this.toRelativePath(filePath);
       const result = await this.git.show([`${commitId}:${relativePath}`]);
       return result;
-    } catch (error) {
+    } catch {
       // File might not exist at this commit
       return null;
     }

@@ -396,7 +396,7 @@ export function FileEditor(props: FileEditorProps) {
   }, [isDirty, controlsActivated]);
 
   // Show editor controls when dirty or previously activated (not for deleted/read-only)
-  const showEditorControls =
+  const _showEditorControls =
     !isReadOnly && fileStatus !== "deleted" && (isDirty || controlsActivated);
 
   // Save handler

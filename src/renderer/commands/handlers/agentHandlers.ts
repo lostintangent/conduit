@@ -9,7 +9,6 @@ import {
   updateNotification,
 } from "@/store/actions/notifications";
 import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
-import type { AgentSessionInfo } from "@shared/types";
 
 /**
  * List all agent sessions and show management dialog
