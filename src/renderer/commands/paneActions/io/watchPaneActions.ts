@@ -130,17 +130,17 @@ export function watchPaneActionsFile(
     }, 100);
   };
 
-  // Set up file watcher using fsv2 subscription API
+  // Set up file watcher using fs subscription API
   const cwd = getParentDirectory(filePath);
 
   // Subscribe to file content changes for this specific file
-  window.conduit.fsv2
+  window.conduit.fs
     .subscribe(cwd, "file", filePath)
     .then((subId) => {
       subscriptionId = subId;
 
       // Listen for file content changes
-      ipcCleanup = window.conduit.fsv2.onFileContentChanged((payload) => {
+      ipcCleanup = window.conduit.fs.onFileContentChanged((payload) => {
         // Only handle events for our subscription
         if (payload.subscriptionId !== subscriptionId) {
           return;
@@ -170,7 +170,7 @@ export function watchPaneActionsFile(
 
       // Unsubscribe from file changes
       if (subscriptionId) {
-        window.conduit.fsv2.unsubscribe(subscriptionId).catch((error) => {
+        window.conduit.fs.unsubscribe(subscriptionId).catch((error) => {
           console.error("Failed to unsubscribe from file changes:", error);
         });
         subscriptionId = null;

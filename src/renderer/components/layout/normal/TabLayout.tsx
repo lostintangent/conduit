@@ -9,7 +9,7 @@ import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
-import { EditorPaneAnchor } from "@/components/panes/editor-v2";
+import { EditorPaneAnchor } from "@/components/panes/editor";
 import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import type {

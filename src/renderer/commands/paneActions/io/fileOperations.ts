@@ -38,13 +38,13 @@ export async function readPaneActionsFile(
   filePath: string,
 ): Promise<Action[] | null> {
   const api = window.conduit;
-  if (!api?.fsv2?.readTextFile) {
-    throw new Error("Conduit fsv2 API not available");
+  if (!api?.fs?.readTextFile) {
+    throw new Error("Conduit fs API not available");
   }
 
   try {
     const cwd = getParentDirectory(filePath);
-    const content = await api.fsv2.readTextFile(cwd, filePath);
+    const content = await api.fs.readTextFile(cwd, filePath);
     return parsePaneActionsContent(content);
   } catch (error) {
     // File doesn't exist - this is expected on first run
@@ -97,8 +97,8 @@ export async function writePaneActionsFile(
   actions: Action[],
 ): Promise<void> {
   const api = window.conduit;
-  if (!api?.fsv2?.writeFile) {
-    throw new Error("Conduit fsv2 API not available");
+  if (!api?.fs?.writeFile) {
+    throw new Error("Conduit fs API not available");
   }
 
   // Validate before writing
@@ -108,7 +108,7 @@ export async function writePaneActionsFile(
   const content = JSON.stringify(actions, null, 2);
   const cwd = getParentDirectory(filePath);
   const contentBytes = new TextEncoder().encode(content);
-  await api.fsv2.writeFile(cwd, filePath, contentBytes);
+  await api.fs.writeFile(cwd, filePath, contentBytes);
 }
 
 /**

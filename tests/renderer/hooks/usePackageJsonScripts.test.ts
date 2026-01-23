@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockReadFile = vi.fn();
 (global as any).window = {
   conduit: {
-    fsv2: {
+    fs: {
       readFile: mockReadFile,
     },
   },

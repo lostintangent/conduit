@@ -5,8 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ============================================================================
 
 const { MockGitV2API } = vi.hoisted(() => {
-  // Mock window.conduit.gitv2
-  const gitv2 = {
+  // Mock window.conduit.git
+  const git = {
     getStatus: vi.fn(),
     getFileStatus: vi.fn(),
     isDirty: vi.fn(),
@@ -31,7 +31,7 @@ const { MockGitV2API } = vi.hoisted(() => {
 
   // Set up window.conduit
   (globalThis as any).window = (globalThis as any).window || {};
-  (globalThis as any).window.conduit = { gitv2 };
+  (globalThis as any).window.conduit = { git };
 
   // Create a mock class that tracks instances
   class MockAPI {

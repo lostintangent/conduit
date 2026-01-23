@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockGitv2 } = vi.hoisted(() => {
-  const gitv2 = {
+const { mockGit } = vi.hoisted(() => {
+  const git = {
     getStatus: vi.fn(),
     getFileStatus: vi.fn(),
     hasUncommittedChanges: vi.fn(),
@@ -45,10 +45,10 @@ const { mockGitv2 } = vi.hoisted(() => {
   // Set up window.conduit before any modules load
   (globalThis as any).window = (globalThis as any).window || {};
   (globalThis as any).window.conduit = {
-    gitv2,
+    git,
   };
 
-  return { mockGitv2: gitv2 };
+  return { mockGit: git };
 });
 
 // Import after mocks are set up
@@ -63,12 +63,12 @@ describe("GitV2API", () => {
     vi.clearAllMocks();
 
     // Ensure window.conduit is available
-    (globalThis as any).window.conduit = { gitv2: mockGitv2 };
+    (globalThis as any).window.conduit = { git: mockGit };
 
     // Reset mock implementations
-    mockGitv2.subscribe.mockResolvedValue("test-sub-id");
-    mockGitv2.findRoot.mockResolvedValue("/test/repo");
-    mockGitv2.unsubscribe.mockResolvedValue(undefined);
+    mockGit.subscribe.mockResolvedValue("test-sub-id");
+    mockGit.findRoot.mockResolvedValue("/test/repo");
+    mockGit.unsubscribe.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -112,7 +112,7 @@ describe("GitV2API", () => {
           },
         },
       };
-      mockGitv2.getStatus.mockResolvedValue(serializedStatus);
+      mockGit.getStatus.mockResolvedValue(serializedStatus);
 
       const api = new GitV2API("/test/project");
       const result = await api.getStatus();
@@ -136,7 +136,7 @@ describe("GitV2API", () => {
     });
 
     it("should return null for non-git directory", async () => {
-      mockGitv2.getStatus.mockResolvedValue(null);
+      mockGit.getStatus.mockResolvedValue(null);
 
       const api = new GitV2API("/not/a/repo");
       const result = await api.getStatus();
@@ -163,12 +163,12 @@ describe("GitV2API", () => {
         status: "modified",
         staged: true,
       };
-      mockGitv2.getFileStatus.mockResolvedValue(fileStatus);
+      mockGit.getFileStatus.mockResolvedValue(fileStatus);
 
       const api = new GitV2API("/test/project");
       const result = await api.getFileStatus("src/file.ts");
 
-      expect(mockGitv2.getFileStatus).toHaveBeenCalledWith(
+      expect(mockGit.getFileStatus).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
         undefined,
@@ -179,7 +179,7 @@ describe("GitV2API", () => {
     });
 
     it("should return null for clean file", async () => {
-      mockGitv2.getFileStatus.mockResolvedValue(null);
+      mockGit.getFileStatus.mockResolvedValue(null);
 
       const api = new GitV2API("/test/project");
       const result = await api.getFileStatus("clean-file.ts");
@@ -192,12 +192,12 @@ describe("GitV2API", () => {
 
   describe("hasUncommittedChanges", () => {
     it("should return true when dirty", async () => {
-      mockGitv2.hasUncommittedChanges.mockResolvedValue(true);
+      mockGit.hasUncommittedChanges.mockResolvedValue(true);
 
       const api = new GitV2API("/test/project");
       const result = await api.hasUncommittedChanges();
 
-      expect(mockGitv2.hasUncommittedChanges).toHaveBeenCalledWith(
+      expect(mockGit.hasUncommittedChanges).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -207,7 +207,7 @@ describe("GitV2API", () => {
     });
 
     it("should return false when clean", async () => {
-      mockGitv2.hasUncommittedChanges.mockResolvedValue(false);
+      mockGit.hasUncommittedChanges.mockResolvedValue(false);
 
       const api = new GitV2API("/test/project");
       const result = await api.hasUncommittedChanges();
@@ -220,12 +220,12 @@ describe("GitV2API", () => {
 
   describe("hasUnpushedCommits", () => {
     it("should return correct value", async () => {
-      mockGitv2.hasUnpushedCommits.mockResolvedValue(true);
+      mockGit.hasUnpushedCommits.mockResolvedValue(true);
 
       const api = new GitV2API("/test/project");
       const result = await api.hasUnpushedCommits();
 
-      expect(mockGitv2.hasUnpushedCommits).toHaveBeenCalledWith(
+      expect(mockGit.hasUnpushedCommits).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -242,12 +242,12 @@ describe("GitV2API", () => {
   describe("getFileDiff", () => {
     it("should return diff string", async () => {
       const diff = "@@ -1,3 +1,4 @@\n+new line\n content";
-      mockGitv2.getFileDiff.mockResolvedValue(diff);
+      mockGit.getFileDiff.mockResolvedValue(diff);
 
       const api = new GitV2API("/test/project");
       const result = await api.getFileDiff("src/file.ts");
 
-      expect(mockGitv2.getFileDiff).toHaveBeenCalledWith(
+      expect(mockGit.getFileDiff).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
         undefined,
@@ -259,12 +259,12 @@ describe("GitV2API", () => {
     });
 
     it("should pass staged flag", async () => {
-      mockGitv2.getFileDiff.mockResolvedValue("diff");
+      mockGit.getFileDiff.mockResolvedValue("diff");
 
       const api = new GitV2API("/test/project");
       await api.getFileDiff("src/file.ts", true);
 
-      expect(mockGitv2.getFileDiff).toHaveBeenCalledWith(
+      expect(mockGit.getFileDiff).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
         true,
@@ -278,12 +278,12 @@ describe("GitV2API", () => {
   describe("getFileAtRef", () => {
     it("should return file content at ref", async () => {
       const content = "original content";
-      mockGitv2.getFileAtRef.mockResolvedValue(content);
+      mockGit.getFileAtRef.mockResolvedValue(content);
 
       const api = new GitV2API("/test/project");
       const result = await api.getFileAtRef("src/file.ts", "HEAD");
 
-      expect(mockGitv2.getFileAtRef).toHaveBeenCalledWith(
+      expect(mockGit.getFileAtRef).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
         "HEAD",
@@ -301,12 +301,12 @@ describe("GitV2API", () => {
 
   describe("stage", () => {
     it("should stage files", async () => {
-      mockGitv2.stage.mockResolvedValue(undefined);
+      mockGit.stage.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.stage(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGitv2.stage).toHaveBeenCalledWith(
+      expect(mockGit.stage).toHaveBeenCalledWith(
         "/test/project",
         ["src/file1.ts", "src/file2.ts"],
         undefined,
@@ -318,12 +318,12 @@ describe("GitV2API", () => {
 
   describe("unstage", () => {
     it("should unstage files", async () => {
-      mockGitv2.unstage.mockResolvedValue(undefined);
+      mockGit.unstage.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.unstage(["src/file.ts"]);
 
-      expect(mockGitv2.unstage).toHaveBeenCalledWith(
+      expect(mockGit.unstage).toHaveBeenCalledWith(
         "/test/project",
         ["src/file.ts"],
         undefined,
@@ -348,12 +348,12 @@ describe("GitV2API", () => {
         message: "Test commit",
         parents: ["parent123"],
       };
-      mockGitv2.commit.mockResolvedValue(serializedCommit);
+      mockGit.commit.mockResolvedValue(serializedCommit);
 
       const api = new GitV2API("/test/project");
       const result = await api.commit("Test commit");
 
-      expect(mockGitv2.commit).toHaveBeenCalledWith(
+      expect(mockGit.commit).toHaveBeenCalledWith(
         "/test/project",
         "Test commit",
         undefined,
@@ -369,7 +369,7 @@ describe("GitV2API", () => {
     });
 
     it("should pass commit options", async () => {
-      mockGitv2.commit.mockResolvedValue({
+      mockGit.commit.mockResolvedValue({
         hash: "abc123",
         shortHash: "abc",
         author: "Test",
@@ -382,7 +382,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.commit("Test", { amend: true, signoff: true });
 
-      expect(mockGitv2.commit).toHaveBeenCalledWith(
+      expect(mockGit.commit).toHaveBeenCalledWith(
         "/test/project",
         "Test",
         {
@@ -402,7 +402,7 @@ describe("GitV2API", () => {
 
   describe("getCurrentBranch", () => {
     it("should return branch name", async () => {
-      mockGitv2.getCurrentBranch.mockResolvedValue("feature/test");
+      mockGit.getCurrentBranch.mockResolvedValue("feature/test");
 
       const api = new GitV2API("/test/project");
       const result = await api.getCurrentBranch();
@@ -432,7 +432,7 @@ describe("GitV2API", () => {
           commit: "abc123",
         },
       ];
-      mockGitv2.getBranches.mockResolvedValue(serializedBranches);
+      mockGit.getBranches.mockResolvedValue(serializedBranches);
 
       const api = new GitV2API("/test/project");
       const result = await api.getBranches();
@@ -456,7 +456,7 @@ describe("GitV2API", () => {
           lastCommitMessage: "Latest commit",
         },
       ];
-      mockGitv2.getBranches.mockResolvedValue(serializedBranches);
+      mockGit.getBranches.mockResolvedValue(serializedBranches);
 
       const api = new GitV2API("/test/project");
       const result = await api.getBranches();
@@ -477,7 +477,7 @@ describe("GitV2API", () => {
           commit: "abc123",
         },
       ];
-      mockGitv2.getBranches.mockResolvedValue(serializedBranches);
+      mockGit.getBranches.mockResolvedValue(serializedBranches);
 
       const api = new GitV2API("/test/project");
       const result = await api.getBranches();
@@ -491,12 +491,12 @@ describe("GitV2API", () => {
 
   describe("checkout", () => {
     it("should checkout ref with default force=false", async () => {
-      mockGitv2.checkout.mockResolvedValue(undefined);
+      mockGit.checkout.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.checkout("feature/new");
 
-      expect(mockGitv2.checkout).toHaveBeenCalledWith(
+      expect(mockGit.checkout).toHaveBeenCalledWith(
         "/test/project",
         "feature/new",
         false,
@@ -507,12 +507,12 @@ describe("GitV2API", () => {
     });
 
     it("should checkout ref with force=true", async () => {
-      mockGitv2.checkout.mockResolvedValue(undefined);
+      mockGit.checkout.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.checkout("feature/new", true);
 
-      expect(mockGitv2.checkout).toHaveBeenCalledWith(
+      expect(mockGit.checkout).toHaveBeenCalledWith(
         "/test/project",
         "feature/new",
         true,
@@ -529,12 +529,12 @@ describe("GitV2API", () => {
 
   describe("stash", () => {
     it("should stash without message", async () => {
-      mockGitv2.stash.mockResolvedValue(undefined);
+      mockGit.stash.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.stash();
 
-      expect(mockGitv2.stash).toHaveBeenCalledWith(
+      expect(mockGit.stash).toHaveBeenCalledWith(
         "/test/project",
         undefined,
         undefined,
@@ -544,12 +544,12 @@ describe("GitV2API", () => {
     });
 
     it("should stash with message", async () => {
-      mockGitv2.stash.mockResolvedValue(undefined);
+      mockGit.stash.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.stash("WIP: feature work");
 
-      expect(mockGitv2.stash).toHaveBeenCalledWith(
+      expect(mockGit.stash).toHaveBeenCalledWith(
         "/test/project",
         "WIP: feature work",
         undefined,
@@ -561,15 +561,12 @@ describe("GitV2API", () => {
 
   describe("stashPop", () => {
     it("should pop stash", async () => {
-      mockGitv2.stashPop.mockResolvedValue(undefined);
+      mockGit.stashPop.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.stashPop();
 
-      expect(mockGitv2.stashPop).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-      );
+      expect(mockGit.stashPop).toHaveBeenCalledWith("/test/project", undefined);
 
       api.release();
     });
@@ -581,12 +578,12 @@ describe("GitV2API", () => {
 
   describe("push", () => {
     it("should push with default options", async () => {
-      mockGitv2.push.mockResolvedValue(undefined);
+      mockGit.push.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.push();
 
-      expect(mockGitv2.push).toHaveBeenCalledWith(
+      expect(mockGit.push).toHaveBeenCalledWith(
         "/test/project",
         false,
         false,
@@ -597,12 +594,12 @@ describe("GitV2API", () => {
     });
 
     it("should push with force option", async () => {
-      mockGitv2.push.mockResolvedValue(undefined);
+      mockGit.push.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.push(true);
 
-      expect(mockGitv2.push).toHaveBeenCalledWith(
+      expect(mockGit.push).toHaveBeenCalledWith(
         "/test/project",
         true,
         false,
@@ -613,12 +610,12 @@ describe("GitV2API", () => {
     });
 
     it("should push with setUpstream option for new branches", async () => {
-      mockGitv2.push.mockResolvedValue(undefined);
+      mockGit.push.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.push(false, true);
 
-      expect(mockGitv2.push).toHaveBeenCalledWith(
+      expect(mockGit.push).toHaveBeenCalledWith(
         "/test/project",
         false,
         true,
@@ -631,12 +628,12 @@ describe("GitV2API", () => {
 
   describe("pull", () => {
     it("should pull with default options", async () => {
-      mockGitv2.pull.mockResolvedValue(undefined);
+      mockGit.pull.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.pull();
 
-      expect(mockGitv2.pull).toHaveBeenCalledWith(
+      expect(mockGit.pull).toHaveBeenCalledWith(
         "/test/project",
         false,
         undefined,
@@ -646,12 +643,12 @@ describe("GitV2API", () => {
     });
 
     it("should pull with rebase option", async () => {
-      mockGitv2.pull.mockResolvedValue(undefined);
+      mockGit.pull.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.pull(true);
 
-      expect(mockGitv2.pull).toHaveBeenCalledWith(
+      expect(mockGit.pull).toHaveBeenCalledWith(
         "/test/project",
         true,
         undefined,
@@ -663,12 +660,12 @@ describe("GitV2API", () => {
 
   describe("hasUpstream", () => {
     it("should return true when upstream is configured", async () => {
-      mockGitv2.hasUpstream.mockResolvedValue(true);
+      mockGit.hasUpstream.mockResolvedValue(true);
 
       const api = new GitV2API("/test/project");
       const result = await api.hasUpstream();
 
-      expect(mockGitv2.hasUpstream).toHaveBeenCalledWith(
+      expect(mockGit.hasUpstream).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -678,7 +675,7 @@ describe("GitV2API", () => {
     });
 
     it("should return false when no upstream", async () => {
-      mockGitv2.hasUpstream.mockResolvedValue(false);
+      mockGit.hasUpstream.mockResolvedValue(false);
 
       const api = new GitV2API("/test/project");
       const result = await api.hasUpstream();
@@ -698,7 +695,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project/src");
       const result = await api.findRoot();
 
-      expect(mockGitv2.findRoot).toHaveBeenCalledWith(
+      expect(mockGit.findRoot).toHaveBeenCalledWith(
         "/test/project/src",
         undefined,
       );
@@ -715,14 +712,14 @@ describe("GitV2API", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       // Clear the call count from constructor's ensureSubscribed
-      mockGitv2.findRoot.mockClear();
+      mockGit.findRoot.mockClear();
 
       // Now test caching - first call uses cache from constructor
       await api.findRoot();
       await api.findRoot();
 
       // Should not call again since it was already cached during construction
-      expect(mockGitv2.findRoot).toHaveBeenCalledTimes(0);
+      expect(mockGit.findRoot).toHaveBeenCalledTimes(0);
 
       api.release();
     });
@@ -735,12 +732,12 @@ describe("GitV2API", () => {
   describe("getChangedFilesFromBranch", () => {
     it("should return array of changed files", async () => {
       const changedFiles = ["src/file1.ts", "src/file2.ts", "README.md"];
-      mockGitv2.getChangedFilesFromBranch.mockResolvedValue(changedFiles);
+      mockGit.getChangedFilesFromBranch.mockResolvedValue(changedFiles);
 
       const api = new GitV2API("/test/project");
       const result = await api.getChangedFilesFromBranch("main");
 
-      expect(mockGitv2.getChangedFilesFromBranch).toHaveBeenCalledWith(
+      expect(mockGit.getChangedFilesFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
         undefined,
@@ -751,7 +748,7 @@ describe("GitV2API", () => {
     });
 
     it("should return empty array when no changes", async () => {
-      mockGitv2.getChangedFilesFromBranch.mockResolvedValue([]);
+      mockGit.getChangedFilesFromBranch.mockResolvedValue([]);
 
       const api = new GitV2API("/test/project");
       const result = await api.getChangedFilesFromBranch("main");
@@ -777,12 +774,12 @@ describe("GitV2API", () => {
         "src/newFile.ts": { status: "added", staged: false },
         "src/modified.ts": { status: "modified", staged: false },
       };
-      mockGitv2.getStatusFromBranch.mockResolvedValue(statusObject);
+      mockGit.getStatusFromBranch.mockResolvedValue(statusObject);
 
       const api = new GitV2API("/test/project");
       const result = await api.getStatusFromBranch("main");
 
-      expect(mockGitv2.getStatusFromBranch).toHaveBeenCalledWith(
+      expect(mockGit.getStatusFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
         undefined,
@@ -795,7 +792,7 @@ describe("GitV2API", () => {
     });
 
     it("should return empty Map when no changes", async () => {
-      mockGitv2.getStatusFromBranch.mockResolvedValue({});
+      mockGit.getStatusFromBranch.mockResolvedValue({});
 
       const api = new GitV2API("/test/project");
       const result = await api.getStatusFromBranch("main");
@@ -819,12 +816,12 @@ describe("GitV2API", () => {
   describe("getUncommittedDiffStats", () => {
     it("should return diff statistics", async () => {
       const stats = { added: 100, removed: 50, files: 5 };
-      mockGitv2.getUncommittedDiffStats.mockResolvedValue(stats);
+      mockGit.getUncommittedDiffStats.mockResolvedValue(stats);
 
       const api = new GitV2API("/test/project");
       const result = await api.getUncommittedDiffStats();
 
-      expect(mockGitv2.getUncommittedDiffStats).toHaveBeenCalledWith(
+      expect(mockGit.getUncommittedDiffStats).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -835,7 +832,7 @@ describe("GitV2API", () => {
 
     it("should return zero stats for clean repo", async () => {
       const stats = { added: 0, removed: 0, files: 0 };
-      mockGitv2.getUncommittedDiffStats.mockResolvedValue(stats);
+      mockGit.getUncommittedDiffStats.mockResolvedValue(stats);
 
       const api = new GitV2API("/test/project");
       const result = await api.getUncommittedDiffStats();
@@ -850,12 +847,12 @@ describe("GitV2API", () => {
 
   describe("getMostRecentDirtyFile", () => {
     it("should return most recent dirty file path", async () => {
-      mockGitv2.getMostRecentDirtyFile.mockResolvedValue("src/recent.ts");
+      mockGit.getMostRecentDirtyFile.mockResolvedValue("src/recent.ts");
 
       const api = new GitV2API("/test/project");
       const result = await api.getMostRecentDirtyFile();
 
-      expect(mockGitv2.getMostRecentDirtyFile).toHaveBeenCalledWith(
+      expect(mockGit.getMostRecentDirtyFile).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -865,7 +862,7 @@ describe("GitV2API", () => {
     });
 
     it("should return null when no dirty files", async () => {
-      mockGitv2.getMostRecentDirtyFile.mockResolvedValue(null);
+      mockGit.getMostRecentDirtyFile.mockResolvedValue(null);
 
       const api = new GitV2API("/test/project");
       const result = await api.getMostRecentDirtyFile();
@@ -878,12 +875,12 @@ describe("GitV2API", () => {
 
   describe("getMostRecentCommittedFile", () => {
     it("should return most recent committed file", async () => {
-      mockGitv2.getMostRecentCommittedFile.mockResolvedValue("src/index.ts");
+      mockGit.getMostRecentCommittedFile.mockResolvedValue("src/index.ts");
 
       const api = new GitV2API("/test/project");
       const result = await api.getMostRecentCommittedFile();
 
-      expect(mockGitv2.getMostRecentCommittedFile).toHaveBeenCalledWith(
+      expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         undefined,
         undefined,
@@ -894,12 +891,12 @@ describe("GitV2API", () => {
     });
 
     it("should pass commitLimit parameter", async () => {
-      mockGitv2.getMostRecentCommittedFile.mockResolvedValue("src/file.ts");
+      mockGit.getMostRecentCommittedFile.mockResolvedValue("src/file.ts");
 
       const api = new GitV2API("/test/project");
       await api.getMostRecentCommittedFile(5);
 
-      expect(mockGitv2.getMostRecentCommittedFile).toHaveBeenCalledWith(
+      expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         5,
         undefined,
@@ -909,7 +906,7 @@ describe("GitV2API", () => {
     });
 
     it("should return null when no committed files found", async () => {
-      mockGitv2.getMostRecentCommittedFile.mockResolvedValue(null);
+      mockGit.getMostRecentCommittedFile.mockResolvedValue(null);
 
       const api = new GitV2API("/test/project");
       const result = await api.getMostRecentCommittedFile();
@@ -922,12 +919,12 @@ describe("GitV2API", () => {
 
   describe("revert", () => {
     it("should revert specified files", async () => {
-      mockGitv2.revert.mockResolvedValue(undefined);
+      mockGit.revert.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.revert(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGitv2.revert).toHaveBeenCalledWith(
+      expect(mockGit.revert).toHaveBeenCalledWith(
         "/test/project",
         ["src/file1.ts", "src/file2.ts"],
         undefined,
@@ -937,12 +934,12 @@ describe("GitV2API", () => {
     });
 
     it("should handle empty files array", async () => {
-      mockGitv2.revert.mockResolvedValue(undefined);
+      mockGit.revert.mockResolvedValue(undefined);
 
       const api = new GitV2API("/test/project");
       await api.revert([]);
 
-      expect(mockGitv2.revert).toHaveBeenCalledWith(
+      expect(mockGit.revert).toHaveBeenCalledWith(
         "/test/project",
         [],
         undefined,
@@ -973,7 +970,7 @@ describe("GitV2API", () => {
       const cleanup = api.onStatusChanged(callback);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockGitv2.subscribe).toHaveBeenCalledWith(
+      expect(mockGit.subscribe).toHaveBeenCalledWith(
         "/test/project",
         undefined,
       );
@@ -986,7 +983,7 @@ describe("GitV2API", () => {
 
     it("should deserialize status in events", async () => {
       let statusListener: ((payload: unknown) => void) | null = null;
-      mockGitv2.onStatusChanged.mockImplementation(
+      mockGit.onStatusChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           statusListener = listener;
           return vi.fn();
@@ -1029,7 +1026,7 @@ describe("GitV2API", () => {
   describe("onBranchChanged", () => {
     it("should forward branch change events", async () => {
       let branchListener: ((payload: unknown) => void) | null = null;
-      mockGitv2.onBranchChanged.mockImplementation(
+      mockGit.onBranchChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           branchListener = listener;
           return vi.fn();
@@ -1063,7 +1060,7 @@ describe("GitV2API", () => {
   describe("onCommitCreated", () => {
     it("should deserialize commit in events", async () => {
       let commitListener: ((payload: unknown) => void) | null = null;
-      mockGitv2.onCommitCreated.mockImplementation(
+      mockGit.onCommitCreated.mockImplementation(
         (listener: (payload: unknown) => void) => {
           commitListener = listener;
           return vi.fn();
@@ -1103,7 +1100,7 @@ describe("GitV2API", () => {
   describe("onHeadChanged", () => {
     it("should forward HEAD change events", async () => {
       let headListener: ((payload: unknown) => void) | null = null;
-      mockGitv2.onHeadChanged.mockImplementation(
+      mockGit.onHeadChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           headListener = listener;
           return vi.fn();
@@ -1161,7 +1158,7 @@ describe("GitV2API", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(mockGitv2.unsubscribe).toHaveBeenCalledWith("test-sub-id");
+      expect(mockGit.unsubscribe).toHaveBeenCalledWith("test-sub-id");
     });
 
     it("should be idempotent", () => {
@@ -1190,7 +1187,7 @@ describe("GitV2API", () => {
     it("should unsubscribe if released while subscription is pending (race condition)", async () => {
       // Set up a delayed subscription that we can control
       let resolveSubscription: ((value: string) => void) | null = null;
-      mockGitv2.subscribe.mockImplementation(
+      mockGit.subscribe.mockImplementation(
         () =>
           new Promise((resolve) => {
             resolveSubscription = resolve;
@@ -1204,7 +1201,7 @@ describe("GitV2API", () => {
 
       expect(api.isReleased).toBe(true);
       // At this point, subscriptionId is still null because promise hasn't resolved
-      expect(mockGitv2.unsubscribe).not.toHaveBeenCalled();
+      expect(mockGit.unsubscribe).not.toHaveBeenCalled();
 
       // Now complete the subscription (simulates IPC finally returning)
       resolveSubscription!("late-subscription-id");
@@ -1214,9 +1211,7 @@ describe("GitV2API", () => {
 
       // The fix should have detected that we're already released
       // and immediately unsubscribed
-      expect(mockGitv2.unsubscribe).toHaveBeenCalledWith(
-        "late-subscription-id",
-      );
+      expect(mockGit.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
     });
   });
 
@@ -1240,7 +1235,7 @@ describe("GitV2API", () => {
     it("should wait for pending subscription to complete", async () => {
       // Set up a delayed subscription
       let resolveSubscription: ((value: string) => void) | null = null;
-      mockGitv2.subscribe.mockImplementation(
+      mockGit.subscribe.mockImplementation(
         () =>
           new Promise((resolve) => {
             resolveSubscription = resolve;
@@ -1270,7 +1265,7 @@ describe("GitV2API", () => {
     });
 
     it("should resolve when subscription returns null (non-git repo)", async () => {
-      mockGitv2.subscribe.mockResolvedValue(null);
+      mockGit.subscribe.mockResolvedValue(null);
 
       const api = new GitV2API("/not/a/repo");
 
@@ -1287,7 +1282,7 @@ describe("GitV2API", () => {
 
   describe("non-git repository handling", () => {
     it("should handle null subscription for non-git directories", async () => {
-      mockGitv2.subscribe.mockResolvedValue(null);
+      mockGit.subscribe.mockResolvedValue(null);
 
       const api = new GitV2API("/not/a/repo");
       const callback = vi.fn();
@@ -1298,7 +1293,7 @@ describe("GitV2API", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should have attempted subscription
-      expect(mockGitv2.subscribe).toHaveBeenCalled();
+      expect(mockGit.subscribe).toHaveBeenCalled();
 
       api.release();
     });
@@ -1310,7 +1305,7 @@ describe("GitV2API", () => {
 
   describe("error handling", () => {
     it("should propagate IPC errors", async () => {
-      mockGitv2.getStatus.mockRejectedValue(new Error("Git error"));
+      mockGit.getStatus.mockRejectedValue(new Error("Git error"));
 
       const api = new GitV2API("/test/project");
 
@@ -1321,7 +1316,7 @@ describe("GitV2API", () => {
 
     it("should isolate listener errors", async () => {
       let statusListener: ((payload: unknown) => void) | null = null;
-      mockGitv2.onStatusChanged.mockImplementation(
+      mockGit.onStatusChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           statusListener = listener;
           return vi.fn();

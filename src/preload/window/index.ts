@@ -29,8 +29,8 @@ import type {
 import { contextBridge, ipcRenderer } from "electron";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
-import fsv2Module from "./modules/fsv2";
-import gitv2Module from "./modules/gitv2";
+import fsModule from "./modules/fs";
+import gitModule from "./modules/git";
 import configureUpdatesModule from "./modules/updates";
 import configureWorkspaceModule from "./modules/workspace";
 import { createEventListener } from "./utils";
@@ -398,8 +398,8 @@ const conduitAPI = {
   cli: configureCliModule,
   updates: configureUpdatesModule,
   workspace: configureWorkspaceModule,
-  fsv2: fsv2Module,
-  gitv2: gitv2Module,
+  fs: fsModule,
+  git: gitModule,
 
   // Search
   searchFiles: (request: {

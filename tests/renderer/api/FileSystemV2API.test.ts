@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockFsv2 } = vi.hoisted(() => {
-  const fsv2 = {
+const { mockFs } = vi.hoisted(() => {
+  const fs = {
     readDirectory: vi.fn(),
     readFile: vi.fn(),
     readTextFile: vi.fn(),
@@ -27,10 +27,10 @@ const { mockFsv2 } = vi.hoisted(() => {
   // Set up window.conduit before any modules load
   (globalThis as any).window = (globalThis as any).window || {};
   (globalThis as any).window.conduit = {
-    fsv2,
+    fs,
   };
 
-  return { mockFsv2: fsv2 };
+  return { mockFs: fs };
 });
 
 // Import after mocks are set up
@@ -45,11 +45,11 @@ describe("FileSystemV2API", () => {
     vi.clearAllMocks();
 
     // Ensure window.conduit is available
-    (globalThis as any).window.conduit = { fsv2: mockFsv2 };
+    (globalThis as any).window.conduit = { fs: mockFs };
 
     // Reset mock implementations
-    mockFsv2.subscribe.mockResolvedValue("test-sub-id");
-    mockFsv2.unsubscribe.mockResolvedValue(undefined);
+    mockFs.subscribe.mockResolvedValue("test-sub-id");
+    mockFs.unsubscribe.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -84,12 +84,12 @@ describe("FileSystemV2API", () => {
         { name: "file.txt", type: "file" as const },
         { name: "folder", type: "directory" as const },
       ];
-      mockFsv2.readDirectory.mockResolvedValue(entries);
+      mockFs.readDirectory.mockResolvedValue(entries);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readDirectory("/test/project/src");
 
-      expect(mockFsv2.readDirectory).toHaveBeenCalledWith(
+      expect(mockFs.readDirectory).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/src",
         undefined,
@@ -112,12 +112,12 @@ describe("FileSystemV2API", () => {
   describe("readFile", () => {
     it("should return binary data", async () => {
       const content = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
-      mockFsv2.readFile.mockResolvedValue(content);
+      mockFs.readFile.mockResolvedValue(content);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readFile("/test/project/file.txt");
 
-      expect(mockFsv2.readFile).toHaveBeenCalledWith(
+      expect(mockFs.readFile).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/file.txt",
         undefined,
@@ -130,7 +130,7 @@ describe("FileSystemV2API", () => {
 
   describe("readTextFile", () => {
     it("should return text content directly", async () => {
-      mockFsv2.readTextFile.mockResolvedValue("Hello, World!");
+      mockFs.readTextFile.mockResolvedValue("Hello, World!");
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readTextFile("/test/project/file.txt");
@@ -149,7 +149,7 @@ describe("FileSystemV2API", () => {
         mtime: Date.now(),
         ctime: Date.now(),
       };
-      mockFsv2.stat.mockResolvedValue(stats);
+      mockFs.stat.mockResolvedValue(stats);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.stat("/test/project/file.txt");
@@ -162,7 +162,7 @@ describe("FileSystemV2API", () => {
 
   describe("exists", () => {
     it("should return true for existing path", async () => {
-      mockFsv2.exists.mockResolvedValue(true);
+      mockFs.exists.mockResolvedValue(true);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.exists("/test/project/file.txt");
@@ -173,7 +173,7 @@ describe("FileSystemV2API", () => {
     });
 
     it("should return false for non-existing path", async () => {
-      mockFsv2.exists.mockResolvedValue(false);
+      mockFs.exists.mockResolvedValue(false);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.exists("/test/project/missing.txt");
@@ -190,13 +190,13 @@ describe("FileSystemV2API", () => {
 
   describe("writeFile", () => {
     it("should call IPC with correct params", async () => {
-      mockFsv2.writeFile.mockResolvedValue(undefined);
+      mockFs.writeFile.mockResolvedValue(undefined);
       const content = new Uint8Array([1, 2, 3]);
 
       const api = new FileSystemV2API("/test/project");
       await api.writeFile("/test/project/file.txt", content);
 
-      expect(mockFsv2.writeFile).toHaveBeenCalledWith(
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/file.txt",
         content,
@@ -209,13 +209,13 @@ describe("FileSystemV2API", () => {
 
   describe("writeTextFile", () => {
     it("should encode string as UTF-8", async () => {
-      mockFsv2.writeFile.mockResolvedValue(undefined);
+      mockFs.writeFile.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.writeTextFile("/test/project/file.txt", "Hello");
 
-      expect(mockFsv2.writeFile).toHaveBeenCalled();
-      const [, , content] = mockFsv2.writeFile.mock.calls[0];
+      expect(mockFs.writeFile).toHaveBeenCalled();
+      const [, , content] = mockFs.writeFile.mock.calls[0];
       expect(new TextDecoder().decode(content)).toBe("Hello");
 
       api.release();
@@ -224,12 +224,12 @@ describe("FileSystemV2API", () => {
 
   describe("delete", () => {
     it("should call IPC with path", async () => {
-      mockFsv2.delete.mockResolvedValue(undefined);
+      mockFs.delete.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.delete("/test/project/file.txt");
 
-      expect(mockFsv2.delete).toHaveBeenCalledWith(
+      expect(mockFs.delete).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/file.txt",
         undefined,
@@ -240,12 +240,12 @@ describe("FileSystemV2API", () => {
     });
 
     it("should pass recursive option", async () => {
-      mockFsv2.delete.mockResolvedValue(undefined);
+      mockFs.delete.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.delete("/test/project/folder", { recursive: true });
 
-      expect(mockFsv2.delete).toHaveBeenCalledWith(
+      expect(mockFs.delete).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/folder",
         {
@@ -260,12 +260,12 @@ describe("FileSystemV2API", () => {
 
   describe("rename", () => {
     it("should call IPC with old and new paths", async () => {
-      mockFsv2.rename.mockResolvedValue(undefined);
+      mockFs.rename.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.rename("/test/project/old.txt", "/test/project/new.txt");
 
-      expect(mockFsv2.rename).toHaveBeenCalledWith(
+      expect(mockFs.rename).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/old.txt",
         "/test/project/new.txt",
@@ -278,12 +278,12 @@ describe("FileSystemV2API", () => {
 
   describe("createDirectory", () => {
     it("should call IPC with path", async () => {
-      mockFsv2.createDirectory.mockResolvedValue(undefined);
+      mockFs.createDirectory.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.createDirectory("/test/project/new-folder");
 
-      expect(mockFsv2.createDirectory).toHaveBeenCalledWith(
+      expect(mockFs.createDirectory).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/new-folder",
         undefined,
@@ -309,7 +309,7 @@ describe("FileSystemV2API", () => {
 
       // Should trigger IPC subscription
       await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockFsv2.subscribe).toHaveBeenCalledWith(
+      expect(mockFs.subscribe).toHaveBeenCalledWith(
         "/test/project",
         "all",
         undefined,
@@ -326,7 +326,7 @@ describe("FileSystemV2API", () => {
     it("should call callback when directory changes", async () => {
       // Capture the listener function
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryListingChanged.mockImplementation(
+      mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -360,7 +360,7 @@ describe("FileSystemV2API", () => {
 
     it("should filter events by subscription ID", async () => {
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryListingChanged.mockImplementation(
+      mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -391,7 +391,7 @@ describe("FileSystemV2API", () => {
   describe("onAnyDirectoryListingChanged", () => {
     it("should receive events for any path", async () => {
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryListingChanged.mockImplementation(
+      mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();
@@ -446,7 +446,7 @@ describe("FileSystemV2API", () => {
       // Wait for async cleanup
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(mockFsv2.unsubscribe).toHaveBeenCalledWith("test-sub-id");
+      expect(mockFs.unsubscribe).toHaveBeenCalledWith("test-sub-id");
     });
 
     it("should be idempotent", async () => {
@@ -464,7 +464,7 @@ describe("FileSystemV2API", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should only call unsubscribe once
-      expect(mockFsv2.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(mockFs.unsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it("should prevent further operations", async () => {
@@ -484,7 +484,7 @@ describe("FileSystemV2API", () => {
     it("should unsubscribe if released while subscription is pending (race condition)", async () => {
       // Set up a delayed subscription that we can control
       let resolveSubscription: ((value: string) => void) | null = null;
-      mockFsv2.subscribe.mockImplementation(
+      mockFs.subscribe.mockImplementation(
         () =>
           new Promise((resolve) => {
             resolveSubscription = resolve;
@@ -498,7 +498,7 @@ describe("FileSystemV2API", () => {
 
       expect(api.isReleased).toBe(true);
       // At this point, subscriptionId is still null because promise hasn't resolved
-      expect(mockFsv2.unsubscribe).not.toHaveBeenCalled();
+      expect(mockFs.unsubscribe).not.toHaveBeenCalled();
 
       // Now complete the subscription (simulates IPC finally returning)
       resolveSubscription!("late-subscription-id");
@@ -508,7 +508,7 @@ describe("FileSystemV2API", () => {
 
       // The fix should have detected that we're already released
       // and immediately unsubscribed
-      expect(mockFsv2.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
+      expect(mockFs.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
     });
   });
 
@@ -518,7 +518,7 @@ describe("FileSystemV2API", () => {
 
   describe("error handling", () => {
     it("should propagate IPC errors", async () => {
-      mockFsv2.readFile.mockRejectedValue(new Error("File not found"));
+      mockFs.readFile.mockRejectedValue(new Error("File not found"));
 
       const api = new FileSystemV2API("/test/project");
 
@@ -531,7 +531,7 @@ describe("FileSystemV2API", () => {
 
     it("should isolate listener errors", async () => {
       let directoryListener: ((payload: unknown) => void) | null = null;
-      mockFsv2.onDirectoryListingChanged.mockImplementation(
+      mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
           return vi.fn();

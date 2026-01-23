@@ -12,8 +12,8 @@
  * stat updates with zero additional overhead (uses event data directly).
  */
 
-import { DiffStatsDisplay } from "@/components/panes/editor-v2/components/FileDiffStats";
-import { GitStatusSummary } from "@/components/panes/editor-v2/components/FileTreePanel/GitStatusSummary";
+import { DiffStatsDisplay } from "@/components/panes/editor/components/FileDiffStats";
+import { GitStatusSummary } from "@/components/panes/editor/components/FileTreePanel/GitStatusSummary";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,

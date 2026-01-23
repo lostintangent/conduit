@@ -41,7 +41,7 @@ import {
   fileTreeTargetPath,
 } from "@/commands/contextKeys/appContextKeys";
 import { MenuId } from "@/commands/menus/types";
-import { MonacoModelRegistry } from "@/components/panes/editor-v2/registry/MonacoModelRegistry";
+import { MonacoModelRegistry } from "@/components/panes/editor/registry/MonacoModelRegistry";
 
 /**
  * File tree command IDs

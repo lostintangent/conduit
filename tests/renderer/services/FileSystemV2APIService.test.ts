@@ -5,8 +5,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ============================================================================
 
 const { MockFileSystemV2API } = vi.hoisted(() => {
-  // Mock window.conduit.fsv2
-  const fsv2 = {
+  // Mock window.conduit.fs
+  const fs = {
     readDirectory: vi.fn(),
     readFile: vi.fn(),
     stat: vi.fn(),
@@ -26,7 +26,7 @@ const { MockFileSystemV2API } = vi.hoisted(() => {
 
   // Set up window.conduit
   (globalThis as any).window = (globalThis as any).window || {};
-  (globalThis as any).window.conduit = { fsv2 };
+  (globalThis as any).window.conduit = { fs };
 
   // Create a mock class that tracks instances
   class MockAPI {

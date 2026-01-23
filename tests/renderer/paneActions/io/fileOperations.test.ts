@@ -29,7 +29,7 @@ describe("fileOperations", () => {
     // Mock window.conduit API with v2 file system API
     (global as any).window = {
       conduit: {
-        fsv2: {
+        fs: {
           readTextFile: async (_cwd: string, path: string) => {
             return await readFile(path, "utf-8");
           },

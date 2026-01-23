@@ -209,7 +209,7 @@ export const TabStrip = ({
 
       try {
         const api = window.conduit;
-        const gitRoot = await api.gitv2.findRoot(cwd);
+        const gitRoot = await api.git.findRoot(cwd);
         setIsInGitRepo(gitRoot !== null);
       } catch (error) {
         console.error("Failed to check git repo:", error);

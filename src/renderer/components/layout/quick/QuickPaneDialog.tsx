@@ -1,6 +1,6 @@
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
-import { EditorPaneAnchor } from "@/components/panes/editor-v2";
+import { EditorPaneAnchor } from "@/components/panes/editor";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {

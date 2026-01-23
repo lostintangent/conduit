@@ -15,7 +15,7 @@ import {
   QuickPaneDialog,
   type PaneDescriptor,
 } from "@/components/layout/quick/QuickPaneDialog";
-import { GlobalEditorContainer } from "@/components/panes/editor-v2";
+import { GlobalEditorContainer } from "@/components/panes/editor";
 import {
   disposeSession,
   updateTerminalThemes,
@@ -691,7 +691,7 @@ export function App() {
 
       // Validate that the directory exists
       try {
-        await api.fsv2.readDirectory(trimmedCwd, trimmedCwd);
+        await api.fs.readDirectory(trimmedCwd, trimmedCwd);
       } catch (error) {
         enqueueNotification({
           kind: "error",

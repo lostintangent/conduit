@@ -50,7 +50,7 @@ export function usePackageJsonScripts(
 
             // Try to read the file
             // Pass currentDir as cwd, packageJsonPath as the file to read, and sandboxId for VMs
-            const content = await window.conduit.fsv2.readFile(
+            const content = await window.conduit.fs.readFile(
               currentDir,
               packageJsonPath,
               sandboxId,

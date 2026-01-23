@@ -5,7 +5,7 @@
 
 import type { SimpleGit } from "simple-git";
 import type { DotfilesStatus } from "../../shared/types/settings";
-import { ParcelFileWatcher } from "../fsv2/ParcelFileWatcher";
+import { ParcelFileWatcher } from "../fs/ParcelFileWatcher";
 import { commitAndPush, fetchAndPull } from "./git";
 import { syncSymlink } from "./symlinks";
 

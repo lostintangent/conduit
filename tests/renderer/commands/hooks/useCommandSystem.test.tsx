@@ -486,11 +486,11 @@ describe("useCommandSystem", () => {
       const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const originalConduit = window.conduit;
 
-      // Mock window.conduit.fsv2.subscribe
+      // Mock window.conduit.fs.subscribe
       window.conduit = {
         ...window.conduit,
-        fsv2: {
-          ...window.conduit?.fsv2,
+        fs: {
+          ...window.conduit?.fs,
           subscribe: mockSubscribe,
           unsubscribe: vi.fn(),
           onFileContentChanged: vi.fn(() => () => {}),
@@ -528,11 +528,11 @@ describe("useCommandSystem", () => {
       const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const originalConduit = window.conduit;
 
-      // Mock window.conduit.fsv2
+      // Mock window.conduit.fs
       window.conduit = {
         ...window.conduit,
-        fsv2: {
-          ...window.conduit?.fsv2,
+        fs: {
+          ...window.conduit?.fs,
           subscribe: mockSubscribe,
           unsubscribe: mockUnsubscribe,
           onFileContentChanged: vi.fn(() => () => {}),
@@ -590,11 +590,11 @@ describe("useCommandSystem", () => {
       const originalConduit = window.conduit;
       const mockReadTextFile = vi.fn().mockResolvedValue("[]");
 
-      // Mock window.conduit.fsv2
+      // Mock window.conduit.fs
       window.conduit = {
         ...window.conduit,
-        fsv2: {
-          ...window.conduit?.fsv2,
+        fs: {
+          ...window.conduit?.fs,
           subscribe: mockSubscribe,
           unsubscribe: mockUnsubscribe,
           onFileContentChanged: mockOnFileContentChanged,

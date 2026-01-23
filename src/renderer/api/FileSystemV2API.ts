@@ -33,13 +33,13 @@ import type {
   DeleteOptions,
   DirectoryEntry,
   FileStat,
-} from "../../ipc/fsv2/types";
+} from "../../ipc/fs/types";
 import type {
   DirectoryListingChangedPayload,
   FileContentChangedPayload,
   FileDeletedPayload,
   FileRenamedPayload,
-} from "../../preload/window/modules/fsv2";
+} from "../../preload/window/modules/fs";
 import { normalizePathForKey } from "../utils/pathUtils";
 
 // ============================================================================
@@ -157,7 +157,7 @@ export class FileSystemV2API {
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readDirectory(this.cwd, dirPath, this.sandboxId);
+    return window.conduit.fs.readDirectory(this.cwd, dirPath, this.sandboxId);
   }
 
   /**
@@ -170,7 +170,7 @@ export class FileSystemV2API {
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readFile(this.cwd, filePath, this.sandboxId);
+    return window.conduit.fs.readFile(this.cwd, filePath, this.sandboxId);
   }
 
   /**
@@ -190,7 +190,7 @@ export class FileSystemV2API {
    */
   async readTextFile(filePath: string): Promise<string> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.readTextFile(this.cwd, filePath, this.sandboxId);
+    return window.conduit.fs.readTextFile(this.cwd, filePath, this.sandboxId);
   }
 
   /**
@@ -203,7 +203,7 @@ export class FileSystemV2API {
    */
   async stat(path: string): Promise<FileStat> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.stat(this.cwd, path, this.sandboxId);
+    return window.conduit.fs.stat(this.cwd, path, this.sandboxId);
   }
 
   /**
@@ -215,7 +215,7 @@ export class FileSystemV2API {
    */
   async exists(path: string): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.exists(this.cwd, path, this.sandboxId);
+    return window.conduit.fs.exists(this.cwd, path, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -235,7 +235,7 @@ export class FileSystemV2API {
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.writeFile(
+    return window.conduit.fs.writeFile(
       this.cwd,
       filePath,
       content,
@@ -268,7 +268,7 @@ export class FileSystemV2API {
    */
   async delete(path: string, options?: DeleteOptions): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.delete(this.cwd, path, options, this.sandboxId);
+    return window.conduit.fs.delete(this.cwd, path, options, this.sandboxId);
   }
 
   /**
@@ -281,12 +281,7 @@ export class FileSystemV2API {
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.rename(
-      this.cwd,
-      oldPath,
-      newPath,
-      this.sandboxId,
-    );
+    return window.conduit.fs.rename(this.cwd, oldPath, newPath, this.sandboxId);
   }
 
   /**
@@ -300,11 +295,7 @@ export class FileSystemV2API {
    */
   async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fsv2.createDirectory(
-      this.cwd,
-      dirPath,
-      this.sandboxId,
-    );
+    return window.conduit.fs.createDirectory(this.cwd, dirPath, this.sandboxId);
   }
 
   // ---------------------------------------------------------------------------
@@ -528,7 +519,7 @@ export class FileSystemV2API {
 
     // Unsubscribe from main process (this also releases the provider reference)
     if (this.subscriptionId) {
-      window.conduit.fsv2.unsubscribe(this.subscriptionId).catch(() => {
+      window.conduit.fs.unsubscribe(this.subscriptionId).catch(() => {
         // Ignore errors during cleanup
       });
       this.subscriptionId = null;
@@ -562,7 +553,7 @@ export class FileSystemV2API {
   private setupEventListeners(): void {
     // Directory listing changes
     this.ipcCleanups.push(
-      window.conduit.fsv2.onDirectoryListingChanged(
+      window.conduit.fs.onDirectoryListingChanged(
         (payload: DirectoryListingChangedPayload) => {
           if (payload.subscriptionId !== this.subscriptionId) {
             return;
@@ -601,7 +592,7 @@ export class FileSystemV2API {
 
     // File content changes
     this.ipcCleanups.push(
-      window.conduit.fsv2.onFileContentChanged(
+      window.conduit.fs.onFileContentChanged(
         (payload: FileContentChangedPayload) => {
           if (payload.subscriptionId !== this.subscriptionId) {
             return;
@@ -640,7 +631,7 @@ export class FileSystemV2API {
 
     // File deletions
     this.ipcCleanups.push(
-      window.conduit.fsv2.onFileDeleted((payload: FileDeletedPayload) => {
+      window.conduit.fs.onFileDeleted((payload: FileDeletedPayload) => {
         if (payload.subscriptionId !== this.subscriptionId) {
           return;
         }
@@ -677,7 +668,7 @@ export class FileSystemV2API {
 
     // File renames
     this.ipcCleanups.push(
-      window.conduit.fsv2.onFileRenamed((payload: FileRenamedPayload) => {
+      window.conduit.fs.onFileRenamed((payload: FileRenamedPayload) => {
         if (payload.subscriptionId !== this.subscriptionId) {
           return;
         }
@@ -734,7 +725,7 @@ export class FileSystemV2API {
 
     // Start subscription
     // Note: subscribe takes (cwd, type, path?, sandboxId?) - path is optional filter, sandboxId for VM routing
-    this.subscriptionPromise = window.conduit.fsv2
+    this.subscriptionPromise = window.conduit.fs
       .subscribe(this.cwd, "all", undefined, this.sandboxId)
       .then((id: string) => {
         // Check if we were released while waiting for the subscription
@@ -742,7 +733,7 @@ export class FileSystemV2API {
         // before the IPC completes
         if (this.released) {
           // Immediately unsubscribe since we're already released
-          window.conduit.fsv2.unsubscribe(id).catch(() => {
+          window.conduit.fs.unsubscribe(id).catch(() => {
             // Ignore errors during cleanup
           });
           this.subscriptionPromise = null;

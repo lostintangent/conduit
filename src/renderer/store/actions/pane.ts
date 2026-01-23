@@ -1,5 +1,5 @@
 import { deleteCanvasState } from "@/store/canvasStore";
-import { disposeEditorPane } from "@/components/panes/editor-v2";
+import { disposeEditorPane } from "@/components/panes/editor";
 import {
   pauseStateTracking,
   resumeStateTracking,

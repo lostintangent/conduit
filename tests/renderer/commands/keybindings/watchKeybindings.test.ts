@@ -4,10 +4,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
 
-// Helper to create a minimal mock of window.conduit with fsv2
+// Helper to create a minimal mock of window.conduit with fs
 function createMockConduit(
   overrides: {
-    fsv2?: {
+    fs?: {
       subscribe?: ReturnType<typeof vi.fn>;
       unsubscribe?: ReturnType<typeof vi.fn>;
       onFileContentChanged?: ReturnType<typeof vi.fn>;
@@ -16,12 +16,11 @@ function createMockConduit(
 ): typeof window.conduit {
   return {
     platform: "darwin",
-    fsv2: {
-      subscribe:
-        overrides.fsv2?.subscribe ?? vi.fn().mockResolvedValue("sub-1"),
-      unsubscribe: overrides.fsv2?.unsubscribe ?? vi.fn(),
+    fs: {
+      subscribe: overrides.fs?.subscribe ?? vi.fn().mockResolvedValue("sub-1"),
+      unsubscribe: overrides.fs?.unsubscribe ?? vi.fn(),
       onFileContentChanged:
-        overrides.fsv2?.onFileContentChanged ?? vi.fn(() => () => {}),
+        overrides.fs?.onFileContentChanged ?? vi.fn(() => () => {}),
       readDirectory: vi.fn(),
       readFile: vi.fn(),
       readTextFile: vi.fn(),
@@ -67,12 +66,12 @@ describe("watchKeybindingsFile", () => {
     window.conduit = originalConduit;
   });
 
-  it("should set up file watcher using fsv2 subscription", async () => {
+  it("should set up file watcher using fs subscription", async () => {
     const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
     const mockOnFileContentChanged = vi.fn(() => () => {});
 
     window.conduit = createMockConduit({
-      fsv2: {
+      fs: {
         subscribe: mockSubscribe,
         onFileContentChanged: mockOnFileContentChanged,
       },
@@ -107,7 +106,7 @@ describe("watchKeybindingsFile", () => {
     );
 
     window.conduit = createMockConduit({
-      fsv2: {
+      fs: {
         subscribe: mockSubscribe,
         onFileContentChanged: mockOnFileContentChanged,
       },
@@ -138,7 +137,7 @@ describe("watchKeybindingsFile", () => {
     const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
 
     window.conduit = createMockConduit({
-      fsv2: {
+      fs: {
         subscribe: mockSubscribe,
         unsubscribe: mockUnsubscribe,
       },
@@ -165,14 +164,14 @@ describe("watchKeybindingsFile", () => {
     // Should not throw
     expect(cleanup).toBeDefined();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "window.conduit.fsv2.subscribe is not available",
+      "window.conduit.fs.subscribe is not available",
     );
     cleanup(); // Should not throw
   });
 
-  it("should handle undefined fsv2.subscribe", () => {
+  it("should handle undefined fs.subscribe", () => {
     window.conduit = {
-      fsv2: {},
+      fs: {},
     } as unknown as typeof window.conduit;
 
     const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
@@ -180,7 +179,7 @@ describe("watchKeybindingsFile", () => {
     // Should not throw
     expect(cleanup).toBeDefined();
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      "window.conduit.fsv2.subscribe is not available",
+      "window.conduit.fs.subscribe is not available",
     );
     cleanup(); // Should not throw
   });
@@ -189,7 +188,7 @@ describe("watchKeybindingsFile", () => {
     const mockSubscribe = vi.fn().mockRejectedValue(new Error("Network error"));
 
     window.conduit = createMockConduit({
-      fsv2: {
+      fs: {
         subscribe: mockSubscribe,
       },
     });
@@ -225,7 +224,7 @@ describe("watchKeybindingsFile", () => {
     );
 
     window.conduit = createMockConduit({
-      fsv2: {
+      fs: {
         subscribe: mockSubscribe,
         onFileContentChanged: mockOnFileContentChanged,
       },

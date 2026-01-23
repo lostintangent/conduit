@@ -1,6 +1,6 @@
 /**
  * Get the parent directory of a file path.
- * Used to determine the cwd for fsv2 operations.
+ * Used to determine the cwd for fs operations.
  */
 function getParentDirectory(filePath: string): string {
   const lastSlash = filePath.lastIndexOf("/");
@@ -8,14 +8,14 @@ function getParentDirectory(filePath: string): string {
 }
 
 /**
- * Watch keybindings file for changes using fsv2 subscription API
+ * Watch keybindings file for changes using fs subscription API
  */
 export function watchKeybindingsFile(
   filePath: string,
   onChanged: () => void,
 ): () => void {
-  if (!window.conduit?.fsv2?.subscribe) {
-    console.warn("window.conduit.fsv2.subscribe is not available");
+  if (!window.conduit?.fs?.subscribe) {
+    console.warn("window.conduit.fs.subscribe is not available");
     return () => {};
   }
 
@@ -24,11 +24,11 @@ export function watchKeybindingsFile(
 
   const cwd = getParentDirectory(filePath);
 
-  window.conduit.fsv2
+  window.conduit.fs
     .subscribe(cwd, "file", filePath)
     .then((subId) => {
       subscriptionId = subId;
-      ipcCleanup = window.conduit.fsv2.onFileContentChanged((payload) => {
+      ipcCleanup = window.conduit.fs.onFileContentChanged((payload) => {
         if (payload.subscriptionId !== subscriptionId) return;
         console.log("Keybindings file changed, reloading...");
         onChanged();
@@ -41,7 +41,7 @@ export function watchKeybindingsFile(
   return () => {
     ipcCleanup?.();
     if (subscriptionId) {
-      window.conduit?.fsv2?.unsubscribe?.(subscriptionId);
+      window.conduit?.fs?.unsubscribe?.(subscriptionId);
     }
   };
 }

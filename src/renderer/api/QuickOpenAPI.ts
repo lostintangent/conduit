@@ -10,7 +10,7 @@ export class QuickOpenAPI {
    */
   async getPreWarmedCache(): Promise<string[]> {
     try {
-      const api = (window as any).conduit?.fsv2;
+      const api = (window as any).conduit?.fs;
       if (!api?.getPreWarmedCache) {
         return [];
       }
@@ -33,7 +33,7 @@ export class QuickOpenAPI {
    */
   async warmCache(): Promise<void> {
     try {
-      const api = (window as any).conduit?.fsv2;
+      const api = (window as any).conduit?.fs;
       if (!api?.warmFileCache) {
         return;
       }
@@ -49,7 +49,7 @@ export class QuickOpenAPI {
    */
   async clearCache(): Promise<void> {
     try {
-      const api = (window as any).conduit?.fsv2;
+      const api = (window as any).conduit?.fs;
       if (!api?.clearFileCache) {
         return;
       }

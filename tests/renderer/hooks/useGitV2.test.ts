@@ -9,10 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockGitv2, MockGitV2API, mockService, mockServiceInstance } =
-  vi.hoisted(() => {
-    // Mock window.conduit.gitv2
-    const gitv2 = {
+const { mockGit, MockGitV2API, mockService, mockServiceInstance } = vi.hoisted(
+  () => {
+    // Mock window.conduit.git
+    const git = {
       getStatus: vi.fn(),
       getFileStatus: vi.fn(),
       isDirty: vi.fn(),
@@ -37,7 +37,7 @@ const { mockGitv2, MockGitV2API, mockService, mockServiceInstance } =
 
     // Set up window.conduit
     (globalThis as any).window = (globalThis as any).window || {};
-    (globalThis as any).window.conduit = { gitv2 };
+    (globalThis as any).window.conduit = { git };
 
     // Track API instances for verification
     const instances = new Map<
@@ -111,7 +111,7 @@ const { mockGitv2, MockGitV2API, mockService, mockServiceInstance } =
     };
 
     return {
-      mockGitv2: gitv2,
+      mockGit: git,
       MockGitV2API: MockAPI,
       mockService: service,
       mockServiceInstance: serviceInstance,
@@ -120,7 +120,8 @@ const { mockGitv2, MockGitV2API, mockService, mockServiceInstance } =
         instances.clear();
       },
     };
-  });
+  },
+);
 
 // Mock the GitV2API class
 vi.mock("../../../src/renderer/api/GitV2API", () => ({
@@ -144,7 +145,7 @@ describe("useGitV2", () => {
     vi.clearAllMocks();
     mockService.resetInstance();
     // Reset window.conduit
-    (globalThis as any).window.conduit = { gitv2: mockGitv2 };
+    (globalThis as any).window.conduit = { git: mockGit };
   });
 
   afterEach(() => {

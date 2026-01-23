@@ -317,10 +317,10 @@ async function setupFileTest() {
 
   await mkdir(testDir, { recursive: true });
 
-  // Mock window.conduit.fsv2 API (matches fileOperations.ts expectations)
+  // Mock window.conduit.fs API (matches fileOperations.ts expectations)
   (global as any).window = {
     conduit: {
-      fsv2: {
+      fs: {
         readTextFile: async (_cwd: string, path: string) => {
           return await readFile(path, "utf-8");
         },

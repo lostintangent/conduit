@@ -56,7 +56,7 @@ vi.mock("@/components/ui/tooltip", () => ({
 }));
 
 // Mock DiffStatsDisplay
-vi.mock("@/components/panes/editor-v2/components/FileDiffStats", () => ({
+vi.mock("@/components/panes/editor/components/FileDiffStats", () => ({
   DiffStatsDisplay: ({
     stats,
   }: {
@@ -70,7 +70,7 @@ vi.mock("@/components/panes/editor-v2/components/FileDiffStats", () => ({
 
 // Mock GitStatusSummary
 vi.mock(
-  "@/components/panes/editor-v2/components/FileTreePanel/GitStatusSummary",
+  "@/components/panes/editor/components/FileTreePanel/GitStatusSummary",
   () => ({
     GitStatusSummary: ({
       gitStatus,

@@ -9,10 +9,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockFsv2, MockFileSystemV2API, mockService, mockServiceInstance } =
+const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
   vi.hoisted(() => {
-    // Mock window.conduit.fsv2
-    const fsv2 = {
+    // Mock window.conduit.fs
+    const fs = {
       readDirectory: vi.fn(),
       readFile: vi.fn(),
       stat: vi.fn(),
@@ -32,7 +32,7 @@ const { mockFsv2, MockFileSystemV2API, mockService, mockServiceInstance } =
 
     // Set up window.conduit
     (globalThis as any).window = (globalThis as any).window || {};
-    (globalThis as any).window.conduit = { fsv2 };
+    (globalThis as any).window.conduit = { fs };
 
     // Track API instances for verification
     const instances = new Map<
@@ -106,7 +106,7 @@ const { mockFsv2, MockFileSystemV2API, mockService, mockServiceInstance } =
     };
 
     return {
-      mockFsv2: fsv2,
+      mockFs: fs,
       MockFileSystemV2API: MockAPI,
       mockService: service,
       mockServiceInstance: serviceInstance,
@@ -139,7 +139,7 @@ describe("useFileSystemV2", () => {
     vi.clearAllMocks();
     mockService.resetInstance();
     // Reset window.conduit
-    (globalThis as any).window.conduit = { fsv2: mockFsv2 };
+    (globalThis as any).window.conduit = { fs: mockFs };
   });
 
   afterEach(() => {
