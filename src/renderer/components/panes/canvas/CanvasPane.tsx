@@ -4,6 +4,7 @@ import type { CanvasPane as CanvasPaneType } from "@shared/types";
 import type {
   CanvasElement,
   CanvasTool,
+  FillStyle,
   Point,
   Rect,
   ShapeType,
@@ -285,6 +286,7 @@ export const CanvasPane = memo(function CanvasPane({
   const [strokeColor, setStrokeColor] = useState(getThemeForegroundColor);
   const [strokeWidth, setStrokeWidth] = useState(DEFAULT_STROKE_WIDTH);
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
+  const [fill, setFill] = useState<FillStyle | undefined>(undefined);
   const [showCopySuccess, setShowCopySuccess] = useState(false);
   const copySuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -453,8 +455,8 @@ export const CanvasPane = memo(function CanvasPane({
       renderDotGrid(ctx, viewport, backgroundColor, canvasSize);
     }
 
-    // Render all elements
-    renderAllElements(ctx, elements);
+    // Render all elements (pass zoom for sharp pattern rendering)
+    renderAllElements(ctx, elements, viewport.zoom);
 
     // Render selection indicators for selected elements
     // Note: Selection render functions are self-contained and set their own composite operation
@@ -565,7 +567,12 @@ export const CanvasPane = memo(function CanvasPane({
         shapePreview.y,
         shapePreview.width,
         isLinear ? shapePreview.width : shapePreview.height,
-        { color: strokeColor, width: strokeWidth },
+        {
+          color: strokeColor,
+          width: strokeWidth,
+          // Only include fill for fillable shapes (not lines/arrows)
+          fill: isLinear ? undefined : fill,
+        },
         shapePreview.rotation ?? 0,
       );
       addElement(shape);
@@ -1576,12 +1583,29 @@ export const CanvasPane = memo(function CanvasPane({
       (el) => el.type === "stroke" || el.type === "shape",
     );
 
+    // Check if any selected element supports fill (only rectangle and ellipse shapes)
+    const fillableElements = stylableElements.filter(
+      (el) =>
+        el.type === "shape" &&
+        (el.shapeType === "rectangle" || el.shapeType === "ellipse"),
+    );
+    const hasFillableSelection = fillableElements.length > 0;
+
+    // Get fill from first fillable element
+    const selectedFill =
+      hasFillableSelection && fillableElements[0].type === "shape"
+        ? fillableElements[0].style.fill
+        : undefined;
+
     return {
       hasStylableSelection: true,
       hasWidthSupport,
+      hasFillableSelection,
       selectedColor: style?.color,
       selectedWidth,
+      selectedFill,
       stylableElements,
+      fillableElements,
     };
   }, [selectedIds, elements]);
 
@@ -1656,6 +1680,46 @@ export const CanvasPane = memo(function CanvasPane({
     [tool, selectedStyleInfo, updateElementStyle, recordStyle],
   );
 
+  // Handle fill change - update selected elements if in select mode with fillable selection
+  const handleFillChange = useCallback(
+    (newFill: FillStyle | undefined) => {
+      if (tool === "select" && selectedStyleInfo.hasFillableSelection) {
+        const changes = new Map<
+          string,
+          {
+            before: { color?: string; width?: number; fill?: FillStyle };
+            after: { color?: string; width?: number; fill?: FillStyle };
+          }
+        >();
+
+        for (const el of selectedStyleInfo.fillableElements || []) {
+          if (el.type === "shape") {
+            changes.set(el.id, {
+              before: {
+                color: el.style.color,
+                width: el.style.width,
+                fill: el.style.fill,
+              },
+              after: {
+                color: el.style.color,
+                width: el.style.width,
+                fill: newFill,
+              },
+            });
+            updateElementStyle(el.id, { fill: newFill });
+          }
+        }
+
+        if (changes.size > 0) {
+          recordStyle(changes);
+        }
+      } else {
+        setFill(newFill);
+      }
+    },
+    [tool, selectedStyleInfo, updateElementStyle, recordStyle],
+  );
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -1679,6 +1743,8 @@ export const CanvasPane = memo(function CanvasPane({
         onFontSizeChange={setFontSize}
         shapeType={shapeType}
         onShapeTypeChange={setShapeType}
+        fill={fill}
+        onFillChange={handleFillChange}
         onClear={handleClear}
         onCopyToClipboard={handleCopyToClipboard}
         onAddImage={handleAddImage}
@@ -1693,9 +1759,11 @@ export const CanvasPane = memo(function CanvasPane({
         onUndo={undo}
         onRedo={redo}
         hasStylableSelection={selectedStyleInfo.hasStylableSelection}
+        hasFillableSelection={selectedStyleInfo.hasFillableSelection}
         hasWidthSupport={selectedStyleInfo.hasWidthSupport}
         selectedColor={selectedStyleInfo.selectedColor}
         selectedWidth={selectedStyleInfo.selectedWidth}
+        selectedFill={selectedStyleInfo.selectedFill}
         isSpacePressed={isSpacePressed}
         tabId={_tabId}
         isEmpty={elements.length === 0}

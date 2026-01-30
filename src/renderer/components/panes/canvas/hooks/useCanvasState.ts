@@ -14,7 +14,7 @@ import {
   updateCanvasState,
   type ViewportState,
 } from "@/store/canvasStore";
-import type { CanvasElement } from "@shared/types/canvas";
+import type { CanvasElement, FillStyle } from "@shared/types/canvas";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 
@@ -149,12 +149,17 @@ export function useCanvasState(paneId: string) {
   );
 
   /**
-   * Update style properties (color, width) of an element.
+   * Update style properties (color, width, fill) of an element.
    * Only applies to elements that have a style property (stroke, text, shape).
-   * Note: TextElement only has color, not width.
+   * Note: TextElement only has color, not width or fill.
+   * Note: StrokeElement has color and width, but not fill.
+   * Note: ShapeElement has color, width, and optionally fill (for rect/ellipse).
    */
   const updateElementStyle = useCallback(
-    (elementId: string, style: { color?: string; width?: number }) => {
+    (
+      elementId: string,
+      style: { color?: string; width?: number; fill?: FillStyle | undefined },
+    ) => {
       updateCanvasState(paneId, (s) => ({
         ...s,
         elements: s.elements.map((el) => {
@@ -163,8 +168,7 @@ export function useCanvasState(paneId: string) {
           // Handle each element type appropriately
           switch (el.type) {
             case "stroke":
-            case "shape":
-              // These have both color and width
+              // Strokes have color and width, but not fill
               return {
                 ...el,
                 style: {
@@ -173,8 +177,20 @@ export function useCanvasState(paneId: string) {
                   ...(style.width !== undefined && { width: style.width }),
                 },
               };
+            case "shape":
+              // Shapes have color, width, and optionally fill
+              return {
+                ...el,
+                style: {
+                  ...el.style,
+                  ...(style.color !== undefined && { color: style.color }),
+                  ...(style.width !== undefined && { width: style.width }),
+                  // Handle fill: can be set to a FillStyle or explicitly to undefined (no fill)
+                  ...("fill" in style && { fill: style.fill }),
+                },
+              };
             case "text":
-              // Text only has color (and fontSize/fontFamily, but not width)
+              // Text only has color (and fontSize/fontFamily, but not width or fill)
               if (style.color !== undefined) {
                 return {
                   ...el,

@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils/index";
-import type { CanvasTool, ShapeType } from "@shared/types/canvas";
+import type { CanvasTool, FillStyle, ShapeType } from "@shared/types/canvas";
 import {
   ArrowRight,
   ChevronDown,
@@ -27,6 +27,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { ActionsMenu } from "./ActionsMenu";
+import { FillPicker } from "./FillPicker";
 import { ZoomControls } from "./ZoomControls";
 
 // =============================================================================
@@ -44,6 +45,9 @@ type CanvasToolbarProps = {
   onFontSizeChange: (size: number) => void;
   shapeType: ShapeType;
   onShapeTypeChange: (shapeType: ShapeType) => void;
+  // Fill style for shapes
+  fill: FillStyle | undefined;
+  onFillChange: (fill: FillStyle | undefined) => void;
   onClear: () => void;
   onCopyToClipboard: () => void;
   onAddImage: () => void;
@@ -61,9 +65,11 @@ type CanvasToolbarProps = {
   onRedo: () => void;
   // Selection - for editing selected element styles
   hasStylableSelection: boolean;
+  hasFillableSelection?: boolean;
   hasWidthSupport?: boolean;
   selectedColor?: string;
   selectedWidth?: number;
+  selectedFill?: FillStyle;
   // Space key state - shows hand tool as temporarily active
   isSpacePressed?: boolean;
   // Tab ID for pane commands
@@ -327,6 +333,8 @@ export function CanvasToolbar({
   onFontSizeChange,
   shapeType,
   onShapeTypeChange,
+  fill,
+  onFillChange,
   onClear,
   onCopyToClipboard,
   onAddImage,
@@ -341,9 +349,11 @@ export function CanvasToolbar({
   onUndo,
   onRedo,
   hasStylableSelection,
+  hasFillableSelection,
   hasWidthSupport,
   selectedColor,
   selectedWidth,
+  selectedFill,
   isSpacePressed,
   tabId,
   isEmpty,
@@ -356,6 +366,15 @@ export function CanvasToolbar({
     isEditingSelection && selectedColor ? selectedColor : strokeColor;
   const displayWidth =
     isEditingSelection && selectedWidth ? selectedWidth : strokeWidth;
+
+  // Determine if fill picker should be shown and what value to display
+  const isShapeTool = tool === "shape";
+  const isFillableShape = shapeType === "rectangle" || shapeType === "ellipse";
+  const showFillPicker =
+    (isShapeTool && isFillableShape) ||
+    (tool === "select" && hasFillableSelection);
+  const displayFill =
+    tool === "select" && hasFillableSelection ? selectedFill : fill;
 
   // When space is pressed, show hand tool as active and selected tool as muted
   const isHandTemporarilyActive = isSpacePressed && tool !== "hand";
@@ -476,6 +495,13 @@ export function CanvasToolbar({
             (tool === "select" && !hasStylableSelection)
           }
         />
+        {showFillPicker && (
+          <FillPicker
+            fill={displayFill}
+            onFillChange={onFillChange}
+            colors={PRESET_COLORS}
+          />
+        )}
         <SizeSelector
           key={tool === "text" ? "text-size" : "stroke-size"}
           size={tool === "text" ? fontSize : displayWidth}

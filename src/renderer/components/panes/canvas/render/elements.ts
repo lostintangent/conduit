@@ -5,6 +5,7 @@
 
 import type {
   CanvasElement,
+  FillPattern,
   ImageElement,
   ShapeElement,
   StrokeElement,
@@ -45,6 +46,126 @@ export function calculateArrowHead(strokeWidth: number): {
 
 // Minimum hit padding for line/arrow elements to make them easier to select
 const LINE_HIT_PADDING_MIN = 10;
+
+// Default spacing for fill patterns (in pixels)
+const FILL_PATTERN_SPACING = 8;
+
+// =============================================================================
+// Fill Pattern Cache
+// =============================================================================
+
+// Cache for fill patterns to avoid recreating on every render
+// Key format: "pattern:color:dpr" (e.g., "diagonal:#ff0000:2")
+const fillPatternCache = new Map<string, CanvasPattern>();
+
+/**
+ * Create a fill pattern for a shape element.
+ * Patterns are cached for performance and rendered at device pixel ratio for sharpness.
+ *
+ * @param ctx - Canvas rendering context (used to create the pattern)
+ * @param pattern - Pattern type (solid, diagonal, cross, dots)
+ * @param color - Pattern color
+ * @param scale - Element scale to adjust pattern density
+ * @param zoom - Viewport zoom level (1.0 = 100%)
+ * @returns CanvasPattern or null if creation fails
+ */
+function getFillPattern(
+  ctx: CanvasRenderingContext2D,
+  pattern: FillPattern,
+  color: string,
+  scale: { scaleX: number; scaleY: number },
+  zoom: number,
+): CanvasPattern | string | null {
+  // Solid fills just use the color directly
+  if (pattern === "solid") {
+    return color;
+  }
+
+  // Get device pixel ratio for sharp rendering on high-DPI displays
+  const dpr = window.devicePixelRatio || 1;
+
+  // Effective scale includes zoom level for sharp patterns at all zoom levels
+  const effectiveScale = dpr * zoom;
+
+  // Check cache first (include DPR and zoom in key since patterns need to be recreated if either changes)
+  const cacheKey = `${pattern}:${color}:${effectiveScale.toFixed(2)}`;
+  const cached = fillPatternCache.get(cacheKey);
+  if (cached) {
+    // Scale pattern back down to logical size, accounting for element scale, DPR, and zoom
+    const matrix = new DOMMatrix();
+    matrix.scaleSelf(
+      1 / (scale.scaleX * effectiveScale),
+      1 / (scale.scaleY * effectiveScale),
+    );
+    cached.setTransform(matrix);
+    return cached;
+  }
+
+  // Create pattern tile at higher resolution for sharp rendering
+  // Scale by both DPR and zoom for sharp patterns at all zoom levels
+  const size = FILL_PATTERN_SPACING;
+  const physicalSize = size * effectiveScale;
+  const offscreen = new OffscreenCanvas(physicalSize, physicalSize);
+  const patternCtx = offscreen.getContext("2d");
+  if (!patternCtx) return null;
+
+  // Scale up drawing commands for high-DPI and zoom
+  patternCtx.scale(effectiveScale, effectiveScale);
+
+  patternCtx.strokeStyle = color;
+  patternCtx.fillStyle = color;
+  patternCtx.lineWidth = 1;
+
+  switch (pattern) {
+    case "diagonal":
+      // Single diagonal line from bottom-left to top-right
+      patternCtx.beginPath();
+      patternCtx.moveTo(0, size);
+      patternCtx.lineTo(size, 0);
+      // Add extra lines at edges for seamless tiling
+      patternCtx.moveTo(-size / 2, size / 2);
+      patternCtx.lineTo(size / 2, -size / 2);
+      patternCtx.moveTo(size / 2, size + size / 2);
+      patternCtx.lineTo(size + size / 2, size / 2);
+      patternCtx.stroke();
+      break;
+
+    case "cross":
+      // Crosshatch - two diagonal lines
+      patternCtx.beginPath();
+      // Bottom-left to top-right
+      patternCtx.moveTo(0, size);
+      patternCtx.lineTo(size, 0);
+      // Top-left to bottom-right
+      patternCtx.moveTo(0, 0);
+      patternCtx.lineTo(size, size);
+      patternCtx.stroke();
+      break;
+
+    case "dots":
+      // Single dot in center
+      patternCtx.beginPath();
+      patternCtx.arc(size / 2, size / 2, 1.5, 0, Math.PI * 2);
+      patternCtx.fill();
+      break;
+  }
+
+  const canvasPattern = ctx.createPattern(offscreen, "repeat");
+  if (!canvasPattern) return null;
+
+  // Cache the pattern
+  fillPatternCache.set(cacheKey, canvasPattern);
+
+  // Scale pattern back down to logical size, accounting for element scale, DPR, and zoom
+  const matrix = new DOMMatrix();
+  matrix.scaleSelf(
+    1 / (scale.scaleX * effectiveScale),
+    1 / (scale.scaleY * effectiveScale),
+  );
+  canvasPattern.setTransform(matrix);
+
+  return canvasPattern;
+}
 
 // =============================================================================
 // Image Cache
@@ -233,15 +354,17 @@ function renderImage(
  *
  * Rendering contract:
  * - Expects: Canvas context with viewport transform already applied
- * - Modifies: Stroke style, line width, line cap/join, composite operation
+ * - Modifies: Stroke style, fill style, line width, line cap/join, composite operation
  * - Guarantees: Restores all state via ctx.save()/restore()
  *
  * @param ctx - Canvas rendering context
  * @param element - The shape element to render
+ * @param zoom - Viewport zoom level (1.0 = 100%)
  */
 function renderShape(
   ctx: CanvasRenderingContext2D,
   element: ShapeElement,
+  zoom: number,
 ): void {
   ctx.save();
 
@@ -257,21 +380,47 @@ function renderShape(
   ctx.lineCap = "butt";
   ctx.lineJoin = "miter";
 
+  // Set up fill style if present
+  const fill = element.style.fill;
+  const hasFill = fill !== undefined;
+  if (hasFill) {
+    const fillStyle = getFillPattern(
+      ctx,
+      fill.pattern,
+      fill.color,
+      {
+        scaleX: element.transform.scaleX,
+        scaleY: element.transform.scaleY,
+      },
+      zoom,
+    );
+    if (fillStyle) {
+      ctx.fillStyle = fillStyle;
+    }
+  }
+
   const hw = element.size.width / 2;
   const hh = element.size.height / 2;
 
   switch (element.shapeType) {
     case "rectangle":
+      if (hasFill) {
+        ctx.fillRect(-hw, -hh, element.size.width, element.size.height);
+      }
       ctx.strokeRect(-hw, -hh, element.size.width, element.size.height);
       break;
 
     case "ellipse":
       ctx.beginPath();
       ctx.ellipse(0, 0, hw, hh, 0, 0, Math.PI * 2);
+      if (hasFill) {
+        ctx.fill();
+      }
       ctx.stroke();
       break;
 
     case "line":
+      // Lines don't support fill
       ctx.beginPath();
       ctx.moveTo(-hw, 0);
       ctx.lineTo(hw, 0);
@@ -279,6 +428,7 @@ function renderShape(
       break;
 
     case "arrow": {
+      // Arrows don't support fill
       // Draw line
       ctx.beginPath();
       ctx.moveTo(-hw, 0);
@@ -308,10 +458,14 @@ function renderShape(
 
 /**
  * Render a single element to the canvas context.
+ * @param ctx - Canvas rendering context
+ * @param element - The element to render
+ * @param zoom - Viewport zoom level (1.0 = 100%), used for pattern rendering
  */
 export function renderElement(
   ctx: CanvasRenderingContext2D,
   element: CanvasElement,
+  zoom = 1,
 ): void {
   switch (element.type) {
     case "stroke":
@@ -324,7 +478,7 @@ export function renderElement(
       renderImage(ctx, element);
       break;
     case "shape":
-      renderShape(ctx, element);
+      renderShape(ctx, element, zoom);
       break;
   }
 }
@@ -332,13 +486,17 @@ export function renderElement(
 /**
  * Render all elements to the canvas context.
  * Elements are rendered in order (first = bottom, last = top).
+ * @param ctx - Canvas rendering context
+ * @param elements - Array of elements to render
+ * @param zoom - Viewport zoom level (1.0 = 100%), used for pattern rendering
  */
 export function renderAllElements(
   ctx: CanvasRenderingContext2D,
   elements: CanvasElement[],
+  zoom = 1,
 ): void {
   for (const element of elements) {
-    renderElement(ctx, element);
+    renderElement(ctx, element, zoom);
   }
 }
 

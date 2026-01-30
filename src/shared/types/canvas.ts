@@ -140,6 +140,19 @@ export interface ImageElement extends BaseElement {
 export type ShapeType = "rectangle" | "ellipse" | "line" | "arrow";
 
 /**
+ * Fill pattern types for shapes.
+ */
+export type FillPattern = "solid" | "diagonal" | "cross" | "dots";
+
+/**
+ * Fill style for shapes (color + pattern).
+ */
+export interface FillStyle {
+  color: string;
+  pattern: FillPattern;
+}
+
+/**
  * Shape element for geometric primitives.
  * Size defines the bounding box; lines/arrows use width as length, height as thickness direction.
  */
@@ -150,6 +163,7 @@ export interface ShapeElement extends BaseElement {
   style: {
     color: string; // Stroke color (consistent with StrokeElement)
     width: number; // Stroke width in pixels (consistent with StrokeElement)
+    fill?: FillStyle; // Optional fill (undefined = no fill)
   };
 }
 
@@ -292,7 +306,7 @@ export function createShapeElement(
   y: number,
   width: number,
   height: number,
-  style: { color: string; width: number },
+  style: { color: string; width: number; fill?: FillStyle },
   rotation = 0,
 ): ShapeElement {
   return {
@@ -301,6 +315,10 @@ export function createShapeElement(
     shapeType,
     transform: { ...createTransform(x, y), rotation },
     size: { width, height },
-    style,
+    style: {
+      color: style.color,
+      width: style.width,
+      ...(style.fill && { fill: style.fill }),
+    },
   };
 }

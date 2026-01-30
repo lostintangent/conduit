@@ -11,7 +11,7 @@
  * - All functions are pure - no side effects
  */
 
-import type { CanvasElement, Transform } from "@shared/types/canvas";
+import type { CanvasElement, FillStyle, Transform } from "@shared/types/canvas";
 import {
   type CanvasHistoryState,
   EMPTY_HISTORY,
@@ -101,6 +101,7 @@ export interface ClearCanvasCommand {
 export interface ElementStyle {
   readonly color?: string;
   readonly width?: number;
+  readonly fill?: FillStyle;
 }
 
 /**
@@ -244,6 +245,18 @@ export function clearCanvas(
 }
 
 /**
+ * Helper to compare FillStyle objects for equality.
+ */
+function fillsEqual(
+  a: FillStyle | undefined,
+  b: FillStyle | undefined,
+): boolean {
+  if (a === undefined && b === undefined) return true;
+  if (a === undefined || b === undefined) return false;
+  return a.pattern === b.pattern && a.color === b.color;
+}
+
+/**
  * Create a command for changing element styles.
  * Returns null if no actual style changes occurred.
  */
@@ -257,7 +270,11 @@ export function styleElements(
   >();
 
   for (const [id, { before, after }] of changes) {
-    if (before.color !== after.color || before.width !== after.width) {
+    const colorChanged = before.color !== after.color;
+    const widthChanged = before.width !== after.width;
+    const fillChanged = !fillsEqual(before.fill, after.fill);
+
+    if (colorChanged || widthChanged || fillChanged) {
       actualChanges.set(id, {
         before: { ...before },
         after: { ...after },
