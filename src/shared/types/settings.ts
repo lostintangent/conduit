@@ -45,7 +45,7 @@ export type Team = LaunchGroup;
 
 export type PlayButtonTarget = "hyper" | "newPane";
 
-export type TerminalLinkTarget = "pane" | "sidebar";
+export type TerminalLinkTarget = "pane" | "sidebar" | "default";
 
 export type DotfilesStatus =
   | "disabled"

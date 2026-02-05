@@ -346,13 +346,16 @@ export function GeneralTab({
             >
               <option value="pane">Browser pane</option>
               <option value="sidebar">Sidebar</option>
+              <option value="default">OS default</option>
             </select>
             <ChevronDown className="w-4 h-4 text-tinted-foreground/60 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
           <p className="text-xs text-tinted-foreground/50 mt-2">
             {userSettings.terminalLinkTarget === "sidebar"
               ? "Opens clicked links in the sidebar browser view"
-              : "Opens clicked links in a browser pane within the current tab"}
+              : userSettings.terminalLinkTarget === "default"
+                ? "Opens clicked links in your OS default browser"
+                : "Opens clicked links in a browser pane within the current tab"}
           </p>
         </div>
       </SettingSection>
