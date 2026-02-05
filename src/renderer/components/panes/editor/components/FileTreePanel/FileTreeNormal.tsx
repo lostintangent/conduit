@@ -995,6 +995,35 @@ export const FileTreeNormal = memo(
     );
 
     /**
+     * Handle right-click on empty space in the tree (not on an item).
+     * Shows context menu with New File/Folder options for the root directory.
+     */
+    const handleTreeContainerContextMenu = useCallback(
+      (e: React.MouseEvent) => {
+        // Only handle if clicking on the container itself, not on items
+        // Items have their own onContextMenu handlers that stop propagation
+        // This handler fires when clicking on empty space
+        const target = e.target as HTMLElement;
+        const isOnItem = target.closest('[role="treeitem"]');
+        if (isOnItem) {
+          // Let the item's context menu handler take over
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Clear focus since we're not clicking on an item
+        setFocusedPath(null);
+
+        // Show context menu for the root directory (cwd)
+        // Pass empty path to indicate empty space click, isFile=false, isSymlink=false
+        showContextMenu("", false, false, e);
+      },
+      [showContextMenu],
+    );
+
+    /**
      * Main keyboard event handler for the tree container.
      */
     const handleTreeKeyDown = useCallback(
@@ -1471,6 +1500,7 @@ export const FileTreeNormal = memo(
           data-testid="file-tree-normal"
           onKeyDown={handleTreeKeyDown}
           onFocus={handleTreeFocus}
+          onContextMenu={handleTreeContainerContextMenu}
         >
           <ul role="group">{renderDirectory(cwd, 0)}</ul>
         </nav>

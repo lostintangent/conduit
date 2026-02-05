@@ -33,7 +33,6 @@ import {
   fileTreeChangesMode,
   fileTreeCwd,
   fileTreeItemInHomeDirectory,
-  fileTreeItemIsDirectory,
   fileTreeItemIsFile,
   fileTreeItemIsStaged,
   fileTreeItemIsSymlink,
@@ -150,6 +149,48 @@ function getTargetPath(): string {
 }
 
 /**
+ * Check if target is a file from context keys.
+ */
+function isTargetFile(): boolean {
+  try {
+    const contextKeyService = getContextKeyService();
+    const values = contextKeyService.getAll();
+    return values[fileTreeItemIsFile.key] === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Get parent directory of a path.
+ */
+function getParentPath(path: string): string {
+  const lastSlash = path.lastIndexOf("/");
+  if (lastSlash <= 0) return "/";
+  return path.slice(0, lastSlash);
+}
+
+/**
+ * Get the appropriate parent path for creating new items.
+ * If target is a file, returns parent directory.
+ * If target is a directory, returns the directory itself.
+ * If target is empty, returns cwd.
+ */
+function getParentPathForCreate(): string {
+  const path = getTargetPath();
+  if (!path) {
+    // Empty space right-click - use cwd
+    return getCwd();
+  }
+  if (isTargetFile()) {
+    // File right-click - use parent directory
+    return getParentPath(path);
+  }
+  // Directory right-click - use the directory
+  return path;
+}
+
+/**
  * Get the map key from context keys.
  * Used in changes mode where mapKey may differ from path for partially staged files.
  */
@@ -212,7 +253,8 @@ export function registerFileTreeCommands(
   // Normal Mode Commands (only shown when NOT in changes mode)
   // ==========================================================================
 
-  // New File - available in both modes, directories only
+  // New File - available in both modes, for files and directories
+  // When clicking on a file, creates in the parent directory
   commandRegistry.registerCommand({
     id: FileTreeCommands.NEW_FILE,
     title: "New File",
@@ -223,23 +265,24 @@ export function registerFileTreeCommands(
         id: MenuId.FileTreeContext,
         group: "1_new",
         order: 1,
-        when: fileTreeItemIsDirectory.isTrue(),
+        // Show for both files and directories (no when clause = always visible)
       },
     ],
     run: () => {
-      const path = getTargetPath();
-      if (!path) return;
+      const parentPath = getParentPathForCreate();
+      if (!parentPath) return;
 
       // Route to appropriate callback based on mode
       if (isChangesMode()) {
-        fileTreeChangesCallbacks?.onNewFile(path);
+        fileTreeChangesCallbacks?.onNewFile(parentPath);
       } else {
-        fileTreeCallbacks?.onNewFile(path);
+        fileTreeCallbacks?.onNewFile(parentPath);
       }
     },
   });
 
-  // New Folder - available in both modes, directories only
+  // New Folder - available in both modes, for files and directories
+  // When clicking on a file, creates in the parent directory
   commandRegistry.registerCommand({
     id: FileTreeCommands.NEW_FOLDER,
     title: "New Folder",
@@ -250,18 +293,18 @@ export function registerFileTreeCommands(
         id: MenuId.FileTreeContext,
         group: "1_new",
         order: 2,
-        when: fileTreeItemIsDirectory.isTrue(),
+        // Show for both files and directories (no when clause = always visible)
       },
     ],
     run: () => {
-      const path = getTargetPath();
-      if (!path) return;
+      const parentPath = getParentPathForCreate();
+      if (!parentPath) return;
 
       // Route to appropriate callback based on mode
       if (isChangesMode()) {
-        fileTreeChangesCallbacks?.onNewFolder(path);
+        fileTreeChangesCallbacks?.onNewFolder(parentPath);
       } else {
-        fileTreeCallbacks?.onNewFolder(path);
+        fileTreeCallbacks?.onNewFolder(parentPath);
       }
     },
   });

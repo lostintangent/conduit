@@ -179,6 +179,7 @@ export function useFileTreeContextMenu({
 
   /**
    * Show the context menu for a file tree item.
+   * Pass empty path for empty space clicks (will use cwd as target).
    */
   const showContextMenu = useCallback(
     (
@@ -196,6 +197,9 @@ export function useFileTreeContextMenu({
         const commandRegistry = getCommandRegistry();
         const keybindingRegistry = getKeybindingRegistry();
 
+        // For empty space clicks (path=""), treat as clicking on the root directory
+        const isEmptySpaceClick = path === "";
+
         // Determine if the path is in the home directory
         const isInHomeDirectory = homeDirectory
           ? path.startsWith(homeDirectory + "/") || path === homeDirectory
@@ -203,10 +207,21 @@ export function useFileTreeContextMenu({
 
         // Set context keys for the right-clicked item
         contextKeyService.setGlobal(fileTreeFocused.key, true);
-        contextKeyService.setGlobal(fileTreeItemFocused.key, true);
+        // For empty space clicks, no specific item is focused
+        contextKeyService.setGlobal(
+          fileTreeItemFocused.key,
+          !isEmptySpaceClick,
+        );
         contextKeyService.setGlobal(fileTreeTargetPath.key, path);
-        contextKeyService.setGlobal(fileTreeItemIsFile.key, isFile);
-        contextKeyService.setGlobal(fileTreeItemIsDirectory.key, !isFile);
+        // Empty space click is treated as directory (the root)
+        contextKeyService.setGlobal(
+          fileTreeItemIsFile.key,
+          isEmptySpaceClick ? false : isFile,
+        );
+        contextKeyService.setGlobal(
+          fileTreeItemIsDirectory.key,
+          isEmptySpaceClick ? true : !isFile,
+        );
         contextKeyService.setGlobal(fileTreeItemIsSymlink.key, isSymlink);
         contextKeyService.setGlobal(
           fileTreeItemInHomeDirectory.key,
