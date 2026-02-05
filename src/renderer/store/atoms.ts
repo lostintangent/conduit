@@ -102,3 +102,18 @@ export const quickPaneAtom = atom<any | null>();
 export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
 
 export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
+
+/**
+ * Tab progress state from OSC 9;4 escape sequences.
+ * Used for agent activity indicators (thinking spinner, error state, etc.)
+ */
+export type TabProgressState =
+  | "hidden"
+  | "default"
+  | "error"
+  | "indeterminate"
+  | "warning";
+
+export const tabProgressAtom = atomWithImmer<
+  Map<string, { state: TabProgressState; percent: number }>
+>(new Map());

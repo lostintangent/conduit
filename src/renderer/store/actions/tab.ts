@@ -3,6 +3,7 @@ import { disposeEditorPane } from "@/components/panes/editor";
 import {
   getSessionState,
   markAsIdle,
+  onProgressStateChange,
   onSessionStateChange,
 } from "@/components/panes/terminal/state/stateTracker";
 import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
@@ -10,6 +11,7 @@ import { detachPane, removePane } from "@/store/actions/pane";
 import {
   activeTabAtom,
   activeTabIdAtom,
+  tabProgressAtom,
   tabsAtom,
   tabStateAtom,
   type TabState,
@@ -420,6 +422,9 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
 
   // Clean up tab state tracking for the closed tab
   store.set(tabStateAtom, (draft) => {
+    draft.delete(tabId);
+  });
+  store.set(tabProgressAtom, (draft) => {
     draft.delete(tabId);
   });
   clearTimeout(recentlyBackgroundedTabs.get(tabId));
@@ -854,9 +859,33 @@ export function registerTabEventHandlers() {
     });
   });
 
+  // Track progress state changes for agent indicators (OSC 9;4)
+  const unsubscribeProgressChange = onProgressStateChange(
+    (sessionId, progressState, percent) => {
+      const tab = store
+        .get(tabsAtom)
+        .find((t) =>
+          Object.values(t.panes).some(
+            (p) => p.type === "terminal" && p.sessionId === sessionId,
+          ),
+        );
+
+      if (!tab) return;
+
+      store.set(tabProgressAtom, (draft) => {
+        if (progressState === "hidden") {
+          draft.delete(tab.id);
+        } else {
+          draft.set(tab.id, { state: progressState, percent });
+        }
+      });
+    },
+  );
+
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
     unsubscribeStateChange();
+    unsubscribeProgressChange();
   };
 }

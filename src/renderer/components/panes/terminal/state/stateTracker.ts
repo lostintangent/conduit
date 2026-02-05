@@ -5,15 +5,37 @@
 // Requires sustained activity (3s) to transition idle→running, and sustained
 // inactivity (2s) to transition running→idle.
 //
+// Also tracks OSC 9;4 progress state for agent/task indicators.
+//
 // State machine:
 // - "idle"    → No activity (or activity not yet sustained)
 // - "running" → Sustained activity confirmed
+//
+// Progress states (from OSC 9;4):
+// - "hidden"        → No progress indicator (state 0)
+// - "default"       → Normal progress (state 1)
+// - "error"         → Error state (state 2)
+// - "indeterminate" → Thinking/working (state 3)
+// - "warning"       → Warning state (state 4)
 // ============================================================================
 
 type SessionState = "idle" | "running";
 
+/**
+ * Progress state from OSC 9;4 escape sequences.
+ * Used to show agent activity indicators in tabs.
+ */
+export type ProgressState =
+  | "hidden"
+  | "default"
+  | "error"
+  | "indeterminate"
+  | "warning";
+
 type TrackedSession = {
   state: SessionState;
+  progressState: ProgressState;
+  progressPercent: number;
   notificationsPaused: boolean;
   pendingWaitRequests: Set<() => void>;
 
@@ -38,6 +60,9 @@ const sessionStateMap = new Map<string, TrackedSession>();
 const stateChangeSubscribers = new Set<
   (sessionId: string, state: SessionState) => void
 >();
+const progressChangeSubscribers = new Set<
+  (sessionId: string, state: ProgressState, percent: number) => void
+>();
 const runtimeResetSubscribers = new Set<(sessionId: string) => void>();
 
 // ============================================================================
@@ -50,6 +75,22 @@ const runtimeResetSubscribers = new Set<(sessionId: string) => void>();
  */
 export function getSessionState(sessionId: string): SessionState {
   return sessionStateMap.get(sessionId)?.state ?? "idle";
+}
+
+/**
+ * Get the current progress state of a session.
+ * Returns "hidden" if the session is not tracked.
+ */
+export function getProgressState(sessionId: string): ProgressState {
+  return sessionStateMap.get(sessionId)?.progressState ?? "hidden";
+}
+
+/**
+ * Get the current progress percentage of a session.
+ * Returns 0 if the session is not tracked.
+ */
+export function getProgressPercent(sessionId: string): number {
+  return sessionStateMap.get(sessionId)?.progressPercent ?? 0;
 }
 
 /**
@@ -80,6 +121,8 @@ export function getRuntimeTimestamps(sessionId: string): RuntimeTimestamps {
 export function trackSession(sessionId: string): void {
   sessionStateMap.set(sessionId, {
     state: "idle",
+    progressState: "hidden",
+    progressPercent: 0,
     notificationsPaused: false,
     pendingWaitRequests: new Set(),
     inputSuppressionUntil: null,
@@ -196,6 +239,20 @@ export function onSessionStateChange(
 }
 
 /**
+ * Subscribe to progress state change events for any terminal session.
+ * Callback is invoked when a session's progress state changes (from OSC 9;4).
+ *
+ * @param callback - The callback to trigger when a session's progress changes.
+ * @returns An unsubscribe function.
+ */
+export function onProgressStateChange(
+  callback: (sessionId: string, state: ProgressState, percent: number) => void,
+): () => void {
+  progressChangeSubscribers.add(callback);
+  return () => progressChangeSubscribers.delete(callback);
+}
+
+/**
  * Subscribe to runtime reset events for any terminal session.
  * Callback is invoked when runtime timestamps are cleared (e.g., user input while idle).
  *
@@ -207,6 +264,47 @@ export function onRuntimeReset(
 ): () => void {
   runtimeResetSubscribers.add(callback);
   return () => runtimeResetSubscribers.delete(callback);
+}
+
+/**
+ * Update the progress state for a session (from OSC 9;4 escape sequence).
+ * Called when the terminal parser encounters an OSC 9;4 sequence.
+ *
+ * @param sessionId - The session ID
+ * @param stateNum - The numeric state (0=hidden, 1=default, 2=error, 3=indeterminate, 4=warning)
+ * @param percent - The progress percentage (0-100)
+ */
+export function updateProgressState(
+  sessionId: string,
+  stateNum: number,
+  percent: number,
+): void {
+  const session = sessionStateMap.get(sessionId);
+  if (!session) return;
+
+  const stateMap: Record<number, ProgressState> = {
+    0: "hidden",
+    1: "default",
+    2: "error",
+    3: "indeterminate",
+    4: "warning",
+  };
+
+  const newState = stateMap[stateNum] ?? "hidden";
+
+  if (
+    newState !== session.progressState ||
+    percent !== session.progressPercent
+  ) {
+    session.progressState = newState;
+    session.progressPercent = percent;
+
+    if (!session.notificationsPaused) {
+      progressChangeSubscribers.forEach((cb) =>
+        cb(sessionId, newState, percent),
+      );
+    }
+  }
 }
 
 /**

@@ -1,3 +1,4 @@
+import { AgentIndicator } from "@/components/ui/agent-indicator";
 import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { IdleIndicator } from "@/components/ui/idle-indicator";
 import { Separator } from "@/components/ui/separator";
@@ -59,11 +60,16 @@ export function TabButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const showCloseButton = isHovered && !disableClick && !tab.locked;
+  const showAgentIndicator = showTabState && tab.progressState !== null;
   const showIdleIndicator =
     showTabState &&
+    !showAgentIndicator &&
     (tab.tabState === "idle-unseen" || tab.tabState === "idle-notified");
   const showRunningState =
-    showTabState && !tab.isActive && tab.tabState === "running";
+    showTabState &&
+    !tab.isActive &&
+    !showAgentIndicator &&
+    tab.tabState === "running";
 
   // Scroll active tab into view
   useEffect(() => {
@@ -209,6 +215,8 @@ export function TabButton({
               closeTab(tab.id);
             }}
           />
+        ) : showAgentIndicator ? (
+          <AgentIndicator progressState={tab.progressState!} />
         ) : showIdleIndicator ? (
           <IdleIndicator tabState={tab.tabState} />
         ) : tab.locked ? (

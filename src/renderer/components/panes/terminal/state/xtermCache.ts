@@ -223,6 +223,20 @@ export function getOrCreate(
       return true; // Indicate the OSC was handled
     });
 
+    // Register OSC 9 handler for progress state (Windows Terminal extension)
+    // OSC 9;4 format: ESC ] 9 ; 4 ; <state> ; <progress> BEL
+    // States: 0=hidden, 1=default, 2=error, 3=indeterminate, 4=warning
+    const osc9Disposable = terminal.parser.registerOscHandler(9, (data) => {
+      // Parse "4;<state>;<progress>" format
+      const match = /^4;(\d+);(\d+)$/.exec(data);
+      if (match) {
+        const stateNum = parseInt(match[1], 10);
+        const percent = parseInt(match[2], 10);
+        stateTracker.updateProgressState(sessionId, stateNum, percent);
+      }
+      return true;
+    });
+
     // Register onTitleChange handler for terminal title updates
     // This is triggered by OSC 0, 1, or 2 sequences from the shell
     const onTitleChangeDisposable = terminal.onTitleChange((newTitle) => {
@@ -253,6 +267,7 @@ export function getOrCreate(
       resize: (cols, rows) => api.resize(sessionId, cols, rows),
       dispose: () => {
         osc7Disposable.dispose();
+        osc9Disposable.dispose();
         onTitleChangeDisposable.dispose();
 
         // Dispose WebGL addon if loaded

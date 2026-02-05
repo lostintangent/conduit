@@ -1,8 +1,10 @@
 import {
   activeTabIdAtom,
+  tabProgressAtom,
   tabsAtom,
   tabStateAtom,
   userSettingsAtom,
+  type TabProgressState,
   type TabState,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
@@ -16,6 +18,8 @@ export type TabDescriptor = {
   isActive: boolean;
   locked: boolean;
   tabState: TabState;
+  progressState: TabProgressState | null;
+  progressPercent: number;
 };
 
 function resolveActivePane(tab: Tab): Pane | undefined {
@@ -35,6 +39,7 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
   const tabStates = get(tabStateAtom);
+  const tabProgress = get(tabProgressAtom);
   const { homeDirectory } = get(userSettingsAtom);
 
   const formatPathForLabel = (pathValue: string | null | undefined) => {
@@ -120,6 +125,7 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
 
     const name = tab.name?.trim();
     const isActive = tab.id === activeTabId;
+    const progress = tabProgress.get(tab.id);
     return {
       id: tab.id,
       label: name || label,
@@ -128,6 +134,8 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
       isActive,
       locked: tab.locked,
       tabState: tabStates.get(tab.id) ?? "idle",
+      progressState: progress?.state ?? null,
+      progressPercent: progress?.percent ?? 0,
     };
   });
 });
