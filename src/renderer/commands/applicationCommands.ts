@@ -1,0 +1,1861 @@
+/**
+ * Application-level command registrations
+ *
+ * This module contains all application-level commands that interact with
+ * the app's UI state (focus mode, pane controls, etc.).
+ */
+
+import type { ICommandRegistry } from "@/commands";
+import { When } from "@/commands";
+import {
+  activePaneType,
+  hasActivePane,
+  hasCustomLayout,
+  hasCwd,
+  hasGitRepo,
+  hasLastWorkspace,
+  hasWorkspace,
+  isInAgentSession,
+  paneCanBeCollapsed,
+  paneIsCollapsed,
+  tabCount,
+  tabHasWorktrees,
+  tabIsLocked,
+} from "@/commands/contextKeys/appContextKeys";
+import {
+  handleCloseWorkspace,
+  handleCreateVM,
+  handleDuplicateWorkspace,
+  handleManageSessions,
+  handleMergeAndClose,
+  handleOpenInVSCode,
+  handleOpenKeyboardShortcuts,
+  handleOpenLastWorkspace,
+  handleOpenSettings,
+  handleOpenWebPage,
+  handleOpenWorkspace,
+  handleQuickOpen,
+  handleRenameWorkspace,
+  handleResetLayout,
+  handleSaveWorkspace,
+  handleTerminate,
+  handleToggleDesignMode,
+  handleToggleSidebar,
+  handleViewFileExplorer,
+  invokeEditorCommand,
+} from "@/commands/handlers";
+import {
+  registerMenuContextBuilder,
+  type MenuContextBuilder,
+} from "@/commands/menus/menuContextBuilders";
+import { registerSubmenu } from "@/commands/menus/submenuConfig";
+import { MenuId } from "@/commands/menus/types";
+import { toggleFocusMode } from "@/store/actions/focusMode";
+import { enqueueNotification } from "@/store/actions/notifications";
+import {
+  cloneTerminalPane,
+  closeAgentSessionPanes,
+  closePane,
+  movePane,
+  openBrowserPane,
+  openCanvasPane,
+  openEditorPane,
+  setPaneCollapsed,
+  splitPane,
+  splitPaneWithAgentSession,
+  updatePaneProperty,
+} from "@/store/actions/pane";
+import { navigatePane } from "@/store/actions/paneNavigation";
+import {
+  closeTab,
+  duplicateTab,
+  duplicateTabIntoWorktree,
+  lockTab,
+  movePaneToTab,
+  openTab,
+  unlockTab,
+  updateTabProperty,
+} from "@/store/actions/tab";
+import { walkLayout } from "@/utils/layout";
+import { ApplicationCommands } from "@shared/commands";
+import { registerFileTreeCommands } from "./fileTreeCommands";
+
+// Re-export for convenience
+export { ApplicationCommands };
+
+/**
+ * Register all application-level commands
+ *
+ * This should be called during app initialization, after the command
+ * system has been initialized.
+ */
+let commandsRegistered = false;
+
+/**
+ * Reset the registration flag for testing purposes only
+ * @internal
+ */
+export function _resetCommandRegistration(): void {
+  commandsRegistered = false;
+}
+
+export function registerApplicationCommands(
+  commandRegistry: ICommandRegistry,
+): void {
+  // Only register once - subsequent calls are no-ops
+  if (commandsRegistered) {
+    return;
+  }
+  commandsRegistered = true;
+
+  // View: Toggle Focus Mode
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
+    title: "Toggle Focus Mode",
+    description: "Zoom into a single pane or return to normal view",
+    category: "View",
+    keybinding: {
+      key: "Cmd+Shift+F",
+      win: "Ctrl+Shift+F",
+    },
+    run: (context) => {
+      if (context.activeTab) {
+        toggleFocusMode(context.activeTab.id, context.activeTab.activePaneId);
+      }
+    },
+  });
+
+  // View: Toggle Design Mode
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
+    title: "Toggle Design Mode",
+    description: "Show or hide pane control buttons for layout manipulation",
+    category: "View",
+    keybinding: {
+      key: "Cmd+D",
+      win: "Ctrl+D",
+    },
+    run: (context) => {
+      handleToggleDesignMode(
+        context.applicationMode,
+        context.setApplicationMode,
+      );
+    },
+  });
+
+  // View: Open Settings
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_SETTINGS,
+    title: "Settings",
+    description: "Open application settings",
+    category: "View",
+    keybinding: {
+      key: "Cmd+,",
+      win: "Ctrl+,",
+    },
+    run: (context) => {
+      handleOpenSettings(context.setShowGeneralSettings);
+    },
+  });
+
+  // View: Open Keyboard Shortcuts
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
+    title: "Keyboard Shortcuts",
+    description: "View and customize keyboard shortcuts",
+    category: "View",
+    keybinding: {
+      key: "Cmd+K Cmd+S",
+      win: "Ctrl+K Ctrl+S",
+    },
+    run: (context) => {
+      handleOpenKeyboardShortcuts(context.setShowKeybindingsEditor);
+    },
+  });
+
+  // View: Manage Pane Actions
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_PANE_ACTIONS,
+    title: "Pane Actions",
+    description: "Customize the action available in design mode",
+    category: "View",
+    run: (context) => {
+      context.view.openPaneActions();
+    },
+  });
+
+  // View: Manage Agents
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_OPEN_AGENTS,
+    title: "Agent Teams",
+    description: "Configure AI agents for terminal prompt mode (Cmd+/)",
+    category: "View",
+    run: (context) => {
+      context.view.openAgents();
+    },
+  });
+
+  // View: Show Command Palette
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
+    title: "Show Command Palette",
+    description: "Show all available commands",
+    category: "View",
+    keybinding: {
+      key: "Cmd+Shift+P",
+      win: "Ctrl+Shift+P",
+    },
+    run: (context) => {
+      // Open QuickOpen in command mode (with ">" prefix)
+      context.setQuickOpenInitialValue?.(">");
+      context.setIsQuickOpenOpen?.(true);
+    },
+  });
+
+  // View: Toggle Sidebar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_TOGGLE_SIDEBAR,
+    title: "Toggle Sidebar",
+    description: "Show or hide the sidebar overlay",
+    category: "View",
+    keybinding: {
+      key: "Cmd+E",
+      win: "Ctrl+E",
+    },
+    run: () => {
+      handleToggleSidebar();
+    },
+  });
+
+  // Workspace: Save
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_SAVE,
+    title: "Save Workspace",
+    description: "Save current tab layout for later restoration",
+    category: "Workspace",
+    keybinding: {
+      key: "Cmd+K Cmd+W",
+      win: "Ctrl+K Ctrl+W",
+    },
+    run: (context) => {
+      void handleSaveWorkspace(
+        context.allTabs,
+        context.activeTab?.id,
+        context.setShowCreateWorkspaceDialog,
+      );
+    },
+  });
+
+  // Workspace: Rename
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_RENAME,
+    title: "Rename Workspace",
+    description: "Change the name of the current workspace",
+    category: "Workspace",
+    keybinding: {
+      key: "Cmd+K Cmd+R",
+      win: "Ctrl+K Ctrl+R",
+    },
+    when: hasWorkspace.isTrue(),
+    run: (context) => {
+      if (context.workspaceName) {
+        handleRenameWorkspace(context.setShowRenameWorkspaceDialog);
+      }
+    },
+  });
+
+  // Workspace: Duplicate
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_DUPLICATE,
+    title: "Duplicate Workspace",
+    description: "Create a copy of the current workspace with a new name",
+    category: "Workspace",
+    when: hasWorkspace.isTrue(),
+    run: (context) => {
+      if (context.workspaceName) {
+        handleDuplicateWorkspace(context.setShowDuplicateWorkspaceDialog);
+      }
+    },
+  });
+
+  // Workspace: Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_CLOSE,
+    title: "Close Workspace",
+    description: "Close the current workspace",
+    category: "Workspace",
+    keybinding: {
+      key: "Cmd+K Cmd+C",
+      win: "Ctrl+K Ctrl+C",
+    },
+    when: hasWorkspace.isTrue(),
+    run: (context) => {
+      if (context.workspaceName) {
+        void handleCloseWorkspace();
+      }
+    },
+  });
+
+  // Workspace: Open
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_OPEN,
+    title: "Open Workspace",
+    description: "Restore tabs from a saved workspace",
+    category: "Workspace",
+    keybinding: {
+      key: "Cmd+K Cmd+O",
+      win: "Ctrl+K Ctrl+O",
+    },
+    run: (context) => {
+      handleOpenWorkspace(context.setShowWorkspacePicker);
+    },
+  });
+
+  // Workspace: Open Last
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.WORKSPACE_OPEN_LAST,
+    title: "Continue Last Session",
+    description: "Restore your workspace from when you last closed the app",
+    category: "Workspace",
+    when: hasLastWorkspace.isTrue(),
+    run: () => {
+      void handleOpenLastWorkspace();
+    },
+  });
+
+  // View: Reset Layout
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.VIEW_RESET_LAYOUT,
+    title: "Reset Layout",
+    description: "Restore the default pane sizes for this tab",
+    category: "View",
+    when: hasCustomLayout.isTrue(),
+    run: (context) => {
+      if (context.activeTab) {
+        handleResetLayout(context.activeTab.id);
+      }
+    },
+  });
+
+  // Tab: New
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_NEW,
+    title: "New Tab",
+    description: "Create a new terminal tab",
+    category: "Tab",
+    keybinding: {
+      key: "Cmd+T",
+      win: "Ctrl+T",
+    },
+    run: () => {
+      void openTab();
+    },
+  });
+
+  // Tab: Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_CLOSE,
+    title: "Close Tab",
+    description: "Close the currently active tab",
+    category: "Tab",
+    keybinding: {
+      key: "Cmd+W",
+      win: "Ctrl+W",
+    },
+    when: When.and(tabCount.greaterThan(1), tabIsLocked.isFalse()),
+    menu: {
+      id: MenuId.TabContext,
+      group: "4_tab",
+      order: 1,
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId) {
+        closeTab(targetTabId);
+      }
+    },
+  });
+
+  // Tab: Duplicate
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_DUPLICATE,
+    title: "Duplicate Tab",
+    description: "Duplicate the current tab with all its panes and layout",
+    category: "Tab",
+    keybinding: {
+      key: "Cmd+Shift+D",
+      win: "Ctrl+Shift+D",
+    },
+    menu: {
+      id: MenuId.TabContext,
+      group: "2_tab",
+      order: 2,
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId) {
+        void duplicateTab(targetTabId);
+      }
+    },
+  });
+
+  // Tab: Duplicate with Custom CWD
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_DUPLICATE_WITH_CWD,
+    title: "Duplicate Tab with CWD",
+    description:
+      "Duplicate the current tab and set a custom working directory for all panes",
+    category: "Tab",
+    keybinding: {
+      key: "Cmd+Alt+D",
+      win: "Ctrl+Alt+D",
+    },
+    menu: {
+      id: MenuId.TabContext,
+      group: "2_tab/duplicate_into",
+      order: 1,
+      title: "CWD",
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId && context.setShowDuplicateTabWithCwdDialog) {
+        context.setShowDuplicateTabWithCwdDialog(targetTabId);
+      }
+    },
+  });
+
+  // Tab: Duplicate into Worktree
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_DUPLICATE_INTO_WORKTREE,
+    title: "Duplicate Tab into Worktree",
+    description:
+      "Create an isolated git worktree and duplicate the current tab into it",
+    category: "Tab",
+    keybinding: {
+      key: "Cmd+Alt+W",
+      win: "Ctrl+Alt+W",
+    },
+    when: When.and(hasGitRepo.isTrue()),
+    menu: {
+      id: MenuId.TabContext,
+      group: "2_tab/duplicate_into",
+      order: 2,
+      title: "Worktree",
+    },
+    run: async (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (!targetTabId) {
+        return;
+      }
+
+      let errorMessage: string | null = null;
+
+      try {
+        const result = await duplicateTabIntoWorktree(targetTabId);
+        if (!result) {
+          errorMessage = "Failed to duplicate tab into worktree";
+        }
+      } catch (error) {
+        errorMessage = error instanceof Error ? error.message : String(error);
+      }
+
+      if (errorMessage) {
+        enqueueNotification({
+          kind: "error",
+          message: errorMessage,
+          autoCloseMs: 5000,
+        });
+      }
+    },
+  });
+
+  // Tab: Rename
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_RENAME,
+    title: "Rename Tab",
+    description: "Rename the current tab",
+    category: "Tab",
+    when: tabIsLocked.isFalse(),
+    menu: [
+      {
+        id: MenuId.TabContext,
+        group: "1_tab",
+        order: 1,
+      },
+    ],
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId && context.setTitleModal) {
+        const tab = context.allTabs.find((t) => t.id === targetTabId);
+        context.setTitleModal(targetTabId, tab?.name ?? "");
+      }
+    },
+  });
+
+  // Tab: Lock
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_LOCK,
+    title: "Lock Tab",
+    description: "Prevent layout changes and closing for the current tab",
+    category: "Tab",
+    when: tabIsLocked.isFalse(),
+    menu: {
+      id: MenuId.TabContext,
+      group: "3_tab",
+      order: 3,
+      when: tabIsLocked.isFalse(),
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId) {
+        lockTab(targetTabId);
+      }
+    },
+  });
+
+  // Tab: Unlock
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_UNLOCK,
+    title: "Unlock Tab",
+    description: "Allow layout changes and closing for the current tab",
+    category: "Tab",
+    when: tabIsLocked.isTrue(),
+    menu: {
+      id: MenuId.TabContext,
+      group: "3_tab",
+      order: 4,
+      when: tabIsLocked.isTrue(),
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (targetTabId) {
+        unlockTab(targetTabId);
+      }
+    },
+  });
+
+  // Tab: Synchronize panes
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE,
+    title: "Synchronize Panes",
+    description:
+      "Mirror keystrokes from the active terminal to the rest of the tab",
+    category: "Tab",
+    menu: {
+      id: MenuId.TabContext,
+      group: "3_tab",
+      order: 1,
+    },
+    run: (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetTab =
+        context.allTabs.find((tab) => tab.id === targetTabId) ??
+        context.activeTab;
+
+      updateTabProperty(targetTabId, {
+        synchronized: !targetTab.synchronized,
+      });
+    },
+  });
+
+  const paneActionsEnabled = When.and(
+    hasActivePane.isTrue(),
+    tabIsLocked.isFalse(),
+    paneIsCollapsed.isFalse(),
+  );
+
+  // Pane: Toggle Focus
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_FOCUS,
+    title: "Toggle Focus Mode",
+    description: "Toggle focus mode for the current pane",
+    category: "Pane",
+    when: hasActivePane.isTrue(),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 1,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        toggleFocusMode(targetTabId, targetPaneId);
+      }
+    },
+  });
+
+  // Pane: View File Explorer
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_VIEW_FILES,
+    title: "View File Explorer",
+    description: "View files in the terminal's current directory",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+E",
+      win: "Ctrl+E",
+    },
+    when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "1_pane",
+      order: 2,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        // Get the CWD from the active terminal pane
+        const pane = context.activeTab?.panes?.[targetPaneId];
+        const cwd = pane?.type === "terminal" ? pane.cwd : undefined;
+        handleViewFileExplorer(cwd);
+      }
+    },
+  });
+
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_COLLAPSE,
+    title: "Collapse Pane",
+    description: "Collapse the active pane",
+    category: "Pane",
+    when: When.and(paneCanBeCollapsed.isTrue(), paneIsCollapsed.isFalse()),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_pane",
+      order: 4,
+      when: When.and(paneIsCollapsed.isFalse()),
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      setPaneCollapsed(targetTabId, targetPaneId, true);
+    },
+  });
+
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_EXPAND,
+    title: "Expand Pane",
+    description: "Expand the active pane back to its original size",
+    category: "Pane",
+    when: When.and(paneIsCollapsed.isTrue()),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_pane",
+      order: 4,
+      when: paneIsCollapsed.isTrue(),
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      setPaneCollapsed(targetTabId, targetPaneId, false);
+    },
+  });
+
+  // Pane: Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_CLOSE,
+    title: "Close Pane",
+    description: "Close the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "9_close",
+      order: 1,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      closePane(targetTabId, targetPaneId);
+    },
+  });
+
+  // Pane: Split Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT,
+    title: "Split Pane Left",
+    description: "Create a new pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Left",
+      win: "Ctrl+Shift+Left",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 1,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT,
+    title: "Split Pane Right",
+    description: "Create a new pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Right",
+      win: "Ctrl+Shift+Right",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 2,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "row");
+      }
+    },
+  });
+
+  // Pane: Split Top
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP,
+    title: "Split Pane Top",
+    description: "Create a new pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Up",
+      win: "Ctrl+Shift+Up",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 3,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "column", true);
+      }
+    },
+  });
+
+  // Pane: Split Bottom
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM,
+    title: "Split Pane Bottom",
+    description: "Create a new pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Down",
+      win: "Ctrl+Shift+Down",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      order: 4,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPane(targetTabId, targetPaneId, "column");
+      }
+    },
+  });
+
+  // Pane: Split Left with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_AGENT,
+    title: "Split Pane Left (Agent Session)",
+    description: "Create a new pane to the left with an isolated agent session",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Left",
+      win: "Ctrl+Shift+Alt+Left",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/1_split_agent_session",
+      order: 1,
+      when: hasGitRepo.isTrue(),
+      title: "Left",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_AGENT,
+    title: "Split Pane Right (Agent Session)",
+    description:
+      "Create a new pane to the right with an isolated agent session",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Right",
+      win: "Ctrl+Shift+Alt+Right",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/1_split_agent_session",
+      order: 2,
+      when: hasGitRepo.isTrue(),
+      title: "Right",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "row");
+      }
+    },
+  });
+
+  // Pane: Split Top with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_AGENT,
+    title: "Split Pane Top (Agent Session)",
+    description: "Create a new pane above with an isolated agent session",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Up",
+      win: "Ctrl+Shift+Alt+Up",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/1_split_agent_session",
+      order: 3,
+      when: hasGitRepo.isTrue(),
+      title: "Top",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(
+          targetTabId,
+          targetPaneId,
+          "column",
+          true,
+        );
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Agent Session
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_AGENT,
+    title: "Split Pane Bottom (Agent Session)",
+    description: "Create a new pane below with an isolated agent session",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+Ctrl+Down",
+      win: "Ctrl+Shift+Alt+Down",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/1_split_agent_session",
+      order: 4,
+      when: hasGitRepo.isTrue(),
+      title: "Bottom",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        void splitPaneWithAgentSession(targetTabId, targetPaneId, "column");
+      }
+    },
+  });
+
+  // Pane: Navigate Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_LEFT,
+    title: "Navigate to Pane on Left",
+    description: "Focus the pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Left",
+      win: "Ctrl+Left",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "left");
+      }
+    },
+  });
+
+  // Pane: Navigate Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_RIGHT,
+    title: "Navigate to Pane on Right",
+    description: "Focus the pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Right",
+      win: "Ctrl+Right",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "right");
+      }
+    },
+  });
+
+  // Pane: Navigate Up
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_UP,
+    title: "Navigate to Pane Above",
+    description: "Focus the pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Up",
+      win: "Ctrl+Up",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "up");
+      }
+    },
+  });
+
+  // Pane: Navigate Down
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_NAVIGATE_DOWN,
+    title: "Navigate to Pane Below",
+    description: "Focus the pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Down",
+      win: "Ctrl+Down",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        navigatePane(targetTabId, targetPaneId, "down");
+      }
+    },
+  });
+
+  // Pane: Move Left
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_LEFT,
+    title: "Move Pane Left",
+    description: "Move the current pane to the left",
+    category: "Pane",
+    keybinding: {
+      key: "Ctrl+Cmd+Left",
+      win: "Ctrl+Alt+Left",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 1,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "left");
+      }
+    },
+  });
+
+  // Pane: Move Right
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_RIGHT,
+    title: "Move Pane Right",
+    description: "Move the current pane to the right",
+    category: "Pane",
+    keybinding: {
+      key: "Ctrl+Cmd+Right",
+      win: "Ctrl+Alt+Right",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 2,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "right");
+      }
+    },
+  });
+
+  // Pane: Move Up
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_UP,
+    title: "Move Pane Up",
+    description: "Move the current pane upward",
+    category: "Pane",
+    keybinding: {
+      key: "Ctrl+Cmd+Up",
+      win: "Ctrl+Alt+Up",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 3,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "up");
+      }
+    },
+  });
+
+  // Pane: Move Down
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_DOWN,
+    title: "Move Pane Down",
+    description: "Move the current pane downward",
+    category: "Pane",
+    keybinding: {
+      key: "Ctrl+Cmd+Down",
+      win: "Ctrl+Alt+Down",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "4_move",
+      order: 4,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePane(targetTabId, targetPaneId, "down");
+      }
+    },
+  });
+
+  // Pane: Move to New Tab
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_MOVE_TO_TAB,
+    title: "Move Pane to New Tab",
+    description: "Move the current pane to a new tab",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Alt+T",
+      win: "Ctrl+Alt+T",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_pane",
+      order: 3,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        movePaneToTab(targetTabId, targetPaneId);
+      }
+    },
+  });
+
+  // Pane: Clone
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_CLONE,
+    title: "Clone Terminal",
+    description: "Create a clone of the active terminal",
+    category: "Pane",
+    when: When.and(paneActionsEnabled, activePaneType.equals("terminal")),
+    menu: {
+      id: MenuId.PaneContext,
+      group: "2_split",
+      when: activePaneType.equals("terminal"),
+      order: 5,
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      cloneTerminalPane(targetTabId, targetPaneId);
+    },
+  });
+
+  // Pane: Open Web Page
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_OPEN_WEB_PAGE,
+    title: "Open Web Page",
+    description: "Open a web page in a split view",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+L",
+      win: "Ctrl+L",
+    },
+    when: hasActivePane.isTrue(),
+    run: (context) => {
+      handleOpenWebPage(context.setIsUrlDialogOpen);
+    },
+  });
+
+  // Pane: Split Left with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_BROWSER,
+    title: "Split Browser Left",
+    description: "Create a new browser pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Left",
+      win: "Ctrl+Shift+B+Left",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/3_split_browser",
+      order: 1,
+      title: "Left",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openBrowserPane(targetTabId, targetPaneId, "about:blank", "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_BROWSER,
+    title: "Split Browser Right",
+    description: "Create a new browser pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Right",
+      win: "Ctrl+Shift+B+Right",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/3_split_browser",
+      order: 2,
+      title: "Right",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openBrowserPane(targetTabId, targetPaneId, "about:blank", "row", false);
+      }
+    },
+  });
+
+  // Pane: Split Top with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_BROWSER,
+    title: "Split Browser Top",
+    description: "Create a new browser pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Up",
+      win: "Ctrl+Shift+B+Up",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/3_split_browser",
+      order: 3,
+      title: "Top",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openBrowserPane(
+          targetTabId,
+          targetPaneId,
+          "about:blank",
+          "column",
+          true,
+        );
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Browser
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_BROWSER,
+    title: "Split Browser Bottom",
+    description: "Create a new browser pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+B+Down",
+      win: "Ctrl+Shift+B+Down",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/3_split_browser",
+      order: 4,
+      title: "Bottom",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openBrowserPane(
+          targetTabId,
+          targetPaneId,
+          "about:blank",
+          "column",
+          false,
+        );
+      }
+    },
+  });
+
+  // Pane: Split Left with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_EDITOR,
+    title: "Split Editor Left",
+    description: "Create a new editor pane to the left of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Left",
+      win: "Ctrl+Shift+E+Left",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/2_split_editor",
+      order: 1,
+      title: "Left",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", true, {
+            sandboxId,
+          });
+        }
+      }
+    },
+  });
+
+  // Pane: Split Right with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_EDITOR,
+    title: "Split Editor Right",
+    description: "Create a new editor pane to the right of the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Right",
+      win: "Ctrl+Shift+E+Right",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/2_split_editor",
+      order: 2,
+      title: "Right",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", false, {
+            sandboxId,
+          });
+        }
+      }
+    },
+  });
+
+  // Pane: Split Top with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_EDITOR,
+    title: "Split Editor Top",
+    description: "Create a new editor pane above the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Up",
+      win: "Ctrl+Shift+E+Up",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/2_split_editor",
+      order: 3,
+      title: "Top",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", true, {
+            sandboxId,
+          });
+        }
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Editor
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_EDITOR,
+    title: "Split Editor Bottom",
+    description: "Create a new editor pane below the current pane",
+    category: "Pane",
+    keybinding: {
+      key: "Cmd+Shift+E+Down",
+      win: "Ctrl+Shift+E+Down",
+    },
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/2_split_editor",
+      order: 4,
+      title: "Bottom",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId && context.activeTab) {
+        const sourcePane = context.activeTab.panes[targetPaneId];
+        const cwd =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.cwd
+            : null;
+        const sandboxId =
+          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
+            ? sourcePane.sandboxId
+            : undefined;
+        if (cwd) {
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", false, {
+            sandboxId,
+          });
+        }
+      }
+    },
+  });
+
+  // Pane: Split Left with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_LEFT_CANVAS,
+    title: "Split Canvas Left",
+    description: "Create a new canvas pane to the left of the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 1,
+      title: "Left",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "row", true);
+      }
+    },
+  });
+
+  // Pane: Split Right with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_RIGHT_CANVAS,
+    title: "Split Canvas Right",
+    description: "Create a new canvas pane to the right of the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 2,
+      title: "Right",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "row", false);
+      }
+    },
+  });
+
+  // Pane: Split Top with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_TOP_CANVAS,
+    title: "Split Canvas Top",
+    description: "Create a new canvas pane above the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 3,
+      title: "Top",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "column", true);
+      }
+    },
+  });
+
+  // Pane: Split Bottom with Canvas
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.PANE_SPLIT_BOTTOM_CANVAS,
+    title: "Split Canvas Bottom",
+    description: "Create a new canvas pane below the current pane",
+    category: "Pane",
+    when: paneActionsEnabled,
+    menu: {
+      id: MenuId.PaneContext,
+      group: "3_split_more/4_split_canvas",
+      order: 4,
+      title: "Bottom",
+    },
+    run: (context, tabId?: string, paneId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      const targetPaneId = paneId ?? context.activePaneId;
+      if (targetTabId && targetPaneId) {
+        openCanvasPane(targetTabId, targetPaneId, "column", false);
+      }
+    },
+  });
+
+  // Terminal: Create VM
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TERMINAL_CREATE_CLOUD,
+    title: "New Cloud Terminal",
+    description: "Create a new cloud terminal",
+    category: "Terminal",
+    when: hasActivePane.isTrue(),
+    run: () => {
+      void handleCreateVM();
+    },
+  });
+
+  // Terminal: Open in VS Code
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.TERMINAL_OPEN_IN_VSCODE,
+    title: "Open in VS Code",
+    description: "Open the active directory in Visual Studio Code",
+    category: "Terminal",
+    when: When.and(activePaneType.equals("terminal"), hasCwd.isTrue()),
+    run: (context) => {
+      void handleOpenInVSCode(context.activeTab);
+    },
+  });
+
+  // Agent: Launch
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_LAUNCH,
+    title: "Launch Agents",
+    description:
+      "Open agent launcher to split panes or worktrees and start agents with a prompt",
+    category: "Agent",
+    keybinding: {
+      key: "Cmd+I",
+      win: "Ctrl+I",
+    },
+    when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
+    run: (context) => {
+      if (context.setShowAgentLauncher) {
+        context.setShowAgentLauncher(true);
+      }
+    },
+  });
+
+  // Agent: Manage Sessions
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_MANAGE_SESSIONS,
+    title: "Manage Agent Sessions",
+    description: "Remove one or all agent worktrees without merging",
+    category: "Agent",
+    run: (context) => {
+      void handleManageSessions(context);
+    },
+  });
+
+  // Agent: Merge and Close
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_MERGE_AND_CLOSE,
+    title: "Merge and Close Agent Session",
+    description: "Commit, merge, and close the isolated agent worktree",
+    category: "Agent",
+    when: isInAgentSession.isTrue(),
+    run: (context) => {
+      void handleMergeAndClose(context.activeTab);
+    },
+  });
+
+  // Agent: Terminate
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_TERMINATE,
+    title: "Terminate Agent Session",
+    description: "Remove the isolated worktree without merging",
+    category: "Agent",
+    when: isInAgentSession.isTrue(),
+    run: (context) => {
+      void handleTerminate(context.activeTab);
+    },
+  });
+
+  // Agent: Delete All Worktrees
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.AGENT_DELETE_ALL_WORKTREES,
+    title: "Delete All Worktrees",
+    description: "Delete all agent worktrees associated with this tab",
+    category: "Agent",
+    when: tabHasWorktrees.isTrue(),
+    menu: {
+      id: MenuId.TabContext,
+      group: "4_tab",
+      order: 0,
+    },
+    run: async (context, tabId?: string) => {
+      const targetTabId = tabId ?? context.activeTab?.id;
+      if (!targetTabId) {
+        return;
+      }
+
+      const tab = context.allTabs.find((t) => t.id === targetTabId);
+      if (!tab) {
+        return;
+      }
+
+      // Collect all unique agent session IDs from panes with worktrees
+      const agentSessionIds = new Set<string>();
+      for (const pane of Object.values(tab.panes)) {
+        if (
+          (pane.type === "terminal" || pane.type === "editor") &&
+          pane.agentSessionId &&
+          pane.agentWorktreePath
+        ) {
+          agentSessionIds.add(pane.agentSessionId);
+        }
+      }
+
+      if (agentSessionIds.size === 0) {
+        return;
+      }
+
+      // Show progress notification
+      const _notifId = enqueueNotification({
+        kind: "info",
+        message: `Deleting ${agentSessionIds.size} worktree${agentSessionIds.size > 1 ? "s" : ""}...`,
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Delete each agent session
+      for (const sessionId of agentSessionIds) {
+        try {
+          const result = await window.conduit.cleanupAgentSession({
+            sessionId,
+          });
+          if (result.status === "success") {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (error) {
+          console.error(`Failed to delete agent session ${sessionId}:`, error);
+          errorCount++;
+        }
+      }
+
+      // Close all panes associated with deleted sessions
+      for (const sessionId of agentSessionIds) {
+        closeAgentSessionPanes(targetTabId, sessionId);
+      }
+
+      // Update notification with result
+      if (errorCount === 0) {
+        enqueueNotification({
+          kind: "success",
+          message: `Successfully deleted ${successCount} worktree${successCount > 1 ? "s" : ""}`,
+          autoCloseMs: 3000,
+        });
+      } else {
+        enqueueNotification({
+          kind: "warning",
+          message: `Deleted ${successCount} worktree${successCount > 1 ? "s" : ""}, ${errorCount} failed`,
+          autoCloseMs: 5000,
+        });
+      }
+    },
+  });
+
+  // ============================================================================
+  // Browser Commands
+  // ============================================================================
+
+  // Browser: Toggle Browser Toolbar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.BROWSER_TOGGLE_TOOLBAR,
+    title: "Toggle Browser Toolbar",
+    description: "Show or hide the toolbar in the active browser pane",
+    category: "Browser",
+    when: activePaneType.equals("browser"),
+    run: ({ activeTab, activePaneId }) => {
+      const pane = activeTab.panes[activePaneId];
+      updatePaneProperty(activeTab.id, activePaneId, {
+        chromeless: !pane.chromeless,
+      });
+    },
+  });
+
+  // ============================================================================
+  // Editor Commands
+  // ============================================================================
+
+  // Editor: Toggle Sidebar
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.EDITOR_TOGGLE_SIDEBAR,
+    title: "Toggle File Tree",
+    description: "Show or hide the file tree sidebar in the editor",
+    category: "Editor",
+    keybinding: {
+      key: "Cmd+B",
+      win: "Ctrl+B",
+    },
+    when: activePaneType.equals("editor"),
+    run: (context) => {
+      if (context.activePaneId) {
+        invokeEditorCommand(context.activePaneId, "toggleSidebar");
+      }
+    },
+  });
+
+  // Editor: Reveal Active File in File Tree
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.EDITOR_FOCUS_SIDEBAR,
+    title: "Reveal Active File in File Tree",
+    description: "Reveal and select the currently active file in the file tree",
+    category: "Editor",
+    keybinding: {
+      key: "Cmd+Shift+T",
+      win: "Ctrl+Shift+T",
+    },
+    when: activePaneType.equals("editor"),
+    run: (context) => {
+      if (context.activePaneId) {
+        invokeEditorCommand(context.activePaneId, "revealActiveFile");
+      }
+    },
+  });
+
+  // Editor: Quick Open
+  commandRegistry.registerCommand({
+    id: ApplicationCommands.EDITOR_QUICK_OPEN,
+    title: "Quick Open",
+    description: "Quickly open files by name using fuzzy search",
+    category: "Editor",
+    keybinding: {
+      key: "Cmd+P",
+      win: "Ctrl+P",
+    },
+    // No 'when' clause - works from any pane type
+    run: (context) => {
+      handleQuickOpen(context.setIsQuickOpenOpen);
+    },
+  });
+
+  // Register file tree commands
+  registerFileTreeCommands(commandRegistry);
+}
+
+/**
+ * Context builder for tab context menu
+ *
+ * Updates context keys based on the active pane in the tab.
+ */
+const tabContextBuilder: MenuContextBuilder = async (
+  contextKeyService,
+  params,
+  checkGitRepo,
+) => {
+  const { tab } = params;
+
+  // Get the active pane
+  const activePane = tab.panes[tab.activePaneId];
+
+  // Check git repository status for agent commands
+  let hasGitRepoValue = false;
+  if (
+    activePane &&
+    (activePane.type === "terminal" || activePane.type === "editor")
+  ) {
+    hasGitRepoValue = await checkGitRepo(activePane.cwd);
+  }
+
+  // Check if the tab has any panes with active worktrees
+  let hasWorktreesValue = false;
+  for (const pane of Object.values(tab.panes)) {
+    if (
+      (pane.type === "terminal" || pane.type === "editor") &&
+      pane.agentWorktreePath
+    ) {
+      hasWorktreesValue = true;
+      break;
+    }
+  }
+
+  contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
+  contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
+  contextKeyService.setGlobal(tabHasWorktrees.key, hasWorktreesValue);
+};
+
+/**
+ * Context builder for pane context menu
+ *
+ * Updates context keys based on the specific pane being right-clicked.
+ */
+const paneContextBuilder: MenuContextBuilder = async (
+  contextKeyService,
+  params,
+  checkGitRepo,
+) => {
+  const { pane, tab } = params;
+
+  // Check git repository status for agent commands
+  let hasGitRepoValue = false;
+  if (pane && (pane.type === "terminal" || pane.type === "editor")) {
+    hasGitRepoValue = await checkGitRepo(pane.cwd);
+  }
+
+  contextKeyService.setGlobal(hasGitRepo.key, hasGitRepoValue);
+  if (tab) {
+    contextKeyService.setGlobal(tabIsLocked.key, tab.locked);
+  }
+
+  let isPaneCollapsed = false;
+  let canPaneBeCollapsed = false;
+
+  if (pane && tab) {
+    // Find the pane in the layout tree and determine whether
+    // it can be collapsed based on whether it has any sibling
+    // panes that aren't already collapsed.
+    walkLayout(tab.layout, ({ node, parent }) => {
+      if (node.type === "pane" && node.paneId === pane.id) {
+        isPaneCollapsed = Boolean(node.collapsed);
+        canPaneBeCollapsed =
+          parent?.children.length > 1 &&
+          !parent.children.every(
+            (child) =>
+              child.id === node.id ||
+              (child.type === "pane" && child.collapsed),
+          );
+        return false;
+      }
+    });
+  }
+
+  contextKeyService.setGlobal(paneIsCollapsed.key, isPaneCollapsed);
+  contextKeyService.setGlobal(paneCanBeCollapsed.key, canPaneBeCollapsed);
+};
+
+/**
+ * Register menu context builders for application menus
+ *
+ * This should be called during app initialization, after registering commands.
+ */
+export function registerMenuContextBuilders(): void {
+  registerMenuContextBuilder(MenuId.TabContext, tabContextBuilder);
+  registerMenuContextBuilder(MenuId.PaneContext, paneContextBuilder);
+
+  // Register submenu labels
+  registerSubmenu(
+    MenuId.TabContext,
+    "2_tab/duplicate_into",
+    "Duplicate Tab into...",
+  );
+
+  registerSubmenu(
+    MenuId.PaneContext,
+    "3_split_more/1_split_agent_session",
+    "Split Agent Session...",
+  );
+
+  registerSubmenu(
+    MenuId.PaneContext,
+    "3_split_more/2_split_editor",
+    "Split Editor...",
+  );
+
+  registerSubmenu(
+    MenuId.PaneContext,
+    "3_split_more/3_split_browser",
+    "Split Browser...",
+  );
+
+  registerSubmenu(
+    MenuId.PaneContext,
+    "3_split_more/4_split_canvas",
+    "Split Canvas...",
+  );
+}

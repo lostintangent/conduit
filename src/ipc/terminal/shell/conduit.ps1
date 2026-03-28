@@ -1,0 +1,59 @@
+# Restore EDITOR/VISUAL to ensure Conduit is the default editor
+# This overrides any EDITOR set in user's PowerShell profile
+if ($env:CONDUIT_EDITOR) {
+    $env:EDITOR = $env:CONDUIT_EDITOR
+    $env:VISUAL = $env:CONDUIT_EDITOR
+}
+
+function global:Write-Osc7Cwd {
+    $p = $ExecutionContext.SessionState.Path.CurrentLocation
+    if ($p.Provider.Name -ne 'FileSystem') { return }
+
+    # Normalize path for the URI
+    $providerPath = $p.ProviderPath -replace '\\','/'
+
+    # Pick a hostname
+    $hostName = $env:HOSTNAME
+    if (-not $hostName) { $hostName = $env:COMPUTERNAME }
+    if (-not $hostName) { $hostName = 'localhost' }
+
+    $esc = [char]27
+    # ESC ] 7 ; file://host/path ESC \
+    [Console]::Write("$esc]7;file://$hostName/$providerPath$esc\")
+}
+
+# Capture any existing prompt implementation
+$script:Conduit_OldPrompt = $null
+if (Test-Path Function:\prompt) {
+    $script:Conduit_OldPrompt = (Get-Item Function:\prompt).ScriptBlock
+}
+
+function global:prompt {
+    # Emit OSC 7 for the current CWD
+    Write-Osc7Cwd
+
+    if ($script:Conduit_OldPrompt) {
+        # Call the old prompt so we don't break themes
+        & $script:Conduit_OldPrompt
+    } else {
+        # Fallback to something close to the built-in prompt
+        $p = $ExecutionContext.SessionState.Path.CurrentLocation
+        "PS $p$('>' * ($nestedPromptLevel + 1)) "
+    }
+}
+
+# If the copilot command is not available, define a wrapper function
+# that prompts the user to install GitHub Copilot CLI
+if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) {
+    function copilot {
+        Write-Host "The GitHub Copilot CLI is not installed."
+        $response = Read-Host "Would you like to install it? (Y/n)"
+
+        if ([string]::IsNullOrWhiteSpace($response) -or $response -match '^(?i)y$') {
+            if (npm install -g @github/copilot) {
+                Remove-Item Function:\copilot -Force
+                & copilot @args
+            }
+        }
+    }
+}

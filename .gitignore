@@ -1,0 +1,21 @@
+# Dependencies / system files
+node_modules/
+.DS_Store
+icon.icns
+.conduit/
+
+# Build artifacts
+.vite/
+out/
+
+# Test results/coverage
+test-results/
+coverage/
+
+# Secrets/keys
+.env.local
+keys/
+build/scripts/publish.sh
+src/ipc/terminal/shell/.zsh_history
+src/ipc/terminal/shell/.zcompdump
+build/sandbox/sandbox-conduit-server/sandbox-conduit-server

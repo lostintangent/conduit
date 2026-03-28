@@ -1,0 +1,188 @@
+import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
+import { openTabFromExistingSession } from "@/store/actions/tab";
+import { hyperTerminalsAtom } from "@/store/atoms";
+import type { HyperTerminalPosition } from "@shared/types";
+import { getDefaultStore } from "jotai";
+
+const api = window.conduit;
+const store = getDefaultStore();
+
+/**
+ * Removes a hyper terminal from the store by its terminal ID.
+ *
+ * @param terminalId - The terminal session ID to remove
+ * @returns True if the terminal was found and removed, false otherwise
+ */
+function removeHyperTerminal(terminalId: string): boolean {
+  const terminals = store.get(hyperTerminalsAtom);
+  const exists = terminals.some((t) => t.terminalId === terminalId);
+
+  if (!exists) {
+    return false;
+  }
+
+  store.set(hyperTerminalsAtom, (draft) => {
+    const index = draft.findIndex((t) => t.terminalId === terminalId);
+    if (index !== -1) {
+      draft.splice(index, 1);
+    }
+  });
+
+  return true;
+}
+
+/**
+ * Checks if a terminal session is a hyper terminal (floating overlay).
+ *
+ * @param sessionId - The terminal session ID to check
+ * @returns True if the session is a hyper terminal, false otherwise
+ */
+export function isHyperTerminal(sessionId: string): boolean {
+  return store.get(hyperTerminalsAtom).some((t) => t.terminalId === sessionId);
+}
+
+/**
+ * Opens a new hyper terminal (floating overlay).
+ * Prevents duplicate terminals by checking if the terminal already exists.
+ *
+ * @param terminalId - The terminal session ID
+ * @param paneId - The pane ID associated with this terminal
+ * @param cwd - The current working directory (or null)
+ */
+export function openHyperTerminal(
+  terminalId: string,
+  paneId: string,
+  cwd: string | null,
+) {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    // Prevent duplicate terminals
+    if (!terminals.some((t) => t.terminalId === terminalId)) {
+      terminals.push({
+        terminalId,
+        paneId,
+        cwd,
+        state: "visible",
+        position: null,
+      });
+    }
+  });
+}
+
+/**
+ * Updates the position of a hyper terminal.
+ *
+ * @param terminalId - The terminal session ID
+ * @param position - The new position
+ */
+export function updateHyperTerminalPosition(
+  terminalId: string,
+  position: HyperTerminalPosition,
+) {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    const terminal = terminals.find((t) => t.terminalId === terminalId);
+    if (terminal) {
+      terminal.position = position;
+    }
+  });
+}
+
+/**
+ * Minimizes a hyper terminal by setting its state to minimized.
+ *
+ * @param terminalId - The terminal session ID to minimize
+ */
+export function minimizeHyperTerminal(terminalId: string) {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    const terminal = terminals.find((t) => t.terminalId === terminalId);
+    if (terminal) {
+      terminal.state = "minimized";
+    }
+  });
+}
+
+/**
+ * Restores all minimized hyper terminals to visible state.
+ */
+export function restoreMinimizedHyperTerminals() {
+  store.set(hyperTerminalsAtom, (terminals) => {
+    for (const terminal of terminals) {
+      if (terminal.state === "minimized") {
+        terminal.state = "visible";
+      }
+    }
+  });
+}
+
+/**
+ * Checks if there are any minimized hyper terminals.
+ *
+ * @returns True if there are minimized terminals, false otherwise
+ */
+export function hasMinimizedHyperTerminals(): boolean {
+  return store.get(hyperTerminalsAtom).some((t) => t.state === "minimized");
+}
+
+/**
+ * Closes a hyper terminal and cleans up its resources.
+ * This will dispose of the terminal session and remove it from the state.
+ *
+ * @param terminalId - The terminal session ID to close
+ */
+export function closeHyperTerminal(terminalId: string) {
+  if (!removeHyperTerminal(terminalId)) {
+    return;
+  }
+
+  api.closeTerminal(terminalId);
+  disposeSession(terminalId);
+}
+
+/**
+ * Handles cleanup when a hyper terminal exits externally (e.g., process died).
+ * Only disposes the session and removes from state without calling api.closeTerminal.
+ *
+ * @param terminalId - The terminal session ID that exited
+ */
+export function handleHyperTerminalExit(terminalId: string) {
+  if (removeHyperTerminal(terminalId)) {
+    disposeSession(terminalId);
+  }
+}
+
+/**
+ * Maximizes a hyper terminal by moving it to the quick pane dialog.
+ * Removes the terminal from the floating overlays array.
+ *
+ * @param terminalId - The terminal session ID to maximize
+ * @param cwd - The current working directory (or null)
+ * @returns An object with the terminal data for the quick pane
+ */
+export function maximizeHyperTerminal(terminalId: string, cwd: string | null) {
+  removeHyperTerminal(terminalId);
+
+  // Return the quick pane descriptor
+  return {
+    type: "terminal" as const,
+    sessionId: terminalId,
+    cwd,
+  };
+}
+
+/**
+ * Moves a hyper terminal to a new tab.
+ * Removes the terminal from the floating overlays array.
+ *
+ * @param terminalId - The terminal session ID to move
+ * @param cwd - The current working directory (or null)
+ */
+export async function moveHyperTerminalToTab(
+  terminalId: string,
+  cwd: string | null,
+) {
+  removeHyperTerminal(terminalId);
+
+  await openTabFromExistingSession({
+    sessionId: terminalId,
+    cwd,
+  });
+}
