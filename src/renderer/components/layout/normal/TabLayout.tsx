@@ -507,7 +507,7 @@ export function TabLayout({
                       navigation: { cwd: pane.cwd, browserUrl: url },
                     });
                   } else if (terminalLinkTarget === "default") {
-                    window.api.openExternal(url);
+                    window.conduit.openExternal(url);
                   } else {
                     openBrowserPane(tab.id, pane.id, url);
                   }
