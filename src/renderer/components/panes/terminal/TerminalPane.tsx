@@ -431,12 +431,10 @@ export const TerminalPane = ({
     const container = containerRef.current;
     if (!container) return;
 
-    let mounted = true;
     let controller: ReturnType<typeof createFitController> | null = null;
     let detachKeyHandler: (() => void) | null = null;
 
     const terminal = getOrCreate(sessionId, paneId, settings);
-    if (!mounted) return;
 
     terminalRef.current = terminal;
 
@@ -474,7 +472,6 @@ export const TerminalPane = ({
     terminalRef.current?.setLinkHandler(onLinkClick);
 
     return () => {
-      mounted = false;
       detachKeyHandler?.();
       controller?.dispose();
 

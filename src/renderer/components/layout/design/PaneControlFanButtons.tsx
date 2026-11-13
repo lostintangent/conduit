@@ -19,7 +19,6 @@ import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
 import { useAtomValue } from "jotai";
 import { Settings } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
 
@@ -46,8 +45,6 @@ export function PaneControlFanButtons({
   onVisibilityChange,
   onOpenPaneActions,
 }: PaneControlFanButtonsProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const tabs = useAtomValue(tabsAtom);
 
   // Get pane actions
@@ -62,41 +59,10 @@ export function PaneControlFanButtons({
   // Get the current pane to determine its cwd
   const currentPane = tabs.find((tab) => tab.id === tabId)?.panes[paneId];
 
-  // Show/hide fan buttons based on hover state with delay
-  useEffect(() => {
-    if (isHovered) {
-      // Clear any pending hide timeout
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-      setIsVisible(true);
-    } else if (isVisible) {
-      // Hide immediately - parent will manage the delay
-      setIsVisible(false);
-    }
-
-    return () => {
-      if (hoverTimeoutRef.current) {
-        clearTimeout(hoverTimeoutRef.current);
-        hoverTimeoutRef.current = null;
-      }
-    };
-  }, [isHovered, isVisible]);
-
   const handleMouseEnter = () => {
     // Only maintain visibility if fan is already visible
     // This prevents the semicircle from triggering initial opening
-    if (!isVisible) {
-      return;
-    }
-
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
-    }
-    // Maintain visible state
-    setIsVisible(true);
+    if (!isHovered) return;
     // Notify parent we're still hovering
     onVisibilityChange(true);
   };
@@ -372,7 +338,7 @@ export function PaneControlFanButtons({
       />
 
       {/* Fan-out buttons */}
-      {isVisible &&
+      {isHovered &&
         actions.map((action, index) => {
           const pos = getFanButtonPosition(index);
 

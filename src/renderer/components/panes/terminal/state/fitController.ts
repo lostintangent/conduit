@@ -18,8 +18,7 @@ export function createFitController({
     SetStateAction<{ width: number; height: number } | null>
   >;
 }): { dispose: () => void } {
-  // Store the last known sizes to detect changes
-  let lastContainerSize = { width: 0, height: 0 };
+  // Store the last known terminal size to detect changes
   let lastTerminalSize = {
     cols: entry.terminal.cols,
     rows: entry.terminal.rows,
@@ -51,15 +50,7 @@ export function createFitController({
     const fitAddon = entry.fit;
     const terminal = entry.terminal;
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    if (width === 0 || height === 0) return;
-
-    const sizeChanged =
-      width !== lastContainerSize.width || height !== lastContainerSize.height;
-    if (sizeChanged) {
-      lastContainerSize = { width, height };
-    }
+    if (container.clientWidth === 0 || container.clientHeight === 0) return;
 
     fitAddon.fit();
 
@@ -74,9 +65,7 @@ export function createFitController({
       showDimensionsOverlay(cols, rows);
     }
 
-    if (!entry.ready) {
-      entry.markReady();
-    }
+    entry.markReady();
   }
 
   function scheduleFit() {
@@ -103,9 +92,6 @@ export function createFitController({
 
     clearOverlayTimeout();
     setDimensions(null);
-
-    lastContainerSize = { width: 0, height: 0 };
-    lastTerminalSize = { cols: entry.terminal.cols, rows: entry.terminal.rows };
   }
 
   // Observe container size changes
