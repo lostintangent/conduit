@@ -221,7 +221,7 @@ export function App() {
   });
 
   // Initialize pane actions system
-  const paneActionsSystem = usePaneActionsSystem({
+  usePaneActionsSystem({
     homeDirectory,
   });
 
@@ -849,7 +849,7 @@ export function App() {
         onOpen={handleAgentSessionOpen}
       />
 
-      {settingsTab && commandSystem && paneActionsSystem && homeDirectory ? (
+      {settingsTab && commandSystem && homeDirectory ? (
         <SettingsDialog
           onClose={() => setSettingsTab(null)}
           commandRegistry={commandSystem.commandRegistry}

@@ -1,4 +1,5 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
+import { getDefaultActions } from "@/commands/paneActions/core/defaults";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
 import type {
@@ -82,7 +83,7 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  * Pane actions atom - stores all pane actions (default or user-defined)
  * Updated when actions are loaded from file or changed programmatically
  */
-export const paneActionsAtom = atom<Action[]>([]);
+export const paneActionsAtom = atom<Action[]>(getDefaultActions());
 
 export const hyperTerminalsAtom = atomWithImmer<HyperTerminal[]>([]);
 

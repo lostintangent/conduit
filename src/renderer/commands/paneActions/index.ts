@@ -23,9 +23,6 @@ export {
   isBrowserConfig,
 } from "./core/types";
 
-// Registry
-export { PaneActionsRegistry } from "./core/PaneActionsRegistry";
-
 // Defaults
 export { getDefaultActions } from "./core/defaults";
 
@@ -64,7 +61,6 @@ export {
 export {
   usePaneActionsSystem,
   type UsePaneActionsSystemOptions,
-  type PaneActionsSystem,
 } from "./hooks/usePaneActionsSystem";
 
 export {

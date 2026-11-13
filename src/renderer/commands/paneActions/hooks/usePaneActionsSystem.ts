@@ -1,16 +1,20 @@
 /**
  * Pane Actions System Hook
  *
- * Initializes the pane actions system: loads from file, sets up file watching,
- * and syncs with Jotai atom.
+ * Loads user pane actions from file into the Jotai atom and keeps them in
+ * sync with external file changes. The atom starts with the default actions.
  */
 
-import { paneActionsAtom } from "@/store/atoms";
-import { useSetAtom } from "jotai";
-import { useEffect, useRef, useState } from "react";
-import { PaneActionsRegistry } from "../core/PaneActionsRegistry";
-import { getUserPaneActionsPath } from "../io/fileOperations";
-import type { PaneActionsWatcher } from "../io/watchPaneActions";
+import { useEffect } from "react";
+import {
+  getUserPaneActionsPath,
+  readPaneActionsFile,
+} from "../io/fileOperations";
+import { updatePaneActionsAtom } from "../io/updatePaneActionsAtom";
+import {
+  type PaneActionsWatcher,
+  watchPaneActionsFile,
+} from "../io/watchPaneActions";
 
 /**
  * Options for pane actions system initialization
@@ -18,128 +22,57 @@ import type { PaneActionsWatcher } from "../io/watchPaneActions";
 export interface UsePaneActionsSystemOptions {
   /**
    * Home directory for resolving config file path
-   * If not provided, uses default from os.homedir()
    */
   homeDirectory?: string | null;
-}
-
-/**
- * System hook return value
- */
-export interface PaneActionsSystem {
-  /**
-   * The pane actions registry instance
-   */
-  registry: PaneActionsRegistry;
-
-  /**
-   * Whether the system is ready (file loaded or determined not to exist)
-   */
-  isReady: boolean;
 }
 
 /**
  * Initialize the pane actions system
  *
  * This hook should be called once at the app level.
- *
- * Responsibilities:
- * - Creates registry (with defaults)
- * - Loads user config from ~/.conduit/paneactions.json (if exists)
- * - Sets up file watcher for external changes
- * - Syncs registry state with Jotai atom
- *
- * @param options - Initialization options
- * @returns System state (registry and ready flag)
  */
 export function usePaneActionsSystem(
   options: UsePaneActionsSystemOptions = {},
-): PaneActionsSystem | null {
+): void {
   const { homeDirectory } = options;
 
-  // Create registry once (persists across re-renders)
-  const [registry] = useState(() => new PaneActionsRegistry());
-
-  // Track ready state
-  const [isReady, setIsReady] = useState(false);
-
-  // Jotai atom setter
-  const setPaneActions = useSetAtom(paneActionsAtom);
-
-  // Track watcher for cleanup
-  const watcherRef = useRef<PaneActionsWatcher | null>(null);
-
-  // Sync registry to atom whenever actions change
   useEffect(() => {
-    // Initial sync
-    setPaneActions(registry.getActions());
+    // Wait for homeDirectory to be available
+    if (!homeDirectory) {
+      return;
+    }
 
-    // Listen for changes
-    const unsubscribe = registry.onChange(() => {
-      setPaneActions(registry.getActions());
-    });
-
-    return unsubscribe;
-  }, [registry, setPaneActions]);
-
-  // Load from file and set up watching
-  useEffect(() => {
     let isMounted = true;
+    let watcher: PaneActionsWatcher | null = null;
 
-    async function initialize() {
-      // Wait for homeDirectory to be available
-      if (!homeDirectory) {
-        return;
-      }
-
+    async function initialize(filePath: string) {
       try {
-        // Get config file path
-        const filePath = getUserPaneActionsPath(homeDirectory);
-
-        // Try to load user config
-        await registry.loadFromFile(filePath);
+        // Keep the defaults when the user config file doesn't exist
+        const actions = await readPaneActionsFile(filePath);
+        if (actions !== null) {
+          updatePaneActionsAtom(actions);
+        }
 
         if (!isMounted) return;
 
         // Set up file watcher for external changes
-        watcherRef.current = registry.watchFile(filePath, (error) => {
-          console.error("[PaneActions] Config file error:", error.message);
-          // Optionally reset to defaults on error
-          // registry.resetToDefaults();
+        watcher = watchPaneActionsFile({
+          filePath,
+          onChange: updatePaneActionsAtom,
+          onError: (error) => {
+            console.error("[PaneActions] Config file error:", error.message);
+          },
         });
-
-        // Mark as ready
-        setIsReady(true);
       } catch (error) {
         console.error("[PaneActions] Failed to initialize:", error);
-
-        // Still mark as ready (using defaults)
-        if (isMounted) {
-          setIsReady(true);
-        }
       }
     }
 
-    initialize();
+    initialize(getUserPaneActionsPath(homeDirectory));
 
     return () => {
       isMounted = false;
-
-      // Cleanup watcher
-      if (watcherRef.current) {
-        watcherRef.current.dispose();
-        watcherRef.current = null;
-      }
+      watcher?.dispose();
     };
-  }, [registry, homeDirectory]);
-
-  // Don't return system until we have a valid homeDirectory
-  if (!homeDirectory) {
-    return null;
-  }
-
-  return {
-    registry,
-    isReady,
-  };
+  }, [homeDirectory]);
 }
