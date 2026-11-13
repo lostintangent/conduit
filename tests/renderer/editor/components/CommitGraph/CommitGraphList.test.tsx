@@ -9,7 +9,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitGraphList } from "@/components/panes/editor/components/CommitGraph/CommitGraphList";
-import type { CommitGraphNode } from "@/components/panes/editor/components/CommitGraph/types";
+import type {
+  CommitGraphNode,
+  HistoryCommit,
+} from "@/components/panes/editor/components/CommitGraph/types";
 
 // =============================================================================
 // Test Helpers
@@ -23,7 +26,7 @@ function renderWithProvider(ui: React.ReactElement) {
   return render(ui, { wrapper: TestWrapper });
 }
 
-function createCommit(id: string, subject: string) {
+function createCommit(id: string, subject: string): HistoryCommit {
   return {
     id,
     shortId: id.slice(0, 7),

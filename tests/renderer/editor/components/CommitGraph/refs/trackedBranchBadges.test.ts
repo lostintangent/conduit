@@ -11,6 +11,7 @@ import {
   isSameBranch,
 } from "@/components/panes/editor/components/CommitGraph/refs/trackedBranchBadges";
 import type { TrackedBranchInfo } from "@/api/GitV2API";
+import { trackedBranch } from "../fixtures";
 
 // =============================================================================
 // isSameBranch Tests
@@ -80,7 +81,7 @@ describe("buildTrackedBranchBadges", () => {
   describe("current branch badge", () => {
     it("should show current badge on HEAD commit", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature-branch", commitId: headCommitId },
+        current: trackedBranch("current", "feature-branch", headCommitId),
         upstream: null,
         base: null,
       };
@@ -99,7 +100,7 @@ describe("buildTrackedBranchBadges", () => {
 
     it("should not show current badge when not HEAD", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature-branch", commitId: headCommitId },
+        current: trackedBranch("current", "feature-branch", headCommitId),
         upstream: null,
         base: null,
       };
@@ -117,12 +118,8 @@ describe("buildTrackedBranchBadges", () => {
   describe("upstream branch badge", () => {
     it("should show upstream badge on commit it points to", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/feature",
-          remote: "origin",
-          commitId: upstreamCommitId,
-        },
+        current: trackedBranch("current", "feature", headCommitId),
+        upstream: trackedBranch("upstream", "origin/feature", upstreamCommitId),
         base: null,
       };
 
@@ -139,12 +136,8 @@ describe("buildTrackedBranchBadges", () => {
 
     it("should not show upstream badge on different commit", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/feature",
-          remote: "origin",
-          commitId: upstreamCommitId,
-        },
+        current: trackedBranch("current", "feature", headCommitId),
+        upstream: trackedBranch("upstream", "origin/feature", upstreamCommitId),
         base: null,
       };
 
@@ -161,17 +154,9 @@ describe("buildTrackedBranchBadges", () => {
   describe("base branch badge", () => {
     it("should show base badge on commit it points to", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/feature",
-          remote: "origin",
-          commitId: upstreamCommitId,
-        },
-        base: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: baseCommitId,
-        },
+        current: trackedBranch("current", "feature", headCommitId),
+        upstream: trackedBranch("upstream", "origin/feature", upstreamCommitId),
+        base: trackedBranch("base", "origin/main", baseCommitId),
       };
 
       const result = buildTrackedBranchBadges(
@@ -187,17 +172,9 @@ describe("buildTrackedBranchBadges", () => {
     it("should hide base badge when same as upstream (VS Code style)", () => {
       const sameCommitId = "same123";
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "main", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: sameCommitId,
-        },
-        base: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: sameCommitId,
-        },
+        current: trackedBranch("current", "main", headCommitId),
+        upstream: trackedBranch("upstream", "origin/main", sameCommitId),
+        base: trackedBranch("base", "origin/main", sameCommitId),
       };
 
       // On the shared commit, only upstream should show, not base
@@ -215,12 +192,8 @@ describe("buildTrackedBranchBadges", () => {
   describe("iconOnly option", () => {
     it("should not use iconOnly by default", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/feature",
-          remote: "origin",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "feature", headCommitId),
+        upstream: trackedBranch("upstream", "origin/feature", headCommitId),
         base: null,
       };
 
@@ -237,12 +210,8 @@ describe("buildTrackedBranchBadges", () => {
 
     it("should use iconOnly for subsequent badges when enabled", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/feature",
-          remote: "origin",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "feature", headCommitId),
+        upstream: trackedBranch("upstream", "origin/feature", headCommitId),
         base: null,
       };
 
@@ -262,17 +231,9 @@ describe("buildTrackedBranchBadges", () => {
   describe("multiple badges on same commit", () => {
     it("should show all relevant badges on HEAD", () => {
       const trackedBranches: TrackedBranchInfo = {
-        current: { displayName: "feature", commitId: headCommitId },
-        upstream: {
-          displayName: "origin/feature",
-          remote: "origin",
-          commitId: headCommitId,
-        },
-        base: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "feature", headCommitId),
+        upstream: trackedBranch("upstream", "origin/feature", headCommitId),
+        base: trackedBranch("base", "origin/main", headCommitId),
       };
 
       const result = buildTrackedBranchBadges(

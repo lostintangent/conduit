@@ -24,6 +24,7 @@ const defaultConfig: GraphRenderConfig = {
   circleRadius: 5,
   curveRadius: 6,
   strokeWidth: 2,
+  lineGap: 0,
 };
 
 function createCommit(id: string, parentIds: string[] = []): HistoryCommit {

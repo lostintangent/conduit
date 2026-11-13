@@ -18,18 +18,21 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 vi.mock(
   "../../../../../../src/renderer/components/panes/editor/components/CommitGraph/graph/swimlanes",
   () => ({
-    computeSwimlanes: vi.fn((commits, options) => {
-      // Simple mock that returns nodes with basic swimlane data
-      return commits.map((commit: any, index: number) => ({
-        commit,
-        laneIndex: 0,
-        inputSwimlanes: [],
-        outputSwimlanes: [],
-        isMerge: false,
-        isHead: options?.headCommitId === commit.id,
-        segmentType: null,
-      }));
-    }),
+    computeSwimlanes: vi.fn(
+      (commits: HistoryCommit[], options?: { headCommitId?: string }) =>
+        // Simple mock that returns nodes with basic swimlane data
+        commits.map(
+          (commit): CommitGraphNode => ({
+            commit,
+            laneIndex: 0,
+            inputSwimlanes: [],
+            outputSwimlanes: [],
+            isMerge: false,
+            isHead: options?.headCommitId === commit.id,
+            segmentType: null,
+          }),
+        ),
+    ),
   }),
 );
 
@@ -50,12 +53,19 @@ function createMockGitAPI() {
 // Hook was moved from CommitGraph/hooks to editor/hooks
 import { useCommitGraph } from "../../../../../../src/renderer/components/panes/editor/hooks/useCommitGraph";
 import type { GitV2API } from "../../../../../../src/renderer/api/GitV2API";
+import type {
+  CommitGraphNode,
+  HistoryCommit,
+} from "../../../../../../src/renderer/components/panes/editor/components/CommitGraph/types";
 
 // =============================================================================
 // Test Data
 // =============================================================================
 
-function createMockCommit(id: string, overrides: Partial<any> = {}) {
+function createMockCommit(
+  id: string,
+  overrides: Partial<HistoryCommit> = {},
+): HistoryCommit {
   return {
     id,
     shortId: id.slice(0, 7),

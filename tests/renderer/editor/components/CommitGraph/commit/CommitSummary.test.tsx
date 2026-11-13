@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitSummary } from "@/components/panes/editor/components/CommitGraph/commit/CommitSummary";
 import type { HistoryCommit } from "@/components/panes/editor/components/CommitGraph/types";
 import type { TrackedBranchInfo } from "@/api/GitV2API";
+import { trackedBranch } from "../fixtures";
 
 // =============================================================================
 // Test Helpers
@@ -221,10 +222,7 @@ describe("CommitSummary", () => {
     it("should show current branch badge on HEAD commit", () => {
       const commit = createCommit({ id: headCommitId });
       const trackedBranches: TrackedBranchInfo = {
-        current: {
-          displayName: "feature-branch",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "feature-branch", headCommitId),
         upstream: null,
         base: null,
       };
@@ -244,15 +242,12 @@ describe("CommitSummary", () => {
     it("should show upstream badge as icon-only when on same commit as current", () => {
       const commit = createCommit({ id: headCommitId });
       const trackedBranches: TrackedBranchInfo = {
-        current: {
-          displayName: "feature-branch",
-          commitId: headCommitId,
-        },
-        upstream: {
-          displayName: "origin/feature-branch",
-          remote: "origin",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "feature-branch", headCommitId),
+        upstream: trackedBranch(
+          "upstream",
+          "origin/feature-branch",
+          headCommitId,
+        ),
         base: null,
       };
 
@@ -278,20 +273,9 @@ describe("CommitSummary", () => {
       const commit = createCommit({ id: headCommitId });
       // On main branch, upstream and base are both origin/main
       const trackedBranches: TrackedBranchInfo = {
-        current: {
-          displayName: "main",
-          commitId: headCommitId,
-        },
-        upstream: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: headCommitId,
-        },
-        base: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "main", headCommitId),
+        upstream: trackedBranch("upstream", "origin/main", headCommitId),
+        base: trackedBranch("base", "origin/main", headCommitId),
       };
 
       renderWithProvider(
@@ -315,20 +299,13 @@ describe("CommitSummary", () => {
       const commit = createCommit({ id: headCommitId });
       // On feature branch, upstream is origin/feature, base is origin/main
       const trackedBranches: TrackedBranchInfo = {
-        current: {
-          displayName: "feature-branch",
-          commitId: headCommitId,
-        },
-        upstream: {
-          displayName: "origin/feature-branch",
-          remote: "origin",
-          commitId: headCommitId,
-        },
-        base: {
-          displayName: "origin/main",
-          remote: "origin",
-          commitId: headCommitId,
-        },
+        current: trackedBranch("current", "feature-branch", headCommitId),
+        upstream: trackedBranch(
+          "upstream",
+          "origin/feature-branch",
+          headCommitId,
+        ),
+        base: trackedBranch("base", "origin/main", headCommitId),
       };
 
       renderWithProvider(
@@ -354,15 +331,14 @@ describe("CommitSummary", () => {
       // This is NOT the HEAD commit, so current badge won't show
       // But upstream points here, so upstream badge should show
       const trackedBranches: TrackedBranchInfo = {
-        current: {
-          displayName: "feature-branch",
-          commitId: headCommitId, // Different from this commit
-        },
-        upstream: {
-          displayName: "origin/feature-branch",
-          remote: "origin",
-          commitId: upstreamCommitId, // Same as this commit
-        },
+        // Different from this commit
+        current: trackedBranch("current", "feature-branch", headCommitId),
+        // Same as this commit
+        upstream: trackedBranch(
+          "upstream",
+          "origin/feature-branch",
+          upstreamCommitId,
+        ),
         base: null,
       };
 

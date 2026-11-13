@@ -57,10 +57,17 @@ const createNode = (overrides = {}): CommitGraphNode => ({
   ...overrides,
 });
 
+const file = (
+  path: string,
+  status: CommitFile["status"],
+  additions: number,
+  deletions: number,
+): CommitFile => ({ path, status, additions, deletions, isBinary: false });
+
 const createFiles = (): CommitFile[] => [
-  { path: "src/index.ts", status: "modified", additions: 10, deletions: 5 },
-  { path: "src/utils.ts", status: "added", additions: 25, deletions: 0 },
-  { path: "old-file.ts", status: "deleted", additions: 0, deletions: 15 },
+  file("src/index.ts", "modified", 10, 5),
+  file("src/utils.ts", "added", 25, 0),
+  file("old-file.ts", "deleted", 0, 15),
 ];
 
 // =============================================================================

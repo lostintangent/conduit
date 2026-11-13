@@ -14,6 +14,8 @@ import { render, screen } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitTooltip } from "@/components/panes/editor/components/CommitGraph/commit/CommitTooltip";
 import type { HistoryCommit } from "@/components/panes/editor/components/CommitGraph/types";
+import type { TrackedBranchInfo } from "@/api/GitV2API";
+import { trackedBranch } from "../fixtures";
 
 // =============================================================================
 // Test Helpers
@@ -60,8 +62,8 @@ describe("CommitTooltip", () => {
 
     it("should accept trackedBranches prop", () => {
       const commit = createCommit();
-      const trackedBranches = {
-        current: { displayName: "main", commitId: commit.id },
+      const trackedBranches: TrackedBranchInfo = {
+        current: trackedBranch("current", "main", commit.id),
         upstream: null,
         base: null,
       };
