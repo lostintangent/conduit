@@ -224,6 +224,7 @@
 }
 
 @custom-variant light (&:is([data-theme="light"] *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* Base styles */
 
