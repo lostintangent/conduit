@@ -203,28 +203,21 @@ The renderer process handles CLI requests by:
 
 ### Build Configuration
 
-The CLI is built as a separate entry point using Vite, configured in `forge.config.ts`:
+The CLI is built as a separate entry point by `buildCli` in `build/bun.build.ts`, which bundles `src/cli/index.ts` into `.vite/build/cli.js`:
 
 ```typescript
-{
-  entry: "src/cli/index.ts",
-  config: "build/vite.cli.config.ts",
-  target: "main",
+export function buildCli({ dev = false }: Options = {}) {
+  return run("cli", {
+    entrypoints: [path.join(root, "src/cli/index.ts")],
+    outdir: buildDir,
+    naming: "cli.js",
+    target: "node",
+    format: "cjs",
+    external: ["electron"],
+    minify: !dev,
+    ...runtimePaths,
+  });
 }
-```
-
-The Vite configuration (`build/vite.cli.config.ts`) outputs the CLI as `cli.js`:
-
-```typescript
-export default defineConfig({
-  build: {
-    rollupOptions: {
-      output: {
-        entryFileNames: "cli.js",
-      },
-    },
-  },
-});
 ```
 
 ### Electron Forge Integration

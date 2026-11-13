@@ -29,7 +29,7 @@
       }
     },
     {
-      "files": ["vite.*.config.ts", "forge.config.ts"],
+      "files": ["forge.config.ts"],
       "rules": {
         "@typescript-eslint/no-var-requires": "off"
       }

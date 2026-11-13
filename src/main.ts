@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { initializeIpcHandlers, shutdownIpcHandlers } from "./ipc";
 
-// Build-time constants injected by @electron-forge/plugin-vite.
+// Build-time constants injected by build/bun.build.ts.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 

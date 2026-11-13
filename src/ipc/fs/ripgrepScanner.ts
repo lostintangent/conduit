@@ -6,7 +6,7 @@
 import { spawn } from "child_process";
 import * as path from "path";
 
-// Resolve ripgrep path at runtime (Vite bundling breaks the import)
+// Resolve ripgrep path at runtime (bundling breaks the import)
 function resolveRipgrepPath(): string {
   const fs = require("fs");
   const isPackaged = !!(process as any).resourcesPath;

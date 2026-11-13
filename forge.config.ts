@@ -1,11 +1,10 @@
 import { MakerDMG } from "@electron-forge/maker-dmg";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
-import { VitePlugin } from "@electron-forge/plugin-vite";
 import { PublisherGithub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
@@ -29,6 +28,8 @@ const config: ForgeConfig = {
       unpack:
         "**/node_modules/{node-pty,@parcel/watcher*,@vscode/ripgrep*}/**/*",
     },
+    // Only the bundled output ships; native modules are installed below.
+    ignore: (file: string) => !!file && !file.startsWith("/.vite"),
     icon: "./build/assets/icon",
     extraResource: [
       path.resolve(__dirname, ".vite/build/webview-preload.js"),
@@ -64,6 +65,9 @@ const config: ForgeConfig = {
     force: !!process.env.ELECTRON_FORGE_PACKAGING,
   },
   hooks: {
+    prePackage: async () => {
+      execFileSync("bun", ["build/bun.build.ts"], { stdio: "inherit" });
+    },
     packageAfterCopy: async (_, buildPath) => {
       execSync(
         `npm install --omit=dev ${lockedNativeModuleSpecs().join(" ")}`,
@@ -71,6 +75,11 @@ const config: ForgeConfig = {
           cwd: buildPath,
           stdio: "inherit",
         },
+      );
+      // Electron reads name, version and main from the app's package.json.
+      fs.copyFileSync(
+        path.resolve(__dirname, "package.json"),
+        path.join(buildPath, "package.json"),
       );
     },
     postPackage: async (_, options) => {
@@ -93,36 +102,6 @@ const config: ForgeConfig = {
     }),
   ],
   plugins: [
-    new VitePlugin({
-      build: [
-        {
-          entry: "src/main.ts",
-          config: "build/vite.main.config.ts",
-          target: "main",
-        },
-        {
-          entry: "src/cli/index.ts",
-          config: "build/vite.cli.config.ts",
-          target: "main",
-        },
-        {
-          entry: "src/preload/window/index.ts",
-          config: "build/vite.preload.config.ts",
-          target: "preload",
-        },
-        {
-          entry: "src/preload/webview/index.ts",
-          config: "build/vite.preload.webview.config.ts",
-          target: "preload",
-        },
-      ],
-      renderer: [
-        {
-          name: "main_window",
-          config: "build/vite.renderer.config.ts",
-        },
-      ],
-    }),
     // Fuses are used to enable/disable various Electron functionality
     // at package time, before code signing the application
     new FusesPlugin({

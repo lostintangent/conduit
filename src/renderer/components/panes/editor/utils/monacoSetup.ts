@@ -13,12 +13,15 @@
  */
 
 import * as monaco from "monaco-editor";
-import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
-import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
-import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import { MONARCH_LANGUAGES } from "./monarchLanguages";
 
 let isConfigured = false;
+
+// Workers are prebuilt next to index.html by build/bun.build.ts.
+const createWorker = (name: string) =>
+  new Worker(new URL(`monaco/${name}.worker.js`, document.baseURI), {
+    type: "module",
+  });
 
 // Configure Monaco Environment for web workers
 // This must be set before any Monaco editor instances are created
@@ -29,14 +32,14 @@ let isConfigured = false;
   getWorker(_workerId: string, label: string) {
     // Provide the appropriate worker based on language
     if (label === "json") {
-      return new jsonWorker();
+      return createWorker("json");
     }
     // TypeScript and JavaScript use the TypeScript worker
     if (label === "typescript" || label === "javascript") {
-      return new tsWorker();
+      return createWorker("ts");
     }
     // All other languages use the basic editor worker
-    return new editorWorker();
+    return createWorker("editor");
   },
 };
 

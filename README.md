@@ -3,6 +3,7 @@
 
 ## ⚙️ Developer setup
 
+1. Install [Bun](https://bun.sh), which builds the app
 1. Clone this repo
 1. Run `npm install`
 1. Run `npm start`
