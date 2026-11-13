@@ -9,7 +9,7 @@ export function normalizeUrl(input: string): string {
   // If it contains spaces, treat as a search query
   if (targetUrl.includes(" ")) {
     targetUrl = `https://www.bing.com/search?q=${encodeURIComponent(targetUrl)}`;
-  } else if (!targetUrl.match(/^http(s)?:\/\//i)) {
+  } else if (!targetUrl.match(/^(https?|file):\/\//i)) {
     // Add protocol if missing
     const lowerTarget = targetUrl.toLowerCase();
     const host = lowerTarget.split("/")[0];
