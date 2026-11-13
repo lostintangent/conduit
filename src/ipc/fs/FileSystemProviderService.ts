@@ -107,20 +107,20 @@ export class FileSystemProviderService {
    * since they rely on an active subscription holding the reference.
    */
   async getProvider(cwd: string): Promise<DiskFileSystemProvider> {
-    const entry = await this.pool.acquire(cwd, async (normalizedPath) => {
+    const entry = await this.pool.acquire(cwd, async (resolvedPath) => {
       // Don't attempt to watch paths that don't exist locally
-      if (!fs.existsSync(normalizedPath)) {
+      if (!fs.existsSync(resolvedPath)) {
         throw new Error(
-          `Cannot create local filesystem provider for non-existent path: ${normalizedPath}.`,
+          `Cannot create local filesystem provider for non-existent path: ${resolvedPath}.`,
         );
       }
 
       const entry: ProviderEntry = {
-        provider: new DiskFileSystemProvider(normalizedPath),
+        provider: new DiskFileSystemProvider(resolvedPath),
       };
       await entry.provider.startWatching();
       forwardFileChangesToGit(entry);
-      await acquireGitProvider(entry, normalizedPath);
+      await acquireGitProvider(entry, resolvedPath);
       return entry;
     });
     return entry.provider;

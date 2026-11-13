@@ -335,5 +335,15 @@ describe("GitProviderService", () => {
       await vi.advanceTimersByTimeAsync(5000);
       expect(result1.provider.dispose).toHaveBeenCalledTimes(1);
     });
+
+    it("keeps the git root's case, which a case-sensitive volume needs", async () => {
+      setupGitRootMock(["/Volumes/Code/Repo"]);
+      const service = GitProviderService.getInstance();
+
+      const result = await service.getProvider("/Volumes/Code/Repo/src");
+
+      expect(result.gitRoot).toBe("/Volumes/Code/Repo");
+      expect(createdInstances[0].gitRoot).toBe("/Volumes/Code/Repo");
+    });
   });
 });

@@ -25,7 +25,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { simpleGit } from "simple-git";
-import { ProviderPool, toProviderKey } from "../ProviderPool";
+import { ProviderPool } from "../ProviderPool";
 import { DiskGitProvider } from "./DiskGitProvider";
 
 export class GitProviderService {
@@ -55,8 +55,8 @@ export class GitProviderService {
   /**
    * Acquire the git provider for the repository containing `cwd`.
    *
-   * @returns The provider and its normalized git root, which is the key to
-   *   pass to `releaseProvider`
+   * @returns The provider and its git root, which is the key to pass to
+   *   `releaseProvider`
    * @throws If the directory is not within a git repository
    */
   async getProvider(
@@ -68,15 +68,12 @@ export class GitProviderService {
       throw new Error(`Not a git repository: ${cwd}`);
     }
 
-    const provider = await this.pool.acquire(
-      gitRoot,
-      async (normalizedRoot) => {
-        const provider = new DiskGitProvider(normalizedRoot, cwd);
-        await provider.startWatching();
-        return provider;
-      },
-    );
-    return { provider, gitRoot: toProviderKey(gitRoot) };
+    const provider = await this.pool.acquire(gitRoot, async (resolvedRoot) => {
+      const provider = new DiskGitProvider(resolvedRoot, cwd);
+      await provider.startWatching();
+      return provider;
+    });
+    return { provider, gitRoot };
   }
 
   /** Release a reference, starting the grace period when it was the last. */
@@ -151,7 +148,7 @@ export class GitProviderService {
     }
 
     const provider = this.pool.get(gitRoot);
-    return provider ? { provider, gitRoot: toProviderKey(gitRoot) } : null;
+    return provider ? { provider, gitRoot } : null;
   }
 
   /**

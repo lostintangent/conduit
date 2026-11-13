@@ -2,8 +2,9 @@
  * Ref-counted pool of providers keyed by path, shared by FileSystemProviderService
  * and GitProviderService.
  *
- * - Keys are resolved and lowercased, since the macOS filesystem is
- *   case-insensitive.
+ * - Keys are resolved and lowercased, since the default macOS filesystem is
+ *   case-insensitive. Providers are still created at the resolved path in its
+ *   original case, so they also open on case-sensitive volumes.
  * - Concurrent acquires for one key share a single creation.
  * - When the refCount reaches 0, `onIdle` runs and the provider is disposed
  *   after a 5s grace period. Re-acquiring within it cancels disposal and runs
@@ -25,10 +26,10 @@ interface PoolEntry<T> {
 interface PoolHooks<T> {
   dispose: (value: T) => void | Promise<void>;
   onIdle?: (value: T) => void;
-  onRevive?: (value: T, key: string) => void;
+  onRevive?: (value: T, resolvedPath: string) => void;
 }
 
-export function toProviderKey(filePath: string): string {
+function toProviderKey(filePath: string): string {
   return path.resolve(filePath).toLowerCase();
 }
 
@@ -43,15 +44,16 @@ export class ProviderPool<T> {
 
   async acquire(
     filePath: string,
-    create: (key: string) => Promise<T>,
+    create: (resolvedPath: string) => Promise<T>,
   ): Promise<T> {
-    const key = toProviderKey(filePath);
+    const resolvedPath = path.resolve(filePath);
+    const key = toProviderKey(resolvedPath);
     const existing = this.entries.get(key);
     if (existing) {
       if (existing.disposeTimer) {
         clearTimeout(existing.disposeTimer);
         existing.disposeTimer = undefined;
-        this.hooks.onRevive?.(existing.value, key);
+        this.hooks.onRevive?.(existing.value, resolvedPath);
       }
       existing.refCount++;
       return existing.value;
@@ -67,7 +69,7 @@ export class ProviderPool<T> {
       return value;
     }
 
-    const creation = create(key).then((value) => {
+    const creation = create(resolvedPath).then((value) => {
       this.entries.set(key, { value, refCount: 1 });
       return value;
     });

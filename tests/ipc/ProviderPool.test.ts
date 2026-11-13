@@ -56,7 +56,6 @@ describe("ProviderPool", () => {
   it("treats equivalent paths as one key, ignoring case", async () => {
     const value = await pool.acquire("/Test/Project", create);
 
-    expect(create).toHaveBeenCalledWith("/test/project");
     for (const alias of [
       "/test/project/",
       "/test//project",
@@ -65,6 +64,19 @@ describe("ProviderPool", () => {
     ]) {
       expect(pool.get(alias)).toBe(value);
     }
+  });
+
+  it("creates and revives providers at the path's original case", async () => {
+    // A lowercased path doesn't exist on a case-sensitive volume.
+    const value = await pool.acquire("/Volumes/Code/My Project/", create);
+    expect(create).toHaveBeenCalledWith("/Volumes/Code/My Project");
+
+    pool.release("/volumes/code/my project");
+    await pool.acquire("/Volumes/Code/My Project", create);
+    expect(hooks.onRevive).toHaveBeenCalledWith(
+      value,
+      "/Volumes/Code/My Project",
+    );
   });
 
   it("disposes a provider 5s after its last reference is released", async () => {
