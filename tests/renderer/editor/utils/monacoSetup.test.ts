@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { languages, loadMarkdown } = vi.hoisted(() => {
+const { languages, json, typescript, loadMarkdown } = vi.hoisted(() => {
   const loadMarkdown = vi.fn(async () => ({}));
   return {
     loadMarkdown,
@@ -13,21 +13,24 @@ const { languages, loadMarkdown } = vi.hoisted(() => {
       setLanguageConfiguration: vi.fn(),
       getLanguages: vi.fn(() => [{ id: "markdown", loader: loadMarkdown }]),
       onLanguageEncountered: vi.fn(),
-      typescript: {
-        typescriptDefaults: { setDiagnosticsOptions: vi.fn() },
-        javascriptDefaults: { setDiagnosticsOptions: vi.fn() },
+      // Monaco 0.57 moved these to the top level and left stubs behind
+      json: { deprecated: true },
+      typescript: { deprecated: true },
+    },
+    json: {
+      jsonDefaults: {
+        diagnosticsOptions: { validate: true, comments: "error" },
+        setDiagnosticsOptions: vi.fn(),
       },
-      json: {
-        jsonDefaults: {
-          diagnosticsOptions: { validate: true, comments: "error" },
-          setDiagnosticsOptions: vi.fn(),
-        },
-      },
+    },
+    typescript: {
+      typescriptDefaults: { setDiagnosticsOptions: vi.fn() },
+      javascriptDefaults: { setDiagnosticsOptions: vi.fn() },
     },
   };
 });
 
-vi.mock("monaco-editor", () => ({ languages }));
+vi.mock("monaco-editor", () => ({ languages, json, typescript }));
 
 // configureMonaco only runs once per module instance, so each test loads a fresh one
 async function configureFreshMonaco() {
@@ -67,9 +70,7 @@ describe("configureMonaco", () => {
   it("allows comments and trailing commas in .jsonc files", async () => {
     await configureFreshMonaco();
 
-    expect(
-      languages.json.jsonDefaults.setDiagnosticsOptions,
-    ).toHaveBeenCalledWith({
+    expect(json.jsonDefaults.setDiagnosticsOptions).toHaveBeenCalledWith({
       validate: true,
       comments: "error",
       schemas: [
@@ -79,6 +80,21 @@ describe("configureMonaco", () => {
         }),
       ],
     });
+  });
+
+  it("turns off TypeScript and JavaScript diagnostics", async () => {
+    await configureFreshMonaco();
+
+    for (const defaults of [
+      typescript.typescriptDefaults,
+      typescript.javascriptDefaults,
+    ]) {
+      expect(defaults.setDiagnosticsOptions).toHaveBeenCalledWith({
+        noSemanticValidation: true,
+        noSyntaxValidation: true,
+        noSuggestionDiagnostics: true,
+      });
+    }
   });
 
   // Monaco's markdown contribution registers its own handler at import time.

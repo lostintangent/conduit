@@ -70,7 +70,7 @@ export function configureMonaco(): void {
 
   // detectLanguage opens .jsonc as json, whose validator flags comments and
   // trailing commas as errors unless the file's schema allows them.
-  const { jsonDefaults } = monaco.languages.json;
+  const { jsonDefaults } = monaco.json;
   jsonDefaults.setDiagnosticsOptions({
     ...jsonDefaults.diagnosticsOptions,
     schemas: [
@@ -113,12 +113,12 @@ export function configureMonaco(): void {
 
   // Disable TypeScript/JavaScript diagnostics globally
   // Monaco's TS language service can't resolve imports with custom URI schemes
-  monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+  monaco.typescript.typescriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: true,
     noSyntaxValidation: true,
     noSuggestionDiagnostics: true,
   });
-  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+  monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: true,
     noSyntaxValidation: true,
     noSuggestionDiagnostics: true,

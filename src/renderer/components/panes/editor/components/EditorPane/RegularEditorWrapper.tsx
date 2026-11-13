@@ -143,7 +143,7 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
     // Disable language features that cause issues with file:// URIs
     occurrencesHighlight: "off",
     selectionHighlight: false,
-    hover: { enabled: false },
+    hover: { enabled: "off" },
     parameterHints: { enabled: false },
     quickSuggestions: false,
     suggestOnTriggerCharacters: false,

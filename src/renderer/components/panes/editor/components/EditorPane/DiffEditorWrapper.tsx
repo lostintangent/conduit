@@ -143,7 +143,7 @@ const DEFAULT_DIFF_OPTIONS: monaco.editor.IStandaloneDiffEditorConstructionOptio
     // Disable language features that cause issues
     occurrencesHighlight: "off",
     selectionHighlight: false,
-    hover: { enabled: false },
+    hover: { enabled: "off" },
     parameterHints: { enabled: false },
     quickSuggestions: false,
     suggestOnTriggerCharacters: false,

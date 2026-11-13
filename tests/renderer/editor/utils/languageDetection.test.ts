@@ -476,19 +476,20 @@ describe("languageDetection", () => {
     // Monaco renders an unregistered language ID as plain text, so every ID
     // the maps return must ship with Monaco or be registered by configureMonaco
     it("only returns language IDs Monaco can highlight", () => {
-      const builtInIds = ["basic-languages", "language"].flatMap((dir) => {
-        const dirPath = repoPath(`node_modules/monaco-editor/esm/vs/${dir}`);
-        return readdirSync(dirPath, { recursive: true, encoding: "utf8" })
-          .filter((file) => file.endsWith("contribution.js"))
-          .flatMap((file) =>
-            Array.from(
-              readFileSync(path.join(dirPath, file), "utf8").matchAll(
-                /^\s*id: "([^"]+)"/gm,
-              ),
-              ([, id]) => id,
+      const dirPath = repoPath("node_modules/monaco-editor/esm/vs/languages");
+      const builtInIds = readdirSync(dirPath, {
+        recursive: true,
+        encoding: "utf8",
+      })
+        .filter((file) => file.endsWith("register.js"))
+        .flatMap((file) =>
+          Array.from(
+            readFileSync(path.join(dirPath, file), "utf8").matchAll(
+              /^\s*id: "([^"]+)"/gm,
             ),
-          );
-      });
+            ([, id]) => id,
+          ),
+        );
       const knownIds = new Set([
         "plaintext",
         ...builtInIds,
