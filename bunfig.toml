@@ -2,3 +2,8 @@
 # build passes its plugins to Bun.build in build/bun.build.ts.
 [serve.static]
 plugins = ["./build/bun.tailwind.ts", "./build/bun.dev-csp.ts"]
+
+[test]
+environment = "jsdom"
+globals = "vitest"
+preload = ["./tests/setup/bun-preload.ts"]

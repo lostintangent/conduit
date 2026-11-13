@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": { "types": ["bun-types"] },
-  "include": ["bun.*.ts"],
+  "include": ["bun.*.ts", "../tests/setup/bun-preload.ts"],
   "exclude": []
 }

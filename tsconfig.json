@@ -15,6 +15,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "types": ["node", "bun-types/vitest"],
 
     "baseUrl": ".",
     "paths": {
@@ -22,6 +23,6 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  // Bun build scripts are checked by build/tsconfig.json with Bun types.
-  "exclude": ["node_modules", "build/bun.*.ts"]
+  // Files that run under Bun are checked by build/tsconfig.json with Bun types.
+  "exclude": ["node_modules", "build/bun.*.ts", "tests/setup/bun-preload.ts"]
 }

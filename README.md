@@ -3,10 +3,12 @@
 
 ## ⚙️ Developer setup
 
-1. Install [Bun](https://bun.sh), which builds the app
+1. Install [Bun](https://bun.sh) canary (`bun upgrade --canary`), which builds and tests the app
 1. Clone this repo
 1. Run `npm install`
 1. Run `npm start`
+
+Run the tests with `bun run test`. Plain `bun test` doesn't isolate test files from each other, which the tests need.
 
 ## 🚀 Releasing
 
