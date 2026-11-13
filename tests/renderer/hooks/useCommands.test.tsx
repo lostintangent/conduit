@@ -11,6 +11,7 @@ import { ContextKey } from "@/commands/contextKeys/ContextKey";
 import { useCommands } from "@/hooks/useCommands";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { commandContext } from "../commands/fixtures";
 
 describe("useCommands", () => {
   let commandRegistry: ReturnType<typeof getCommandRegistry>;
@@ -23,33 +24,7 @@ describe("useCommands", () => {
     contextKeyService = getContextKeyService();
 
     // Set up context builder
-    commandRegistry.setContextBuilder(() => ({
-      tabs: null as any,
-      panes: null as any,
-      terminals: null as any,
-      workspaces: null as any,
-      commands: null as any,
-      dialogs: null as any,
-      notifications: null as any,
-      settings: null as any,
-      contextKeys: null as any,
-      view: null as any,
-      workspace: null as any,
-      agent: null as any,
-      activeTab: null,
-      activePaneId: null,
-      workspaceName: undefined,
-      allTabs: [],
-      applicationMode: "default" as any,
-      setApplicationMode: vi.fn(),
-      setShowKeybindingsEditor: vi.fn(),
-      setShowPaneActionsEditor: vi.fn(),
-      setShowRenameWorkspaceDialog: vi.fn(),
-      setShowWorkspacePicker: vi.fn(),
-      setIsUrlDialogOpen: vi.fn(),
-      setCleanupDialogSessions: vi.fn(),
-      setShowCreateWorkspaceDialog: vi.fn(),
-    }));
+    commandRegistry.setContextBuilder(() => commandContext());
   });
 
   describe("basic conversion", () => {

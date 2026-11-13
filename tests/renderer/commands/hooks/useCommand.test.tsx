@@ -11,6 +11,7 @@ import { keybindingsAtom } from "@/store/atoms";
 import { renderHook, waitFor } from "@testing-library/react";
 import { Provider, createStore } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { commandContext } from "../fixtures";
 
 describe("useCommand", () => {
   let store: ReturnType<typeof createStore>;
@@ -214,21 +215,7 @@ describe("useCommand", () => {
       });
 
       // Set a simple context builder
-      registry.setContextBuilder(() => ({
-        tabs: null as any,
-        panes: null as any,
-        terminals: null as any,
-        workspaces: null as any,
-        commands: null as any,
-        dialogs: null as any,
-        notifications: null as any,
-        settings: null as any,
-        contextKeys: null as any,
-        view: null as any,
-        activeTab: null,
-        activePaneId: null,
-        workspaceName: undefined,
-      }));
+      registry.setContextBuilder(() => commandContext());
 
       const { result } = renderHook(() => useCommand("test.executable"), {
         wrapper: ({ children }) => (

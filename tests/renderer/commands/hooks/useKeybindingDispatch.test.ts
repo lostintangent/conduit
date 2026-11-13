@@ -11,6 +11,7 @@ import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import type { Tab } from "@/types";
+import { commandContext } from "../fixtures";
 
 describe("useKeybindingDispatch", () => {
   let commandRegistry: CommandRegistry;
@@ -27,21 +28,9 @@ describe("useKeybindingDispatch", () => {
     );
 
     // Set up a simple context builder
-    commandRegistry.setContextBuilder(() => ({
-      tabs: null as any,
-      panes: null as any,
-      terminals: null as any,
-      workspaces: null as any,
-      commands: null as any,
-      dialogs: null as any,
-      notifications: null as any,
-      settings: null as any,
-      contextKeys: contextKeyService,
-      view: null as any,
-      activeTab: null,
-      activePaneId: null,
-      workspaceName: undefined,
-    }));
+    commandRegistry.setContextBuilder(() =>
+      commandContext({ contextKeys: contextKeyService }),
+    );
 
     mockCommandRun = vi.fn();
   });
@@ -705,15 +694,14 @@ describe("useKeybindingDispatch", () => {
     });
 
     describe("Cmd+1-9 tab switching", () => {
-      const createMockTabs = (count: number): Tab[] => {
-        return Array.from({ length: count }, (_, i) => ({
+      const createMockTabs = (count: number): Tab[] =>
+        Array.from({ length: count }, (_, i) => ({
           id: `tab-${i + 1}`,
-          title: `Tab ${i + 1}`,
+          name: `Tab ${i + 1}`,
           panes: {},
-          activePaneId: null,
-          paneLayout: { type: "single", paneId: "pane-1" },
-        })) as Tab[];
-      };
+          activePaneId: "pane-1",
+          layout: { type: "pane", id: "node-1", paneId: "pane-1" },
+        }));
 
       it("should focus first tab on Cmd+1 (Mac)", async () => {
         // Mock the focusTab action

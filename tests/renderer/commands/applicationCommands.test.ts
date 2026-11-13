@@ -12,10 +12,11 @@ import {
   _resetCommandRegistration,
 } from "@/commands/applicationCommands";
 import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
-import type { CommandContext, CommandDescriptor } from "@/commands/core/types";
+import type { CommandDescriptor } from "@/commands/core/types";
 import * as handlers from "@/commands/handlers";
 import * as focusModeActions from "@/store/actions/focusMode";
 import * as tabActions from "@/store/actions/tab";
+import { commandContext } from "./fixtures";
 
 // Mock store actions
 vi.mock("@/store/actions/focusMode");
@@ -283,27 +284,10 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
         )!;
-        const mockContext: CommandContext = {
-          activeTab: {
-            id: "tab-123",
-            activePaneId: "pane-456",
-          },
+        const mockContext = commandContext({
+          activeTab: { id: "tab-123", activePaneId: "pane-456" },
           activePaneId: "pane-456",
-          workspaceName: undefined,
-          allTabs: [],
-          view: null as any,
-          workspace: null as any,
-          panes: null as any,
-          agent: null as any,
-          tabs: null as any,
-          terminals: null as any,
-          workspaces: null as any,
-          commands: null as any,
-          dialogs: null as any,
-          notifications: null as any,
-          settings: null as any,
-          contextKeys: null as any,
-        };
+        });
 
         command.run(mockContext);
 
@@ -317,24 +301,7 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE,
         )!;
-        const mockContext: CommandContext = {
-          activeTab: null,
-          activePaneId: null,
-          workspaceName: undefined,
-          allTabs: [],
-          view: null as any,
-          workspace: null as any,
-          panes: null as any,
-          agent: null as any,
-          tabs: null as any,
-          terminals: null as any,
-          workspaces: null as any,
-          commands: null as any,
-          dialogs: null as any,
-          notifications: null as any,
-          settings: null as any,
-          contextKeys: null as any,
-        };
+        const mockContext = commandContext();
 
         command.run(mockContext);
 
@@ -345,7 +312,7 @@ describe("applicationCommands", () => {
     describe("TAB_NEW", () => {
       it("should call openTab action", () => {
         const command = registeredCommands.get(ApplicationCommands.TAB_NEW)!;
-        const mockContext: CommandContext = {} as any;
+        const mockContext = commandContext();
 
         command.run(mockContext);
 
@@ -356,9 +323,9 @@ describe("applicationCommands", () => {
     describe("TAB_CLOSE", () => {
       it("should call closeTab action with activeTab id", () => {
         const command = registeredCommands.get(ApplicationCommands.TAB_CLOSE)!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: { id: "tab-123" },
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -367,9 +334,9 @@ describe("applicationCommands", () => {
 
       it("should not call closeTab when activeTab is null", () => {
         const command = registeredCommands.get(ApplicationCommands.TAB_CLOSE)!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: null,
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -383,9 +350,9 @@ describe("applicationCommands", () => {
           ApplicationCommands.TERMINAL_OPEN_IN_VSCODE,
         )!;
         const mockActiveTab = { id: "tab-123" };
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: mockActiveTab,
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -398,11 +365,11 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.AGENT_MANAGE_SESSIONS,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           agent: {
             showManageSessionsDialog: vi.fn(),
           },
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -416,9 +383,9 @@ describe("applicationCommands", () => {
           ApplicationCommands.AGENT_MERGE_AND_CLOSE,
         )!;
         const mockActiveTab = { id: "tab-123" };
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: mockActiveTab,
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -434,9 +401,9 @@ describe("applicationCommands", () => {
           ApplicationCommands.AGENT_TERMINATE,
         )!;
         const mockActiveTab = { id: "tab-123" };
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: mockActiveTab,
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -449,10 +416,10 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -468,9 +435,9 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           setShowKeybindingsEditor: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -485,10 +452,10 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           setQuickOpenInitialValue: vi.fn(),
           setIsQuickOpenOpen: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -502,9 +469,9 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_RESET_LAYOUT,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: { id: "tab-123" },
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -517,11 +484,11 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_SAVE,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           activeTab: { id: "tab-123" },
           allTabs: [{ id: "tab-123" }],
           setShowCreateWorkspaceDialog: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -538,10 +505,10 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_RENAME,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           workspaceName: "my-workspace",
           setShowRenameWorkspaceDialog: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -554,10 +521,10 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_RENAME,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           workspaceName: undefined,
           setShowRenameWorkspaceDialog: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -570,9 +537,9 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_CLOSE,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           workspaceName: "my-workspace",
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -585,9 +552,9 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_OPEN,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           setShowWorkspacePicker: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
@@ -602,7 +569,7 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_OPEN_LAST,
         )!;
-        const mockContext: CommandContext = {} as any;
+        const mockContext = commandContext();
 
         command.run(mockContext);
 
@@ -615,9 +582,9 @@ describe("applicationCommands", () => {
         const command = registeredCommands.get(
           ApplicationCommands.PANE_OPEN_WEB_PAGE,
         )!;
-        const mockContext: CommandContext = {
+        const mockContext = commandContext({
           setIsUrlDialogOpen: vi.fn(),
-        } as any;
+        });
 
         command.run(mockContext);
 
