@@ -47,7 +47,6 @@ import {
   registerMenuContextBuilder,
   type MenuContextBuilder,
 } from "@/commands/menus/menuContextBuilders";
-import { registerSubmenu } from "@/commands/menus/submenuConfig";
 import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
@@ -1652,35 +1651,4 @@ const paneContextBuilder: MenuContextBuilder = async (
 export function registerMenuContextBuilders(): void {
   registerMenuContextBuilder(MenuId.TabContext, tabContextBuilder);
   registerMenuContextBuilder(MenuId.PaneContext, paneContextBuilder);
-
-  // Register submenu labels
-  registerSubmenu(
-    MenuId.TabContext,
-    "2_tab/duplicate_into",
-    "Duplicate Tab into...",
-  );
-
-  registerSubmenu(
-    MenuId.PaneContext,
-    "3_split_more/1_split_agent_session",
-    "Split Agent Session...",
-  );
-
-  registerSubmenu(
-    MenuId.PaneContext,
-    "3_split_more/2_split_editor",
-    "Split Editor...",
-  );
-
-  registerSubmenu(
-    MenuId.PaneContext,
-    "3_split_more/3_split_browser",
-    "Split Browser...",
-  );
-
-  registerSubmenu(
-    MenuId.PaneContext,
-    "3_split_more/4_split_canvas",
-    "Split Canvas...",
-  );
 }

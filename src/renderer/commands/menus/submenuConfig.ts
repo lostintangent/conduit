@@ -1,71 +1,21 @@
 import { MenuId } from "./types";
 
 /**
- * Registry for submenu labels
- * Similar to menu context builders, this allows registering submenu labels
- * separately from the commands that appear in them.
+ * Submenu labels keyed by `${menuId}:${submenuPath}`, where the submenu path
+ * is the command's menu group (e.g. "2_tab/duplicate_into").
  */
-class SubmenuRegistry {
-  private labels = new Map<string, string>();
-
-  /**
-   * Register a submenu label for a given menu and submenu path
-   *
-   * @param menuId - The menu location (e.g., MenuId.TabContext)
-   * @param submenuPath - The submenu path after the "/" (e.g., "2_tab/duplicate_into")
-   * @param label - The display label for the submenu (e.g., "Duplicate Tab into...")
-   */
-  register(menuId: MenuId, submenuPath: string, label: string): void {
-    const key = `${menuId}:${submenuPath}`;
-    this.labels.set(key, label);
-  }
-
-  /**
-   * Get the submenu label for a given menu ID and submenu path
-   * Returns the submenu path as fallback if no label is registered
-   */
-  getLabel(menuId: MenuId, submenuPath: string): string {
-    const key = `${menuId}:${submenuPath}`;
-    return this.labels.get(key) || submenuPath;
-  }
-
-  /**
-   * Clear all registered submenu labels
-   */
-  clear(): void {
-    this.labels.clear();
-  }
-}
-
-// Singleton instance
-let submenuRegistry: SubmenuRegistry | null = null;
+const submenuLabels: Record<string, string> = {
+  [`${MenuId.TabContext}:2_tab/duplicate_into`]: "Duplicate Tab into...",
+  [`${MenuId.PaneContext}:3_split_more/1_split_agent_session`]:
+    "Split Agent Session...",
+  [`${MenuId.PaneContext}:3_split_more/2_split_editor`]: "Split Editor...",
+  [`${MenuId.PaneContext}:3_split_more/3_split_browser`]: "Split Browser...",
+  [`${MenuId.PaneContext}:3_split_more/4_split_canvas`]: "Split Canvas...",
+};
 
 /**
- * Get the global submenu registry instance
- */
-export function getSubmenuRegistry(): SubmenuRegistry {
-  if (!submenuRegistry) {
-    submenuRegistry = new SubmenuRegistry();
-  }
-  return submenuRegistry;
-}
-
-/**
- * Register a submenu label
- * Convenience function that uses the singleton registry
- */
-export function registerSubmenu(
-  menuId: MenuId,
-  submenuPath: string,
-  label: string,
-): void {
-  getSubmenuRegistry().register(menuId, submenuPath, label);
-}
-
-/**
- * Get a submenu label
- * Convenience function that uses the singleton registry
+ * Get a submenu label, falling back to the submenu path
  */
 export function getSubmenuLabel(menuId: MenuId, submenuPath: string): string {
-  return getSubmenuRegistry().getLabel(menuId, submenuPath);
+  return submenuLabels[`${menuId}:${submenuPath}`] || submenuPath;
 }
