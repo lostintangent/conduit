@@ -10,8 +10,6 @@
     "package": "cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge package",
     "make": "cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge make",
     "release": ": ${CONDUIT_APPLE_ID_PASSWORD:?is required to sign and notarize} && cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge publish",
-    "lint": "oxlint",
-    "lint:ci": "oxlint --quiet",
     "format": "biome format --write ./src",
     "rebuild": "electron-rebuild",
     "test": "bun test --parallel",
@@ -38,7 +36,6 @@
     "husky": "^9.1.7",
     "jsdom": "^27.4.0",
     "lint-staged": "^16.4.0",
-    "oxlint": "^1.93.0",
     "tailwindcss": "^4.3.5"
   },
   "dependencies": {
@@ -85,7 +82,7 @@
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx}": [
       "biome format --write ./src",
-      "oxlint"
+      "bun lint"
     ],
     "**/*.{json,css,md}": "biome format --write ./src"
   }

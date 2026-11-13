@@ -37,7 +37,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Run linter
-        run: npm run lint:ci
+        run: bun lint --quiet
 
       - name: Run tests
         run: bun run test

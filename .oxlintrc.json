@@ -1,5 +1,4 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "vitest"],
   "categories": {
     "perf": "warn"
@@ -12,7 +11,8 @@
     "@typescript-eslint/no-empty-function": "off",
     "@typescript-eslint/explicit-function-return-type": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
-    "react-hooks/exhaustive-deps": "off"
+    "react-hooks/exhaustive-deps": "off",
+    "vitest/require-mock-type-parameters": "off"
   },
   "overrides": [
     {

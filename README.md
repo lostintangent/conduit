@@ -8,7 +8,7 @@
 1. Run `npm install`
 1. Run `npm start`
 
-Run the tests with `bun run test`. Plain `bun test` doesn't isolate test files from each other, which the tests need. `bun check` typechecks the app, and `bun check -p build` typechecks the files that run under Bun.
+Run the tests with `bun run test`. Plain `bun test` doesn't isolate test files from each other, which the tests need. `bun lint` lints, `bun check` typechecks the app, and `bun check -p build` typechecks the files that run under Bun.
 
 ## 🚀 Releasing
 
