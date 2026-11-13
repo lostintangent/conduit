@@ -448,37 +448,6 @@ describe("ReviewWorkingPane", () => {
         expect(screen.getAllByTestId("file-editor-content")).toHaveLength(2);
       });
     });
-
-    // TODO: toggle-all-button doesn't exist in the component - feature not implemented
-    it.skip("should collapse all files when Collapse All is clicked", async () => {
-      mockGetStatus.mockResolvedValue(
-        createMockStatus([
-          { path: "src/file1.ts", status: "modified", staged: false },
-          { path: "src/file2.ts", status: "added", staged: false },
-        ]),
-      );
-
-      renderWithProviders(
-        <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
-      });
-
-      // Files start auto-expanded
-      await waitFor(() => {
-        expect(screen.getAllByTestId("file-editor-content")).toHaveLength(2);
-      });
-
-      // Click collapse all (toggle button acts as collapse when all are expanded)
-      fireEvent.click(screen.getByTestId("toggle-all-button"));
-
-      // Wait for all files to be collapsed
-      await waitFor(() => {
-        expect(screen.queryAllByTestId("file-editor-content")).toHaveLength(0);
-      });
-    });
   });
 
   describe("section collapse", () => {
@@ -665,39 +634,6 @@ describe("ReviewWorkingPane", () => {
 
       await waitFor(() => {
         expect(mockCommit).toHaveBeenCalledWith("Test commit message");
-      });
-    });
-
-    // TODO: Test has timing issues - needs investigation
-    it.skip("should show committing state when committing", async () => {
-      // Use a promise that stays pending to test loading state
-      mockCommit.mockReturnValue(new Promise(() => {}));
-
-      mockGetStatus.mockResolvedValue(
-        createMockStatus([
-          { path: "src/file.ts", status: "modified", staged: true },
-        ]),
-      );
-
-      renderWithProviders(
-        <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
-      });
-
-      // Enter commit message
-      fireEvent.change(screen.getByTestId("commit-message-input"), {
-        target: { value: "Test commit" },
-      });
-
-      // Click commit
-      fireEvent.click(screen.getByTestId("commit-button"));
-
-      // Wait for committing state
-      await waitFor(() => {
-        expect(screen.getByText(/Committing/)).toBeDefined();
       });
     });
   });

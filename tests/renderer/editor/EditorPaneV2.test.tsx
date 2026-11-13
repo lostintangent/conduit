@@ -578,37 +578,6 @@ describe("EditorPaneV2", () => {
 
       expect(cleanup).toHaveBeenCalled();
     });
-
-    // NOTE: This test is skipped because with the new useReviewModeState architecture,
-    // view mode is managed externally and the auto-switch to diff is no longer automatic
-    // when selecting a modified file. The view mode is now controlled by review mode state.
-    it.skip("should derive editor mode from git status", async () => {
-      // Set up git status with a changed file (uses relative path, not absolute)
-      const changedFiles = new Map([
-        ["test.ts", { status: "modified", staged: false }],
-      ]);
-      mockGit.getStatus.mockResolvedValue({
-        files: changedFiles,
-        branch: "main",
-      });
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      // Wait for git status to load
-      await waitFor(() => {
-        expect(mockGit.getStatus).toHaveBeenCalled();
-      });
-
-      // Select the file that has changes
-      await act(async () => {
-        fireEvent.click(screen.getByTestId("select-file-button"));
-      });
-
-      // Mode should switch to diff for file with changes
-      await waitFor(() => {
-        expect(screen.getByTestId("editor-view-mode").textContent).toBe("diff");
-      });
-    });
   });
 
   // ===========================================================================
