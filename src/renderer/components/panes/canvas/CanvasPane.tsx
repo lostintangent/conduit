@@ -27,7 +27,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { type Position, type ShapeSize, useCanvasHistory } from "./history";
+import {
+  type ElementStyle,
+  type Position,
+  type ShapeSize,
+  useCanvasHistory,
+} from "./history";
 import { useCanvasState } from "./hooks/useCanvasState";
 import { useImageDrop } from "./hooks/useImageDrop";
 import { useViewport } from "./hooks/useViewport";
@@ -1413,46 +1418,15 @@ export const CanvasPane = memo(function CanvasPane({
   );
 
   const handleAddImage = useCallback(() => {
-    // Create a hidden file input and trigger it
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        const base64 = dataUrl.split(",")[1];
-
-        const img = new Image();
-        img.onload = () => {
-          const imageElement = createImageElement(
-            base64,
-            file.type,
-            { width: img.width, height: img.height },
-            canvasSize.width / 2 / viewport.zoom - viewport.panX,
-            canvasSize.height / 2 / viewport.zoom - viewport.panY,
-          );
-          addElement(imageElement);
-          recordAdd([imageElement]); // Record for undo
-          selectElements([imageElement.id]);
-          setToolInternal("select");
-        };
-        img.src = dataUrl;
-      };
-      reader.readAsDataURL(file);
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) void addImageToCanvas(file);
     };
     input.click();
-  }, [
-    canvasSize,
-    viewport,
-    addElement,
-    recordAdd,
-    selectElements,
-    setToolInternal,
-  ]);
+  }, [addImageToCanvas]);
 
   // ---------------------------------------------------------------------------
   // Zoom toolbar handlers
@@ -1609,115 +1583,74 @@ export const CanvasPane = memo(function CanvasPane({
     };
   }, [selectedIds, elements]);
 
-  // Helper to get width from an element (only stroke and shape have width)
-  const getElementWidth = (el: CanvasElement): number | undefined => {
-    if (el.type === "stroke" || el.type === "shape") {
-      return el.style.width;
-    }
-    return undefined;
-  };
+  // Apply a style patch to elements and record it as a single undo step
+  const restyleElements = useCallback(
+    (targets: CanvasElement[], patch: ElementStyle) => {
+      const changes = new Map<
+        string,
+        { before: ElementStyle; after: ElementStyle }
+      >();
 
-  // Handle color change - update selected elements if in select mode
+      for (const el of targets) {
+        if (!("style" in el)) continue;
+        const before: ElementStyle = {
+          color: el.style.color,
+          width:
+            el.type === "stroke" || el.type === "shape"
+              ? el.style.width
+              : undefined,
+          ...("fill" in patch && {
+            fill: el.type === "shape" ? el.style.fill : undefined,
+          }),
+        };
+        changes.set(el.id, { before, after: { ...before, ...patch } });
+        updateElementStyle(el.id, patch);
+      }
+
+      recordStyle(changes);
+    },
+    [updateElementStyle, recordStyle],
+  );
+
+  // Style changes update the selection in select mode, otherwise the tool defaults
   const handleColorChange = useCallback(
     (color: string) => {
       if (tool === "select" && selectedStyleInfo.hasStylableSelection) {
-        const changes = new Map<
-          string,
-          {
-            before: { color?: string; width?: number };
-            after: { color?: string; width?: number };
-          }
-        >();
-
-        for (const el of selectedStyleInfo.stylableElements || []) {
-          if ("style" in el) {
-            const width = getElementWidth(el);
-            changes.set(el.id, {
-              before: { color: el.style.color, width },
-              after: { color, width },
-            });
-            updateElementStyle(el.id, { color });
-          }
-        }
-
-        recordStyle(changes);
+        restyleElements(selectedStyleInfo.stylableElements ?? [], { color });
       } else {
         setStrokeColor(color);
       }
     },
-    [tool, selectedStyleInfo, updateElementStyle, recordStyle],
+    [tool, selectedStyleInfo, restyleElements],
   );
 
-  // Handle size/width change - update selected elements if in select mode
   const handleSizeChange = useCallback(
     (size: number) => {
       if (tool === "select" && selectedStyleInfo.hasStylableSelection) {
-        const changes = new Map<
-          string,
-          {
-            before: { color?: string; width?: number };
-            after: { color?: string; width?: number };
-          }
-        >();
-
-        for (const el of selectedStyleInfo.stylableElements || []) {
-          if (el.type === "stroke" || el.type === "shape") {
-            changes.set(el.id, {
-              before: { color: el.style.color, width: el.style.width },
-              after: { color: el.style.color, width: size },
-            });
-            updateElementStyle(el.id, { width: size });
-          }
-        }
-
-        if (changes.size > 0) {
-          recordStyle(changes);
-        }
+        restyleElements(
+          (selectedStyleInfo.stylableElements ?? []).filter(
+            (el) => el.type === "stroke" || el.type === "shape",
+          ),
+          { width: size },
+        );
       } else {
         setStrokeWidth(size);
       }
     },
-    [tool, selectedStyleInfo, updateElementStyle, recordStyle],
+    [tool, selectedStyleInfo, restyleElements],
   );
 
-  // Handle fill change - update selected elements if in select mode with fillable selection
   const handleFillChange = useCallback(
     (newFill: FillStyle | undefined) => {
       if (tool === "select" && selectedStyleInfo.hasFillableSelection) {
-        const changes = new Map<
-          string,
-          {
-            before: { color?: string; width?: number; fill?: FillStyle };
-            after: { color?: string; width?: number; fill?: FillStyle };
-          }
-        >();
-
-        for (const el of selectedStyleInfo.fillableElements || []) {
-          if (el.type === "shape") {
-            changes.set(el.id, {
-              before: {
-                color: el.style.color,
-                width: el.style.width,
-                fill: el.style.fill,
-              },
-              after: {
-                color: el.style.color,
-                width: el.style.width,
-                fill: newFill,
-              },
-            });
-            updateElementStyle(el.id, { fill: newFill });
-          }
-        }
-
-        if (changes.size > 0) {
-          recordStyle(changes);
-        }
+        restyleElements(selectedStyleInfo.fillableElements ?? [], {
+          fill: newFill,
+        });
       } else {
         setFill(newFill);
       }
     },
-    [tool, selectedStyleInfo, updateElementStyle, recordStyle],
+    [tool, selectedStyleInfo, restyleElements],
   );
 
   // ---------------------------------------------------------------------------
