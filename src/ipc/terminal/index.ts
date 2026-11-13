@@ -1,5 +1,6 @@
 import type { TerminalCreateOptions } from "@shared/types";
 import { ipcMain } from "electron";
+import { setTimeout as delay } from "node:timers/promises";
 import type {
   TerminalInputPayload,
   TerminalPayload,
@@ -73,12 +74,41 @@ export function initializeTerminalHandlers(sendToRenderer: SendToRendererFn) {
   });
 }
 
-export function cleanupTerminalSessions() {
-  Array.from(getAllTerminals().keys()).forEach((sessionId) => {
-    try {
-      killTerminal(sessionId);
-    } catch (error) {
-      console.error("Failed to terminate PTY session", error);
-    }
-  });
+/** How long shells get to exit on SIGHUP before quit sends SIGKILL. */
+const HANGUP_GRACE_MS = 500;
+
+/**
+ * Kill every PTY and wait for its exit callback. node-pty delivers exits on a
+ * native thread, and one that lands while Node is tearing down aborts the
+ * process (microsoft/node-pty#904). Teardown also joins that thread, so a
+ * shell that survives SIGHUP would hang quit, and those get SIGKILL.
+ */
+export async function cleanupTerminalSessions() {
+  const running = new Set(getAllTerminals().values());
+  const exits = Array.from(
+    running,
+    (terminal) =>
+      new Promise<void>((resolve) =>
+        terminal.pty.onExit(() => {
+          running.delete(terminal);
+          resolve();
+        }),
+      ),
+  );
+
+  await Promise.all(
+    Array.from(running, (terminal) =>
+      killTerminal(terminal.id).catch((error) =>
+        console.error("Failed to terminate PTY session", error),
+      ),
+    ),
+  );
+
+  const allExited = Promise.all(exits);
+  await Promise.race([allExited, delay(HANGUP_GRACE_MS)]);
+  for (const terminal of running) {
+    terminal.pty.kill("SIGKILL");
+  }
+
+  await allExited;
 }

@@ -1,12 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import {
-  cleanupTerminalSessions,
-  cleanupUpdateHandlers,
-  initializeIpcHandlers,
-  shutdownCliServer,
-} from "./ipc";
+import { initializeIpcHandlers, shutdownIpcHandlers } from "./ipc";
 
 // Build-time constants injected by @electron-forge/plugin-vite.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -101,13 +96,8 @@ async function createWindow() {
     }, 1000);
   });
 
-  // Whenever the window is closed, clean up
-  // resources and then quit the app.
+  // Whenever the window is closed, quit the app.
   mainWindow.on("closed", () => {
-    cleanupTerminalSessions();
-    cleanupUpdateHandlers();
-    shutdownCliServer();
-
     app.quit();
   });
 
@@ -136,4 +126,20 @@ app.whenReady().then(async () => {
   });
 
   await createWindow();
+});
+
+// Native callbacks that land while Node is tearing down abort the process,
+// so hold the quit until PTYs have exited and watchers have unsubscribed.
+let shutdown: Promise<void> | undefined;
+let isShutDown = false;
+app.on("will-quit", (event) => {
+  if (isShutDown) {
+    return;
+  }
+
+  event.preventDefault();
+  shutdown ??= shutdownIpcHandlers().then(() => {
+    isShutDown = true;
+    app.quit();
+  });
 });

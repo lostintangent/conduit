@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
@@ -10,6 +11,7 @@ import {
   handleWindowClose as handleFsWindowClose,
   initializeFileSystemV2Handlers,
 } from "./fs/handlers";
+import { unwatchAll } from "./fs/ParcelFileWatcher";
 import {
   cleanupGitV2Handlers,
   handleGitWindowClose,
@@ -76,11 +78,29 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   });
 }
 
+/** Native teardown gets this long before quit goes ahead anyway. */
+const SHUTDOWN_TIMEOUT_MS = 2000;
+
+/**
+ * Release everything the window's session left running: PTYs, file watchers,
+ * the CLI server, and the update timer.
+ */
+async function shutdownIpcHandlers(): Promise<void> {
+  cleanupUpdateHandlers();
+
+  await Promise.race([
+    Promise.allSettled([
+      cleanupTerminalSessions(),
+      unwatchAll(),
+      shutdownCliServer(),
+    ]),
+    delay(SHUTDOWN_TIMEOUT_MS),
+  ]);
+}
+
 export {
   cleanupFileSystemV2Handlers,
   cleanupGitV2Handlers,
-  cleanupTerminalSessions,
-  cleanupUpdateHandlers,
   initializeIpcHandlers,
-  shutdownCliServer,
+  shutdownIpcHandlers,
 };

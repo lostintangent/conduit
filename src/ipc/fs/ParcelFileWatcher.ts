@@ -264,6 +264,17 @@ class RenameDetector {
  * await watcher.dispose();
  * ```
  */
+/** Watchers holding a native subscription. */
+const liveWatchers = new Set<ParcelFileWatcher>();
+
+/**
+ * Unsubscribe every live watcher. An FSEvents callback that lands while Node
+ * is tearing down aborts the process, so quit waits for this first.
+ */
+export async function unwatchAll(): Promise<void> {
+  await Promise.all(Array.from(liveWatchers, (watcher) => watcher.unwatch()));
+}
+
 export class ParcelFileWatcher {
   /** The directory being watched */
   readonly path: string;
@@ -279,6 +290,9 @@ export class ParcelFileWatcher {
 
   /** Whether currently watching */
   private watching = false;
+
+  /** The in-flight unsubscribe, if any */
+  private unwatching: Promise<void> | null = null;
 
   /** Rename detection helper */
   private renameDetector = new RenameDetector();
@@ -360,22 +374,32 @@ export class ParcelFileWatcher {
     );
 
     this.watching = true;
+    liveWatchers.add(this);
   }
 
   /**
-   * Stop watching for file changes.
+   * Stop watching for file changes. Concurrent calls share one unsubscribe.
    */
-  async unwatch(): Promise<void> {
+  unwatch(): Promise<void> {
     if (!this.watching || !this.subscription) {
-      return;
+      return Promise.resolve();
     }
 
-    await this.subscription.unsubscribe();
-    this.subscription = null;
-    this.watching = false;
+    this.unwatching ??= this.subscription
+      .unsubscribe()
+      .then(() => {
+        this.subscription = null;
+        this.watching = false;
+        liveWatchers.delete(this);
 
-    this.clearDebounceTimers();
-    this.renameDetector.clear();
+        this.clearDebounceTimers();
+        this.renameDetector.clear();
+      })
+      .finally(() => {
+        this.unwatching = null;
+      });
+
+    return this.unwatching;
   }
 
   /**

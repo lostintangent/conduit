@@ -29,7 +29,10 @@ vi.mock("node:fs", () => ({
 }));
 
 import watcher from "@parcel/watcher";
-import { ParcelFileWatcher } from "../../../src/ipc/fs/ParcelFileWatcher";
+import {
+  ParcelFileWatcher,
+  unwatchAll,
+} from "../../../src/ipc/fs/ParcelFileWatcher";
 
 describe("ParcelFileWatcher", () => {
   let fileWatcher: ParcelFileWatcher;
@@ -163,6 +166,40 @@ describe("ParcelFileWatcher", () => {
 
     it("should be safe to call when not watching", async () => {
       await expect(fileWatcher.unwatch()).resolves.not.toThrow();
+    });
+  });
+
+  describe("unwatchAll()", () => {
+    it("should unsubscribe every live watcher once", async () => {
+      const other = new ParcelFileWatcher("/test/other");
+      await fileWatcher.watch();
+      await other.watch();
+
+      await unwatchAll();
+      await unwatchAll();
+
+      expect(mockSubscription.unsubscribe).toHaveBeenCalledTimes(2);
+      expect(fileWatcher.isWatching()).toBe(false);
+      expect(other.isWatching()).toBe(false);
+    });
+
+    it("should wait for an unsubscribe that is already in flight", async () => {
+      let finishUnsubscribe!: () => void;
+      vi.mocked(mockSubscription.unsubscribe).mockReturnValueOnce(
+        new Promise<void>((resolve) => (finishUnsubscribe = resolve)),
+      );
+      await fileWatcher.watch();
+
+      void fileWatcher.dispose();
+      let settled = false;
+      const all = unwatchAll().then(() => (settled = true));
+      await Promise.resolve();
+
+      expect(settled).toBe(false);
+      finishUnsubscribe();
+      await all;
+      expect(mockSubscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(fileWatcher.isWatching()).toBe(false);
     });
   });
 
