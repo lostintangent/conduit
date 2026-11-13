@@ -4,7 +4,7 @@ import {
   getRemovalCommandId,
 } from "./keybindingsFile";
 import type { KeybindingRegistry } from "./KeybindingRegistry";
-import type { ICommandRegistry } from "../core/CommandRegistry";
+import type { CommandRegistry } from "../core/CommandRegistryImpl";
 import { USER_KEYBINDING_WEIGHT, type UserKeybinding } from "./types";
 import { updateKeybindingsAtom } from "./updateKeybindingsAtom";
 
@@ -173,7 +173,7 @@ export async function saveUserKeybinding(
 export async function removeUserKeybinding(
   commandId: string,
   filePath: string,
-  commandRegistry: ICommandRegistry,
+  commandRegistry: CommandRegistry,
   keybindingRegistry: KeybindingRegistry,
 ): Promise<void> {
   // Read existing user keybindings
@@ -200,7 +200,7 @@ export async function removeUserKeybinding(
  */
 export function restoreDefaultKeybindings(
   commandId: string,
-  commandRegistry: ICommandRegistry,
+  commandRegistry: CommandRegistry,
   keybindingRegistry: KeybindingRegistry,
 ): void {
   // Unregister all keybindings for this command

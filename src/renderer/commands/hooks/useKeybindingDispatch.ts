@@ -2,7 +2,7 @@ import { focusTab } from "@/store/actions/tab";
 import type { ApplicationMode } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { useEffect, useRef } from "react";
-import type { ICommandRegistry } from "../core/CommandRegistry";
+import type { CommandRegistry } from "../core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";
 import {
   clearPressedKeys,
@@ -33,7 +33,7 @@ export interface KeybindingDispatchOptions {
  * activate once they are provided.
  */
 export function useKeybindingDispatch(
-  commandRegistry: ICommandRegistry | null | undefined,
+  commandRegistry: CommandRegistry | null | undefined,
   keybindingRegistry: KeybindingRegistry | null | undefined,
   options?: KeybindingDispatchOptions,
 ) {

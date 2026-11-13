@@ -5,7 +5,7 @@
  * the app's UI state (focus mode, pane controls, etc.).
  */
 
-import type { ICommandRegistry } from "@/commands";
+import type { CommandRegistry } from "@/commands";
 import { When } from "@/commands";
 import {
   activePaneType,
@@ -99,7 +99,7 @@ export function _resetCommandRegistration(): void {
 }
 
 export function registerApplicationCommands(
-  commandRegistry: ICommandRegistry,
+  commandRegistry: CommandRegistry,
 ): void {
   // Only register once - subsequent calls are no-ops
   if (commandsRegistered) {

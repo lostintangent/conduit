@@ -1,10 +1,9 @@
 import {
+  type CommandRegistry,
   type ContextKeyService,
   getCommandRegistry,
   getContextKeyService,
   getKeybindingRegistry,
-  initializeCommandSystem,
-  type ICommandRegistry,
   type KeybindingRegistry,
 } from "@/commands";
 import {
@@ -23,7 +22,7 @@ import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 
 export interface CommandSystemState {
-  commandRegistry: ICommandRegistry;
+  commandRegistry: CommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   contextKeyService: ContextKeyService;
   isReady: boolean;
@@ -101,7 +100,7 @@ export function useCommandSystem(
   const setKeybindings = useSetAtom(keybindingsAtom);
 
   const [commandSystem, setCommandSystem] = useState<{
-    commandRegistry: ICommandRegistry;
+    commandRegistry: CommandRegistry;
     keybindingRegistry: KeybindingRegistry;
     contextKeyService: ContextKeyService;
   } | null>(null);
@@ -109,8 +108,6 @@ export function useCommandSystem(
   // Initialize command system ONCE
   useEffect(() => {
     const initialize = async () => {
-      initializeCommandSystem();
-
       const commandRegistry = getCommandRegistry();
       const keybindingRegistry = getKeybindingRegistry();
       const contextKeyService = getContextKeyService();

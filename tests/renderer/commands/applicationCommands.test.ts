@@ -11,7 +11,7 @@ import {
   registerApplicationCommands,
   _resetCommandRegistration,
 } from "@/commands/applicationCommands";
-import type { ICommandRegistry } from "@/commands/core/CommandRegistry";
+import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { CommandContext, CommandDescriptor } from "@/commands/core/types";
 import * as handlers from "@/commands/handlers";
 import * as focusModeActions from "@/store/actions/focusMode";
@@ -23,7 +23,7 @@ vi.mock("@/store/actions/tab");
 vi.mock("@/commands/handlers");
 
 describe("applicationCommands", () => {
-  let mockRegistry: ICommandRegistry;
+  let mockRegistry: CommandRegistry;
   let registeredCommands: Map<string, CommandDescriptor>;
 
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe("applicationCommands", () => {
       getAllCommands: vi.fn(() => Array.from(registeredCommands.values())),
       hasCommand: vi.fn((id: string) => registeredCommands.has(id)),
       setContextBuilder: vi.fn(),
-    };
+    } as unknown as CommandRegistry;
   });
 
   afterEach(() => {

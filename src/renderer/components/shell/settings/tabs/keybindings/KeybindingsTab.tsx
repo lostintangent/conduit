@@ -15,7 +15,7 @@ import {
   Search,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { ICommandRegistry } from "../../../../../commands/core/CommandRegistry";
+import type { CommandRegistry } from "../../../../../commands/core/CommandRegistryImpl";
 import type { CommandDescriptor } from "../../../../../commands/core/types";
 import type { KeybindingRegistry } from "../../../../../commands/keybindings/KeybindingRegistry";
 import type { ResolvedKeybinding } from "../../../../../commands/keybindings/types";
@@ -32,7 +32,7 @@ import {
 import { KeybindingRecorder } from "./KeybindingRecorder";
 
 interface KeybindingsTabProps {
-  commandRegistry: ICommandRegistry;
+  commandRegistry: CommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
 }

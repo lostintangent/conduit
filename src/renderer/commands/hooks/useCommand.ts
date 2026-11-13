@@ -1,7 +1,7 @@
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
 import { keybindingsAtom } from "@/store/atoms";
-import { tryGetCommandRegistry, executeCommand } from "@/commands";
+import { getCommandRegistry, executeCommand } from "@/commands";
 import { formatKeybindingForDisplay } from "../keybindings/utils";
 import type { KeyChord } from "../keybindings/types";
 
@@ -74,10 +74,8 @@ export function getCommandDisplayTitle(
  */
 export function useCommand(commandId: string): CommandInfo {
   const keybindingsMap = useAtomValue(keybindingsAtom);
-  const commandRegistry = tryGetCommandRegistry();
-
-  // Handle case where command system isn't initialized yet
-  const command = commandRegistry?.getCommand(commandId) ?? null;
+  // Null until the command is registered
+  const command = getCommandRegistry().getCommand(commandId) ?? null;
   const rawBindings = keybindingsMap.get(commandId) ?? [];
 
   // Sort by weight (highest first)
@@ -91,21 +89,20 @@ export function useCommand(commandId: string): CommandInfo {
   }));
 
   const execute = useCallback(async () => {
-    // Guard against executing when command system isn't ready
-    if (!commandRegistry || !command) {
+    if (!command) {
       console.warn(
         `Cannot execute command "${commandId}": command system not ready or command not found`,
       );
       return;
     }
     await executeCommand(commandId);
-  }, [commandId, commandRegistry, command]);
+  }, [commandId, command]);
 
   return {
     title: command?.title ?? "",
     keybindings,
     primaryKeybinding: keybindings[0]?.display ?? null,
     execute,
-    disabled: !command || !commandRegistry,
+    disabled: !command,
   };
 }

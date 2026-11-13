@@ -5,7 +5,6 @@ import {
   getCommandRegistry,
   getKeybindingRegistry,
   getContextKeyService,
-  initializeCommandSystem,
   When,
 } from "@/commands";
 import { ContextKey } from "@/commands/contextKeys/ContextKey";
@@ -19,8 +18,6 @@ describe("useCommands", () => {
   let contextKeyService: ReturnType<typeof getContextKeyService>;
 
   beforeEach(() => {
-    // Initialize command system before each test
-    initializeCommandSystem();
     commandRegistry = getCommandRegistry();
     keybindingRegistry = getKeybindingRegistry();
     contextKeyService = getContextKeyService();

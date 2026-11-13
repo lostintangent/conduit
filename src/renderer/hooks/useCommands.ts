@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useAtomValue } from "jotai";
-import type { ICommandRegistry } from "@/commands/core/CommandRegistry";
+import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import type { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
@@ -34,7 +34,7 @@ import type { Command } from "@/types";
  * @returns Array of commands with simplified interface for display and execution (empty if registries not ready)
  */
 export function useCommands(
-  commandRegistry: ICommandRegistry | undefined,
+  commandRegistry: CommandRegistry | undefined,
   keybindingRegistry: KeybindingRegistry | undefined,
   contextKeyService: ContextKeyService | undefined,
 ): Command[] {

@@ -15,7 +15,7 @@ import { DialogTitle } from "@radix-ui/react-dialog";
 import type { UserSettings } from "@shared/types";
 import { X } from "lucide-react";
 import { useState } from "react";
-import type { ICommandRegistry } from "../../../commands/core/CommandRegistry";
+import type { CommandRegistry } from "../../../commands/core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
 import { AgentsTab } from "./tabs/agents/AgentsTab";
 import { GeneralTab } from "./tabs/general/GeneralTab";
@@ -24,7 +24,7 @@ import { PaneActionsTab } from "./tabs/paneActions/PaneActionsTab";
 
 interface SettingsDialogProps {
   onClose: () => void;
-  commandRegistry: ICommandRegistry;
+  commandRegistry: CommandRegistry;
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
   initialTab?: "general" | "keybindings" | "paneActions" | "agents";

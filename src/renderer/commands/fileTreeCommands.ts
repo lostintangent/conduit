@@ -26,7 +26,7 @@
  * the target path and mode-specific behavior.
  */
 
-import type { ICommandRegistry } from "@/commands";
+import type { CommandRegistry } from "@/commands";
 import { When, getContextKeyService } from "@/commands";
 import {
   dotfilesEnabled,
@@ -151,32 +151,21 @@ export function registerFileTreeChangesCallbacks(
 // Context Key Helpers
 // ============================================================================
 
-/**
- * Get the target path from context keys.
- */
-function getTargetPath(): string {
-  try {
-    const contextKeyService = getContextKeyService();
-    const values = contextKeyService.getAll();
-    const path = values[fileTreeTargetPath.key];
-    return typeof path === "string" ? path : "";
-  } catch {
-    return "";
-  }
+function getContextString(key: string): string {
+  const value = getContextKeyService().getAll()[key];
+  return typeof value === "string" ? value : "";
 }
 
-/**
- * Check if target is a file from context keys.
- */
-function isTargetFile(): boolean {
-  try {
-    const contextKeyService = getContextKeyService();
-    const values = contextKeyService.getAll();
-    return values[fileTreeItemIsFile.key] === true;
-  } catch {
-    return false;
-  }
+function isContextTrue(key: string): boolean {
+  return getContextKeyService().getAll()[key] === true;
 }
+
+const getTargetPath = () => getContextString(fileTreeTargetPath.key);
+const isTargetFile = () => isContextTrue(fileTreeItemIsFile.key);
+const isChangesMode = () => isContextTrue(fileTreeChangesMode.key);
+const getCwd = () => getContextString(fileTreeCwd.key);
+// Differs from the path for partially staged files in changes mode
+const getMapKey = () => getContextString(fileTreeItemMapKey.key);
 
 /**
  * Get parent directory of a path.
@@ -208,48 +197,6 @@ function getParentPathForCreate(): string {
 }
 
 /**
- * Get the map key from context keys.
- * Used in changes mode where mapKey may differ from path for partially staged files.
- */
-function getMapKey(): string {
-  try {
-    const contextKeyService = getContextKeyService();
-    const values = contextKeyService.getAll();
-    const mapKey = values[fileTreeItemMapKey.key];
-    return typeof mapKey === "string" ? mapKey : "";
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Check if we're in changes mode from context keys.
- */
-function isChangesMode(): boolean {
-  try {
-    const contextKeyService = getContextKeyService();
-    const values = contextKeyService.getAll();
-    return values[fileTreeChangesMode.key] === true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Get the cwd from context keys.
- */
-function getCwd(): string {
-  try {
-    const contextKeyService = getContextKeyService();
-    const values = contextKeyService.getAll();
-    const cwd = values[fileTreeCwd.key];
-    return typeof cwd === "string" ? cwd : "";
-  } catch {
-    return "";
-  }
-}
-
-/**
  * Compute relative path from cwd.
  */
 function getRelativePath(fullPath: string, cwd: string): string {
@@ -264,7 +211,7 @@ function getRelativePath(fullPath: string, cwd: string): string {
  * Register all file tree commands
  */
 export function registerFileTreeCommands(
-  commandRegistry: ICommandRegistry,
+  commandRegistry: CommandRegistry,
 ): void {
   // ==========================================================================
   // Normal Mode Commands (only shown when NOT in changes mode)

@@ -12,7 +12,6 @@ import {
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
-import type { ICommandRegistry } from "@/commands/core/CommandRegistry";
 import * as updateKeybindingsAtomModule from "@/commands/keybindings/updateKeybindingsAtom";
 
 // Helper to create a minimal mock of window.conduit
@@ -455,7 +454,7 @@ describe("saveUserKeybinding", () => {
 
 describe("removeUserKeybinding", () => {
   let registry: KeybindingRegistry;
-  let commandRegistry: ICommandRegistry;
+  let commandRegistry: CommandRegistry;
   let originalConduit: typeof window.conduit;
   let updateAtomSpy: ReturnType<typeof vi.spyOn>;
 
@@ -629,7 +628,7 @@ describe("removeUserKeybinding", () => {
 
 describe("restoreDefaultKeybindings", () => {
   let registry: KeybindingRegistry;
-  let commandRegistry: ICommandRegistry;
+  let commandRegistry: CommandRegistry;
 
   beforeEach(() => {
     const contextKeyService = new ContextKeyService();

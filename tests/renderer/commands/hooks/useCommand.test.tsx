@@ -1,12 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-  getCommandRegistry,
-  getKeybindingRegistry,
-  initializeCommandSystem,
-  _resetCommandSystem,
-} from "@/commands";
+import { getCommandRegistry, getKeybindingRegistry } from "@/commands";
+import type { Disposable } from "@/commands/core/types";
 import {
   getCommandDisplayTitle,
   useCommand,
@@ -14,36 +10,43 @@ import {
 import { keybindingsAtom } from "@/store/atoms";
 import { renderHook, waitFor } from "@testing-library/react";
 import { Provider, createStore } from "jotai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("useCommand", () => {
   let store: ReturnType<typeof createStore>;
+  let registrations: Disposable[] = [];
+
+  afterEach(() => {
+    // Also removes keybindings that tests added for these commands
+    registrations.forEach((registration) => registration.dispose());
+  });
 
   beforeEach(() => {
-    // Reset and initialize command system before each test
-    _resetCommandSystem();
-    initializeCommandSystem();
-
     const registry = getCommandRegistry();
     const keybindingRegistry = getKeybindingRegistry();
 
+    registrations = [];
     // Register a test command
-    registry.registerCommand({
-      id: "test.command",
-      title: "Test Command",
-      category: "Test",
-      keybinding: { key: "Cmd+T" },
-      run: () => {},
-    });
+    registrations.push(
+      registry.registerCommand({
+        id: "test.command",
+        title: "Test Command",
+        category: "Test",
+        keybinding: { key: "Cmd+T" },
+        run: () => {},
+      }),
+    );
 
     // Register another command with multiple keybindings
-    registry.registerCommand({
-      id: "test.multiBinding",
-      title: "Multi Binding Command",
-      category: "Test",
-      keybinding: [{ key: "Cmd+K" }, { key: "Cmd+M" }],
-      run: () => {},
-    });
+    registrations.push(
+      registry.registerCommand({
+        id: "test.multiBinding",
+        title: "Multi Binding Command",
+        category: "Test",
+        keybinding: [{ key: "Cmd+K" }, { key: "Cmd+M" }],
+        run: () => {},
+      }),
+    );
 
     // Create a fresh Jotai store for each test
     store = createStore();
