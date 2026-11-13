@@ -9,7 +9,7 @@
     "start": "electron-forge start",
     "package": "cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge package",
     "make": "cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge make",
-    "publish": "electron-forge publish",
+    "release": ": ${CONDUIT_APPLE_ID_PASSWORD:?is required to sign and notarize} && cross-env ELECTRON_FORGE_PACKAGING=1 electron-forge publish",
     "lint": "oxlint",
     "lint:ci": "oxlint --quiet",
     "format": "biome format --write ./src",

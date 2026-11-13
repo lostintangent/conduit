@@ -4,24 +4,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  release:
+    name: Build, sign, notarize, and publish
+    runs-on: macos-latest
     timeout-minutes: 30
-    strategy:
-      matrix:
-        os: [macos-latest]
-        include:
-          - os: macos-latest
-            artifact_name: Conduit-darwin-arm64
-            artifact_path: |
-              out/make/zip/darwin/**/*.zip
-              out/make/**/*.dmg
-          # - os: ubuntu-latest
-          #   artifact_name: Conduit-linux
-          #   artifact_path: |
-          #     out/make/deb/**/*.deb
-          #     out/make/rpm/**/*.rpm
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -33,168 +21,23 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Setup Python (for native modules)
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install macOS dependencies
-        if: matrix.os == 'macos-latest'
-        run: |
-          # Install build tools for native modules
-          npm install -g node-gyp
-          # Ensure we have the latest Xcode command line tools
-          xcode-select --install || true
-
-      ##- name: Setup code signing
-      ## if: matrix.os == 'macos-latest'
-      ## run: |
-      # Create keychain
-      ##   security create-keychain -p actions build.keychain
-      ##   security default-keychain -s build.keychain
-      ##   security unlock-keychain -p actions build.keychain
-      ##   security set-keychain-settings -t 3600 -u build.keychain
-
-      # Import certificate
-      ##   echo "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" | base64 --decode > certificate.p12
-      ##   security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
-      ##   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
-
-      # Clean up
-      ##  rm certificate.p12
-
-      - name: Install Ubuntu dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            libnss3-dev \
-            libatk-bridge2.0-dev \
-            libdrm2 \
-            libgtk-3-dev \
-            libxcomposite1 \
-            libxdamage1 \
-            libxrandr2 \
-            libgbm1 \
-            libxss1 \
-            libasound2-dev
-
       - name: Install dependencies
         run: npm ci
         env:
-          # Set minimum Windows SDK version for ConPTY support in node-pty
-          npm_config_msvs_version: "2022"
-          npm_config_target_arch: "x64"
-
-      - name: Increment patch version
-        shell: bash
-        run: |
-          node -e "
-          const fs = require('fs');
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const [major, minor, patch] = pkg.version.split('.').map(Number);
-          const newVersion = \`\${major}.\${minor}.\${patch + 1}\`;
-          console.log('Updating version from', pkg.version, 'to', newVersion);
-          pkg.version = newVersion;
-          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          console.log('Build version:', newVersion);
-          "
-
-      - name: Setup virtual display (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get install -y xvfb
-          export DISPLAY=:99.0
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          # @vscode/ripgrep's postinstall calls the GitHub API, which rate-limits anonymous requests from shared runners
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Run tests
         run: npm run test:run
 
-      - name: Build application
-        run: npm run make
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.MACOS_SIGNING_CERTIFICATE }}
+          p12-password: ${{ secrets.MACOS_SIGNING_PASSWORD }}
+
+      - name: Build, sign, notarize, and publish
+        run: npm run release
         env:
-          # Increase memory limit for build process
-          NODE_OPTIONS: --max_old_space_size=4096
-          # Skip code signing on CI
-          CSC_IDENTITY_AUTO_DISCOVERY: false
-          # Set display for Ubuntu (headless)
-          DISPLAY: ":99.0"
-          # Ensure Windows builds use the correct MSVS version
-          npm_config_msvs_version: "2022"
-          # Windows code signing (when windows-latest is added to matrix)
-          # WINDOWS_CERTIFICATE_FILE: ${{ secrets.WINDOWS_CERTIFICATE_FILE }}
-          # WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-
-      - name: Debug - List build output
-        run: |
-          echo "Contents of out directory:"
-          find out -type f -name "*.zip" -o -name "*.deb" -o -name "*.rpm" -o -name "*.dmg" -o -name "*.exe" -o -name "*.nupkg" || true
-          echo "Full directory structure:"
-          ls -la out/ || true
-          ls -la out/make/ || true
-          echo "Looking for executables in packaged app:"
-          find out -type f -executable -name "*conduit*" -o -name "*Conduit*" || true
-          echo "Complete out directory tree:"
-          find out -type f || true
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}
-          retention-days: 90
-          # Fail if artifacts are not found - this indicates a build issue that should be fixed
-          if-no-files-found: error
-
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Display structure
-        run: ls -R artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Release v${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: false
-          files: |
-            artifacts/**/*
-          body: |
-            ## Installation
-
-            ### macOS
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.sh | bash
-            ```
-
-            ### Linux
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/build/scripts/install.sh | bash
-            ```
-
-            ## Changes
-            - Built from commit: ${{ github.sha }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONDUIT_APPLE_ID_PASSWORD: ${{ secrets.NOTARY_APP_PASSWORD }}
+          GITHUB_TOKEN: ${{ github.token }}
