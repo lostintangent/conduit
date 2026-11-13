@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "noImplicitAny": true,
+    "strict": false,
 
     "target": "ES2021",
     "useDefineForClassFields": true,
@@ -15,9 +16,9 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "noUncheckedSideEffectImports": false,
     "types": ["node", "bun-types/vitest"],
 
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/*"],
       "@shared/*": ["./src/shared/*"]
