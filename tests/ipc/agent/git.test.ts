@@ -24,8 +24,8 @@ const execFile = mockExecFileImpl;
 const stat = mockStatImpl;
 import { findRepoRoot, runGit } from "../../../src/ipc/agent/git";
 
-// These cover what the removed legacy gitRevert tests exercised incidentally:
-// repo-root discovery for agent worktrees and runGit error propagation.
+// These cover what the removed legacy git tests exercised incidentally:
+// repo-root discovery for agent worktrees and runGit's output and errors.
 describe("findRepoRoot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,6 +72,25 @@ describe("findRepoRoot", () => {
 });
 
 describe("runGit", () => {
+  it("returns git's output, run in cwd under the C locale", async () => {
+    execFile.mockImplementation((_cmd, _args, _opts, callback) => {
+      callback(null, { stdout: "main\n", stderr: "" });
+    });
+
+    await expect(
+      runGit("/test/repo", ["rev-parse", "--abbrev-ref", "HEAD"]),
+    ).resolves.toEqual({ stdout: "main\n", stderr: "" });
+    expect(execFile).toHaveBeenCalledWith(
+      "git",
+      ["rev-parse", "--abbrev-ref", "HEAD"],
+      expect.objectContaining({
+        cwd: "/test/repo",
+        env: expect.objectContaining({ LC_ALL: "C" }),
+      }),
+      expect.any(Function),
+    );
+  });
+
   it("propagates errors from the git command", async () => {
     (execFile as any).mockImplementation(
       (cmd: string, args: string[], opts: any, callback: any) => {
