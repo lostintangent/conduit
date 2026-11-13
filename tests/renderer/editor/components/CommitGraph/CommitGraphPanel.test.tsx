@@ -30,8 +30,6 @@ const defaultMockState: UseCommitGraphResult = {
   refresh: vi.fn(),
   loadMore: vi.fn(),
   toggleExpand: vi.fn().mockResolvedValue(undefined),
-  collapseAll: vi.fn(),
-  clearError: vi.fn(),
 };
 
 // =============================================================================

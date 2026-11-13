@@ -2,30 +2,15 @@
  * useExpandedFiles Hook
  *
  * Manages expansion state for file diffs in the changes review pane.
- * Tracks which files are expanded and provides helpers for bulk operations.
- *
- * Features:
- * - Track individual file expansion state
- * - Auto-expand all files on initial load
- * - Expand/collapse all helpers
- * - Derived state (allExpanded, noneExpanded)
+ * Tracks which files are expanded, auto-expanding all files on initial load.
  *
  * @example
  * ```tsx
  * function FileList({ files }: { files: string[] }) {
- *   const {
- *     expandedFiles,
- *     toggleFile,
- *     expandAll,
- *     collapseAll,
- *     allExpanded,
- *   } = useExpandedFiles(files);
+ *   const { expandedFiles, toggleFile } = useExpandedFiles(files);
  *
  *   return (
  *     <div>
- *       <button onClick={allExpanded ? collapseAll : () => expandAll(files)}>
- *         {allExpanded ? "Collapse All" : "Expand All"}
- *       </button>
  *       {files.map(file => (
  *         <FileItem
  *           key={file}
@@ -39,7 +24,7 @@
  * ```
  */
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 /**
  * Return type for useExpandedFiles hook.
@@ -54,23 +39,11 @@ export interface UseExpandedFilesResult {
   /** Expand a single file (no-op if already expanded) */
   expandFile: (path: string) => void;
 
-  /** Expand all specified files (replaces entire set) */
-  expandAll: (files: string[]) => void;
-
-  /** Collapse all files */
-  collapseAll: () => void;
-
   /** Expand specific files (adds to existing set) */
   expandFiles: (files: string[]) => void;
 
   /** Collapse specific files (removes from existing set) */
   collapseFiles: (files: string[]) => void;
-
-  /** Whether all files in the provided list are expanded */
-  allExpanded: boolean;
-
-  /** Whether no files are expanded */
-  noneExpanded: boolean;
 }
 
 /**
@@ -129,20 +102,6 @@ export function useExpandedFiles(
   }, []);
 
   /**
-   * Expand all specified files.
-   */
-  const expandAll = useCallback((files: string[]) => {
-    setExpandedFiles(new Set(files));
-  }, []);
-
-  /**
-   * Collapse all files.
-   */
-  const collapseAll = useCallback(() => {
-    setExpandedFiles(new Set());
-  }, []);
-
-  /**
    * Expand specific files (adds to existing set, preserves others).
    */
   const expandFiles = useCallback((files: string[]) => {
@@ -168,30 +127,11 @@ export function useExpandedFiles(
     });
   }, []);
 
-  /**
-   * Derived state: whether all files are expanded.
-   */
-  const allExpanded = useMemo(() => {
-    if (allFiles.length === 0) return false;
-    return allFiles.every((f) => expandedFiles.has(f));
-  }, [allFiles, expandedFiles]);
-
-  /**
-   * Derived state: whether no files are expanded.
-   */
-  const noneExpanded = useMemo(() => {
-    return expandedFiles.size === 0;
-  }, [expandedFiles]);
-
   return {
     expandedFiles,
     toggleFile,
     expandFile,
-    expandAll,
-    collapseAll,
     expandFiles,
     collapseFiles,
-    allExpanded,
-    noneExpanded,
   };
 }

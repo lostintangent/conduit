@@ -124,16 +124,6 @@ export interface CommitGraphActions {
    * When expanding, lazy-loads files if not already loaded.
    */
   toggleExpand: (commitId: string) => Promise<void>;
-
-  /**
-   * Collapse all expanded commits.
-   */
-  collapseAll: () => void;
-
-  /**
-   * Clear the current error.
-   */
-  clearError: () => void;
 }
 
 /**
@@ -427,20 +417,6 @@ export function useCommitGraph(
     [expandedCommitIds, loadFilesForCommit],
   );
 
-  /**
-   * Collapse all expanded commits.
-   */
-  const collapseAll = useCallback(() => {
-    setExpandedCommitIds(new Set());
-  }, []);
-
-  /**
-   * Clear the error state.
-   */
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
   // ---------------------------------------------------------------------------
   // Effects
   // ---------------------------------------------------------------------------
@@ -483,7 +459,5 @@ export function useCommitGraph(
     refresh,
     loadMore,
     toggleExpand,
-    collapseAll,
-    clearError,
   };
 }

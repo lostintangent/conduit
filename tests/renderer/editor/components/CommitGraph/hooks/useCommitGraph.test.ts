@@ -369,30 +369,6 @@ describe("useCommitGraph", () => {
 
       expect(result.current.error).toBe("Invalid branch or commit reference");
     });
-
-    it("should clear error with clearError action", async () => {
-      mockGit.getCommitHistory.mockRejectedValue(new Error("Some error"));
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        try {
-          await result.current.refresh();
-        } catch {
-          // Expected
-        }
-      });
-
-      expect(result.current.error).toBe("Some error");
-
-      act(() => {
-        result.current.clearError();
-      });
-
-      expect(result.current.error).toBeNull();
-    });
   });
 
   // ===========================================================================
@@ -722,47 +698,6 @@ describe("useCommitGraph", () => {
       expect(consoleError).toHaveBeenCalled();
 
       consoleError.mockRestore();
-    });
-  });
-
-  // ===========================================================================
-  // Collapse All
-  // ===========================================================================
-
-  describe("collapseAll", () => {
-    it("should collapse all expanded commits", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [
-          createMockCommit("abc123"),
-          createMockCommit("def456"),
-          createMockCommit("ghi789"),
-        ],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockResolvedValue([]);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Expand multiple commits
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-        await result.current.toggleExpand("def456");
-      });
-
-      expect(result.current.expandedCommitIds.size).toBe(2);
-
-      // Collapse all
-      act(() => {
-        result.current.collapseAll();
-      });
-
-      expect(result.current.expandedCommitIds.size).toBe(0);
     });
   });
 

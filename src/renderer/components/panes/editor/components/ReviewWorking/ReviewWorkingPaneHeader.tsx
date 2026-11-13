@@ -23,12 +23,9 @@
  *   isPulling={isPulling}
  *   isPushing={isPushing}
  *   hasUpstream={hasUpstream}
- *   allExpanded={allExpanded}
- *   onExpandAll={expandAll}
- *   onCollapseAll={collapseAll}
  *   onExitReview={handleExit}
  *   error={error}
- *   onDismissError={clearError}
+ *   onDismissError={handleDismissError}
  * />
  * ```
  */
