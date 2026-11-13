@@ -5,47 +5,13 @@
  *--------------------------------------------------------------------------------------------*/
 
 // Re-export the key functions needed for Quick Open fuzzy matching
-export {
-  // Main fuzzy matching functions
-  fuzzyScore,
-  type FuzzyScore,
-  // Match creation and filtering
-  createMatches,
-  matchesFuzzy,
-  matchesFuzzy2,
-  // Basic matchers
-  matchesPrefix,
-  matchesCamelCase,
-  matchesContiguousSubString,
-  matchesSubString,
-  matchesWords,
-  // Types
-  type IMatch,
-  type IFilter,
-} from "./filters";
 
-// Re-export character codes if needed
-export { CharCode } from "./charCode";
+export type { IMatch } from "./filters";
 
-// Re-export string utilities if needed
 export {
-  startsWithIgnoreCase,
-  convertSimple2RegExpPattern,
-  isEmojiImprecise,
-  commonPrefixLength,
-  isLowerAsciiLetter,
-  isUpperAsciiLetter,
-} from "./strings";
-
-// Re-export fuzzy scorer for Quick Open
-export {
-  // Main scoring functions
   prepareQuery,
   scoreItemFuzzy,
   compareItemsByFuzzyScore,
-  // Types
-  type IPreparedQuery,
   type IItemAccessor,
-  type IItemScore,
   type FuzzyScorerCache,
 } from "./scorer";

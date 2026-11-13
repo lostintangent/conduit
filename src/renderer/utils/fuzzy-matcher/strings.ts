@@ -11,20 +11,6 @@
 
 import { CharCode } from "./charCode";
 
-/**
- * @returns the length of the common prefix of the two strings.
- */
-export function commonPrefixLength(a: string, b: string): number {
-  const len = Math.min(a.length, b.length);
-  let i: number;
-  for (i = 0; i < len; i++) {
-    if (a.charCodeAt(i) !== b.charCodeAt(i)) {
-      return i;
-    }
-  }
-  return len;
-}
-
 export function startsWithIgnoreCase(str: string, candidate: string): boolean {
   const len = candidate.length;
   return (
@@ -121,32 +107,4 @@ export function compareSubstringIgnoreCase(
 
 export function isLowerAsciiLetter(code: number): boolean {
   return code >= CharCode.a && code <= CharCode.z;
-}
-
-export function isUpperAsciiLetter(code: number): boolean {
-  return code >= CharCode.A && code <= CharCode.Z;
-}
-
-export function convertSimple2RegExpPattern(pattern: string): string {
-  return pattern
-    .replace(/[\-\\\{\}\+\?\|\^\$\.\,\[\]\(\)\#\s]/g, "\\$&")
-    .replace(/[\*]/g, ".*");
-}
-
-export function isEmojiImprecise(x: number): boolean {
-  return (
-    (x >= 0x1f1e6 && x <= 0x1f1ff) ||
-    x === 8986 ||
-    x === 8987 ||
-    x === 9200 ||
-    x === 9203 ||
-    (x >= 9728 && x <= 10175) ||
-    x === 11088 ||
-    x === 11093 ||
-    (x >= 127744 && x <= 128591) ||
-    (x >= 128640 && x <= 128764) ||
-    (x >= 128992 && x <= 129008) ||
-    (x >= 129280 && x <= 129535) ||
-    (x >= 129648 && x <= 129782)
-  );
 }

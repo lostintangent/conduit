@@ -20,7 +20,6 @@ import { isUpper, matchesPrefix, type IMatch } from "./filters";
 // In Electron renderer, we normalize everything to "/" for consistency
 // (path-browserify uses "/" regardless of OS)
 const sep = "/";
-const isWindows = false; // Always use Unix-style paths in renderer
 
 //#region Types
 
@@ -189,12 +188,7 @@ function normalizeQuery(original: string): {
   normalized: string;
   normalizedLowercase: string;
 } {
-  let pathNormalized: string;
-  if (isWindows) {
-    pathNormalized = original.replace(/\//g, sep); // Help Windows users to search for paths when using slash
-  } else {
-    pathNormalized = original.replace(/\\/g, sep); // Help macOS/Linux users to search for paths when using backslash
-  }
+  const pathNormalized = original.replace(/\\/g, sep); // Help users to search for paths when using backslash
 
   // remove certain characters that help find better results:
   // - quotes: are used for exact match search
