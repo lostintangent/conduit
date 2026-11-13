@@ -15,7 +15,6 @@ export {
   useKeybindingDispatch,
   type KeybindingDispatchOptions,
 } from "./hooks/useKeybindingDispatch";
-export { useMenu } from "./menus/useMenu";
 export { loadUserKeybindings } from "./keybindings/userKeybindings";
 export { watchKeybindingsFile } from "./keybindings/watchKeybindings";
 export {
@@ -34,7 +33,6 @@ export type {
   ResolvedKeybinding,
 } from "./keybindings/types";
 export type { MenuId, MenuContribution, MenuItem } from "./menus/types";
-export type { MenuItemData } from "./menus/useMenu";
 export type { UserKeybinding } from "./keybindings/keybindingsFile";
 
 // Global instances (to be initialized in app startup)

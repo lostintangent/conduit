@@ -9,7 +9,6 @@ import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
 import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
 import { MenuId } from "@/commands/menus/types";
-import type { MenuItemData } from "@/commands/menus/useMenu";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
 import { useAtomValue } from "jotai";
@@ -22,7 +21,12 @@ type UseContextMenuParams = {
 
 const api = window.conduit;
 
-export interface ContextMenuItemData extends MenuItemData {
+export interface ContextMenuItemData {
+  commandId: string;
+  title: string;
+  group: string;
+  enabled: boolean;
+  submenuLabel?: string;
   keybinding?: string;
 }
 
