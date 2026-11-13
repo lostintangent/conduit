@@ -128,7 +128,6 @@ export function App() {
 
   const {
     workspaceName,
-    workspaces,
     hasLastWorkspace,
     showWorkspacePicker,
     setShowWorkspacePicker,
@@ -138,7 +137,6 @@ export function App() {
     setShowRenameWorkspaceDialog,
     saveWorkspace,
     renameWorkspace,
-    updateWorkspaces,
   } = useWorkspaces();
 
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
@@ -837,8 +835,6 @@ export function App() {
       <WorkspacePicker
         isOpen={showWorkspacePicker}
         onClose={() => setShowWorkspacePicker(false)}
-        workspaces={workspaces.workspaces}
-        onSessionsUpdate={updateWorkspaces}
       />
 
       <AgentCleanupDialog

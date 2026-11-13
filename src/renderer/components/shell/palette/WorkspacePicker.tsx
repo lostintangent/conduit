@@ -1,7 +1,9 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { openWorkspace } from "@/store/actions/workspace";
+import { workspaceStateAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
+import { useAtom } from "jotai";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "../../ui/button";
@@ -15,18 +17,12 @@ import {
 type WorkspacePickerDialog = {
   isOpen: boolean;
   onClose: () => void;
-  workspaces: Workspace[];
-  onSessionsUpdate: (sessions: Workspace[]) => void;
 };
 
 const { workspace } = window.conduit;
 
-export function WorkspacePicker({
-  isOpen,
-  onClose,
-  workspaces,
-  onSessionsUpdate,
-}: WorkspacePickerDialog) {
+export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
+  const [{ workspaces }, setWorkspaceState] = useAtom(workspaceStateAtom);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -34,6 +30,23 @@ export function WorkspacePicker({
 
     setSelectedIndex(0);
   }, [isOpen]);
+
+  const deleteWorkspace = useCallback(
+    async (name: string) => {
+      await workspace.deleteWorkspace(name);
+      const state = await workspace.getState();
+      setWorkspaceState(state);
+
+      if (state.workspaces.length === 0) {
+        onClose();
+      } else {
+        setSelectedIndex((current) =>
+          Math.min(current, state.workspaces.length - 1),
+        );
+      }
+    },
+    [onClose, setWorkspaceState],
+  );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -71,28 +84,11 @@ export function WorkspacePicker({
         event.preventDefault();
         const selectedWorkspace = workspaces[selectedIndex];
         if (selectedWorkspace) {
-          void (async () => {
-            const api = window.conduit;
-            if (!api) {
-              return;
-            }
-
-            await workspace.deleteWorkspace(selectedWorkspace.name);
-            const updatedWorkspaces = await workspace.getState();
-            onSessionsUpdate(updatedWorkspaces.workspaces);
-
-            if (updatedWorkspaces.workspaces.length === 0) {
-              onClose();
-            } else {
-              setSelectedIndex((current) =>
-                Math.min(current, updatedWorkspaces.workspaces.length - 1),
-              );
-            }
-          })();
+          void deleteWorkspace(selectedWorkspace.name);
         }
       }
     },
-    [onClose, selectedIndex, workspaces, onSessionsUpdate],
+    [onClose, selectedIndex, workspaces, deleteWorkspace],
   );
 
   const handleOpenWorkspace = useCallback(
@@ -106,22 +102,11 @@ export function WorkspacePicker({
   );
 
   const handleDeleteWorkspace = useCallback(
-    async (session: Workspace, event: React.MouseEvent) => {
+    (session: Workspace, event: React.MouseEvent) => {
       event.stopPropagation();
-
-      await workspace.deleteWorkspace(session.name);
-      const updatedWorkspaces = await workspace.getState();
-      onSessionsUpdate(updatedWorkspaces.workspaces);
-
-      if (updatedWorkspaces.workspaces.length === 0) {
-        onClose();
-      } else {
-        setSelectedIndex((current) =>
-          Math.min(current, updatedWorkspaces.workspaces.length - 1),
-        );
-      }
+      void deleteWorkspace(session.name);
     },
-    [onClose, onSessionsUpdate],
+    [deleteWorkspace],
   );
 
   const formatTimestamp = (timestamp: number) => {

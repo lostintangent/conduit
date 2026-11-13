@@ -11,7 +11,6 @@ import {
   workspaceNameAtom,
   workspaceStateAtom,
 } from "@/store/atoms";
-import type { Workspace } from "@shared/types";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -172,13 +171,6 @@ export function useWorkspaces() {
     [workspaceName, setWorkspaceName, setWorkspaces],
   );
 
-  const updateWorkspaces = useCallback(
-    (workspaces: Workspace[]) => {
-      setWorkspaces((current) => ({ ...current, ...workspaces }));
-    },
-    [setWorkspaces],
-  );
-
   const closeWorkspace = useCallback(
     async (tabs: any[], activeTabId?: string) => {
       if (workspaceName && tabs.length > 0 && activeTabId) {
@@ -192,12 +184,11 @@ export function useWorkspaces() {
 
       closeWorkspaceAction();
     },
-    [workspaceName, updateWorkspaces],
+    [workspaceName, setWorkspaces],
   );
 
   return {
     workspaceName,
-    workspaces,
     hasLastWorkspace: Boolean(workspaces.lastWorkspace),
 
     showWorkspacePicker,
@@ -209,7 +200,6 @@ export function useWorkspaces() {
 
     saveWorkspace,
     renameWorkspace,
-    updateWorkspaces,
     closeWorkspace,
   };
 }
