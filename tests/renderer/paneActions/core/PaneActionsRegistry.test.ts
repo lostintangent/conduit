@@ -253,21 +253,15 @@ describe("PaneActionsRegistry", () => {
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    // TODO: This test is flaky on macOS (Darwin) - the listener is unexpectedly called
-    // with an empty array even though no file exists. Root cause may be related to
-    // test setup/teardown timing or mock initialization. Should be investigated and fixed.
-    it.skipIf(process.platform === "darwin")(
-      "should not notify listeners when file does not exist",
-      async () => {
-        const { registry, testFilePath } = await setupFileTest();
-        const listener = vi.fn();
+    it("should not notify listeners when file does not exist", async () => {
+      const { registry, testFilePath } = await setupFileTest();
+      const listener = vi.fn();
 
-        registry.onChange(listener);
-        await registry.loadFromFile(testFilePath);
+      registry.onChange(listener);
+      await registry.loadFromFile(testFilePath);
 
-        expect(listener).not.toHaveBeenCalled();
-      },
-    );
+      expect(listener).not.toHaveBeenCalled();
+    });
   });
 
   describe("resetToDefaults", () => {
@@ -312,7 +306,10 @@ async function setupFileTest() {
   const { join, dirname } = await import("path");
   const { tmpdir } = await import("os");
 
-  const testDir = join(tmpdir(), `pane-actions-registry-test-${Date.now()}`);
+  const testDir = join(
+    tmpdir(),
+    `pane-actions-registry-test-${crypto.randomUUID()}`,
+  );
   const testFilePath = join(testDir, "paneactions.json");
 
   await mkdir(testDir, { recursive: true });
