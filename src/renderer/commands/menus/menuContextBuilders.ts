@@ -49,10 +49,3 @@ export function getMenuContextBuilder(
 ): MenuContextBuilder | undefined {
   return menuContextBuilders.get(menuId);
 }
-
-/**
- * Check if a menu has a registered context builder
- */
-export function hasMenuContextBuilder(menuId: MenuId): boolean {
-  return menuContextBuilders.has(menuId);
-}

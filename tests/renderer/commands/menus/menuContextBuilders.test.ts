@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   registerMenuContextBuilder,
   getMenuContextBuilder,
-  hasMenuContextBuilder,
   type MenuContextBuilder,
   type MenuContextParams,
 } from "@/commands/menus/menuContextBuilders";
@@ -30,7 +29,6 @@ describe("menuContextBuilders", () => {
 
       registerMenuContextBuilder(MenuId.TabContext, builder);
 
-      expect(hasMenuContextBuilder(MenuId.TabContext)).toBe(true);
       expect(getMenuContextBuilder(MenuId.TabContext)).toBe(builder);
     });
 
@@ -67,19 +65,6 @@ describe("menuContextBuilders", () => {
       registerMenuContextBuilder(MenuId.TabContext, builder);
 
       expect(getMenuContextBuilder(MenuId.TabContext)).toBe(builder);
-    });
-  });
-
-  describe("hasMenuContextBuilder", () => {
-    it("should return false for unregistered menu ID", () => {
-      expect(hasMenuContextBuilder(MenuId.EditorContext)).toBe(false);
-    });
-
-    it("should return true for registered menu ID", () => {
-      const builder: MenuContextBuilder = vi.fn();
-      registerMenuContextBuilder(MenuId.TabContext, builder);
-
-      expect(hasMenuContextBuilder(MenuId.TabContext)).toBe(true);
     });
   });
 
