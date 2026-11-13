@@ -78,9 +78,11 @@ export default function (program: Command): Command {
 
   for (const command of BROWSER_AUTOMATION_COMMANDS) {
     const cliCommand = program
-      .cliCommand(command.name, async (request, ...rawArgs) => {
-        const options = rawArgs.pop();
-        const commandArgs = command.buildArgs(rawArgs, options);
+      .cliCommand(command.name, async (request, ...actionArgs) => {
+        // Commander passes the positional arguments, then the parsed
+        // options, then the command itself.
+        const [options] = actionArgs.splice(-2);
+        const commandArgs = command.buildArgs(actionArgs, options);
 
         const result = await request(commandArgs);
         // Only print non-boolean results (e.g., element descriptors)
