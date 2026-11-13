@@ -17,6 +17,7 @@ import type {
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
   UserSettings,
+  Workspace,
 } from "@shared/types";
 import { contextBridge, ipcRenderer } from "electron";
 import configureBrowserModule from "./modules/browser";
@@ -88,7 +89,7 @@ const conduitAPI = {
     createEventListener("ui:new-tab-request", listener),
 
   // Notify when user requests to open a workspace (e.g. via menu)
-  onOpenWorkspaceRequest: (listener: (workspace: unknown) => void) =>
+  onOpenWorkspaceRequest: (listener: (workspace: Workspace) => void) =>
     createEventListener("ui:open-workspace-request", listener),
 
   // Notify when the user clicks a context menu command

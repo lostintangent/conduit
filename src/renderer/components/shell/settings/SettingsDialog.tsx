@@ -41,7 +41,7 @@ export function SettingsDialog({
   onUpdateSettings,
   userSettings,
 }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
