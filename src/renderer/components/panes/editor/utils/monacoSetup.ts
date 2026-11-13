@@ -6,7 +6,7 @@
  *
  * Configurations:
  * - Monaco Environment: worker configuration (prevents console errors)
- * - Markdown language: surrounding pairs and auto-closing for markdown syntax
+ * - Markdown: *, _, backticks, brackets and quotes wrap the selection
  * - Zig, TOML, Makefile and diff: Monarch tokenizers Monaco doesn't ship
  * - JSONC: .jsonc files open as JSON with comments and trailing commas allowed
  * - TypeScript/JavaScript: diagnostics disabled (custom URI schemes not supported)
@@ -80,30 +80,32 @@ export function configureMonaco(): void {
     ],
   });
 
-  // Configure markdown language for better editing experience
-  monaco.languages.setLanguageConfiguration("markdown", {
-    surroundingPairs: [
-      { open: "*", close: "*" }, // Italic: *text*
-      { open: "_", close: "_" }, // Italic: _text_
-      { open: "**", close: "**" }, // Bold: **text**
-      { open: "__", close: "__" }, // Bold: __text__
-      { open: "[", close: "]" }, // Link text: [text]
-      { open: "(", close: ")" }, // Link URL: (url)
-      { open: "`", close: "`" }, // Inline code: `code`
-      { open: "```", close: "```" }, // Code block
-      { open: '"', close: '"' }, // Quotes
-      { open: "'", close: "'" }, // Single quotes
-    ],
-    autoClosingPairs: [
-      { open: "*", close: "*" },
-      { open: "_", close: "_" },
-      { open: "[", close: "]" },
-      { open: "(", close: ")" },
-      { open: "`", close: "`" },
-      { open: '"', close: '"' },
-      { open: "'", close: "'" },
-      { open: "```", close: "```" },
-    ],
+  // Monaco applies its own Markdown configuration when the first Markdown
+  // model loads the grammar module, and the later registration wins. So wait
+  // for that module, then add ours in the next task, once Monaco's is in.
+  const markdown = monaco.languages
+    .getLanguages()
+    .find(({ id }) => id === "markdown") as
+    | (monaco.languages.ILanguageExtensionPoint & {
+        loader?: () => Promise<unknown>;
+      })
+    | undefined;
+  monaco.languages.onLanguageEncountered("markdown", async () => {
+    await markdown?.loader?.();
+    setTimeout(() => {
+      // Typing one of these wraps the selection. Typing * or _ twice makes it bold.
+      monaco.languages.setLanguageConfiguration("markdown", {
+        surroundingPairs: [
+          { open: "*", close: "*" },
+          { open: "_", close: "_" },
+          { open: "`", close: "`" },
+          { open: "[", close: "]" },
+          { open: "(", close: ")" },
+          { open: '"', close: '"' },
+          { open: "'", close: "'" },
+        ],
+      });
+    });
   });
 
   // Disable TypeScript/JavaScript diagnostics globally

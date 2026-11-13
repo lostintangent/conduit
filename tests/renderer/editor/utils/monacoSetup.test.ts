@@ -1,25 +1,31 @@
 /**
  * @vitest-environment jsdom
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { languages } = vi.hoisted(() => ({
-  languages: {
-    register: vi.fn(),
-    setMonarchTokensProvider: vi.fn(),
-    setLanguageConfiguration: vi.fn(),
-    typescript: {
-      typescriptDefaults: { setDiagnosticsOptions: vi.fn() },
-      javascriptDefaults: { setDiagnosticsOptions: vi.fn() },
-    },
-    json: {
-      jsonDefaults: {
-        diagnosticsOptions: { validate: true, comments: "error" },
-        setDiagnosticsOptions: vi.fn(),
+const { languages, loadMarkdown } = vi.hoisted(() => {
+  const loadMarkdown = vi.fn(async () => ({}));
+  return {
+    loadMarkdown,
+    languages: {
+      register: vi.fn(),
+      setMonarchTokensProvider: vi.fn(),
+      setLanguageConfiguration: vi.fn(),
+      getLanguages: vi.fn(() => [{ id: "markdown", loader: loadMarkdown }]),
+      onLanguageEncountered: vi.fn(),
+      typescript: {
+        typescriptDefaults: { setDiagnosticsOptions: vi.fn() },
+        javascriptDefaults: { setDiagnosticsOptions: vi.fn() },
+      },
+      json: {
+        jsonDefaults: {
+          diagnosticsOptions: { validate: true, comments: "error" },
+          setDiagnosticsOptions: vi.fn(),
+        },
       },
     },
-  },
-}));
+  };
+});
 
 vi.mock("monaco-editor", () => ({ languages }));
 
@@ -35,6 +41,10 @@ async function configureFreshMonaco() {
 describe("configureMonaco", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it.each([
@@ -69,6 +79,40 @@ describe("configureMonaco", () => {
         }),
       ],
     });
+  });
+
+  // Monaco's markdown contribution registers its own handler at import time.
+  // It loads the grammar module and then applies the stock configuration,
+  // whose surround pairs are only brackets and backticks.
+  it("adds Markdown surround pairs after Monaco's own Markdown config", async () => {
+    vi.useFakeTimers();
+    await configureFreshMonaco();
+
+    const monacosOwn = (async () => {
+      // LazyLanguageLoader resolves its own promise from the loader's
+      await new Promise((resolve) => loadMarkdown().then(resolve));
+      languages.setLanguageConfiguration("markdown", {
+        surroundingPairs: [{ open: "(", close: ")" }],
+      });
+    })();
+    for (const [id, onEncountered] of languages.onLanguageEncountered.mock
+      .calls) {
+      if (id === "markdown") onEncountered();
+    }
+    await monacosOwn;
+    await vi.runAllTimersAsync();
+
+    const markdownConfigs = languages.setLanguageConfiguration.mock.calls
+      .filter(([id]) => id === "markdown")
+      .map(([, config]) => config);
+    expect(
+      markdownConfigs[markdownConfigs.length - 1]?.surroundingPairs,
+    ).toEqual(
+      expect.arrayContaining([
+        { open: "*", close: "*" },
+        { open: "_", close: "_" },
+      ]),
+    );
   });
 
   // The shared monaco-editor mock can't tokenize, so check each definition
