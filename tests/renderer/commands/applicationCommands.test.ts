@@ -16,6 +16,9 @@ import type { CommandDescriptor } from "@/commands/core/types";
 import * as handlers from "@/commands/handlers";
 import * as focusModeActions from "@/store/actions/focusMode";
 import * as tabActions from "@/store/actions/tab";
+import { notificationsAtom } from "@/store/atoms";
+import type { Tab, TerminalPane } from "@/types";
+import { getDefaultStore } from "jotai";
 import { commandContext } from "./fixtures";
 
 // Mock store actions
@@ -408,6 +411,44 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(handlers.handleTerminate).toHaveBeenCalledWith(mockActiveTab);
+      });
+    });
+
+    describe("AGENT_DELETE_ALL_WORKTREES", () => {
+      it("should report removed and already-missing worktrees as deleted", async () => {
+        const command = registeredCommands.get(
+          ApplicationCommands.AGENT_DELETE_ALL_WORKTREES,
+        )!;
+        const agentPane = (id: string): TerminalPane => ({
+          id,
+          type: "terminal",
+          sessionId: `pty-${id}`,
+          cwd: `/worktrees/${id}`,
+          title: id,
+          agentSessionId: `session-${id}`,
+          agentWorktreePath: `/worktrees/${id}`,
+        });
+        const tab: Tab = {
+          id: "tab-1",
+          name: "Agents",
+          panes: { a: agentPane("a"), b: agentPane("b") },
+          layout: { id: "root", type: "pane", paneId: "a" },
+          activePaneId: "a",
+        };
+        const cleanupAgentSession = vi
+          .fn()
+          .mockResolvedValueOnce({ status: "removed" })
+          .mockResolvedValueOnce({ status: "missing" });
+        window.conduit.cleanupAgentSession = cleanupAgentSession;
+
+        await command.run(commandContext({ activeTab: tab, allTabs: [tab] }));
+
+        expect(cleanupAgentSession).toHaveBeenCalledTimes(2);
+        const [latest] = getDefaultStore().get(notificationsAtom);
+        expect(latest).toMatchObject({
+          kind: "success",
+          message: "Successfully deleted 2 worktrees",
+        });
       });
     });
 

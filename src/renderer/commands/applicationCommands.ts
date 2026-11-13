@@ -1447,14 +1447,9 @@ export function registerApplicationCommands(
       // Delete each agent session
       for (const sessionId of agentSessionIds) {
         try {
-          const result = await window.conduit.cleanupAgentSession({
-            sessionId,
-          });
-          if (result.status === "success") {
-            successCount++;
-          } else {
-            errorCount++;
-          }
+          // Resolves as "removed" or "missing" (already gone), throws on failure
+          await window.conduit.cleanupAgentSession({ sessionId });
+          successCount++;
         } catch (error) {
           console.error(`Failed to delete agent session ${sessionId}:`, error);
           errorCount++;
@@ -1475,7 +1470,7 @@ export function registerApplicationCommands(
         });
       } else {
         enqueueNotification({
-          kind: "warning",
+          kind: "error",
           message: `Deleted ${successCount} worktree${successCount > 1 ? "s" : ""}, ${errorCount} failed`,
           autoCloseMs: 5000,
         });
