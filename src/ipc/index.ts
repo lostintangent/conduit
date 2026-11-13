@@ -15,7 +15,6 @@ import {
   handleGitWindowClose,
   initializeGitV2Handlers,
 } from "./git/handlers";
-import { registerSearchHandlers } from "./search";
 import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,
@@ -61,7 +60,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeUIHandlers(window);
   await initializeAgentHandlers();
   initializeBrowserHandlers();
-  registerSearchHandlers();
 
   // Initialize filesystem and git handlers (v2)
   initializeFileSystemV2Handlers();
