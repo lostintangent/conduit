@@ -40,6 +40,11 @@ vi.mock("@/store/actions/focusMode", () => ({
 import { duplicateTab, translateFilePath } from "@/store/actions/tab";
 import type { Tab } from "@/types";
 
+/** Runs the updater that the action passed to store.set against `tabs`. */
+function applyTabsUpdate(tabs: Tab[]): Tab[] {
+  return mockStoreSet.mock.calls[0][1](tabs);
+}
+
 describe("translateFilePath", () => {
   it("should return file unchanged when source and target CWDs are the same", () => {
     const result = translateFilePath(
@@ -160,8 +165,7 @@ describe("duplicateTab", () => {
 
     // Verify new tab was added
     expect(mockStoreSet).toHaveBeenCalled();
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     expect(newTabs).toHaveLength(2);
     expect(newTabs[1].name).toBe("My Tab 2");
@@ -219,8 +223,7 @@ describe("duplicateTab", () => {
     expect(mockApi.captureTerminalCommand).toHaveBeenCalledTimes(2);
     expect(mockApi.createTerminal).toHaveBeenCalledTimes(2);
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     expect(newTabs).toHaveLength(2);
     expect(Object.keys(newTabs[1].panes)).toHaveLength(2);
@@ -252,8 +255,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("editor");
@@ -289,8 +291,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("browser");
@@ -337,8 +338,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("terminal");
@@ -395,8 +395,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback(tabs);
+    const newTabs = applyTabsUpdate(tabs);
 
     // Should be "My Tab 6" (highest existing is 5, so next is 6)
     expect(newTabs[2].name).toBe("My Tab 6");
@@ -461,8 +460,7 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback(tabs);
+    const newTabs = applyTabsUpdate(tabs);
 
     expect(newTabs).toHaveLength(4);
     expect(newTabs[0].id).toBe("tab-1");
@@ -518,8 +516,7 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     // The duplicated tab should have the same active pane (by position)
     const newTab = newTabs[1];
@@ -597,8 +594,7 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     const newTab = newTabs[1];
     expect(newTab.layout.type).toBe("split");
@@ -637,8 +633,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const setCallback = mockStoreSet.mock.calls[0][1];
-    const newTabs = setCallback([sourceTab]);
+    const newTabs = applyTabsUpdate([sourceTab]);
 
     // Should not have a name
     expect(newTabs[1].name).toBeUndefined();
