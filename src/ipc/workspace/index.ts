@@ -1,4 +1,4 @@
-import { dialog, ipcMain } from "electron";
+import { app, dialog, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "yaml";
@@ -19,6 +19,8 @@ const WORKSPACE_FILE_FILTER = {
 
 let workspacesFilePath: string;
 let workspaceState: WorkspaceState = { workspaces: [] };
+// Without a defaultPath, open dialogs start in Downloads (Electron 43+)
+let lastImportDirectory: string | undefined;
 
 export default async function initializeWorkspaceHandlers(
   conduitStateDirectory: string,
@@ -250,6 +252,7 @@ export function getWorkspaces(): Workspace[] {
 async function importWorkspace(): Promise<Workspace | null> {
   try {
     const { filePaths } = await dialog.showOpenDialog({
+      defaultPath: lastImportDirectory ?? app.getPath("home"),
       properties: ["openFile"],
       filters: [WORKSPACE_FILE_FILTER],
     });
@@ -259,8 +262,9 @@ async function importWorkspace(): Promise<Workspace | null> {
     }
 
     const filePath = filePaths[0];
-    const fileContent = await fs.readFile(filePath, "utf-8");
     const fileDir = path.dirname(filePath);
+    lastImportDirectory = fileDir;
+    const fileContent = await fs.readFile(filePath, "utf-8");
 
     const template = yaml.parse(fileContent) as WorkspaceTemplate;
 
