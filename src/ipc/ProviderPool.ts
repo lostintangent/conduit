@@ -91,8 +91,15 @@ export class ProviderPool<T> {
       return;
     }
 
+    if (entry.refCount === 0) {
+      // Already idle. Another grace timer would orphan the pending one, which
+      // could then dispose the provider after it's re-acquired.
+      console.warn(`[${this.name}] Released more than acquired: ${key}`);
+      return;
+    }
+
     entry.refCount--;
-    if (entry.refCount <= 0) {
+    if (entry.refCount === 0) {
       this.hooks.onIdle?.(entry.value);
       entry.disposeTimer = setTimeout(
         () => this.dispose(key),

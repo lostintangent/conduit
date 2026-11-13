@@ -126,11 +126,30 @@ describe("ProviderPool", () => {
     warn.mockRestore();
   });
 
+  it("ignores a release past zero, so a re-acquired provider survives", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const value = await pool.acquire("/test/project", create);
+    pool.release("/test/project");
+    pool.release("/test/project");
+
+    await pool.acquire("/test/project", create);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(hooks.dispose).not.toHaveBeenCalled();
+    expect(hooks.onIdle).toHaveBeenCalledTimes(1);
+
+    // The re-acquired reference is the only one.
+    pool.release("/test/project");
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(hooks.dispose).toHaveBeenCalledExactlyOnceWith(value);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("Released more than acquired"),
+    );
+    warn.mockRestore();
+  });
+
   it("disposeAll disposes every provider once and cancels grace periods", async () => {
     const first = await pool.acquire("/test/first", create);
     const second = await pool.acquire("/test/second", create);
-    // A double release leaves an earlier grace timer that disposeAll can't see.
-    pool.release("/test/first");
     pool.release("/test/first");
 
     pool.disposeAll();
