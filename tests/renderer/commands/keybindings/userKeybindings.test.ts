@@ -662,7 +662,7 @@ describe("restoreDefaultKeybindings", () => {
     commandRegistry.registerCommand({
       id: "test.command",
       title: "Test Command",
-      keybinding: [{ key: "Ctrl+T" }, { key: "Cmd+T", mac: "Cmd+T" }],
+      keybinding: [{ key: "Ctrl+T" }, { key: "Cmd+T" }],
       run: () => {},
     });
 

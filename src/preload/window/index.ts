@@ -177,17 +177,6 @@ const conduitAPI = {
       string | null
     >,
 
-  /* Window control methods */
-
-  minimizeWindow: () => ipcRenderer.send("ui:window-minimize"),
-
-  maximizeWindow: () => ipcRenderer.send("ui:window-maximize"),
-
-  closeWindow: () => ipcRenderer.send("ui:window-close"),
-
-  isWindowMaximized: () =>
-    ipcRenderer.invoke("ui:window-is-maximized") as Promise<boolean>,
-
   showItemInFolder: (path: string) =>
     ipcRenderer.invoke("ui:show-item-in-folder", path) as Promise<void>,
 

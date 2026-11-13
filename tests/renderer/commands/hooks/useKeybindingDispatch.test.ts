@@ -715,27 +715,7 @@ describe("useKeybindingDispatch", () => {
         })) as Tab[];
       };
 
-      // jsdom doesn't report as Mac, so we need to mock navigator.platform for Mac tests
-      let originalPlatform: string;
-
-      beforeEach(() => {
-        originalPlatform = navigator.platform;
-      });
-
-      afterEach(() => {
-        Object.defineProperty(navigator, "platform", {
-          value: originalPlatform,
-          configurable: true,
-        });
-      });
-
       it("should focus first tab on Cmd+1 (Mac)", async () => {
-        // Mock Mac platform
-        Object.defineProperty(navigator, "platform", {
-          value: "MacIntel",
-          configurable: true,
-        });
-
         // Mock the focusTab action
         const focusTabModule = await import("@/store/actions/tab");
         const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
@@ -766,11 +746,6 @@ describe("useKeybindingDispatch", () => {
       });
 
       it("should focus third tab on Cmd+3 (Mac)", async () => {
-        Object.defineProperty(navigator, "platform", {
-          value: "MacIntel",
-          configurable: true,
-        });
-
         const focusTabModule = await import("@/store/actions/tab");
         const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
 
@@ -800,11 +775,6 @@ describe("useKeybindingDispatch", () => {
       });
 
       it("should focus last tab when number exceeds tab count", async () => {
-        Object.defineProperty(navigator, "platform", {
-          value: "MacIntel",
-          configurable: true,
-        });
-
         const focusTabModule = await import("@/store/actions/tab");
         const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
 
@@ -836,11 +806,6 @@ describe("useKeybindingDispatch", () => {
       });
 
       it("should not switch tabs when command palette is open", async () => {
-        Object.defineProperty(navigator, "platform", {
-          value: "MacIntel",
-          configurable: true,
-        });
-
         const focusTabModule = await import("@/store/actions/tab");
         const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
 
@@ -870,11 +835,6 @@ describe("useKeybindingDispatch", () => {
       });
 
       it("should not switch tabs with Shift held", async () => {
-        Object.defineProperty(navigator, "platform", {
-          value: "MacIntel",
-          configurable: true,
-        });
-
         const focusTabModule = await import("@/store/actions/tab");
         const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
 
@@ -900,41 +860,6 @@ describe("useKeybindingDispatch", () => {
         window.dispatchEvent(event);
 
         expect(focusTabSpy).not.toHaveBeenCalled();
-
-        focusTabSpy.mockRestore();
-      });
-
-      it("should use Ctrl on non-Mac platforms", async () => {
-        // Mock navigator.platform to be Windows
-        Object.defineProperty(navigator, "platform", {
-          value: "Win32",
-          configurable: true,
-        });
-
-        const focusTabModule = await import("@/store/actions/tab");
-        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
-
-        const tabs = createMockTabs(3);
-        const options: KeybindingDispatchOptions = {
-          applicationMode: "normal",
-          setApplicationMode: vi.fn(),
-          tabs,
-          isQuickOpenOpen: false,
-        };
-
-        renderHook(() =>
-          useKeybindingDispatch(commandRegistry, keybindingRegistry, options),
-        );
-
-        const event = new KeyboardEvent("keydown", {
-          key: "1",
-          ctrlKey: true, // Ctrl on Windows
-          bubbles: true,
-          cancelable: true,
-        });
-        window.dispatchEvent(event);
-
-        expect(focusTabSpy).toHaveBeenCalledWith("tab-1");
 
         focusTabSpy.mockRestore();
       });

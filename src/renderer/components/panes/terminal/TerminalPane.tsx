@@ -93,29 +93,11 @@ const registerTerminalKeyHandler = ({
       event.key.toLowerCase() === "c"
     ) {
       if (terminal.hasSelection()) {
-        if (api.platform === "win32") {
-          // On Windows, we need to explicitly copy the selection to the clipboard
-          // because returning true to let the browser handle it doesn't work in Electron.
-          navigator.clipboard.writeText(terminal.getSelection());
-          return false;
-        }
         return true;
       }
 
       api.sendKeypress(sessionId, "\u0003");
       onSynchronizedInput?.("\u0003");
-      return false;
-    }
-
-    if (
-      api.platform === "win32" && //windows only handler
-      isCtrlOrMeta &&
-      !event.shiftKey &&
-      !event.altKey &&
-      event.key.toLowerCase() === "t"
-    ) {
-      // Ctrl+T / Cmd+T: Open new terminal tab, let the global handler deal with it
-      // If we don't do this, the Windows terminal will capture the event and insert a '^T' character.
       return false;
     }
 

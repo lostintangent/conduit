@@ -119,17 +119,14 @@ function formatKey(key: string): string {
  * // → "↑" (symbol instead of "ArrowUp")
  */
 export function formatKeybindingForDisplay(chords: KeyChord[]): string {
-  const isMac = navigator.userAgent.toLowerCase().includes("mac");
-
-  // Format each chord
   const formattedChords = chords.map((chord) => {
     const parts: string[] = [];
 
     // Add modifiers in consistent order
-    if (chord.ctrl) parts.push(isMac ? "⌃" : "Ctrl");
-    if (chord.alt) parts.push(isMac ? "⌥" : "Alt");
-    if (chord.shift) parts.push(isMac ? "⇧" : "Shift");
-    if (chord.meta) parts.push(isMac ? "⌘" : "Ctrl"); // Meta = Cmd on Mac, Ctrl elsewhere
+    if (chord.ctrl) parts.push("⌃");
+    if (chord.alt) parts.push("⌥");
+    if (chord.shift) parts.push("⇧");
+    if (chord.meta) parts.push("⌘");
 
     // Add required keys (e.g., "B" in "Cmd+Shift+B+Left")
     if (chord.requiredKeys && chord.requiredKeys.length > 0) {
@@ -139,8 +136,7 @@ export function formatKeybindingForDisplay(chords: KeyChord[]): string {
     // Add the key
     parts.push(formatKey(chord.key));
 
-    // Join: Mac uses no separator (⌘⌥F), others use + (Ctrl+Alt+F)
-    return parts.join(isMac ? "" : "+");
+    return parts.join("");
   });
 
   // Join multi-chords with space
@@ -169,8 +165,6 @@ export function formatKeybindingForDisplay(chords: KeyChord[]): string {
  * // → "Cmd+Up"
  */
 export function formatKeybindingForElectron(chords: KeyChord[]): string {
-  const isMac = navigator.userAgent.toLowerCase().includes("mac");
-
   // Only support single-chord keybindings for Electron menus
   // Multi-chord sequences (like Cmd+K Cmd+S) cannot be represented as Electron accelerators
   if (chords.length !== 1) {
@@ -184,7 +178,7 @@ export function formatKeybindingForElectron(chords: KeyChord[]): string {
   if (chord.ctrl) parts.push("Ctrl");
   if (chord.alt) parts.push("Alt");
   if (chord.shift) parts.push("Shift");
-  if (chord.meta) parts.push(isMac ? "Cmd" : "Ctrl");
+  if (chord.meta) parts.push("Cmd");
 
   // Note: Electron accelerators don't support required keys (like B in Cmd+Shift+B+Left)
   // These multi-key combinations should not be used as Electron menu accelerators

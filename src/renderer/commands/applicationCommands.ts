@@ -113,10 +113,7 @@ export function registerApplicationCommands(
     title: "Toggle Focus Mode",
     description: "Zoom into a single pane or return to normal view",
     category: "View",
-    keybinding: {
-      key: "Cmd+Shift+F",
-      win: "Ctrl+Shift+F",
-    },
+    keybinding: { key: "Cmd+Shift+F" },
     run: (context) => {
       if (context.activeTab) {
         toggleFocusMode(context.activeTab.id, context.activeTab.activePaneId);
@@ -130,10 +127,7 @@ export function registerApplicationCommands(
     title: "Toggle Design Mode",
     description: "Show or hide pane control buttons for layout manipulation",
     category: "View",
-    keybinding: {
-      key: "Cmd+D",
-      win: "Ctrl+D",
-    },
+    keybinding: { key: "Cmd+D" },
     run: (context) => {
       handleToggleDesignMode(
         context.applicationMode,
@@ -148,10 +142,7 @@ export function registerApplicationCommands(
     title: "Settings",
     description: "Open application settings",
     category: "View",
-    keybinding: {
-      key: "Cmd+,",
-      win: "Ctrl+,",
-    },
+    keybinding: { key: "Cmd+," },
     run: (context) => {
       handleOpenSettings(context.setShowGeneralSettings);
     },
@@ -163,10 +154,7 @@ export function registerApplicationCommands(
     title: "Keyboard Shortcuts",
     description: "View and customize keyboard shortcuts",
     category: "View",
-    keybinding: {
-      key: "Cmd+K Cmd+S",
-      win: "Ctrl+K Ctrl+S",
-    },
+    keybinding: { key: "Cmd+K Cmd+S" },
     run: (context) => {
       handleOpenKeyboardShortcuts(context.setShowKeybindingsEditor);
     },
@@ -200,10 +188,7 @@ export function registerApplicationCommands(
     title: "Show Command Palette",
     description: "Show all available commands",
     category: "View",
-    keybinding: {
-      key: "Cmd+Shift+P",
-      win: "Ctrl+Shift+P",
-    },
+    keybinding: { key: "Cmd+Shift+P" },
     run: (context) => {
       // Open QuickOpen in command mode (with ">" prefix)
       context.setQuickOpenInitialValue?.(">");
@@ -217,10 +202,7 @@ export function registerApplicationCommands(
     title: "Toggle Sidebar",
     description: "Show or hide the sidebar overlay",
     category: "View",
-    keybinding: {
-      key: "Cmd+E",
-      win: "Ctrl+E",
-    },
+    keybinding: { key: "Cmd+E" },
     run: () => {
       handleToggleSidebar();
     },
@@ -232,10 +214,7 @@ export function registerApplicationCommands(
     title: "Save Workspace",
     description: "Save current tab layout for later restoration",
     category: "Workspace",
-    keybinding: {
-      key: "Cmd+K Cmd+W",
-      win: "Ctrl+K Ctrl+W",
-    },
+    keybinding: { key: "Cmd+K Cmd+W" },
     run: (context) => {
       void handleSaveWorkspace(
         context.allTabs,
@@ -251,10 +230,7 @@ export function registerApplicationCommands(
     title: "Rename Workspace",
     description: "Change the name of the current workspace",
     category: "Workspace",
-    keybinding: {
-      key: "Cmd+K Cmd+R",
-      win: "Ctrl+K Ctrl+R",
-    },
+    keybinding: { key: "Cmd+K Cmd+R" },
     when: hasWorkspace.isTrue(),
     run: (context) => {
       if (context.workspaceName) {
@@ -283,10 +259,7 @@ export function registerApplicationCommands(
     title: "Close Workspace",
     description: "Close the current workspace",
     category: "Workspace",
-    keybinding: {
-      key: "Cmd+K Cmd+C",
-      win: "Ctrl+K Ctrl+C",
-    },
+    keybinding: { key: "Cmd+K Cmd+C" },
     when: hasWorkspace.isTrue(),
     run: (context) => {
       if (context.workspaceName) {
@@ -301,10 +274,7 @@ export function registerApplicationCommands(
     title: "Open Workspace",
     description: "Restore tabs from a saved workspace",
     category: "Workspace",
-    keybinding: {
-      key: "Cmd+K Cmd+O",
-      win: "Ctrl+K Ctrl+O",
-    },
+    keybinding: { key: "Cmd+K Cmd+O" },
     run: (context) => {
       handleOpenWorkspace(context.setShowWorkspacePicker);
     },
@@ -342,10 +312,7 @@ export function registerApplicationCommands(
     title: "New Tab",
     description: "Create a new terminal tab",
     category: "Tab",
-    keybinding: {
-      key: "Cmd+T",
-      win: "Ctrl+T",
-    },
+    keybinding: { key: "Cmd+T" },
     run: () => {
       void openTab();
     },
@@ -357,10 +324,7 @@ export function registerApplicationCommands(
     title: "Close Tab",
     description: "Close the currently active tab",
     category: "Tab",
-    keybinding: {
-      key: "Cmd+W",
-      win: "Ctrl+W",
-    },
+    keybinding: { key: "Cmd+W" },
     when: When.and(tabCount.greaterThan(1), tabIsLocked.isFalse()),
     menu: {
       id: MenuId.TabContext,
@@ -381,10 +345,7 @@ export function registerApplicationCommands(
     title: "Duplicate Tab",
     description: "Duplicate the current tab with all its panes and layout",
     category: "Tab",
-    keybinding: {
-      key: "Cmd+Shift+D",
-      win: "Ctrl+Shift+D",
-    },
+    keybinding: { key: "Cmd+Shift+D" },
     menu: {
       id: MenuId.TabContext,
       group: "2_tab",
@@ -405,10 +366,7 @@ export function registerApplicationCommands(
     description:
       "Duplicate the current tab and set a custom working directory for all panes",
     category: "Tab",
-    keybinding: {
-      key: "Cmd+Alt+D",
-      win: "Ctrl+Alt+D",
-    },
+    keybinding: { key: "Cmd+Alt+D" },
     menu: {
       id: MenuId.TabContext,
       group: "2_tab/duplicate_into",
@@ -430,10 +388,7 @@ export function registerApplicationCommands(
     description:
       "Create an isolated git worktree and duplicate the current tab into it",
     category: "Tab",
-    keybinding: {
-      key: "Cmd+Alt+W",
-      win: "Ctrl+Alt+W",
-    },
+    keybinding: { key: "Cmd+Alt+W" },
     when: When.and(hasGitRepo.isTrue()),
     menu: {
       id: MenuId.TabContext,
@@ -590,10 +545,7 @@ export function registerApplicationCommands(
     title: "View File Explorer",
     description: "View files in the terminal's current directory",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+E",
-      win: "Ctrl+E",
-    },
+    keybinding: { key: "Cmd+E" },
     when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
     menu: {
       id: MenuId.PaneContext,
@@ -675,10 +627,7 @@ export function registerApplicationCommands(
     title: "Split Pane Left",
     description: "Create a new pane to the left of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Left",
-      win: "Ctrl+Shift+Left",
-    },
+    keybinding: { key: "Cmd+Shift+Left" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -700,10 +649,7 @@ export function registerApplicationCommands(
     title: "Split Pane Right",
     description: "Create a new pane to the right of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Right",
-      win: "Ctrl+Shift+Right",
-    },
+    keybinding: { key: "Cmd+Shift+Right" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -725,10 +671,7 @@ export function registerApplicationCommands(
     title: "Split Pane Top",
     description: "Create a new pane above the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Up",
-      win: "Ctrl+Shift+Up",
-    },
+    keybinding: { key: "Cmd+Shift+Up" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -750,10 +693,7 @@ export function registerApplicationCommands(
     title: "Split Pane Bottom",
     description: "Create a new pane below the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Down",
-      win: "Ctrl+Shift+Down",
-    },
+    keybinding: { key: "Cmd+Shift+Down" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -775,10 +715,7 @@ export function registerApplicationCommands(
     title: "Split Pane Left (Agent Session)",
     description: "Create a new pane to the left with an isolated agent session",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Ctrl+Left",
-      win: "Ctrl+Shift+Alt+Left",
-    },
+    keybinding: { key: "Cmd+Shift+Ctrl+Left" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -803,10 +740,7 @@ export function registerApplicationCommands(
     description:
       "Create a new pane to the right with an isolated agent session",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Ctrl+Right",
-      win: "Ctrl+Shift+Alt+Right",
-    },
+    keybinding: { key: "Cmd+Shift+Ctrl+Right" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -830,10 +764,7 @@ export function registerApplicationCommands(
     title: "Split Pane Top (Agent Session)",
     description: "Create a new pane above with an isolated agent session",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Ctrl+Up",
-      win: "Ctrl+Shift+Alt+Up",
-    },
+    keybinding: { key: "Cmd+Shift+Ctrl+Up" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -862,10 +793,7 @@ export function registerApplicationCommands(
     title: "Split Pane Bottom (Agent Session)",
     description: "Create a new pane below with an isolated agent session",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+Ctrl+Down",
-      win: "Ctrl+Shift+Alt+Down",
-    },
+    keybinding: { key: "Cmd+Shift+Ctrl+Down" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -889,10 +817,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane on Left",
     description: "Focus the pane to the left of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Left",
-      win: "Ctrl+Left",
-    },
+    keybinding: { key: "Cmd+Left" },
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -909,10 +834,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane on Right",
     description: "Focus the pane to the right of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Right",
-      win: "Ctrl+Right",
-    },
+    keybinding: { key: "Cmd+Right" },
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -929,10 +851,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane Above",
     description: "Focus the pane above the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Up",
-      win: "Ctrl+Up",
-    },
+    keybinding: { key: "Cmd+Up" },
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -949,10 +868,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane Below",
     description: "Focus the pane below the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Down",
-      win: "Ctrl+Down",
-    },
+    keybinding: { key: "Cmd+Down" },
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -969,10 +885,7 @@ export function registerApplicationCommands(
     title: "Move Pane Left",
     description: "Move the current pane to the left",
     category: "Pane",
-    keybinding: {
-      key: "Ctrl+Cmd+Left",
-      win: "Ctrl+Alt+Left",
-    },
+    keybinding: { key: "Ctrl+Cmd+Left" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -994,10 +907,7 @@ export function registerApplicationCommands(
     title: "Move Pane Right",
     description: "Move the current pane to the right",
     category: "Pane",
-    keybinding: {
-      key: "Ctrl+Cmd+Right",
-      win: "Ctrl+Alt+Right",
-    },
+    keybinding: { key: "Ctrl+Cmd+Right" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1019,10 +929,7 @@ export function registerApplicationCommands(
     title: "Move Pane Up",
     description: "Move the current pane upward",
     category: "Pane",
-    keybinding: {
-      key: "Ctrl+Cmd+Up",
-      win: "Ctrl+Alt+Up",
-    },
+    keybinding: { key: "Ctrl+Cmd+Up" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1044,10 +951,7 @@ export function registerApplicationCommands(
     title: "Move Pane Down",
     description: "Move the current pane downward",
     category: "Pane",
-    keybinding: {
-      key: "Ctrl+Cmd+Down",
-      win: "Ctrl+Alt+Down",
-    },
+    keybinding: { key: "Ctrl+Cmd+Down" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1069,10 +973,7 @@ export function registerApplicationCommands(
     title: "Move Pane to New Tab",
     description: "Move the current pane to a new tab",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Alt+T",
-      win: "Ctrl+Alt+T",
-    },
+    keybinding: { key: "Cmd+Alt+T" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1114,10 +1015,7 @@ export function registerApplicationCommands(
     title: "Open Web Page",
     description: "Open a web page in a split view",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+L",
-      win: "Ctrl+L",
-    },
+    keybinding: { key: "Cmd+L" },
     when: hasActivePane.isTrue(),
     run: (context) => {
       handleOpenWebPage(context.setIsUrlDialogOpen);
@@ -1130,10 +1028,7 @@ export function registerApplicationCommands(
     title: "Split Browser Left",
     description: "Create a new browser pane to the left of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+B+Left",
-      win: "Ctrl+Shift+B+Left",
-    },
+    keybinding: { key: "Cmd+Shift+B+Left" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1156,10 +1051,7 @@ export function registerApplicationCommands(
     title: "Split Browser Right",
     description: "Create a new browser pane to the right of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+B+Right",
-      win: "Ctrl+Shift+B+Right",
-    },
+    keybinding: { key: "Cmd+Shift+B+Right" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1182,10 +1074,7 @@ export function registerApplicationCommands(
     title: "Split Browser Top",
     description: "Create a new browser pane above the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+B+Up",
-      win: "Ctrl+Shift+B+Up",
-    },
+    keybinding: { key: "Cmd+Shift+B+Up" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1214,10 +1103,7 @@ export function registerApplicationCommands(
     title: "Split Browser Bottom",
     description: "Create a new browser pane below the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+B+Down",
-      win: "Ctrl+Shift+B+Down",
-    },
+    keybinding: { key: "Cmd+Shift+B+Down" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1246,10 +1132,7 @@ export function registerApplicationCommands(
     title: "Split Editor Left",
     description: "Create a new editor pane to the left of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+E+Left",
-      win: "Ctrl+Shift+E+Left",
-    },
+    keybinding: { key: "Cmd+Shift+E+Left" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1279,10 +1162,7 @@ export function registerApplicationCommands(
     title: "Split Editor Right",
     description: "Create a new editor pane to the right of the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+E+Right",
-      win: "Ctrl+Shift+E+Right",
-    },
+    keybinding: { key: "Cmd+Shift+E+Right" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1312,10 +1192,7 @@ export function registerApplicationCommands(
     title: "Split Editor Top",
     description: "Create a new editor pane above the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+E+Up",
-      win: "Ctrl+Shift+E+Up",
-    },
+    keybinding: { key: "Cmd+Shift+E+Up" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1345,10 +1222,7 @@ export function registerApplicationCommands(
     title: "Split Editor Bottom",
     description: "Create a new editor pane below the current pane",
     category: "Pane",
-    keybinding: {
-      key: "Cmd+Shift+E+Down",
-      win: "Ctrl+Shift+E+Down",
-    },
+    keybinding: { key: "Cmd+Shift+E+Down" },
     when: paneActionsEnabled,
     menu: {
       id: MenuId.PaneContext,
@@ -1479,10 +1353,7 @@ export function registerApplicationCommands(
     description:
       "Open agent launcher to split panes or worktrees and start agents with a prompt",
     category: "Agent",
-    keybinding: {
-      key: "Cmd+I",
-      win: "Ctrl+I",
-    },
+    keybinding: { key: "Cmd+I" },
     when: When.and(hasActivePane.isTrue(), activePaneType.equals("terminal")),
     run: (context) => {
       if (context.setShowAgentLauncher) {
@@ -1642,10 +1513,7 @@ export function registerApplicationCommands(
     title: "Toggle File Tree",
     description: "Show or hide the file tree sidebar in the editor",
     category: "Editor",
-    keybinding: {
-      key: "Cmd+B",
-      win: "Ctrl+B",
-    },
+    keybinding: { key: "Cmd+B" },
     when: activePaneType.equals("editor"),
     run: (context) => {
       if (context.activePaneId) {
@@ -1660,10 +1528,7 @@ export function registerApplicationCommands(
     title: "Reveal Active File in File Tree",
     description: "Reveal and select the currently active file in the file tree",
     category: "Editor",
-    keybinding: {
-      key: "Cmd+Shift+T",
-      win: "Ctrl+Shift+T",
-    },
+    keybinding: { key: "Cmd+Shift+T" },
     when: activePaneType.equals("editor"),
     run: (context) => {
       if (context.activePaneId) {
@@ -1678,10 +1543,7 @@ export function registerApplicationCommands(
     title: "Quick Open",
     description: "Quickly open files by name using fuzzy search",
     category: "Editor",
-    keybinding: {
-      key: "Cmd+P",
-      win: "Ctrl+P",
-    },
+    keybinding: { key: "Cmd+P" },
     // No 'when' clause - works from any pane type
     run: (context) => {
       handleQuickOpen(context.setIsQuickOpenOpen);

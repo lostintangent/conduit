@@ -22,11 +22,6 @@ export function KeybindingRecorder({
   const [recordedKeys, setRecordedKeys] = useState<string[]>([]);
   const [currentChord, setCurrentChord] = useState<string[]>([]);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const platform = navigator.platform.toLowerCase().includes("mac")
-    ? "darwin"
-    : navigator.platform.toLowerCase().includes("win")
-      ? "win32"
-      : "linux";
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -44,16 +39,10 @@ export function KeybindingRecorder({
       const parts: string[] = [];
 
       // Add modifiers in correct order
-      if (platform === "darwin") {
-        if (event.ctrlKey) parts.push("Ctrl");
-        if (event.altKey) parts.push("Alt");
-        if (event.shiftKey) parts.push("Shift");
-        if (event.metaKey) parts.push("Cmd");
-      } else {
-        if (event.ctrlKey || event.metaKey) parts.push("Ctrl");
-        if (event.shiftKey) parts.push("Shift");
-        if (event.altKey) parts.push("Alt");
-      }
+      if (event.ctrlKey) parts.push("Ctrl");
+      if (event.altKey) parts.push("Alt");
+      if (event.shiftKey) parts.push("Shift");
+      if (event.metaKey) parts.push("Cmd");
 
       // Add the actual key (not a modifier)
       // Use event.code instead of event.key to get the physical key, not the character
@@ -95,7 +84,7 @@ export function KeybindingRecorder({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [onKeybindingRecorded, onCancel, platform]);
+  }, [onKeybindingRecorded, onCancel]);
 
   const displayKeys =
     recordedKeys.length > 0
@@ -204,67 +193,45 @@ function isModifierKey(key: string): boolean {
 }
 
 function formatKeybindingDisplay(chord: string): string {
-  const platform = navigator.platform.toLowerCase().includes("mac")
-    ? "darwin"
-    : navigator.platform.toLowerCase().includes("win")
-      ? "win32"
-      : "linux";
-
-  const parts = chord.split("+");
-
-  if (platform === "darwin") {
-    // macOS symbols
-    return parts
-      .map((part) => {
-        switch (part.toLowerCase()) {
-          case "ctrl":
-            return "⌃";
-          case "alt":
-            return "⌥";
-          case "shift":
-            return "⇧";
-          case "cmd":
-            return "⌘";
-          case "left":
-          case "arrowleft":
-            return "←";
-          case "right":
-          case "arrowright":
-            return "→";
-          case "up":
-          case "arrowup":
-            return "↑";
-          case "down":
-          case "arrowdown":
-            return "↓";
-          case "enter":
-            return "↩";
-          case "escape":
-            return "⎋";
-          case "backspace":
-            return "⌫";
-          case "delete":
-            return "⌦";
-          case "tab":
-            return "⇥";
-          case "space":
-            return "Space";
-          default:
-            return part.length === 1 ? part.toUpperCase() : part;
-        }
-      })
-      .join("");
-  } else {
-    // Windows/Linux text
-    return parts
-      .map((part) => {
-        const lower = part.toLowerCase();
-        if (lower === "arrowleft") return "Left";
-        if (lower === "arrowright") return "Right";
-        if (lower === "arrowup") return "Up";
-        if (lower === "arrowdown") return "Down";
-        return part.length === 1 ? part.toUpperCase() : part;
-      })
-      .join("+");
-  }
+  return chord
+    .split("+")
+    .map((part) => {
+      switch (part.toLowerCase()) {
+        case "ctrl":
+          return "⌃";
+        case "alt":
+          return "⌥";
+        case "shift":
+          return "⇧";
+        case "cmd":
+          return "⌘";
+        case "left":
+        case "arrowleft":
+          return "←";
+        case "right":
+        case "arrowright":
+          return "→";
+        case "up":
+        case "arrowup":
+          return "↑";
+        case "down":
+        case "arrowdown":
+          return "↓";
+        case "enter":
+          return "↩";
+        case "escape":
+          return "⎋";
+        case "backspace":
+          return "⌫";
+        case "delete":
+          return "⌦";
+        case "tab":
+          return "⇥";
+        case "space":
+          return "Space";
+        default:
+          return part.length === 1 ? part.toUpperCase() : part;
+      }
+    })
+    .join("");
 }

@@ -84,10 +84,7 @@ export function useKeybindingDispatch(
       // Cmd+1-9: Focus tab by index
       // Only when quick open dialog is closed and no shift key
       if (opts && !opts.isQuickOpenOpen) {
-        const isMac = navigator.platform.toLowerCase().includes("mac");
-        const primaryModifier = isMac ? event.metaKey : event.ctrlKey;
-
-        if (primaryModifier && !event.shiftKey && !event.altKey) {
+        if (event.metaKey && !event.shiftKey && !event.altKey) {
           const key = event.key.toLowerCase();
           const tabNumber = Number.parseInt(key, 10);
 

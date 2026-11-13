@@ -2,17 +2,7 @@
  * Keyboard shortcut descriptor
  */
 export interface KeybindingDescriptor {
-  /** Default keybinding (cross-platform) */
   key: string;
-
-  /** macOS-specific override */
-  mac?: string;
-
-  /** Windows-specific override */
-  win?: string;
-
-  /** Linux-specific override */
-  linux?: string;
 }
 
 /**

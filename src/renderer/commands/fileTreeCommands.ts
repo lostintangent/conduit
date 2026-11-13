@@ -9,7 +9,7 @@
  * - Delete
  * - Copy path
  * - Copy relative path
- * - Reveal in Finder/Explorer
+ * - Reveal in Finder
  *
  * Changes mode (git changes view):
  * - Stage
@@ -17,7 +17,7 @@
  * - Revert
  * - Copy path (shared)
  * - Copy relative path (shared)
- * - Reveal in Finder/Explorer (shared)
+ * - Reveal in Finder (shared)
  * - Rename (unstaged only)
  * - Delete (unstaged only)
  *
@@ -62,16 +62,6 @@ export const FileTreeCommands = {
   UNSTAGE: "fileTree.unstage",
   REVERT: "fileTree.revert",
 } as const;
-
-/**
- * Get platform-specific label for "Reveal in Finder"
- */
-function getRevealInFinderLabel(): string {
-  const platform = window.conduit.platform;
-  if (platform === "darwin") return "Reveal in Finder";
-  if (platform === "win32") return "Show in Explorer";
-  return "Show in File Manager";
-}
 
 // ============================================================================
 // Callback Registries
@@ -539,10 +529,10 @@ export function registerFileTreeCommands(
     },
   });
 
-  // Reveal in Finder/Explorer
+  // Reveal in Finder
   commandRegistry.registerCommand({
     id: FileTreeCommands.REVEAL_IN_FINDER,
-    title: getRevealInFinderLabel(),
+    title: "Reveal in Finder",
     category: "File Tree",
     when: When.never(),
     menu: [

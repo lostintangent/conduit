@@ -15,20 +15,7 @@ export class KeybindingRegistry {
     descriptor: KeybindingDescriptor,
     weight = 0,
   ): void {
-    // Resolve platform-specific key
-    const platform = this.getPlatform();
-    let keyString = descriptor.key;
-
-    if (platform === "mac" && descriptor.mac) {
-      keyString = descriptor.mac;
-    } else if (platform === "win" && descriptor.win) {
-      keyString = descriptor.win;
-    } else if (platform === "linux" && descriptor.linux) {
-      keyString = descriptor.linux;
-    }
-
-    // Parse keybinding
-    const chords = parseKeybinding(keyString);
+    const chords = parseKeybinding(descriptor.key);
 
     // Store resolved keybinding
     this.keybindings.push({
@@ -103,11 +90,5 @@ export class KeybindingRegistry {
    */
   clear(): void {
     this.keybindings = [];
-  }
-
-  private getPlatform(): "mac" | "win" | "linux" {
-    if (navigator.platform.toLowerCase().includes("mac")) return "mac";
-    if (navigator.platform.toLowerCase().includes("win")) return "win";
-    return "linux";
   }
 }

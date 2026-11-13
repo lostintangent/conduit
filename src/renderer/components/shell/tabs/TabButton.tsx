@@ -12,7 +12,7 @@ import { userSettingsAtom } from "@/store/atoms";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
 import { useAtomValue } from "jotai";
-import { ChevronUp, Command, Lock, Trash2 } from "lucide-react";
+import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 const CHAR_WIDTH_PX = 8;
@@ -221,10 +221,8 @@ export function TabButton({
           <IdleIndicator tabState={tab.tabState} />
         ) : tab.locked ? (
           <Lock size={14} className="flex-none opacity-60" />
-        ) : navigator.platform.toLowerCase().includes("mac") ? (
-          <Command size={14} className="flex-none opacity-60" />
         ) : (
-          <ChevronUp size={10} className="flex-none opacity-60" />
+          <Command size={14} className="flex-none opacity-60" />
         )}
         {index + 1}
       </span>
