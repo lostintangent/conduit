@@ -53,8 +53,15 @@ export class SharedAPIPool<T extends { release(): void }> {
       return;
     }
 
+    // An extra release would leave an orphaned grace timer that disposes the
+    // instance after a later acquire.
+    if (managed.refCount === 0) {
+      console.warn(`[SharedAPIPool] Released more than acquired: ${key}`);
+      return;
+    }
+
     managed.refCount--;
-    if (managed.refCount <= 0) {
+    if (managed.refCount === 0) {
       managed.disposeTimer = setTimeout(
         () => this.dispose(key),
         GRACE_PERIOD_MS,

@@ -222,6 +222,23 @@ describe("FileSystemV2APIService", () => {
       expect(service.hasInstance("/test/project")).toBe(true);
       expect(api.isReleased).toBe(false);
     });
+
+    it("should ignore extra releases so a later acquire keeps the instance", () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const service = FileSystemV2APIService.getInstance();
+      const api = service.acquire("/test/project");
+
+      service.release("/test/project");
+      service.release("/test/project");
+      expect(warn).toHaveBeenCalledOnce();
+
+      service.acquire("/test/project");
+      vi.advanceTimersByTime(5000);
+
+      expect(service.getRefCount("/test/project")).toBe(1);
+      expect(api.isReleased).toBe(false);
+      warn.mockRestore();
+    });
   });
 
   // ===========================================================================
