@@ -35,7 +35,6 @@ function createMockConduit(
       onFileRenamed: vi.fn(),
       warmFileCache: vi.fn(),
       getPreWarmedCache: vi.fn(),
-      clearFileCache: vi.fn(),
     },
   } as unknown as typeof window.conduit;
 }

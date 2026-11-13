@@ -299,12 +299,4 @@ export default {
    */
   getPreWarmedCache: (workspaceRoot: string) =>
     ipcRenderer.invoke("fs:get-pre-warmed-cache", workspaceRoot),
-
-  /**
-   * Clear the file cache for a workspace.
-   *
-   * @param workspaceRoot - Absolute path to workspace root (optional, clears all if not provided)
-   */
-  clearFileCache: (workspaceRoot?: string) =>
-    ipcRenderer.invoke("fs:clear-file-cache", workspaceRoot),
 };

@@ -43,20 +43,4 @@ export class QuickOpenAPI {
       console.error("[QuickOpenAPI] Failed to warm cache:", error);
     }
   }
-
-  /**
-   * Clear the cache for this workspace
-   */
-  async clearCache(): Promise<void> {
-    try {
-      const api = (window as any).conduit?.fs;
-      if (!api?.clearFileCache) {
-        return;
-      }
-
-      await api.clearFileCache(this.cwd);
-    } catch (error) {
-      console.error("[QuickOpenAPI] Failed to clear cache:", error);
-    }
-  }
 }

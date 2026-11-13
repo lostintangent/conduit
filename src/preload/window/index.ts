@@ -208,45 +208,6 @@ const conduitAPI = {
   hasGitRepository: (cwd: string) =>
     ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
 
-  gitPull: (cwd: string, rebase = false) =>
-    ipcRenderer.invoke("agent:git-pull", cwd, rebase) as Promise<{
-      stdout: string;
-      stderr: string;
-    }>,
-
-  gitPush: (cwd: string, force = false, setUpstream = false) =>
-    ipcRenderer.invoke("agent:git-push", cwd, force, setUpstream) as Promise<{
-      stdout: string;
-      stderr: string;
-    }>,
-
-  hasUpstreamBranch: (cwd: string) =>
-    ipcRenderer.invoke("agent:has-upstream-branch", cwd) as Promise<boolean>,
-
-  gitCommit: (cwd: string, message: string) =>
-    ipcRenderer.invoke("agent:git-commit", cwd, message) as Promise<{
-      stdout: string;
-      stderr: string;
-    }>,
-
-  gitStage: (cwd: string, files: string[]) =>
-    ipcRenderer.invoke("agent:git-stage", cwd, files) as Promise<{
-      stdout: string;
-      stderr: string;
-    }>,
-
-  gitUnstage: (cwd: string, files: string[]) =>
-    ipcRenderer.invoke("agent:git-unstage", cwd, files) as Promise<{
-      stdout: string;
-      stderr: string;
-    }>,
-
-  gitRevert: (cwd: string, files: string[]) =>
-    ipcRenderer.invoke("agent:git-revert", cwd, files) as Promise<{
-      stdout: string;
-      stderr: string;
-    }>,
-
   finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
     ipcRenderer.invoke(
       "agent:finalize-session",

@@ -37,11 +37,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import {
-  warmFileCache,
-  getPreWarmedCache,
-  clearFileCache,
-} from "./fileCacheWarmer";
+import { warmFileCache, getPreWarmedCache } from "./fileCacheWarmer";
 import { FileSystemProviderService } from "./FileSystemProviderService";
 import { pathEquals, pathStartsWith } from "./pathUtils";
 import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
@@ -552,14 +548,6 @@ export function initializeFileSystemV2Handlers(): void {
       return getPreWarmedCache(workspaceRoot);
     },
   );
-
-  /**
-   * Clear the file cache for a workspace.
-   * Optionally clears all caches if workspaceRoot is not provided.
-   */
-  ipcMain.handle("fs:clear-file-cache", async (_, workspaceRoot?: string) => {
-    clearFileCache(workspaceRoot);
-  });
 }
 
 /**

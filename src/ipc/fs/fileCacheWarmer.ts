@@ -167,28 +167,6 @@ export function getPreWarmedCache(workspaceRoot: string): {
 }
 
 /**
- * Clear the cache for a specific workspace root (or all)
- */
-export function clearFileCache(workspaceRoot?: string): void {
-  if (workspaceRoot) {
-    const cache = fileCacheMap.get(workspaceRoot);
-    if (cache?.watcherCleanup) {
-      cache.watcherCleanup();
-    }
-    fileCacheMap.delete(workspaceRoot);
-    warmingInProgressMap.delete(workspaceRoot);
-  } else {
-    for (const cache of fileCacheMap.values()) {
-      if (cache.watcherCleanup) {
-        cache.watcherCleanup();
-      }
-    }
-    fileCacheMap.clear();
-    warmingInProgressMap.clear();
-  }
-}
-
-/**
  * Check if warming is in progress
  */
 export function isWarmingInProgress(workspaceRoot?: string): boolean {

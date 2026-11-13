@@ -14,14 +14,7 @@ import type {
 import {
   fileExists,
   findRepoRoot,
-  gitCommit,
-  gitPull,
-  gitPush,
-  gitRevert,
-  gitStage,
-  gitUnstage,
   hasGitRepository,
-  hasUpstreamBranch,
   runGit,
   safeGitCommand,
 } from "./git";
@@ -459,50 +452,4 @@ export async function initializeAgentHandlers() {
   ipcMain.handle("agent:has-git-repo", async (_event, cwd: string) => {
     return await hasGitRepository(cwd);
   });
-
-  ipcMain.handle(
-    "agent:git-pull",
-    async (_event, cwd: string, rebase = false) => {
-      return await gitPull(cwd, rebase);
-    },
-  );
-
-  ipcMain.handle(
-    "agent:git-push",
-    async (_event, cwd: string, force = false, setUpstream = false) => {
-      return await gitPush(cwd, force, setUpstream);
-    },
-  );
-
-  ipcMain.handle("agent:has-upstream-branch", async (_event, cwd: string) => {
-    return await hasUpstreamBranch(cwd);
-  });
-
-  ipcMain.handle(
-    "agent:git-commit",
-    async (_event, cwd: string, message: string) => {
-      return await gitCommit(cwd, message);
-    },
-  );
-
-  ipcMain.handle(
-    "agent:git-stage",
-    async (_event, cwd: string, files: string[]) => {
-      return await gitStage(cwd, files);
-    },
-  );
-
-  ipcMain.handle(
-    "agent:git-unstage",
-    async (_event, cwd: string, files: string[]) => {
-      return await gitUnstage(cwd, files);
-    },
-  );
-
-  ipcMain.handle(
-    "agent:git-revert",
-    async (_event, cwd: string, files: string[]) => {
-      return await gitRevert(cwd, files);
-    },
-  );
 }
