@@ -6,7 +6,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentsTab } from "@/components/shell/settings/tabs/agents/AgentsTab";
 import type { AgentConfig, LaunchGroup } from "@shared/types";
 
-// Mock useUserSettings hook
 const mockUpdateSettings = vi.fn();
 const mockUserSettings = {
   agents: [] as AgentConfig[],
@@ -14,10 +13,6 @@ const mockUserSettings = {
   terminalPromptBufferLines: 100,
   updateSettings: mockUpdateSettings,
 };
-
-vi.mock("@/hooks/useUserSettings", () => ({
-  useUserSettings: () => mockUserSettings,
-}));
 
 describe("AgentsEditor", () => {
   const mockAgents: AgentConfig[] = [

@@ -25,7 +25,10 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { DEFAULT_AGENTS } from "./defaultAgents";
 
 interface AgentsTabProps {
-  userSettings: ReturnType<typeof useUserSettings>;
+  userSettings: Pick<
+    ReturnType<typeof useUserSettings>,
+    "agents" | "launchGroups" | "terminalPromptBufferLines" | "updateSettings"
+  >;
 }
 
 export interface AgentsTabHandle {
