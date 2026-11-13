@@ -795,11 +795,11 @@ export function FileTreeChanges({
   // ---------------------------------------------------------------------------
 
   /**
-   * Begin creating a new file in the specified directory.
+   * Begin creating a new file or folder in the specified directory.
    * Expands the folder in nested view so the creation input is visible.
    */
-  const beginCreateFile = useCallback(
-    (parentPath: string) => {
+  const beginCreate = useCallback(
+    (parentPath: string, type: "file" | "folder") => {
       // Guard against double invocation using ref (state updates are batched)
       if (creationInProgressRef.current === parentPath) {
         return;
@@ -807,7 +807,7 @@ export function FileTreeChanges({
       creationInProgressRef.current = parentPath;
 
       // Expand the folder in nested view if not already expanded
-      // File creation only happens in unstaged section
+      // Creation only happens in unstaged section
       if (viewMode === "nested") {
         const relativePath = getRelativePath(parentPath, cwd);
         if (relativePath && !expandedFolders.unstaged.has(relativePath)) {
@@ -815,38 +815,7 @@ export function FileTreeChanges({
         }
       }
       setCreatingInPath(parentPath);
-      setCreatingType("file");
-
-      // Clear the guard after state updates
-      setTimeout(() => {
-        creationInProgressRef.current = null;
-      }, 0);
-    },
-    [cwd, viewMode, expandedFolders.unstaged, toggleFolder],
-  );
-
-  /**
-   * Begin creating a new folder in the specified directory.
-   * Expands the folder in nested view so the creation input is visible.
-   */
-  const beginCreateFolder = useCallback(
-    (parentPath: string) => {
-      // Guard against double invocation using ref (state updates are batched)
-      if (creationInProgressRef.current === parentPath) {
-        return;
-      }
-      creationInProgressRef.current = parentPath;
-
-      // Expand the folder in nested view if not already expanded
-      // Folder creation only happens in unstaged section
-      if (viewMode === "nested") {
-        const relativePath = getRelativePath(parentPath, cwd);
-        if (relativePath && !expandedFolders.unstaged.has(relativePath)) {
-          toggleFolder(relativePath, "unstaged");
-        }
-      }
-      setCreatingInPath(parentPath);
-      setCreatingType("folder");
+      setCreatingType(type);
 
       // Clear the guard after state updates
       setTimeout(() => {
@@ -905,8 +874,8 @@ export function FileTreeChanges({
     onRevert: handleRevert,
     onRename: handleRenameCommand,
     onDelete: handleDeleteCommand,
-    onNewFile: beginCreateFile,
-    onNewFolder: beginCreateFolder,
+    onNewFile: (path) => beginCreate(path, "file"),
+    onNewFolder: (path) => beginCreate(path, "folder"),
   });
 
   /**

@@ -661,10 +661,10 @@ export const FileTreeNormal = memo(
     // ---------------------------------------------------------------------------
 
     /**
-     * Begin creating a new file in the specified directory.
+     * Begin creating a new file or folder in the specified directory.
      */
-    const beginCreateFile = useCallback(
-      async (parentPath: string) => {
+    const beginCreate = useCallback(
+      async (parentPath: string, type: "file" | "folder") => {
         // Guard against double invocation using ref
         if (creationInProgressRef.current === parentPath) {
           return;
@@ -676,33 +676,7 @@ export const FileTreeNormal = memo(
           await handleToggleExpand(parentPath);
         }
         setCreatingInPath(parentPath);
-        setCreatingType("file");
-
-        // Clear the guard after state updates
-        setTimeout(() => {
-          creationInProgressRef.current = null;
-        }, 0);
-      },
-      [isPathExpanded, handleToggleExpand],
-    );
-
-    /**
-     * Begin creating a new folder in the specified directory.
-     */
-    const beginCreateFolder = useCallback(
-      async (parentPath: string) => {
-        // Guard against double invocation using ref
-        if (creationInProgressRef.current === parentPath) {
-          return;
-        }
-        creationInProgressRef.current = parentPath;
-
-        // Expand the directory if not already expanded (this also loads contents)
-        if (!isPathExpanded(parentPath)) {
-          await handleToggleExpand(parentPath);
-        }
-        setCreatingInPath(parentPath);
-        setCreatingType("folder");
+        setCreatingType(type);
 
         // Clear the guard after state updates
         setTimeout(() => {
@@ -918,8 +892,8 @@ export const FileTreeNormal = memo(
     const { showContextMenu, setFocusState } = useFileTreeContextMenu({
       cwd,
       homeDirectory: homeDirectory ?? undefined,
-      onNewFile: beginCreateFile,
-      onNewFolder: beginCreateFolder,
+      onNewFile: (path) => beginCreate(path, "file"),
+      onNewFolder: (path) => beginCreate(path, "folder"),
       onRename: handleRenameCommand,
       onDelete: handleDeleteCommand,
     });
