@@ -406,24 +406,6 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   // -------------------------------------------------------------------------
 
   /**
-   * Check if a path should be ignored (gitignored).
-   * Returns false if git root is not yet known (conservative - don't filter).
-   */
-  private isPathIgnored(filePath: string): boolean {
-    // Don't filter .gitignore files themselves - we need to process them
-    if (nodePath.basename(filePath) === ".gitignore") {
-      return false;
-    }
-
-    // If we don't know the git root yet, don't filter
-    if (!this.gitRoot) {
-      return false;
-    }
-
-    return GitIgnoreCache.isIgnored(this.gitRoot, filePath);
-  }
-
-  /**
    * Build a DirectoryEntry for cache updates.
    *
    * Uses cached git root (if available) to set isGitignored synchronously.

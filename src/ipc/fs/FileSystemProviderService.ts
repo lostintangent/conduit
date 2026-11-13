@@ -395,54 +395,15 @@ export class FileSystemProviderService {
     return this.providers.size;
   }
 
-  /**
-   * Force dispose all providers immediately.
-   *
-   * This is primarily useful for testing or forced cleanup scenarios
-   * such as application shutdown.
-   */
-  forceDisposeAll(): void {
-    this.disposeAll();
-  }
-
-  /**
-   * Get statistics about active providers.
-   *
-   * Useful for debugging and monitoring.
-   *
-   * @returns Object containing provider statistics
-   */
-  getStats(): {
-    providers: Map<string, { refCount: number; hasPendingDispose: boolean }>;
-  } {
-    const stats = new Map<
-      string,
-      { refCount: number; hasPendingDispose: boolean }
-    >();
-
-    for (const [path, entry] of this.providers) {
-      stats.set(path, {
-        refCount: entry.refCount,
-        hasPendingDispose: entry.disposeTimer !== null,
-      });
-    }
-
-    return { providers: stats };
-  }
-
   // -------------------------------------------------------------------------
   // Internal Methods
   // -------------------------------------------------------------------------
 
   /**
-   * Normalize a path for consistent lookup.
-   *
-   * Resolves to absolute path and handles platform-specific normalization.
-   * On case-insensitive filesystems (macOS, Windows), also lowercases the path
-   * to ensure consistent Map key lookups regardless of casing.
+   * Resolve and lowercase a path so Map lookups match regardless of casing,
+   * since the macOS filesystem is case-insensitive.
    */
   private normalizePath(filePath: string): string {
-    // macOS filesystems are case-insensitive, so lowercase for consistent Map keys
     return path.resolve(filePath).toLowerCase();
   }
 

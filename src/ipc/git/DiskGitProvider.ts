@@ -1884,63 +1884,6 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Interpret git status codes (index and working directory).
-   *
-   * Git status uses two columns:
-   * - Index (staged): What's staged for commit
-   * - Working directory: What's changed but not staged
-   *
-   * Common patterns:
-   * - "M " = Modified and staged
-   * - " M" = Modified but not staged
-   * - "MM" = Modified, staged, then modified again (partially staged)
-   * - "A " = Added (new file, staged)
-   * - "??" = Untracked
-   * - " D" = Deleted but not staged
-   * - "D " = Deleted and staged
-   *
-   * @deprecated Use parseFileStatuses instead which handles partially staged files
-   */
-  private interpretStatusCodes(
-    index: string,
-    workingDir: string,
-  ): { status: GitFileStatusCode | null; staged: boolean } {
-    // Untracked files
-    if (index === "?" && workingDir === "?") {
-      return { status: "untracked", staged: false };
-    }
-
-    // Ignored files
-    if (index === "!" && workingDir === "!") {
-      return { status: "ignored", staged: false };
-    }
-
-    // Unmerged (conflict)
-    if (
-      index === "U" ||
-      workingDir === "U" ||
-      (index === "A" && workingDir === "A") ||
-      (index === "D" && workingDir === "D")
-    ) {
-      return { status: "unmerged", staged: false };
-    }
-
-    // Staged changes take priority for status code
-    if (index !== " " && index !== "?") {
-      const status = this.codeToStatus(index);
-      return { status, staged: true };
-    }
-
-    // Working directory changes (not staged)
-    if (workingDir !== " " && workingDir !== "?") {
-      const status = this.codeToStatus(workingDir);
-      return { status, staged: false };
-    }
-
-    return { status: null, staged: false };
-  }
-
-  /**
    * Convert a single git status code to our status type.
    */
   private codeToStatus(code: string): GitFileStatusCode {
