@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Mocks
 // ============================================================================
 
+type Subscribe = (listener: (payload: unknown) => void) => () => void;
+
 // Use vi.hoisted to define mocks before imports
 const { mockGit } = vi.hoisted(() => {
   const git = {
@@ -36,10 +38,10 @@ const { mockGit } = vi.hoisted(() => {
     // Subscriptions
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
-    onStatusChanged: vi.fn(() => vi.fn()),
-    onBranchChanged: vi.fn(() => vi.fn()),
-    onCommitCreated: vi.fn(() => vi.fn()),
-    onHeadChanged: vi.fn(() => vi.fn()),
+    onStatusChanged: vi.fn<Subscribe>(() => vi.fn()),
+    onBranchChanged: vi.fn<Subscribe>(() => vi.fn()),
+    onCommitCreated: vi.fn<Subscribe>(() => vi.fn()),
+    onHeadChanged: vi.fn<Subscribe>(() => vi.fn()),
   };
 
   // Set up window.conduit before any modules load

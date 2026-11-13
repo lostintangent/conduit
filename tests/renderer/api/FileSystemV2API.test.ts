@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Mocks
 // ============================================================================
 
+type Subscribe = (listener: (payload: unknown) => void) => () => void;
+
 // Use vi.hoisted to define mocks before imports
 const { mockFs } = vi.hoisted(() => {
   const fs = {
@@ -18,10 +20,10 @@ const { mockFs } = vi.hoisted(() => {
     createDirectory: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
-    onDirectoryListingChanged: vi.fn(() => vi.fn()),
-    onFileContentChanged: vi.fn(() => vi.fn()),
-    onFileDeleted: vi.fn(() => vi.fn()),
-    onFileRenamed: vi.fn(() => vi.fn()),
+    onDirectoryListingChanged: vi.fn<Subscribe>(() => vi.fn()),
+    onFileContentChanged: vi.fn<Subscribe>(() => vi.fn()),
+    onFileDeleted: vi.fn<Subscribe>(() => vi.fn()),
+    onFileRenamed: vi.fn<Subscribe>(() => vi.fn()),
   };
 
   // Set up window.conduit before any modules load
