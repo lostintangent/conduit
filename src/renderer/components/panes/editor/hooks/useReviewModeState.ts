@@ -62,11 +62,13 @@ export interface UseReviewModeStateResult {
 
 /**
  * Hook for managing review mode state and transitions.
+ *
+ * @param initialViewMode - View mode for the first render, like useState
  */
-export function useReviewModeState(): UseReviewModeStateResult {
-  const [viewMode, setViewModeInternal] = useState<ViewMode>({
-    type: "editor",
-  });
+export function useReviewModeState(
+  initialViewMode: ViewMode = { type: "editor" },
+): UseReviewModeStateResult {
+  const [viewMode, setViewModeInternal] = useState<ViewMode>(initialViewMode);
 
   // Remember if we were in review mode when switching out of "changes" mode
   const wasInReviewModeRef = useRef(false);

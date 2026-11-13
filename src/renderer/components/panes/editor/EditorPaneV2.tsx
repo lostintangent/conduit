@@ -310,7 +310,8 @@ export function EditorPaneV2({
    */
   const [selectedMapKey, setSelectedMapKey] = useState<string | null>(null);
 
-  // Review mode state management
+  // Review mode state management. Images have no useful text view, so a pane
+  // that opens on one starts in preview, as selecting one in the tree does.
   const {
     viewMode,
     isReviewMode,
@@ -319,7 +320,11 @@ export function EditorPaneV2({
     setViewMode,
     setViewModePreservingReview,
     handleTreeViewModeTransition,
-  } = useReviewModeState();
+  } = useReviewModeState(
+    selectedFile && isImageFile(selectedFile.name)
+      ? { type: "preview" }
+      : undefined,
+  );
 
   // Changes view mode (flat or nested) for FileTreeChanges
   const [changesViewMode, setChangesViewModeInternal] =
@@ -388,6 +393,10 @@ export function EditorPaneV2({
       const name = initialFilePath.split("/").pop() ?? "";
       setSelectedFile({ path: initialFilePath, name, type: "file" });
 
+      if (isImageFile(name)) {
+        setViewModePreservingReview(() => ({ type: "preview" }));
+      }
+
       // In single layout, switch to editor view when file is opened programmatically
       // (same behavior as clicking a file in the tree)
       if (layout === "single") {
@@ -398,7 +407,7 @@ export function EditorPaneV2({
     }
     // Note: We intentionally exclude selectedFile from deps - we only want to sync
     // when the PROP changes, not when internal file selection changes selectedFile
-  }, [initialFilePath, layout]);
+  }, [initialFilePath, layout, setViewModePreservingReview]);
 
   // ---------------------------------------------------------------------------
   // Hooks

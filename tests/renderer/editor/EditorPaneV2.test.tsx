@@ -20,8 +20,9 @@ import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor/Edit
 const mockLayout = vi.fn();
 const mockMarkSeen = vi.fn();
 
-// Stateful mock for useReviewModeState
-let mockViewMode = { type: "editor" as const };
+// Stateful mock for useReviewModeState. Like useState, the initial view mode
+// only applies until something sets one (beforeEach clears it).
+let mockViewMode;
 const mockSetViewMode = vi.fn((newMode) => {
   mockViewMode = newMode;
 });
@@ -34,15 +35,18 @@ const mockSetViewModePreservingReview = vi.fn((fn) => {
 vi.mock("../../../src/renderer/components/panes/editor/hooks", () => ({
   useResponsiveLayout: () => mockLayout(),
   useEditorTheme: () => "vs-dark",
-  useReviewModeState: () => ({
-    viewMode: mockViewMode,
-    isReviewMode: false,
-    enterReviewMode: vi.fn(),
-    exitReviewMode: vi.fn(),
-    setViewMode: mockSetViewMode,
-    setViewModePreservingReview: mockSetViewModePreservingReview,
-    handleTreeViewModeTransition: vi.fn(),
-  }),
+  useReviewModeState: (initialViewMode = { type: "editor" }) => {
+    mockViewMode ??= initialViewMode;
+    return {
+      viewMode: mockViewMode,
+      isReviewMode: false,
+      enterReviewMode: vi.fn(),
+      exitReviewMode: vi.fn(),
+      setViewMode: mockSetViewMode,
+      setViewModePreservingReview: mockSetViewModePreservingReview,
+      handleTreeViewModeTransition: vi.fn(),
+    };
+  },
   useUnseenTracking: () => ({
     isUnseen: () => false,
     getTimestamp: () => null,
@@ -232,7 +236,7 @@ describe("EditorPaneV2", () => {
     vi.clearAllMocks();
 
     // Reset view mode state
-    mockViewMode = { type: "editor" as const };
+    mockViewMode = undefined;
 
     // Default to split layout
     mockLayout.mockReturnValue("split");
@@ -719,6 +723,38 @@ describe("EditorPaneV2", () => {
 
       // Component should still be rendered after multiple cwd changes
       expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+    });
+  });
+
+  describe("pane.file prop sync", () => {
+    it("opens an image in preview when the pane mounts on it", () => {
+      render(
+        <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
+      );
+
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe(
+        "preview",
+      );
+    });
+
+    it("switches to preview when pane.file changes to an image", async () => {
+      const { rerender } = render(
+        <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/src/index.ts" }} />,
+      );
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe("editor");
+
+      await act(async () => {
+        rerender(
+          <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
+        );
+      });
+
+      expect(screen.getByTestId("editor-file-path").textContent).toBe(
+        "/project/pixel.png",
+      );
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe(
+        "preview",
+      );
     });
   });
 });
