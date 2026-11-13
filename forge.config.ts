@@ -9,13 +9,28 @@ import { PublisherGithub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { execSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
+
+const NATIVE_MODULES = ["node-pty", "@parcel/watcher", "@vscode/ripgrep"];
+
+// The packaging hook installs outside the lockfile, so pin each native
+// module to the version installed here.
+function lockedNativeModuleSpecs(): string[] {
+  return NATIVE_MODULES.map((name) => {
+    const manifest = path.join(__dirname, "node_modules", name, "package.json");
+    return `${name}@${JSON.parse(fs.readFileSync(manifest, "utf8")).version}`;
+  });
+}
 
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
-      unpack: "**/node_modules/{node-pty,@parcel/watcher,@vscode/ripgrep}/**/*",
+      // The trailing wildcards include per-platform binary packages such as
+      // @parcel/watcher-darwin-arm64 and @vscode/ripgrep-darwin-arm64.
+      unpack:
+        "**/node_modules/{node-pty,@parcel/watcher*,@vscode/ripgrep*}/**/*",
     },
     icon: "./build/assets/icon",
     extraResource: [
@@ -54,7 +69,7 @@ const config: ForgeConfig = {
   hooks: {
     packageAfterCopy: async (_, buildPath) => {
       execSync(
-        "npm install --omit=dev node-pty @parcel/watcher @vscode/ripgrep",
+        `npm install --omit=dev ${lockedNativeModuleSpecs().join(" ")}`,
         {
           cwd: buildPath,
           stdio: "inherit",
