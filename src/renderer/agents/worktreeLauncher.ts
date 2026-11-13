@@ -70,12 +70,6 @@ export async function launchAgents(
   const { cwd, agents: agentConfigs, api, onClose } = options;
   const useWorktrees = payload.launchTarget === "worktree";
 
-  console.log("[WorktreeLauncher] Launching with config:", {
-    requestedAgents: payload.agentIds,
-    availableAgents: agentConfigs.map((a) => a.id),
-    agentConfigs: agentConfigs,
-  });
-
   // Calculate total number of agent instances to launch
   const totalInstances = payload.agentIds.reduce((sum, agentId) => {
     const count = payload.agentInstances?.[agentId]?.count ?? 1;

@@ -893,11 +893,6 @@ export function App() {
               throw new Error("No working directory found in active pane");
             }
 
-            console.log("[App] Launching agents:", {
-              payload,
-              agents: agents || [],
-            });
-
             await launchAgents(payload, {
               cwd,
               agents: agents || [],
