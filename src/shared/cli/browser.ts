@@ -127,8 +127,10 @@ export type BrowserAutomationAction = StripBrowserPrefix<
 
 /* Type utilities for extracting command args and results */
 
+// Every automation command targets an optional pane. Spelling it out keeps
+// `paneId` visible when `Name` is still generic.
 export type BrowserAutomationCommandArgs<Name extends BrowserAutomationAction> =
-  CliCommandArgs<`browser-${Name}`>;
+  CliCommandArgs<`browser-${Name}`> & { paneId?: string };
 
 export type BrowserAutomationCommandResult<
   Name extends BrowserAutomationAction,
