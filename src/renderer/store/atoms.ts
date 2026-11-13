@@ -20,7 +20,7 @@ export const userSettingsAtom = atom<UserSettings>({
   theme: "dark",
 
   // Terminal settings
-  showTerminalRuler: true,
+  showTerminalRuler: false,
   showTabState: true,
 
   // Editor settings

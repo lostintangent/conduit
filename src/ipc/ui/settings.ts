@@ -13,7 +13,7 @@ const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   commandHistory: [],
   urlHistory: [],
   starredPages: [],
-  showTerminalRuler: true,
+  showTerminalRuler: false,
   showTabState: true,
   terminalLinkTarget: "pane",
   autoSaveWorkspaces: true,
