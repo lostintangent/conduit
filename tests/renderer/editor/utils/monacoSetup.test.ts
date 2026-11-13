@@ -12,6 +12,12 @@ const { languages } = vi.hoisted(() => ({
       typescriptDefaults: { setDiagnosticsOptions: vi.fn() },
       javascriptDefaults: { setDiagnosticsOptions: vi.fn() },
     },
+    json: {
+      jsonDefaults: {
+        diagnosticsOptions: { validate: true, comments: "error" },
+        setDiagnosticsOptions: vi.fn(),
+      },
+    },
   },
 }));
 
@@ -46,6 +52,23 @@ describe("configureMonaco", () => {
       id,
       expect.objectContaining({ tokenizer: expect.any(Object) }),
     );
+  });
+
+  it("allows comments and trailing commas in .jsonc files", async () => {
+    await configureFreshMonaco();
+
+    expect(
+      languages.json.jsonDefaults.setDiagnosticsOptions,
+    ).toHaveBeenCalledWith({
+      validate: true,
+      comments: "error",
+      schemas: [
+        expect.objectContaining({
+          fileMatch: ["*.jsonc"],
+          schema: { allowComments: true, allowTrailingCommas: true },
+        }),
+      ],
+    });
   });
 
   // The shared monaco-editor mock can't tokenize, so check each definition

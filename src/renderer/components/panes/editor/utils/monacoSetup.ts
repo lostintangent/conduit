@@ -8,7 +8,8 @@
  * - Monaco Environment: worker configuration (prevents console errors)
  * - Markdown language: surrounding pairs and auto-closing for markdown syntax
  * - Zig, TOML, Makefile and diff: Monarch tokenizers Monaco doesn't ship
- * - TypeScript/JavaScript/JSON: diagnostics disabled (custom URI schemes not supported)
+ * - JSONC: .jsonc files open as JSON with comments and trailing commas allowed
+ * - TypeScript/JavaScript: diagnostics disabled (custom URI schemes not supported)
  */
 
 import * as monaco from "monaco-editor";
@@ -63,6 +64,21 @@ export function configureMonaco(): void {
       monaco.languages.setLanguageConfiguration(id, configuration);
     }
   }
+
+  // detectLanguage opens .jsonc as json, whose validator flags comments and
+  // trailing commas as errors unless the file's schema allows them.
+  const { jsonDefaults } = monaco.languages.json;
+  jsonDefaults.setDiagnosticsOptions({
+    ...jsonDefaults.diagnosticsOptions,
+    schemas: [
+      ...(jsonDefaults.diagnosticsOptions.schemas ?? []),
+      {
+        uri: "conduit://schemas/jsonc",
+        fileMatch: ["*.jsonc"],
+        schema: { allowComments: true, allowTrailingCommas: true },
+      },
+    ],
+  });
 
   // Configure markdown language for better editing experience
   monaco.languages.setLanguageConfiguration("markdown", {

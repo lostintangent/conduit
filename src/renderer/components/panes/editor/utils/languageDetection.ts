@@ -82,7 +82,8 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
 
   // Data formats
   json: "json",
-  jsonc: "jsonc",
+  // Monaco has no jsonc mode; configureMonaco allows comments in *.jsonc
+  jsonc: "json",
 
   // Web languages
   css: "css",
@@ -110,7 +111,7 @@ const LANGUAGE_BY_EXTENSION: Record<string, string> = {
 
   // Shell scripts
   sh: "shell",
-  bash: "bash",
+  bash: "shell",
   zsh: "shell",
   fish: "shell",
   ps1: "powershell",

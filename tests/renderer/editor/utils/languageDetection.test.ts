@@ -7,8 +7,14 @@
  * - Edge cases (no extension, unknown extensions, etc.)
  */
 
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { detectLanguage } from "@/components/panes/editor/utils/languageDetection";
+import { MONARCH_LANGUAGES } from "@/components/panes/editor/utils/monarchLanguages";
+
+const repoPath = (relativePath: string) =>
+  path.resolve(__dirname, "../../../..", relativePath);
 
 describe("languageDetection", () => {
   // ===========================================================================
@@ -48,8 +54,8 @@ describe("languageDetection", () => {
         expect(detectLanguage("/path/to/file.json")).toBe("json");
       });
 
-      it("should detect jsonc for .jsonc files", () => {
-        expect(detectLanguage("/path/to/tsconfig.jsonc")).toBe("jsonc");
+      it("should detect json for .jsonc files", () => {
+        expect(detectLanguage("/path/to/tsconfig.jsonc")).toBe("json");
       });
 
       it("should detect yaml for .yml files", () => {
@@ -110,8 +116,8 @@ describe("languageDetection", () => {
         expect(detectLanguage("/path/to/script.sh")).toBe("shell");
       });
 
-      it("should detect bash for .bash files", () => {
-        expect(detectLanguage("/path/to/script.bash")).toBe("bash");
+      it("should detect shell for .bash files", () => {
+        expect(detectLanguage("/path/to/script.bash")).toBe("shell");
       });
 
       it("should detect shell for .zsh files", () => {
@@ -459,6 +465,50 @@ describe("languageDetection", () => {
 
       // If we had a file like "myfile.env" it should still match by extension
       expect(detectLanguage("/path/to/myfile.env")).toBe("ini");
+    });
+  });
+
+  // ===========================================================================
+  // Monaco Compatibility
+  // ===========================================================================
+
+  describe("Monaco compatibility", () => {
+    // Monaco renders an unregistered language ID as plain text, so every ID
+    // the maps return must ship with Monaco or be registered by configureMonaco
+    it("only returns language IDs Monaco can highlight", () => {
+      const builtInIds = ["basic-languages", "language"].flatMap((dir) => {
+        const dirPath = repoPath(`node_modules/monaco-editor/esm/vs/${dir}`);
+        return readdirSync(dirPath, { recursive: true, encoding: "utf8" })
+          .filter((file) => file.endsWith("contribution.js"))
+          .flatMap((file) =>
+            Array.from(
+              readFileSync(path.join(dirPath, file), "utf8").matchAll(
+                /^\s*id: "([^"]+)"/gm,
+              ),
+              ([, id]) => id,
+            ),
+          );
+      });
+      const knownIds = new Set([
+        "plaintext",
+        ...builtInIds,
+        ...MONARCH_LANGUAGES.map(({ id }) => id),
+      ]);
+
+      const source = readFileSync(
+        repoPath(
+          "src/renderer/components/panes/editor/utils/languageDetection.ts",
+        ),
+        "utf8",
+      );
+      const detectedIds = Array.from(
+        source.matchAll(/:\s*"([^"]+)",?$/gm),
+        ([, id]) => id,
+      );
+
+      expect(builtInIds).toContain("typescript");
+      expect(detectedIds).toContain("typescript");
+      expect(detectedIds.filter((id) => !knownIds.has(id))).toEqual([]);
     });
   });
 });
