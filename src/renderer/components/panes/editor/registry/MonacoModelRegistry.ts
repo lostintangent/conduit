@@ -70,25 +70,6 @@ const DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024;
 /** Warning threshold for file size (1 MB) - files above this show a warning */
 const WARNING_FILE_SIZE = 1 * 1024 * 1024;
 
-/** Enable debug mode via environment or global flag */
-const DEBUG_REFERENCE_TRACKING =
-  typeof window !== "undefined" &&
-  // @ts-expect-error - Debug flag set externally
-  (window.__MONACO_DEBUG_REFERENCES__ === true ||
-    process.env.NODE_ENV === "development");
-
-/**
- * Reference tracking event for debugging.
- */
-interface ReferenceEvent {
-  type: "add" | "remove";
-  uri: string;
-  editorId: string;
-  timestamp: number;
-  refCountAfter: number;
-  stackTrace?: string;
-}
-
 /**
  * Convert a file path to a Monaco URI string.
  *
@@ -133,17 +114,6 @@ export class MonacoModelRegistry {
 
   private static instance: MonacoModelRegistry | null = null;
 
-  /** Static event emitter for reset notifications (persists across resets) */
-  private static readonly _onReset = new EventEmitter<void>();
-
-  /**
-   * Event fired when the registry is reset.
-   *
-   * Components should subscribe to this event and reinitialize when fired.
-   * This is a static event that persists across instance resets.
-   */
-  static readonly onReset = MonacoModelRegistry._onReset.event;
-
   /**
    * Get the singleton instance.
    */
@@ -156,14 +126,9 @@ export class MonacoModelRegistry {
 
   /**
    * Reset the singleton instance (for testing only).
-   *
-   * Fires the onReset event before disposing so components can clean up.
-   * Then disposes all models and clears the singleton.
+   * Disposes all models and clears the singleton.
    */
   static resetInstance(): void {
-    // Fire reset event BEFORE disposing so listeners can clean up
-    MonacoModelRegistry._onReset.fire();
-
     if (MonacoModelRegistry.instance) {
       MonacoModelRegistry.instance.disposeAll();
       MonacoModelRegistry.instance = null;
@@ -212,12 +177,6 @@ export class MonacoModelRegistry {
 
   /** Paths temporarily suppressed from orphan warnings (e.g., during dotfiles move) */
   private suppressedOrphanPaths = new Set<string>();
-
-  /** Debug: History of reference events (only in debug mode) */
-  private referenceHistory: ReferenceEvent[] = [];
-
-  /** Debug: Maximum history entries to keep */
-  private readonly maxHistoryEntries = 1000;
 
   /** Private constructor - use getInstance() */
   private constructor() {}
@@ -364,11 +323,6 @@ export class MonacoModelRegistry {
     }
 
     entry.references.add(editorId);
-
-    // Debug tracking
-    if (DEBUG_REFERENCE_TRACKING) {
-      this.trackReferenceEvent("add", uri, editorId, entry.references.size);
-    }
   }
 
   /**
@@ -382,22 +336,9 @@ export class MonacoModelRegistry {
    */
   removeReference(uri: string, editorId: string): void {
     const entry = this.models.get(uri);
-    if (!entry) {
-      // Debug: Track orphan removeReference calls
-      if (DEBUG_REFERENCE_TRACKING) {
-        console.warn(
-          `[MonacoModelRegistry] removeReference: Model not found for URI ${uri} (editorId: ${editorId})`,
-        );
-      }
-      return;
-    }
+    if (!entry) return;
 
     entry.references.delete(editorId);
-
-    // Debug tracking
-    if (DEBUG_REFERENCE_TRACKING) {
-      this.trackReferenceEvent("remove", uri, editorId, entry.references.size);
-    }
 
     // Start grace period if no more references
     if (entry.references.size === 0 && !entry.disposeTimer) {
@@ -615,22 +556,6 @@ export class MonacoModelRegistry {
   }
 
   /**
-   * Get the current maximum file size limit.
-   */
-  getMaxFileSize(): number {
-    return this.maxFileSize;
-  }
-
-  /**
-   * Set the maximum file size limit.
-   *
-   * @param size - Maximum file size in bytes
-   */
-  setMaxFileSize(size: number): void {
-    this.maxFileSize = size;
-  }
-
-  /**
    * Dispose a specific model.
    *
    * @param uri - The model URI
@@ -728,109 +653,6 @@ export class MonacoModelRegistry {
 
     // Reset disposing flag (in case instance is reused)
     this.isDisposing = false;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Debug Methods (Development Only)
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Track a reference event for debugging.
-   */
-  private trackReferenceEvent(
-    type: "add" | "remove",
-    uri: string,
-    editorId: string,
-    refCountAfter: number,
-  ): void {
-    const event: ReferenceEvent = {
-      type,
-      uri,
-      editorId,
-      timestamp: Date.now(),
-      refCountAfter,
-      stackTrace: new Error().stack,
-    };
-
-    this.referenceHistory.push(event);
-
-    // Trim history if too long
-    if (this.referenceHistory.length > this.maxHistoryEntries) {
-      this.referenceHistory = this.referenceHistory.slice(
-        -this.maxHistoryEntries,
-      );
-    }
-
-    // Log to console in debug mode
-    console.debug(
-      `[MonacoModelRegistry] ${type}Reference: ${uri} (editor: ${editorId}) -> refCount: ${refCountAfter}`,
-    );
-  }
-
-  /**
-   * Get reference history for debugging (development only).
-   *
-   * @param uri - Optional filter by URI
-   * @returns Array of reference events
-   */
-  getDebugReferenceHistory(uri?: string): ReferenceEvent[] {
-    if (uri) {
-      return this.referenceHistory.filter((e) => e.uri === uri);
-    }
-    return [...this.referenceHistory];
-  }
-
-  /**
-   * Check for potential reference leaks (development only).
-   *
-   * Returns models that have references but no recent "add" events,
-   * which could indicate orphaned references.
-   *
-   * @param maxAgeMs - Max age for "recent" events (default: 5 minutes)
-   * @returns Array of potentially leaked URIs with their reference counts
-   */
-  detectPotentialLeaks(maxAgeMs: number = 5 * 60 * 1000): Array<{
-    uri: string;
-    refCount: number;
-    lastEventAge: number;
-  }> {
-    const now = Date.now();
-    const potentialLeaks: Array<{
-      uri: string;
-      refCount: number;
-      lastEventAge: number;
-    }> = [];
-
-    for (const [uri, entry] of this.models) {
-      if (entry.references.size > 0) {
-        // Find the most recent event for this URI
-        const recentEvents = this.referenceHistory.filter(
-          (e) => e.uri === uri && now - e.timestamp < maxAgeMs,
-        );
-
-        if (recentEvents.length === 0) {
-          // No recent events for this model with references - potential leak
-          const lastEvent = this.referenceHistory
-            .filter((e) => e.uri === uri)
-            .pop();
-
-          potentialLeaks.push({
-            uri,
-            refCount: entry.references.size,
-            lastEventAge: lastEvent ? now - lastEvent.timestamp : Infinity,
-          });
-        }
-      }
-    }
-
-    return potentialLeaks;
-  }
-
-  /**
-   * Clear reference history (for testing).
-   */
-  clearDebugHistory(): void {
-    this.referenceHistory = [];
   }
 
   // ---------------------------------------------------------------------------

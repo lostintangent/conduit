@@ -320,29 +320,6 @@ export class ViewStateRegistry {
   }
 
   /**
-   * Get the maximum number of entries before LRU eviction.
-   */
-  getMaxEntries(): number {
-    return this.maxEntries;
-  }
-
-  /**
-   * Set the maximum number of entries before LRU eviction.
-   *
-   * Immediately triggers eviction if current count exceeds new limit.
-   *
-   * @param max - Maximum entries to keep (must be >= 0)
-   * @throws Error if max is negative
-   */
-  setMaxEntries(max: number): void {
-    if (max < 0) {
-      throw new Error(`maxEntries cannot be negative (received: ${max})`);
-    }
-    this.maxEntries = max;
-    this.evictLRU();
-  }
-
-  /**
    * Clear all saved ViewStates.
    *
    * Used during cleanup or testing.
