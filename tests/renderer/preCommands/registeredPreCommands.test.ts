@@ -4,10 +4,9 @@
 
 import {
   createAgentSession,
-  registerDefaultPreCommands,
+  runPreCommand,
   verifyGitRepo,
 } from "@/commands/preCommands/registeredPreCommands";
-import { PreCommandRegistry } from "@/commands/preCommands/registry";
 import type { TerminalConfig } from "@/commands/preCommands/types";
 import type { AgentSessionInfo } from "@shared/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -279,114 +278,17 @@ describe("registeredPreCommands", () => {
     });
   });
 
-  describe("registerDefaultPreCommands", () => {
-    it("should register all pre-commands", () => {
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear(); // Start fresh
-
-      registerDefaultPreCommands();
-
-      const commands = registry.getAll();
-      expect(commands).toHaveLength(2);
-
-      const ids = commands.map((cmd) => cmd.id);
-      expect(ids).toContain("verify-git-repo");
-      expect(ids).toContain("create-agent-session");
-    });
-
-    it("should make pre-commands retrievable by ID", () => {
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
-
-      const verifyCmd = registry.get("verify-git-repo");
-      const agentCmd = registry.get("create-agent-session");
-
-      expect(verifyCmd).toBeDefined();
-      expect(verifyCmd?.id).toBe("verify-git-repo");
-
-      expect(agentCmd).toBeDefined();
-      expect(agentCmd?.id).toBe("create-agent-session");
-    });
-
-    it("should not duplicate pre-commands when called multiple times", () => {
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
-      registerDefaultPreCommands(); // Call again
-
-      const commands = registry.getAll();
-      // Should still be 2, not 4 (registry overwrites duplicates)
-      expect(commands).toHaveLength(2);
-    });
-
-    it("should register pre-commands with correct labels", () => {
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
-
-      const verifyCmd = registry.get("verify-git-repo");
-      const agentCmd = registry.get("create-agent-session");
-
-      expect(verifyCmd?.label).toBe("Verify Git Repository");
-      expect(agentCmd?.label).toBe("Create Agent Session");
-    });
-
-    it("should register pre-commands with descriptions", () => {
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
-
-      const verifyCmd = registry.get("verify-git-repo");
-      const agentCmd = registry.get("create-agent-session");
-
-      expect(verifyCmd?.description).toBeDefined();
-      expect(verifyCmd?.description).toBeTruthy();
-
-      expect(agentCmd?.description).toBeDefined();
-      expect(agentCmd?.description).toBeTruthy();
-    });
-
-    it("should register pre-commands that can be executed", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
-
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
-
-      const config: TerminalConfig = {
-        command: "test",
-        cwd: "/path/to/repo",
-      };
-
-      const result = await registry.execute("verify-git-repo", config);
-
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe("integration", () => {
-    it("should work end-to-end with registry execute", async () => {
+  describe("runPreCommand", () => {
+    it("should run a pre-command by ID", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.spawnAgentSession.mockResolvedValue(mockSession);
-
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
 
       const config: TerminalConfig = {
         command: "claude-code",
         cwd: "/path/to/repo",
       };
 
-      const result = await registry.execute("create-agent-session", config);
+      const result = await runPreCommand("create-agent-session", config);
 
       expect(result.success).toBe(true);
       expect(result.paneOptions?.agentSession).toBeDefined();
@@ -395,24 +297,39 @@ describe("registeredPreCommands", () => {
       );
     });
 
-    it("should handle execution failures through registry", async () => {
+    it("should return the pre-command's failure result", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockResolvedValue(false);
 
-      const registry = PreCommandRegistry.getInstance();
-      registry.clear();
-
-      registerDefaultPreCommands();
-
-      const config: TerminalConfig = {
+      const result = await runPreCommand("verify-git-repo", {
         command: "git status",
         cwd: "/tmp",
-      };
-
-      const result = await registry.execute("verify-git-repo", config);
+      });
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Not a git repository");
+    });
+
+    it("should fail for an unknown pre-command ID", async () => {
+      const result = await runPreCommand("non-existent", { command: "test" });
+
+      expect(result).toEqual({
+        success: false,
+        error: "Pre-command not found: non-existent",
+      });
+    });
+
+    it("should convert thrown errors into a failure result", async () => {
+      const mockApi = (global as any).window.conduit;
+      mockApi.getSettings.mockRejectedValue(new Error("Settings unavailable"));
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const result = await runPreCommand("verify-git-repo", {
+        command: "test",
+      });
+
+      expect(result).toEqual({ success: false, error: "Settings unavailable" });
+      errorSpy.mockRestore();
     });
   });
 });

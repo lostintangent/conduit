@@ -6,6 +6,4 @@
  */
 
 export * from "./types";
-export { PreCommandRegistry } from "./registry";
-export { registerDefaultPreCommands } from "./registeredPreCommands";
-export { usePreCommands, usePreCommand } from "./hooks/usePreCommands";
+export { preCommands, runPreCommand } from "./registeredPreCommands";

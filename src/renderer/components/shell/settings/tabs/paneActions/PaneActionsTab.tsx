@@ -23,7 +23,7 @@ import type {
   TerminalConfig,
 } from "@/commands/paneActions/core/types";
 import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
-import { usePreCommands } from "@/commands/preCommands";
+import { preCommands } from "@/commands/preCommands";
 import { quickPaneAtom } from "@/store/atoms";
 import { useSetAtom } from "jotai";
 import {
@@ -53,7 +53,6 @@ export function PaneActionsTab({
 }: PaneActionsTabProps) {
   const setQuickPane = useSetAtom(quickPaneAtom);
   const actions = usePaneActions();
-  const preCommands = usePreCommands();
   const [expandedActions, setExpandedActions] = useState<Set<string>>(
     new Set(),
   );

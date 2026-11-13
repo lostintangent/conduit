@@ -7,7 +7,7 @@ import {
 } from "@/commands/paneActions";
 import type { Action } from "@/commands/paneActions/core/types";
 import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
-import { PreCommandRegistry } from "@/commands/preCommands/registry";
+import { runPreCommand } from "@/commands/preCommands";
 import { enqueueNotification } from "@/store/actions/notifications";
 import {
   openBrowserPane,
@@ -98,8 +98,7 @@ export function PaneControlFanButtons({
 
           // Execute pre-command if specified
           if (terminalConfig.preCommandId) {
-            const registry = PreCommandRegistry.getInstance();
-            const result = await registry.execute(terminalConfig.preCommandId, {
+            const result = await runPreCommand(terminalConfig.preCommandId, {
               ...terminalConfig,
               cwd: terminalCwd,
             });

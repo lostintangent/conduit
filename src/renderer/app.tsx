@@ -3,7 +3,6 @@ import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { usePaneActionsSystem } from "@/commands/paneActions";
-import { registerDefaultPreCommands } from "@/commands/preCommands";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { TabsOverview } from "@/components/layout/overview/TabsOverview";
@@ -225,11 +224,6 @@ export function App() {
   const paneActionsSystem = usePaneActionsSystem({
     homeDirectory,
   });
-
-  // Register pre-commands
-  useEffect(() => {
-    registerDefaultPreCommands();
-  }, []);
 
   useKeybindingDispatch(
     commandSystem?.commandRegistry,

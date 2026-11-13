@@ -6,19 +6,9 @@ import {
   validatePaneActionsConfig,
   ValidationError,
 } from "@/commands/paneActions/io/validation";
-import { PreCommandRegistry } from "@/commands/preCommands/registry";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 describe("validation", () => {
-  // Clean up registry before each test
-  beforeEach(() => {
-    PreCommandRegistry.getInstance().clear();
-  });
-
-  afterEach(() => {
-    PreCommandRegistry.getInstance().clear();
-  });
-
   describe("validatePaneActionsConfig", () => {
     describe("root validation", () => {
       it("should reject non-array input", () => {

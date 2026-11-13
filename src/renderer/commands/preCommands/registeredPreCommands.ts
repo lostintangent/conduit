@@ -1,7 +1,6 @@
 import { createAgentSessionHandler } from "./handlers/agentSessionHandler";
 import { verifyGitRepoHandler } from "./handlers/gitRepoHandler";
-import { PreCommandRegistry } from "./registry";
-import type { PreCommand } from "./types";
+import type { PreCommand, PreCommandResult, TerminalConfig } from "./types";
 
 /**
  * Verify Git Repository Pre-Command
@@ -97,15 +96,28 @@ export const createAgentSession: PreCommand = {
   },
 };
 
-/**
- * Register all default pre-commands
- *
- * This function should be called once at application startup to register
- * all built-in pre-commands with the registry.
- */
-export function registerDefaultPreCommands(): void {
-  const registry = PreCommandRegistry.getInstance();
+export const preCommands: PreCommand[] = [verifyGitRepo, createAgentSession];
 
-  registry.register(verifyGitRepo);
-  registry.register(createAgentSession);
+export async function runPreCommand(
+  id: string,
+  terminalConfig: TerminalConfig,
+): Promise<PreCommandResult> {
+  const command = preCommands.find((preCommand) => preCommand.id === id);
+
+  if (!command) {
+    return {
+      success: false,
+      error: `Pre-command not found: ${id}`,
+    };
+  }
+
+  try {
+    return await command.run(terminalConfig);
+  } catch (error) {
+    console.error(`[PreCommands] Error executing pre-command "${id}":`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
 }

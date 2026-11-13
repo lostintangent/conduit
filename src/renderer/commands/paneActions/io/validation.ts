@@ -15,6 +15,7 @@ import type {
   TerminalConfig,
 } from "../core/types";
 import { MAX_ACTIONS } from "../core/types";
+import { preCommands } from "../../preCommands/registeredPreCommands";
 
 /**
  * Validation error with context
@@ -204,23 +205,13 @@ function validateTerminalConfig(
   // Warn if pre-command ID is provided but not found in registry
   // (Don't throw - allow forward compatibility)
   if (
-    data.preCommandId !== undefined &&
-    typeof data.preCommandId === "string"
+    typeof data.preCommandId === "string" &&
+    !preCommands.some((preCommand) => preCommand.id === data.preCommandId)
   ) {
-    // Lazy import to avoid circular dependencies during module initialization
-    import("@/commands/preCommands/registry")
-      .then(({ PreCommandRegistry }) => {
-        const registry = PreCommandRegistry.getInstance();
-        if (!registry.get(data.preCommandId as string)) {
-          console.warn(
-            `[PaneActions] Pre-command not found: "${data.preCommandId}". ` +
-              `This pre-command will be skipped when the action is executed.`,
-          );
-        }
-      })
-      .catch(() => {
-        // If registry import fails, silently continue (registry may not be initialized yet)
-      });
+    console.warn(
+      `[PaneActions] Pre-command not found: "${data.preCommandId}". ` +
+        `This pre-command will be skipped when the action is executed.`,
+    );
   }
 
   const config: TerminalConfig = {
