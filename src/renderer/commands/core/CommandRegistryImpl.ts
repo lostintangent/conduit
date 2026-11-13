@@ -153,9 +153,12 @@ export class CommandRegistry {
       settings: null as any,
       contextKeys: this.contextKeyService,
       view: null as any,
+      workspace: null as any,
+      agent: null as any,
       activeTab: null,
       activePaneId: null,
       workspaceName: undefined,
+      allTabs: [],
     };
   }
 }

@@ -74,6 +74,7 @@ import {
   unlockTab,
   updateTabProperty,
 } from "@/store/actions/tab";
+import type { Tab } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import { ApplicationCommands } from "@shared/commands";
 import { registerFileTreeCommands } from "./fileTreeCommands";
@@ -1414,7 +1415,9 @@ export function registerApplicationCommands(
         return;
       }
 
-      const tab = context.allTabs.find((t) => t.id === targetTabId);
+      const tab: Tab | undefined = context.allTabs.find(
+        (t) => t.id === targetTabId,
+      );
       if (!tab) {
         return;
       }
@@ -1558,7 +1561,7 @@ const tabContextBuilder: MenuContextBuilder = async (
   params,
   checkGitRepo,
 ) => {
-  const { tab } = params;
+  const tab: Tab = params.tab;
 
   // Get the active pane
   const activePane = tab.panes[tab.activePaneId];
