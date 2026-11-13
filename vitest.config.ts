@@ -17,10 +17,6 @@ export default defineConfig({
         "**/*.d.ts",
       ],
     },
-    outputFile: {
-      junit: "./test-results/junit.xml",
-    },
-    reporters: ["default", "junit"],
   },
   resolve: {
     alias: [

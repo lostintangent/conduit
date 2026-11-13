@@ -8,8 +8,7 @@ icon.icns
 .vite/
 out/
 
-# Test results/coverage
-test-results/
+# Test coverage
 coverage/
 
 # Secrets/keys
