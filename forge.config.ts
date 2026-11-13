@@ -103,14 +103,10 @@ const config: ForgeConfig = {
   ],
   publishers: [
     new PublisherGithub({
-      repository: {
-        owner: "lostintangent",
-        name: "conduit-release",
-      },
+      repository: { owner: "lostintangent", name: "conduit" },
+      // Forge falls back to GITHUB_TOKEN when this is unset (as in CI)
       authToken: process.env.CONDUIT_GITHUB_TOKEN,
-      prerelease: false,
       draft: false,
-      generateReleaseNotes: false,
     }),
   ],
   plugins: [

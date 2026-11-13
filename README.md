@@ -1,5 +1,5 @@
 > [!TIP]
-> If you're looking for the intro or installer for Conduit, then head on over to the [Conduit release](https://github.com/lostintangent/conduit-release) repo. This repo is where the source code/active development happens, and ATM, the Conduit project isn't open source.
+> To install Conduit, grab the latest build from this repo's [releases](https://github.com/lostintangent/conduit/releases).
 
 ## ⚙️ Developer setup
 
