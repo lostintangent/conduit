@@ -1,4 +1,3 @@
-import { hasLastWorkspace } from "@/commands/contextKeys/appContextKeys";
 import {
   closeWorkspace as closeWorkspaceAction,
   openWorkspace,
@@ -199,7 +198,7 @@ export function useWorkspaces() {
   return {
     workspaceName,
     workspaces,
-    hasLastWorkspace,
+    hasLastWorkspace: Boolean(workspaces.lastWorkspace),
 
     showWorkspacePicker,
     setShowWorkspacePicker,
