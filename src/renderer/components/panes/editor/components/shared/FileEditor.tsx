@@ -55,7 +55,6 @@ import {
   useEditorActions,
   useEditorSaveKeybinding,
   useModelState,
-  type ReadTriggerAction,
 } from "../../hooks";
 import { MonacoModelRegistry, createModelKey } from "../../registry";
 import type { ContentSource } from "../../types";
@@ -125,8 +124,8 @@ interface WorkingContextProps {
   /** Timestamp when this file was last modified (Follow mode) */
   timestamp?: number | null;
 
-  /** Callback when user interacts with the file (marks as seen) */
-  triggerRead?: (action: ReadTriggerAction) => void;
+  /** Mark a file as seen when the user interacts with it (unseen tracking) */
+  markSeen?: (path: string) => void;
 
   /** Check if a file has unsaved changes - used to prevent staging dirty files */
   isFileDirty?: (filePath: string) => boolean;
@@ -156,7 +155,7 @@ interface CommitContextProps {
   baseBranch?: never;
   isUnseen?: never;
   timestamp?: never;
-  triggerRead?: never;
+  markSeen?: never;
   isFileDirty?: never;
 }
 
@@ -176,7 +175,7 @@ interface NormalContextProps {
   baseBranch?: never;
   isUnseen?: never;
   timestamp?: never;
-  triggerRead?: never;
+  markSeen?: never;
   isFileDirty?: never;
   commitFile?: never;
   commitId?: never;
@@ -230,7 +229,7 @@ export function FileEditor(props: FileEditorProps) {
   const baseBranch = isWorkingContext ? props.baseBranch : undefined;
   const isUnseen = isWorkingContext ? (props.isUnseen ?? false) : false;
   const timestamp = isWorkingContext ? props.timestamp : undefined;
-  const triggerRead = isWorkingContext ? props.triggerRead : undefined;
+  const markSeen = isWorkingContext ? props.markSeen : undefined;
   const isFileDirty = isWorkingContext ? props.isFileDirty : undefined;
 
   // Commit context props
@@ -245,10 +244,13 @@ export function FileEditor(props: FileEditorProps) {
   // Derived values
   // ---------------------------------------------------------------------------
 
-  const triggerReadRef = useRef(triggerRead);
+  // Focus listeners are registered once per editor, so they read the latest
+  // callback through a ref.
+  const markFileSeen = markSeen && (() => markSeen(filePath));
+  const markFileSeenRef = useRef(markFileSeen);
   useEffect(() => {
-    triggerReadRef.current = triggerRead;
-  }, [triggerRead]);
+    markFileSeenRef.current = markFileSeen;
+  }, [markFileSeen]);
 
   const fileName = useMemo(() => {
     return filePath.split("/").pop() ?? filePath;
@@ -413,7 +415,7 @@ export function FileEditor(props: FileEditorProps) {
         registerSaveKeybinding(mountedEditor);
       }
       mountedEditor.onDidFocusEditorText(() => {
-        triggerReadRef.current?.("file:focus");
+        markFileSeenRef.current?.();
       });
     },
     [isReadOnly, registerSaveKeybinding],
@@ -427,10 +429,10 @@ export function FileEditor(props: FileEditorProps) {
         registerSaveKeybinding(modifiedEditor);
       }
       modifiedEditor.onDidFocusEditorText(() => {
-        triggerReadRef.current?.("file:focus");
+        markFileSeenRef.current?.();
       });
       diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
-        triggerReadRef.current?.("file:focus");
+        markFileSeenRef.current?.();
       });
     },
     [isReadOnly, registerSaveKeybinding],
@@ -438,11 +440,10 @@ export function FileEditor(props: FileEditorProps) {
 
   const handleToggle = useCallback(() => {
     if (isWorkingContext) {
-      const action = isExpanded ? "file:collapse" : "file:expand";
-      triggerRead?.(action);
+      markSeen?.(filePath);
     }
     onToggle?.();
-  }, [isWorkingContext, isExpanded, triggerRead, onToggle]);
+  }, [isWorkingContext, markSeen, filePath, onToggle]);
 
   // ---------------------------------------------------------------------------
   // Badge status for GitBadge
@@ -532,24 +533,24 @@ export function FileEditor(props: FileEditorProps) {
       return;
     }
 
-    triggerRead?.("file:stage");
+    markSeen?.(filePath);
     try {
       await git.stage([filePath]);
     } catch (error) {
       console.error("Failed to stage file:", error);
     }
-  }, [isWorkingContext, git, filePath, fullFilePath, triggerRead, isFileDirty]);
+  }, [isWorkingContext, git, filePath, fullFilePath, markSeen, isFileDirty]);
 
   const handleToolbarUnstage = useCallback(async () => {
     if (!isWorkingContext || !git) return;
 
-    triggerRead?.("file:unstage");
+    markSeen?.(filePath);
     try {
       await git.unstage([filePath]);
     } catch (error) {
       console.error("Failed to unstage file:", error);
     }
-  }, [isWorkingContext, git, filePath, triggerRead]);
+  }, [isWorkingContext, git, filePath, markSeen]);
 
   const handleToolbarRevert = useCallback(async () => {
     if (!isWorkingContext || !git) return;
@@ -560,13 +561,13 @@ export function FileEditor(props: FileEditorProps) {
 
     if (!confirmed) return;
 
-    triggerRead?.("file:revert");
+    markSeen?.(filePath);
     try {
       await git.revert([filePath]);
     } catch (error) {
       console.error("Failed to revert file:", error);
     }
-  }, [isWorkingContext, git, filePath, triggerRead]);
+  }, [isWorkingContext, git, filePath, markSeen]);
 
   // ---------------------------------------------------------------------------
   // Render Toolbar using EditorToolbar

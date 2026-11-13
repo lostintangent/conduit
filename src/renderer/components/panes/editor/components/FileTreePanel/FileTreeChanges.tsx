@@ -38,7 +38,6 @@ import type { GitV2API } from "@/api/GitV2API";
 import {
   useScrollPersistence,
   useFileTreeChangesContextMenu,
-  type ReadTriggerAction,
 } from "../../hooks";
 import {
   filterDirtyFilesForStaging,
@@ -104,8 +103,8 @@ export interface FileTreeChangesProps {
   isFileDirty?: (filePath: string) => boolean;
   /** Callback when a file/folder is renamed - used to preserve seen status */
   onPathRename?: (oldPath: string, newPath: string) => void;
-  /** Callback to mark a file as seen (for unseen tracking) */
-  triggerRead?: (action: ReadTriggerAction, path: string) => void;
+  /** Mark a file as seen (unseen tracking) */
+  markSeen?: (path: string) => void;
 }
 
 // ============================================================================
@@ -305,7 +304,7 @@ export function FileTreeChanges({
   isFileUnseen,
   isFileDirty,
   onPathRename,
-  triggerRead,
+  markSeen,
 }: FileTreeChangesProps) {
   const showActionButtons = !isComparingToBranch;
 
@@ -594,7 +593,7 @@ export function FileTreeChanges({
 
       // Mark files as seen when staging
       for (const path of cleanPaths) {
-        triggerRead?.("file:stage", path);
+        markSeen?.(path);
       }
 
       git.stage(cleanPaths).catch((error) => {
@@ -612,7 +611,7 @@ export function FileTreeChanges({
       getActualPaths,
       isFileDirty,
       clearSelection,
-      triggerRead,
+      markSeen,
     ],
   );
 
@@ -628,7 +627,7 @@ export function FileTreeChanges({
 
       // Mark files as seen when unstaging
       for (const path of actualPaths) {
-        triggerRead?.("file:unstage", path);
+        markSeen?.(path);
       }
 
       git.unstage(actualPaths).catch((error) => {
@@ -644,7 +643,7 @@ export function FileTreeChanges({
       allFilePaths,
       getActualPaths,
       clearSelection,
-      triggerRead,
+      markSeen,
     ],
   );
 
@@ -661,7 +660,7 @@ export function FileTreeChanges({
       try {
         // Mark files as seen when reverting
         for (const path of actualPaths) {
-          triggerRead?.("file:revert", path);
+          markSeen?.(path);
         }
 
         await git.revert(actualPaths);
@@ -680,7 +679,7 @@ export function FileTreeChanges({
       allFilePaths,
       getActualPaths,
       clearSelection,
-      triggerRead,
+      markSeen,
     ],
   );
 

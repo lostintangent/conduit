@@ -2,11 +2,10 @@
  * useUnseenTracking Hook
  *
  * Consolidated hook for tracking unseen file changes in the editor.
- * Combines state management, subscriptions, and read triggers into a single API.
+ * Combines state management and subscriptions into a single API.
  *
  * This hook:
  * - Tracks which files have unseen changes (via useFileChangeTracking)
- * - Provides typed read triggers to mark files as seen (via useReadTriggers)
  * - Subscribes to git status changes to detect new files
  * - Subscribes to filesystem changes to detect content modifications
  * - Automatically excludes the currently open file from being marked unseen
@@ -27,14 +26,14 @@
  *   // Mark file as seen when selected
  *   const handleSelect = (file) => {
  *     setSelectedFile(file);
- *     unseenTracking.triggerRead('file:select', file.path);
+ *     unseenTracking.markSeen(file.path);
  *   };
  *
  *   // Pass to child components
  *   return (
  *     <FileTree
  *       isFileUnseen={unseenTracking.isUnseen}
- *       triggerRead={unseenTracking.triggerRead}
+ *       markSeen={unseenTracking.markSeen}
  *     />
  *   );
  * }
@@ -50,7 +49,6 @@ import {
   useFileChangeTracking,
   type FileChangeTrackingResult,
 } from "./useFileChangeTracking";
-import { useReadTriggers, type ReadTriggerAction } from "./useReadTriggers";
 
 export interface UseUnseenTrackingOptions {
   /** Git API instance */
@@ -88,10 +86,9 @@ export interface UnseenTrackingResult {
   getTimestamp: (path: string) => number | null;
 
   /**
-   * Trigger a read action for a file, marking it as seen.
-   * Use typed actions for self-documenting code.
+   * Mark a file as seen.
    */
-  triggerRead: (action: ReadTriggerAction, path: string) => void;
+  markSeen: (path: string) => void;
 
   /**
    * Mark all files as seen at once.
@@ -132,7 +129,7 @@ export interface UnseenTrackingResult {
 export const DISABLED_UNSEEN_TRACKING: UnseenTrackingResult = {
   isUnseen: () => false,
   getTimestamp: () => null,
-  triggerRead: () => {},
+  markSeen: () => {},
   markAllSeen: () => {},
   getUnseenCount: () => 0,
   unseenCount: 0,
@@ -147,7 +144,6 @@ export const DISABLED_UNSEEN_TRACKING: UnseenTrackingResult = {
  * Manages all aspects of unseen tracking:
  * - Core state (which files are unseen)
  * - Subscriptions (git status, filesystem watcher)
- * - Read triggers (marking files as seen)
  * - Currently open file exclusion
  */
 export function useUnseenTracking({
@@ -159,11 +155,6 @@ export function useUnseenTracking({
 }: UseUnseenTrackingOptions): UnseenTrackingResult {
   // Core tracking state
   const tracking = useFileChangeTracking();
-
-  // Read triggers for marking files as seen
-  const { triggerRead } = useReadTriggers(
-    enabled ? tracking.markSeen : undefined,
-  );
 
   // Use refs for values that shouldn't trigger resubscription
   // This prevents the subscription from being torn down and recreated
@@ -288,7 +279,7 @@ export function useUnseenTracking({
   return {
     isUnseen: tracking.isUnseen,
     getTimestamp: tracking.getTimestamp,
-    triggerRead,
+    markSeen: tracking.markSeen,
     markAllSeen: tracking.markAllSeen,
     getUnseenCount: tracking.getUnseenCount,
     unseenCount: tracking.unseenCount,

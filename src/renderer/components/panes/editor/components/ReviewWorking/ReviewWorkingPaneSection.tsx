@@ -30,7 +30,6 @@ import type { GitV2API } from "@/api/GitV2API";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
-import type { ReadTriggerAction } from "../../hooks";
 import { FileEditor } from "../shared";
 
 export interface ReviewWorkingPaneSectionProps {
@@ -96,8 +95,8 @@ export interface ReviewWorkingPaneSectionProps {
   /** Get timestamp for a file */
   getFileTimestamp?: (path: string) => number | null;
 
-  /** Trigger a read action for a file (marks as seen) */
-  triggerRead?: (action: ReadTriggerAction, path: string) => void;
+  /** Mark a file as seen (unseen tracking) */
+  markSeen?: (path: string) => void;
 
   // ---------------------------------------------------------------------------
   // Dirty File Checking
@@ -131,7 +130,7 @@ export function ReviewWorkingPaneSection({
   unseenCount = 0,
   isFileUnseen,
   getFileTimestamp,
-  triggerRead,
+  markSeen,
   // Dirty file checking
   isFileDirty,
 }: ReviewWorkingPaneSectionProps) {
@@ -225,11 +224,7 @@ export function ReviewWorkingPaneSection({
               // Follow mode props
               isUnseen={isFileUnseen?.(status.path)}
               timestamp={getFileTimestamp?.(status.path)}
-              triggerRead={
-                triggerRead
-                  ? (action) => triggerRead(action, status.path)
-                  : undefined
-              }
+              markSeen={markSeen}
               // Dirty file checking
               isFileDirty={isFileDirty}
             />

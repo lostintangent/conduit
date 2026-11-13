@@ -446,8 +446,7 @@ export function EditorPaneV2({
     gitChangedFiles,
   });
 
-  // Destructure triggerRead for convenience
-  const { triggerRead } = unseenTracking;
+  const { markSeen } = unseenTracking;
 
   // Current branch name
   const [currentBranch, setCurrentBranch] = useState<string | null>(null);
@@ -636,7 +635,7 @@ export function EditorPaneV2({
     baseBranch,
     preferDiffForModified,
     setViewMode,
-    triggerRead: trackUnseenChanges ? triggerRead : undefined,
+    markSeen: trackUnseenChanges ? markSeen : undefined,
   });
 
   // ---------------------------------------------------------------------------
@@ -731,7 +730,7 @@ export function EditorPaneV2({
 
       // Mark file as seen (if unseen tracking is enabled)
       if (trackUnseenChanges) {
-        triggerRead("file:select", relativePath);
+        markSeen(relativePath);
       }
 
       // Notify parent of file selection (skip for deleted files - they don't exist on disk)
@@ -756,7 +755,7 @@ export function EditorPaneV2({
       currentCwd,
       preferDiffForModified,
       setViewModePreservingReview,
-      triggerRead,
+      markSeen,
       trackUnseenChanges,
     ],
   );
@@ -938,7 +937,7 @@ export function EditorPaneV2({
               : relativePath,
           );
           // Mark the auto-selected file as seen
-          triggerRead("file:select", relativePath);
+          markSeen(relativePath);
         } else {
           // No dirty files left - clear selection
           setSelectedFile(null);
@@ -958,7 +957,7 @@ export function EditorPaneV2({
     treeViewMode,
     git,
     currentCwd,
-    triggerRead,
+    markSeen,
   ]);
 
   /**
@@ -987,7 +986,7 @@ export function EditorPaneV2({
       setSelectedFile(file);
       // Mark the auto-selected file as seen
       if (relativePath) {
-        triggerRead("file:select", relativePath);
+        markSeen(relativePath);
       }
     });
 
@@ -1000,7 +999,7 @@ export function EditorPaneV2({
     selectedFileModelState?.isOrphaned,
     currentCwd,
     git,
-    triggerRead,
+    markSeen,
   ]);
 
   /**
@@ -1640,7 +1639,7 @@ export function EditorPaneV2({
               trackUnseenChanges ? unseenTracking.isUnseen : undefined
             }
             onPathRename={handlePathRename}
-            triggerRead={trackUnseenChanges ? triggerRead : undefined}
+            markSeen={trackUnseenChanges ? markSeen : undefined}
             // Dirty file checking (for preventing staging unsaved files)
             isFileDirty={isFileDirty}
             // Commit graph callbacks

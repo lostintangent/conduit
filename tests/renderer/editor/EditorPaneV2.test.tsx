@@ -45,7 +45,7 @@ vi.mock("../../../src/renderer/components/panes/editor/hooks", () => ({
   useUnseenTracking: () => ({
     isUnseen: () => false,
     getTimestamp: () => null,
-    triggerRead: vi.fn(),
+    markSeen: vi.fn(),
     markAllSeen: vi.fn(),
     getUnseenCount: () => 0,
     unseenCount: 0,

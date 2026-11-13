@@ -207,11 +207,11 @@ export function ReviewWorkingPane({
   // ---------------------------------------------------------------------------
 
   // Subscriptions are handled by useUnseenTracking in EditorPaneV2
-  // This component just uses the tracking state and triggerRead function
+  // This component just uses the tracking state
   const {
     isUnseen,
     getTimestamp,
-    triggerRead,
+    markSeen,
     markAllSeen,
     getUnseenCount,
     unseenCount,
@@ -513,7 +513,7 @@ export function ReviewWorkingPane({
           unseenCount={stagedUnseenCount}
           isFileUnseen={isUnseen}
           getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
-          triggerRead={triggerRead}
+          markSeen={markSeen}
         />
 
         {/* Unstaged Changes Section */}
@@ -537,7 +537,7 @@ export function ReviewWorkingPane({
           unseenCount={unstagedUnseenCount}
           isFileUnseen={isUnseen}
           getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
-          triggerRead={triggerRead}
+          markSeen={markSeen}
           // Dirty file checking (for preventing staging unsaved files)
           isFileDirty={isFileDirty}
         />

@@ -78,11 +78,6 @@ export {
   useFileChangeTracking,
 } from "./useFileChangeTracking";
 export type { FileChangeTrackingResult } from "./useFileChangeTracking";
-export { READ_TRIGGER_ACTIONS, useReadTriggers } from "./useReadTriggers";
-export type {
-  ReadTriggerAction,
-  ReadTriggerResult,
-} from "./useReadTriggers";
 export {
   DISABLED_UNSEEN_TRACKING,
   useUnseenTracking,

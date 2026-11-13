@@ -71,9 +71,7 @@ describe("useUnseenTracking", () => {
       expect(DISABLED_UNSEEN_TRACKING.getTimestamp("any")).toBeNull();
       expect(DISABLED_UNSEEN_TRACKING.unseenCount).toBe(0);
       expect(DISABLED_UNSEEN_TRACKING.getUnseenCount()).toBe(0);
-      expect(() =>
-        DISABLED_UNSEEN_TRACKING.triggerRead("file:select", "any"),
-      ).not.toThrow();
+      expect(() => DISABLED_UNSEEN_TRACKING.markSeen("any")).not.toThrow();
       expect(() => DISABLED_UNSEEN_TRACKING.markAllSeen()).not.toThrow();
     });
 
@@ -179,7 +177,7 @@ describe("useUnseenTracking", () => {
       expect(result.current.unseenCount).toBe(1);
     });
 
-    it("should mark file as seen when triggerRead is called", () => {
+    it("should mark file as seen when markSeen is called", () => {
       const { result } = renderHook(() =>
         useUnseenTracking({
           git: mockGit as any,
@@ -203,7 +201,7 @@ describe("useUnseenTracking", () => {
 
       // Now mark it as seen
       act(() => {
-        result.current.triggerRead("file:select", "file.ts");
+        result.current.markSeen("file.ts");
       });
 
       expect(result.current.isUnseen("file.ts")).toBe(false);
@@ -265,56 +263,6 @@ describe("useUnseenTracking", () => {
       // (they're handled by the filesystem watcher instead)
       expect(result.current.isUnseen("modified-file.ts")).toBe(false);
       expect(result.current.unseenCount).toBe(0);
-    });
-  });
-
-  describe("triggerRead with different actions", () => {
-    let mockGit: ReturnType<typeof createMockGit>;
-
-    beforeEach(() => {
-      mockGit = createMockGit();
-    });
-
-    it("should mark file as seen for all action types", () => {
-      const { result } = renderHook(() =>
-        useUnseenTracking({
-          git: mockGit as any,
-          cwd: "/test",
-          enabled: true,
-          currentlyOpenFile: null,
-          gitChangedFiles: new Set(),
-        }),
-      );
-
-      const actions = [
-        "file:select",
-        "file:focus",
-        "file:stage",
-        "file:unstage",
-        "file:revert",
-        "file:expand",
-        "file:collapse",
-      ] as const;
-
-      for (const action of actions) {
-        // Add file as unseen
-        act(() => {
-          mockGit._triggerStatusChange({
-            status: null,
-            added: [`${action}-file.ts`],
-            modified: [],
-          });
-        });
-
-        expect(result.current.isUnseen(`${action}-file.ts`)).toBe(true);
-
-        // Mark as seen with specific action
-        act(() => {
-          result.current.triggerRead(action, `${action}-file.ts`);
-        });
-
-        expect(result.current.isUnseen(`${action}-file.ts`)).toBe(false);
-      }
     });
   });
 
