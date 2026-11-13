@@ -25,7 +25,6 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { GitBranch } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import type { GitV2API } from "@/api/GitV2API";
 import {
   Dialog,
@@ -34,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatRelativeTime } from "@/utils/time";
 import { useBranches, filterBranchesByQuery } from "./hooks/useBranches";
 
 export interface BranchSelectorProps {
@@ -303,10 +303,7 @@ export function BranchSelector({
                           </div>
                           {branch.lastCommitDate && (
                             <div className="text-xs text-foreground/40 flex-shrink-0">
-                              {formatDistanceToNow(
-                                new Date(branch.lastCommitDate),
-                                { addSuffix: true },
-                              )}
+                              {`${formatRelativeTime(new Date(branch.lastCommitDate).getTime() / 1000)} ago`}
                             </div>
                           )}
                         </div>

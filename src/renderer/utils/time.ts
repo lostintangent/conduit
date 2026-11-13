@@ -1,5 +1,5 @@
 /**
- * Time formatting utilities for editor.
+ * Relative and full date formatting shared across the app.
  */
 
 /**

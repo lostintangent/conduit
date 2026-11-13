@@ -69,7 +69,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "commander": "^14.0.3",
-    "date-fns": "^4.1.0",
     "ignore": "^7.0.14",
     "immer": "^11.2.10",
     "jotai": "^2.20.3",

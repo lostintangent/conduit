@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { formatRelativeTime } from "@/components/panes/editor/utils/timeFormat";
+import { formatRelativeTime } from "@/utils/time";
 
 describe("formatRelativeTime", () => {
   const nowMs = 1700000000000; // Fixed "now" in ms for testing

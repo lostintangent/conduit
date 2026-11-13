@@ -32,7 +32,7 @@ export {
   normalizePathForKey,
   joinCwdPath,
 } from "./pathUtils";
-export { formatRelativeTime, formatFullDate } from "./timeFormat";
+export { formatRelativeTime, formatFullDate } from "@/utils/time";
 export { forceTokenizeVisibleLines } from "./tokenization";
 export {
   filterDirtyFilesForStaging,
