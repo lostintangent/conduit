@@ -41,7 +41,7 @@ export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
   AgentPaneMetadata & {
     sessionId: string;
     cwd: string | null;
-    title: string;
+    title?: string;
   };
 
 export type BrowserPane = Omit<SharedBrowserPane, "url"> & {

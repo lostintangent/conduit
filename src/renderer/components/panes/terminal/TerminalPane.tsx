@@ -139,7 +139,8 @@ type TerminalPaneProps = {
   resolvedSessionId?: string;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
-  onLinkClick: (url: string) => void;
+  // Without a handler, links open in the default browser.
+  onLinkClick?: (url: string) => void;
   showDimensions?: boolean;
   hideIndividualSandboxIndicator?: boolean;
   isTabSynchronized?: boolean;

@@ -1,4 +1,5 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
+import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { getDefaultActions } from "@/commands/paneActions/core/defaults";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
@@ -91,7 +92,7 @@ export const hyperTerminalsAtom = atomWithImmer<HyperTerminal[]>([]);
  * Quick pane atom - stores the current quick pane descriptor
  * Used to display the quick action dialog
  */
-export const quickPaneAtom = atom<any | null>();
+export const quickPaneAtom = atom<QuickPaneDescriptor | null>();
 
 /**
  * Tab terminal state for background tabs.

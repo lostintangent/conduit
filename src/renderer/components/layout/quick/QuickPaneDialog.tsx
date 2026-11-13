@@ -16,7 +16,12 @@ import { useSetAtom } from "jotai";
 import { ArrowUpRight, PictureInPicture2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export type PaneDescriptor = Omit<Pane, "id">;
+// Omit each pane variant separately so narrowing on `type` keeps its fields.
+export type PaneDescriptor = Pane extends infer P
+  ? P extends Pane
+    ? Omit<P, "id">
+    : never
+  : never;
 
 export type QuickPaneDescriptor = PaneDescriptor & {
   closeOnSave?: boolean;
@@ -77,10 +82,9 @@ export function QuickPaneDialog({
   const handleEditorUpdate = useCallback(
     (updates: Partial<EditorPaneType>) => {
       if (currentDescriptor.type === "editor") {
-        setCurrentDescriptor((prev) => ({
-          ...prev,
-          ...updates,
-        }));
+        setCurrentDescriptor((prev) =>
+          prev.type === "editor" ? { ...prev, ...updates } : prev,
+        );
       }
     },
     [currentDescriptor.type],
