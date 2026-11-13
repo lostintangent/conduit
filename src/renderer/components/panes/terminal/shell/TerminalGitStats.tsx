@@ -36,15 +36,10 @@ import { memo, useCallback, useState } from "react";
  */
 const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
   cwd,
-  sandboxId,
 }: {
   cwd: string;
-  sandboxId?: string;
 }) {
-  const { stats, gitStatus, isGitRepo } = useUncommittedDiffStats(
-    cwd,
-    sandboxId,
-  );
+  const { stats, gitStatus, isGitRepo } = useUncommittedDiffStats(cwd);
   const setSidebarState = useSetAtom(sidebarStateAtom);
   const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
   const [isHovered, setIsHovered] = useState(false);
@@ -117,15 +112,13 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
  */
 export const TerminalGitStats = memo(function TerminalGitStats({
   cwd,
-  sandboxId,
 }: {
   cwd: string | null;
-  sandboxId?: string;
 }) {
   // Don't render anything if no cwd
   if (!cwd) {
     return null;
   }
 
-  return <TerminalGitStatsInner cwd={cwd} sandboxId={sandboxId} />;
+  return <TerminalGitStatsInner cwd={cwd} />;
 });

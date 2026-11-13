@@ -30,7 +30,6 @@ import {
   hasUnpushedCommits,
   hasUpstreamBranch,
   parseGitHubRepo,
-  pushCommitsViaSSH,
   runGit,
   safeGitCommand,
 } from "./git";
@@ -491,26 +490,6 @@ export async function initializeAgentHandlers() {
   ipcMain.handle("agent:has-unpushed-commits", async (_event, cwd: string) => {
     return await hasUnpushedCommits(cwd);
   });
-
-  ipcMain.handle(
-    "agent:push-commits-via-ssh",
-    async (
-      _event,
-      cwd: string,
-      sshHost: string,
-      sshPort: number,
-      sshKeyPath: string,
-      remotePath?: string,
-    ) => {
-      return await pushCommitsViaSSH(
-        cwd,
-        sshHost,
-        sshPort,
-        sshKeyPath,
-        remotePath,
-      );
-    },
-  );
 
   ipcMain.handle("agent:create-diff-patch", async (_event, cwd: string) => {
     return await createDiffPatch(cwd);

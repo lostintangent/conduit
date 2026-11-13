@@ -54,7 +54,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(82);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(81);
 
       // View commands
       expect(
@@ -163,9 +163,6 @@ describe("applicationCommands", () => {
       );
 
       // Terminal commands
-      expect(
-        registeredCommands.has(ApplicationCommands.TERMINAL_CREATE_CLOUD),
-      ).toBe(true);
       expect(
         registeredCommands.has(ApplicationCommands.TERMINAL_OPEN_IN_VSCODE),
       ).toBe(true);
@@ -379,19 +376,6 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(tabActions.closeTab).not.toHaveBeenCalled();
-      });
-    });
-
-    describe("TERMINAL_CREATE_VM", () => {
-      it("should call handleCreateVM handler", () => {
-        const command = registeredCommands.get(
-          ApplicationCommands.TERMINAL_CREATE_CLOUD,
-        )!;
-        const mockContext: CommandContext = {} as any;
-
-        command.run(mockContext);
-
-        expect(handlers.handleCreateVM).toHaveBeenCalled();
       });
     });
 

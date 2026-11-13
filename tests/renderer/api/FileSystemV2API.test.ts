@@ -92,7 +92,6 @@ describe("FileSystemV2API", () => {
       expect(mockFs.readDirectory).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/src",
-        undefined,
       );
       expect(result).toEqual(entries);
 
@@ -120,7 +119,6 @@ describe("FileSystemV2API", () => {
       expect(mockFs.readFile).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/file.txt",
-        undefined,
       );
       expect(result).toEqual(content);
 
@@ -200,7 +198,6 @@ describe("FileSystemV2API", () => {
         "/test/project",
         "/test/project/file.txt",
         content,
-        undefined,
       );
 
       api.release();
@@ -233,7 +230,6 @@ describe("FileSystemV2API", () => {
         "/test/project",
         "/test/project/file.txt",
         undefined,
-        undefined,
       );
 
       api.release();
@@ -251,7 +247,6 @@ describe("FileSystemV2API", () => {
         {
           recursive: true,
         },
-        undefined,
       );
 
       api.release();
@@ -269,7 +264,6 @@ describe("FileSystemV2API", () => {
         "/test/project",
         "/test/project/old.txt",
         "/test/project/new.txt",
-        undefined,
       );
 
       api.release();
@@ -286,7 +280,6 @@ describe("FileSystemV2API", () => {
       expect(mockFs.createDirectory).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/new-folder",
-        undefined,
       );
 
       api.release();
@@ -309,12 +302,7 @@ describe("FileSystemV2API", () => {
 
       // Should trigger IPC subscription
       await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockFs.subscribe).toHaveBeenCalledWith(
-        "/test/project",
-        "all",
-        undefined,
-        undefined,
-      );
+      expect(mockFs.subscribe).toHaveBeenCalledWith("/test/project", "all");
 
       // Cleanup should work
       expect(typeof cleanup).toBe("function");

@@ -127,11 +127,10 @@ export class GitV2APIService {
    * - If no instance exists, creates a new one
    *
    * @param cwd - Working directory to scope operations to
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns The GitV2API instance
    */
-  acquire(cwd: string, sandboxId?: string): GitV2API {
-    const key = this.makeKey(cwd, sandboxId);
+  acquire(cwd: string): GitV2API {
+    const key = this.normalizePath(cwd);
     const existing = this.instances.get(key);
 
     if (existing) {
@@ -146,7 +145,7 @@ export class GitV2APIService {
     }
 
     // Create new instance
-    const api = new GitV2API(cwd, sandboxId);
+    const api = new GitV2API(cwd);
     this.instances.set(key, {
       api,
       refCount: 1,
@@ -162,10 +161,9 @@ export class GitV2APIService {
    * timer. If not re-acquired during grace period, the instance is disposed.
    *
    * @param cwd - Working directory of the instance to release
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
    */
-  release(cwd: string, sandboxId?: string): void {
-    const key = this.makeKey(cwd, sandboxId);
+  release(cwd: string): void {
+    const key = this.normalizePath(cwd);
     const managed = this.instances.get(key);
 
     if (!managed) {
@@ -188,11 +186,10 @@ export class GitV2APIService {
    * Useful for debugging and testing.
    *
    * @param cwd - Working directory to check
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns Reference count, or 0 if no instance exists
    */
-  getRefCount(cwd: string, sandboxId?: string): number {
-    const key = this.makeKey(cwd, sandboxId);
+  getRefCount(cwd: string): number {
+    const key = this.normalizePath(cwd);
     return this.instances.get(key)?.refCount ?? 0;
   }
 
@@ -200,11 +197,10 @@ export class GitV2APIService {
    * Check if an instance exists for a cwd (even if in grace period).
    *
    * @param cwd - Working directory to check
-   * @param sandboxId - Optional sandbox ID for cloud VM operations
    * @returns True if instance exists
    */
-  hasInstance(cwd: string, sandboxId?: string): boolean {
-    const key = this.makeKey(cwd, sandboxId);
+  hasInstance(cwd: string): boolean {
+    const key = this.normalizePath(cwd);
     return this.instances.has(key);
   }
 
@@ -260,13 +256,5 @@ export class GitV2APIService {
    */
   private normalizePath(path: string): string {
     return path.replace(/\/+$/, "");
-  }
-
-  /**
-   * Create a unique key for the instance map that includes cwd and optional sandboxId.
-   */
-  private makeKey(cwd: string, sandboxId?: string): string {
-    const normalizedCwd = this.normalizePath(cwd);
-    return sandboxId ? `${normalizedCwd}::vm:${sandboxId}` : normalizedCwd;
   }
 }

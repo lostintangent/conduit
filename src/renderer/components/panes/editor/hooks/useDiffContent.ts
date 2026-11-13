@@ -97,9 +97,6 @@ export interface UseDiffContentOptions {
   /** Source for modified content (default: 'workingDirectory') */
   modifiedSource?: ContentSource;
 
-  /** Optional sandbox ID for VM file operations */
-  sandboxId?: string;
-
   /**
    * For renamed/copied files, the original path before the rename.
    * When provided, this path is used to fetch content from originalSource,
@@ -195,7 +192,6 @@ export function useDiffContent(
   const {
     originalSource = "head",
     modifiedSource = "workingDirectory",
-    sandboxId,
     originalFilePath,
   } = options;
 
@@ -212,7 +208,7 @@ export function useDiffContent(
   });
 
   // Git API for fetching content from git sources
-  const git = useGitV2(cwd, sandboxId);
+  const git = useGitV2(cwd);
 
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);
@@ -252,7 +248,7 @@ export function useDiffContent(
 
     const loadContent = async () => {
       const registry = MonacoModelRegistry.getInstance();
-      const modelKey = createModelKey(filePath, sandboxId);
+      const modelKey = createModelKey(filePath);
       const originalRef = contentSourceToGitRef(originalSource);
 
       // For renamed files, use originalFilePath to fetch from original source
@@ -303,11 +299,7 @@ export function useDiffContent(
           } else {
             // Model doesn't exist - try to create it
             try {
-              const model = await registry.getOrCreateModel(
-                filePath,
-                cwd,
-                sandboxId,
-              );
+              const model = await registry.getOrCreateModel(filePath, cwd);
 
               // Check if effect was cleaned up during async operation
               if (isStale) {

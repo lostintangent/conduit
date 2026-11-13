@@ -30,7 +30,6 @@ export type EditorPane = {
   file?: string;
   treeMode?: EditorTreeMode;
   changesViewMode?: ChangesViewMode;
-  sandboxId?: string;
   preview?: boolean;
 };
 

@@ -47,17 +47,15 @@ import { MonacoModelRegistry, createModelKey } from "../registry";
  * @param editorId - Unique editor ID (must match EditorRegistry ID)
  * @param filePath - Absolute path to the file, or null for no model
  * @param cwd - Working directory for file operations
- * @param sandboxId - Optional sandbox ID for VM file operations
  * @returns The Monaco text model, or null if filePath is null or loading
  */
 export function useMonacoModel(
   editorId: string,
   filePath: string | null,
   cwd: string,
-  sandboxId?: string,
 ): monaco.editor.ITextModel | null {
   const registry = MonacoModelRegistry.getInstance();
-  const modelKey = filePath ? createModelKey(filePath, sandboxId) : null;
+  const modelKey = filePath ? createModelKey(filePath) : null;
 
   // Track previous modelKey for reference cleanup on file change
   const prevModelKeyRef = useRef<string | null>(null);
@@ -157,7 +155,7 @@ export function useMonacoModel(
     const loadModel = async () => {
       try {
         // Get or create the model (this adds it to registry and fires event)
-        await registry.getOrCreateModel(filePath, cwd, sandboxId);
+        await registry.getOrCreateModel(filePath, cwd);
 
         // Check if this effect was cleaned up while loading
         if (loadingAborted) {
@@ -185,7 +183,7 @@ export function useMonacoModel(
         hasReferenceRef.current = false;
       }
     };
-  }, [filePath, cwd, editorId, sandboxId, modelKey, registry]);
+  }, [filePath, cwd, editorId, modelKey, registry]);
 
   return model;
 }

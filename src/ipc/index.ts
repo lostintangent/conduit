@@ -22,7 +22,6 @@ import {
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
-import { initializeVMHandlers } from "./vm";
 import initializeWorkspaceHandlers from "./workspace";
 
 async function ensureConduitDirectory(): Promise<string> {
@@ -61,7 +60,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 
   initializeUIHandlers(window);
   await initializeAgentHandlers();
-  initializeVMHandlers();
   initializeBrowserHandlers();
   registerSearchHandlers();
 

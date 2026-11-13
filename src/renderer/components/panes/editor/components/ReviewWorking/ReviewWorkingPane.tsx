@@ -54,9 +54,6 @@ export interface ReviewWorkingPaneProps {
   /** Working directory */
   cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
-
   /** Git API instance (shared from parent) */
   git: GitV2API;
 
@@ -115,7 +112,6 @@ export interface ReviewWorkingPaneProps {
  */
 export function ReviewWorkingPane({
   cwd,
-  sandboxId,
   git,
   baseBranch,
   onExitReview,
@@ -507,7 +503,6 @@ export function ReviewWorkingPane({
           bulkActionLabel="Unstage all"
           onBulkAction={handleUnstageAll}
           cwd={cwd}
-          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}
@@ -532,7 +527,6 @@ export function ReviewWorkingPane({
           bulkActionLabel="Stage all"
           onBulkAction={handleStageAll}
           cwd={cwd}
-          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           expandedFiles={expandedFiles}

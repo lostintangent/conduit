@@ -48,26 +48,6 @@ export function getActiveTabCwd(
 }
 
 /**
- * Get the sandboxId from a tab's active pane (for VM operations)
- * @param tab - The tab to get the sandboxId from
- * @returns The sandboxId from the active pane, or undefined if not in a VM context
- */
-export function getActiveTabSandboxId(
-  tab: Tab | null | undefined,
-): string | undefined {
-  if (!tab) {
-    return undefined;
-  }
-
-  const activePane = tab.panes[tab.activePaneId];
-  if (activePane?.type === "terminal" || activePane?.type === "editor") {
-    return activePane.sandboxId;
-  }
-
-  return undefined;
-}
-
-/**
  * Translate a file path from one CWD to another.
  * If the file is within the source CWD, returns the equivalent path in the target CWD.
  * Otherwise, returns the original file path unchanged.
@@ -161,7 +141,6 @@ export async function openTab(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     title: result.title,
-    sandboxId: result.sandboxId,
   };
 
   const layout: LayoutNode = {
@@ -213,12 +192,10 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
-  sandboxId,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
-  sandboxId?: TerminalPane["sandboxId"] | null;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -228,7 +205,6 @@ export function openTabFromExistingSession({
     sessionId,
     cwd: cwd ?? null,
     title: title ?? "Terminal",
-    sandboxId: sandboxId ?? undefined,
   };
 
   return createTabWithPane(paneState);
@@ -558,7 +534,6 @@ export async function duplicateTab(
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         title: result.title,
-        sandboxId: result.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,
@@ -607,7 +582,6 @@ export async function duplicateTab(
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         file: translatedFile,
-        sandboxId: sourcePane.sandboxId,
         agentSessionId,
         agentBranchName,
         agentBaseBranch,

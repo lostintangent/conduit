@@ -26,7 +26,7 @@ export interface LaunchPayload {
       instances?: { id: string; instructions?: string }[];
     };
   };
-  launchTarget: "same-folder" | "worktree" | "cloud-vm";
+  launchTarget: "same-folder" | "worktree";
 }
 
 export interface WorktreeLaunchOptions {

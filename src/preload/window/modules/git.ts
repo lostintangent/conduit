@@ -198,13 +198,11 @@ export default {
    * Get complete repository status.
    *
    * @param cwd - Working directory (will be resolved to git root)
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Serialized git status, or null if not a git repo
    */
-  getStatus: (cwd: string, vmId?: string) =>
+  getStatus: (cwd: string) =>
     ipcRenderer.invoke("git-v2:status", {
       cwd,
-      vmId,
     }) as Promise<SerializedGitStatus | null>,
 
   /**
@@ -212,40 +210,34 @@ export default {
    *
    * @param cwd - Working directory
    * @param filePath - Path to file (relative to git root)
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns File status, or null if file is clean
    */
-  getFileStatus: (cwd: string, filePath: string, vmId?: string) =>
+  getFileStatus: (cwd: string, filePath: string) =>
     ipcRenderer.invoke("git-v2:file-status", {
       cwd,
       filePath,
-      vmId,
     }) as Promise<GitFileStatus | null>,
 
   /**
    * Check if repository has uncommitted changes.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns true if there are uncommitted changes
    */
-  hasUncommittedChanges: (cwd: string, vmId?: string) =>
+  hasUncommittedChanges: (cwd: string) =>
     ipcRenderer.invoke("git-v2:has-uncommitted-changes", {
       cwd,
-      vmId,
     }) as Promise<boolean>,
 
   /**
    * Check if repository has unpushed commits.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns true if there are unpushed commits
    */
-  hasUnpushedCommits: (cwd: string, vmId?: string) =>
+  hasUnpushedCommits: (cwd: string) =>
     ipcRenderer.invoke("git-v2:has-unpushed-commits", {
       cwd,
-      vmId,
     }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
@@ -258,20 +250,13 @@ export default {
    * @param cwd - Working directory
    * @param filePath - Path to file
    * @param staged - If true, show staged changes; if false, unstaged
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Unified diff string, or null if not a git repo
    */
-  getFileDiff: (
-    cwd: string,
-    filePath: string,
-    staged?: boolean,
-    vmId?: string,
-  ) =>
+  getFileDiff: (cwd: string, filePath: string, staged?: boolean) =>
     ipcRenderer.invoke("git-v2:file-diff", {
       cwd,
       filePath,
       staged,
-      vmId,
     }) as Promise<string | null>,
 
   /**
@@ -280,15 +265,13 @@ export default {
    * @param cwd - Working directory
    * @param filePath - Path to file
    * @param ref - Git ref (commit hash, branch name, 'HEAD', etc.)
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns File content, or null if not found
    */
-  getFileAtRef: (cwd: string, filePath: string, ref: string, vmId?: string) =>
+  getFileAtRef: (cwd: string, filePath: string, ref: string) =>
     ipcRenderer.invoke("git-v2:file-at-ref", {
       cwd,
       filePath,
       ref,
-      vmId,
     }) as Promise<string | null>,
 
   // ---------------------------------------------------------------------------
@@ -300,20 +283,18 @@ export default {
    *
    * @param cwd - Working directory
    * @param files - Paths to stage (relative to git root)
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  stage: (cwd: string, files: string[], vmId?: string) =>
-    ipcRenderer.invoke("git-v2:stage", { cwd, files, vmId }) as Promise<void>,
+  stage: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("git-v2:stage", { cwd, files }) as Promise<void>,
 
   /**
    * Unstage files (remove from index).
    *
    * @param cwd - Working directory
    * @param files - Paths to unstage (relative to git root)
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  unstage: (cwd: string, files: string[], vmId?: string) =>
-    ipcRenderer.invoke("git-v2:unstage", { cwd, files, vmId }) as Promise<void>,
+  unstage: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("git-v2:unstage", { cwd, files }) as Promise<void>,
 
   // ---------------------------------------------------------------------------
   // Commit Operations
@@ -325,20 +306,13 @@ export default {
    * @param cwd - Working directory
    * @param message - Commit message
    * @param options - Commit options (amend, signoff, etc.)
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns The created commit, or null if not a git repo
    */
-  commit: (
-    cwd: string,
-    message: string,
-    options?: GitCommitOptions,
-    vmId?: string,
-  ) =>
+  commit: (cwd: string, message: string, options?: GitCommitOptions) =>
     ipcRenderer.invoke("git-v2:commit", {
       cwd,
       message,
       options,
-      vmId,
     }) as Promise<SerializedGitCommit | null>,
 
   // ---------------------------------------------------------------------------
@@ -349,23 +323,19 @@ export default {
    * Get current branch name.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Branch name, 'HEAD' if detached, or null if not a git repo
    */
-  getCurrentBranch: (cwd: string, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:branch", { cwd, vmId }) as Promise<
-      string | null
-    >,
+  getCurrentBranch: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:branch", { cwd }) as Promise<string | null>,
 
   /**
    * Get all branches (local and remote).
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Array of branches
    */
-  getBranches: (cwd: string, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:branches", { cwd, vmId }) as Promise<
+  getBranches: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:branches", { cwd }) as Promise<
       SerializedGitBranch[]
     >,
 
@@ -375,14 +345,12 @@ export default {
    * @param cwd - Working directory
    * @param ref - Branch name, tag, or commit hash
    * @param force - If true, force checkout (discards local changes)
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  checkout: (cwd: string, ref: string, force?: boolean, vmId?: string) =>
+  checkout: (cwd: string, ref: string, force?: boolean) =>
     ipcRenderer.invoke("git-v2:checkout", {
       cwd,
       ref,
       force,
-      vmId,
     }) as Promise<void>,
 
   /**
@@ -411,19 +379,17 @@ export default {
    *
    * @param cwd - Working directory
    * @param message - Optional message for the stash entry
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  stash: (cwd: string, message?: string, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:stash", { cwd, message, vmId }) as Promise<void>,
+  stash: (cwd: string, message?: string) =>
+    ipcRenderer.invoke("git-v2:stash", { cwd, message }) as Promise<void>,
 
   /**
    * Apply and remove the most recent stash entry.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  stashPop: (cwd: string, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:stash-pop", { cwd, vmId }) as Promise<void>,
+  stashPop: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:stash-pop", { cwd }) as Promise<void>,
 
   // ---------------------------------------------------------------------------
   // Remote Operations
@@ -435,14 +401,12 @@ export default {
    * @param cwd - Working directory
    * @param force - If true, use --force-with-lease for safer force push
    * @param setUpstream - If true, set upstream tracking (for new branches)
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  push: (cwd: string, force?: boolean, setUpstream?: boolean, vmId?: string) =>
+  push: (cwd: string, force?: boolean, setUpstream?: boolean) =>
     ipcRenderer.invoke("git-v2:push", {
       cwd,
       force,
       setUpstream,
-      vmId,
     }) as Promise<void>,
 
   /**
@@ -450,22 +414,19 @@ export default {
    *
    * @param cwd - Working directory
    * @param rebase - If true, use rebase instead of merge
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  pull: (cwd: string, rebase?: boolean, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:pull", { cwd, rebase, vmId }) as Promise<void>,
+  pull: (cwd: string, rebase?: boolean) =>
+    ipcRenderer.invoke("git-v2:pull", { cwd, rebase }) as Promise<void>,
 
   /**
    * Check if the current branch has an upstream (tracking) branch.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns true if upstream is configured, false otherwise
    */
-  hasUpstream: (cwd: string, vmId?: string) =>
+  hasUpstream: (cwd: string) =>
     ipcRenderer.invoke("git-v2:has-upstream", {
       cwd,
-      vmId,
     }) as Promise<boolean>,
 
   // ---------------------------------------------------------------------------
@@ -477,14 +438,12 @@ export default {
    *
    * @param cwd - Working directory
    * @param baseBranch - Branch to compare against (e.g., 'main')
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Array of relative file paths
    */
-  getChangedFilesFromBranch: (cwd: string, baseBranch: string, vmId?: string) =>
+  getChangedFilesFromBranch: (cwd: string, baseBranch: string) =>
     ipcRenderer.invoke("git-v2:changed-files-from-branch", {
       cwd,
       baseBranch,
-      vmId,
     }) as Promise<string[]>,
 
   /**
@@ -494,53 +453,45 @@ export default {
    *
    * @param cwd - Working directory
    * @param baseBranch - Branch to compare against (e.g., 'main')
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Object of relative file paths to their GitFileStatus
    */
-  getStatusFromBranch: (cwd: string, baseBranch: string, vmId?: string) =>
+  getStatusFromBranch: (cwd: string, baseBranch: string) =>
     ipcRenderer.invoke("git-v2:status-from-branch", {
       cwd,
       baseBranch,
-      vmId,
     }) as Promise<Record<string, GitFileStatus>>,
 
   /**
    * Get diff statistics for uncommitted changes (lines added/removed).
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Statistics about uncommitted changes
    */
-  getUncommittedDiffStats: (cwd: string, vmId?: string) =>
+  getUncommittedDiffStats: (cwd: string) =>
     ipcRenderer.invoke("git-v2:uncommitted-diff-stats", {
       cwd,
-      vmId,
     }) as Promise<SerializedDiffStats>,
 
   /**
    * Get per-file diff statistics for uncommitted changes.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Split stats for staged and unstaged changes
    */
-  getPerFileDiffStats: (cwd: string, vmId?: string) =>
+  getPerFileDiffStats: (cwd: string) =>
     ipcRenderer.invoke("git-v2:per-file-diff-stats", {
       cwd,
-      vmId,
     }) as Promise<SerializedSplitPerFileDiffStats>,
 
   /**
    * Get the most recently modified dirty file.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Relative path from git root, or null if no dirty files
    */
-  getMostRecentDirtyFile: (cwd: string, vmId?: string) =>
+  getMostRecentDirtyFile: (cwd: string) =>
     ipcRenderer.invoke("git-v2:most-recent-dirty-file", {
       cwd,
-      vmId,
     }) as Promise<string | null>,
 
   /**
@@ -548,31 +499,23 @@ export default {
    *
    * @param cwd - Working directory
    * @param commitLimit - Number of recent commits to check (default: 10)
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Relative path from git root, or null if none found
    */
-  getMostRecentCommittedFile: (
-    cwd: string,
-    commitLimit?: number,
-    vmId?: string,
-  ) =>
+  getMostRecentCommittedFile: (cwd: string, commitLimit?: number) =>
     ipcRenderer.invoke("git-v2:most-recent-committed-file", {
       cwd,
       commitLimit,
-      vmId,
     }) as Promise<string | null>,
 
   /**
    * Get all dirty files with their modification timestamps.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Array of files with their modification times, sorted most recent first
    */
-  getDirtyFilesWithTimes: (cwd: string, vmId?: string) =>
+  getDirtyFilesWithTimes: (cwd: string) =>
     ipcRenderer.invoke("git-v2:dirty-files-with-times", {
       cwd,
-      vmId,
     }) as Promise<FileWithTime[]>,
 
   /**
@@ -580,10 +523,9 @@ export default {
    *
    * @param cwd - Working directory
    * @param files - Relative paths from git root
-   * @param vmId - Optional VM ID for cloud git operations
    */
-  revert: (cwd: string, files: string[], vmId?: string) =>
-    ipcRenderer.invoke("git-v2:revert", { cwd, files, vmId }) as Promise<void>,
+  revert: (cwd: string, files: string[]) =>
+    ipcRenderer.invoke("git-v2:revert", { cwd, files }) as Promise<void>,
 
   // ---------------------------------------------------------------------------
   // Commit History Operations
@@ -665,13 +607,10 @@ export default {
    * Find the git root for a path.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Git root path, or null if not a git repo
    */
-  findRoot: (cwd: string, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:find-root", { cwd, vmId }) as Promise<
-      string | null
-    >,
+  findRoot: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:find-root", { cwd }) as Promise<string | null>,
 
   /**
    * Check if git is available on the system.
@@ -692,13 +631,10 @@ export default {
    * Subscribe to git events.
    *
    * @param cwd - Working directory
-   * @param vmId - Optional VM ID for cloud git operations
    * @returns Subscription ID, or null if not a git repo
    */
-  subscribe: (cwd: string, vmId?: string) =>
-    ipcRenderer.invoke("git-v2:subscribe", { cwd, vmId }) as Promise<
-      string | null
-    >,
+  subscribe: (cwd: string) =>
+    ipcRenderer.invoke("git-v2:subscribe", { cwd }) as Promise<string | null>,
 
   /**
    * Unsubscribe from git events.

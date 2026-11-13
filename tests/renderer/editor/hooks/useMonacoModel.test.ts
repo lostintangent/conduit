@@ -108,7 +108,6 @@ describe("useMonacoModel", () => {
         expect(mockRegistry.getOrCreateModel).toHaveBeenCalledWith(
           "/test/file.ts",
           "/test",
-          undefined,
         );
       });
     });
@@ -135,7 +134,7 @@ describe("useMonacoModel", () => {
 
       await waitFor(() => {
         expect(mockRegistry.addReference).toHaveBeenCalledWith(
-          createModelKey("/test/file.ts", undefined),
+          createModelKey("/test/file.ts"),
           "my-editor-id",
         );
       });
@@ -153,7 +152,7 @@ describe("useMonacoModel", () => {
       unmount();
 
       expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-        createModelKey("/test/file.ts", undefined),
+        createModelKey("/test/file.ts"),
         "my-editor-id",
       );
     });
@@ -189,7 +188,7 @@ describe("useMonacoModel", () => {
         },
       );
 
-      const firstModelKey = createModelKey("/test/file1.ts", undefined);
+      const firstModelKey = createModelKey("/test/file1.ts");
 
       // Change to a different file
       await act(async () => {
@@ -236,7 +235,7 @@ describe("useMonacoModel", () => {
       // Verify reference was released
       await waitFor(() => {
         expect(mockRegistry.removeReference).toHaveBeenCalledWith(
-          createModelKey("/test/file.ts", undefined),
+          createModelKey("/test/file.ts"),
           "editor-1",
         );
       });
@@ -270,7 +269,7 @@ describe("useMonacoModel", () => {
       // Verify reference was added for new file
       await waitFor(() => {
         expect(mockRegistry.addReference).toHaveBeenCalledWith(
-          createModelKey("/test/file.ts", undefined),
+          createModelKey("/test/file.ts"),
           "editor-1",
         );
       });
@@ -324,7 +323,7 @@ describe("useMonacoModel", () => {
 
       // Verify the provided editorId was used
       expect(mockRegistry.addReference).toHaveBeenCalledWith(
-        createModelKey("/test/file.ts", undefined),
+        createModelKey("/test/file.ts"),
         "consistent-editor-id",
       );
 

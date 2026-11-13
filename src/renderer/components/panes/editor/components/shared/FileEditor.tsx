@@ -82,9 +82,6 @@ interface BaseProps {
   /** Working directory */
   cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
-
   /** Monaco theme name */
   theme?: string;
 
@@ -209,14 +206,7 @@ export type FileEditorProps =
  * Handles standalone and inline layouts with working, commit, and normal contexts.
  */
 export function FileEditor(props: FileEditorProps) {
-  const {
-    layout,
-    filePath,
-    cwd,
-    sandboxId,
-    theme,
-    autoSize = EDITOR_MAX_HEIGHT,
-  } = props;
+  const { layout, filePath, cwd, theme, autoSize = EDITOR_MAX_HEIGHT } = props;
 
   // Layout-specific props
   const isInline = layout === "inline";
@@ -383,10 +373,7 @@ export function FileEditor(props: FileEditorProps) {
   const effectiveDiffMode = isCommitContext ? true : isDiffMode;
 
   // Model state for dirty tracking
-  const modelState = useModelState(
-    !isReadOnly ? fullFilePath : null,
-    sandboxId,
-  );
+  const modelState = useModelState(!isReadOnly ? fullFilePath : null);
   const isDirty = !isReadOnly && (modelState?.isDirty ?? false);
 
   useEffect(() => {
@@ -405,11 +392,11 @@ export function FileEditor(props: FileEditorProps) {
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      await registry.saveModel(createModelKey(fullFilePath, sandboxId));
+      await registry.saveModel(createModelKey(fullFilePath));
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [isReadOnly, fullFilePath, sandboxId]);
+  }, [isReadOnly, fullFilePath]);
 
   const { registerSaveKeybinding } = useEditorSaveKeybinding(
     handleSave,
@@ -487,7 +474,6 @@ export function FileEditor(props: FileEditorProps) {
         <RegularEditorWrapper
           editorId={editorId}
           cwd={cwd}
-          sandboxId={sandboxId}
           filePath={fullFilePath}
           source={modifiedSource}
           autoSize={autoSize}
@@ -498,7 +484,6 @@ export function FileEditor(props: FileEditorProps) {
         <RegularEditorWrapper
           editorId={editorId}
           cwd={cwd}
-          sandboxId={sandboxId}
           filePath={
             originalPath ? joinCwdPath(cwd, originalPath) : fullFilePath
           }
@@ -511,7 +496,6 @@ export function FileEditor(props: FileEditorProps) {
         <RegularEditorWrapper
           editorId={editorId}
           cwd={cwd}
-          sandboxId={sandboxId}
           filePath={fullFilePath}
           source={modifiedSource}
           autoSize={autoSize}
@@ -522,7 +506,6 @@ export function FileEditor(props: FileEditorProps) {
         <DiffEditorWrapper
           editorId={editorId}
           cwd={cwd}
-          sandboxId={sandboxId}
           filePath={fullFilePath}
           originalFilePath={
             originalPath ? joinCwdPath(cwd, originalPath) : undefined

@@ -7,12 +7,7 @@ import type {
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
   BrowserPage,
-  CreateVMPayload,
-  DeleteVMPayload,
   DotfilesStatus,
-  ForkVMPayload,
-  ForwardPortResponse,
-  ListVMsPayload,
   NotificationKind,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
@@ -22,9 +17,7 @@ import type {
   TerminalPromptRequest,
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
-  TerminalSSHStatePayload,
   UserSettings,
-  VMInfo,
 } from "@shared/types";
 import { contextBridge, ipcRenderer } from "electron";
 import configureBrowserModule from "./modules/browser";
@@ -92,10 +85,6 @@ const conduitAPI = {
   // Notify when terminal has exited (e.g. user ran `exit` command or closed shell)
   onExit: (listener: (payload: TerminalExitPayload) => void) =>
     createEventListener("terminal:exit", listener),
-
-  // Notify when SSH connection state changes for cloud terminals
-  onSSHStateChange: (listener: (payload: TerminalSSHStatePayload) => void) =>
-    createEventListener("terminal:ssh-state", listener),
 
   // Notify when user requests a new tab (e.g. via menu or keyboard shortcut)
   onNewTabRequest: (listener: () => void) =>
@@ -257,22 +246,6 @@ const conduitAPI = {
   hasUnpushedCommits: (cwd: string) =>
     ipcRenderer.invoke("agent:has-unpushed-commits", cwd) as Promise<boolean>,
 
-  pushCommitsViaSSH: (
-    cwd: string,
-    sshHost: string,
-    sshPort: number,
-    sshKeyPath: string,
-    remotePath?: string,
-  ) =>
-    ipcRenderer.invoke(
-      "agent:push-commits-via-ssh",
-      cwd,
-      sshHost,
-      sshPort,
-      sshKeyPath,
-      remotePath,
-    ) as Promise<boolean>,
-
   createDiffPatch: (cwd: string) =>
     ipcRenderer.invoke("agent:create-diff-patch", cwd) as Promise<{
       stagedPatch: Buffer | null;
@@ -337,57 +310,6 @@ const conduitAPI = {
       "agent:cleanup-session",
       payload,
     ) as Promise<AgentSessionCleanupResult>,
-
-  /* VM methods (UI->main) */
-
-  createVM: (payload?: CreateVMPayload) =>
-    ipcRenderer.invoke("vm:create", payload) as Promise<VMInfo>,
-
-  listVMs: (payload?: ListVMsPayload) =>
-    ipcRenderer.invoke("vm:list", payload) as Promise<VMInfo[]>,
-
-  getVM: (vmId: string) =>
-    ipcRenderer.invoke("vm:get", vmId) as Promise<VMInfo>,
-
-  deleteVM: (payload: DeleteVMPayload) =>
-    ipcRenderer.invoke("vm:delete", payload) as Promise<void>,
-
-  forkVM: (vmId: string, payload?: Omit<ForkVMPayload, "vmId">) =>
-    ipcRenderer.invoke("vm:fork", { vmId, ...payload }) as Promise<VMInfo>,
-
-  executeInVM: (
-    vmId: string,
-    command: string,
-    args?: string[],
-    timeoutSeconds?: number,
-  ) =>
-    ipcRenderer.invoke("vm:execute", {
-      vmId,
-      command,
-      args,
-      timeoutSeconds,
-    }) as Promise<{
-      exit_code: number;
-      stdout: string;
-      stderr: string;
-      error?: string;
-    }>,
-
-  configureVMForGitPush: (vmId: string, repoPath: string) =>
-    ipcRenderer.invoke("vm:configure-git-push", {
-      vmId,
-      repoPath,
-    }) as Promise<{ success: boolean; error?: string }>,
-
-  forwardPort: (vmId: string, port: number, description?: string) =>
-    ipcRenderer.invoke("vm:forward-port", {
-      vmId,
-      port,
-      description,
-    }) as Promise<ForwardPortResponse>,
-
-  reloadVMConfig: () =>
-    ipcRenderer.invoke("vm:reload-config") as Promise<{ success: boolean }>,
 
   /* Temporary file operations */
 

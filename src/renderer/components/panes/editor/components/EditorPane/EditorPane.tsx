@@ -90,9 +90,6 @@ export interface EditorPaneProps {
   /** Working directory for file operations */
   cwd: string;
 
-  /** Sandbox/VM ID for remote operations (optional - if not provided, uses local filesystem) */
-  sandboxId?: string;
-
   /** Git API instance (shared from parent) */
   git?: GitV2API;
 
@@ -242,7 +239,6 @@ export interface EditorPaneProps {
 export const EditorPane = memo(function EditorPane({
   editorId,
   cwd,
-  sandboxId,
   git,
   selectedFile,
   selectedMapKey,
@@ -312,7 +308,7 @@ export const EditorPane = memo(function EditorPane({
   }, [filePath, cwd]);
 
   // Get model state for the current file
-  const modelState = useModelState(filePath, sandboxId);
+  const modelState = useModelState(filePath);
 
   // ---------------------------------------------------------------------------
   // Commit Review Details (for historical mode)
@@ -444,13 +440,12 @@ export const EditorPane = memo(function EditorPane({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      // Use composite key that includes sandboxId for VM file support
-      await registry.saveModel(createModelKey(filePath, sandboxId));
+      await registry.saveModel(createModelKey(filePath));
       onSave?.();
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, sandboxId, onSave]);
+  }, [filePath, onSave]);
 
   // ---------------------------------------------------------------------------
   // Editor Keybindings
@@ -511,12 +506,11 @@ export const EditorPane = memo(function EditorPane({
 
     try {
       const registry = MonacoModelRegistry.getInstance();
-      // Use composite key that includes sandboxId for VM file support
-      await registry.reloadModel(createModelKey(filePath, sandboxId));
+      await registry.reloadModel(createModelKey(filePath));
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
-  }, [filePath, sandboxId]);
+  }, [filePath]);
 
   /**
    * Handle keep changes - user acknowledges external changes but wants to keep editing.
@@ -526,9 +520,8 @@ export const EditorPane = memo(function EditorPane({
     if (!filePath) return;
 
     const registry = MonacoModelRegistry.getInstance();
-    // Use composite key that includes sandboxId for VM file support
-    registry.clearExternalChanges(createModelKey(filePath, sandboxId));
-  }, [filePath, sandboxId]);
+    registry.clearExternalChanges(createModelKey(filePath));
+  }, [filePath]);
 
   // Changes review mode - render full-height pane with its own toolbar
   // This is checked first because review mode doesn't require a selected file
@@ -540,7 +533,6 @@ export const EditorPane = memo(function EditorPane({
       >
         <ReviewWorkingPane
           cwd={cwd}
-          sandboxId={sandboxId}
           git={git}
           baseBranch={baseBranch}
           onExitReview={onExitReview}
@@ -752,7 +744,6 @@ export const EditorPane = memo(function EditorPane({
             <RegularEditorWrapper
               editorId={`${editorId}-deleted`}
               cwd={cwd}
-              sandboxId={sandboxId}
               filePath={filePath}
               source={originalSource}
               theme={theme}
@@ -762,7 +753,7 @@ export const EditorPane = memo(function EditorPane({
         ) : viewMode.type === "preview" ? (
           // Preview - shows rendered markdown or image
           isImageFile(filePath) ? (
-            <ImagePreview filePath={filePath} cwd={cwd} sandboxId={sandboxId} />
+            <ImagePreview filePath={filePath} cwd={cwd} />
           ) : (
             <MarkdownPreview content={previewContent} />
           )
@@ -774,7 +765,6 @@ export const EditorPane = memo(function EditorPane({
             <RegularEditorWrapper
               editorId={editorId}
               cwd={cwd}
-              sandboxId={sandboxId}
               filePath={filePath}
               source={modifiedSource}
               theme={theme}
@@ -787,7 +777,6 @@ export const EditorPane = memo(function EditorPane({
             <DiffEditorWrapper
               editorId={`${editorId}-diff`}
               cwd={cwd}
-              sandboxId={sandboxId}
               filePath={filePath}
               originalSource={originalSource}
               modifiedSource={modifiedSource}
@@ -799,7 +788,6 @@ export const EditorPane = memo(function EditorPane({
           // Changes review pane
           <ReviewWorkingPane
             cwd={cwd}
-            sandboxId={sandboxId}
             git={git}
             baseBranch={baseBranch}
             onExitReview={onExitReview}

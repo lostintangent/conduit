@@ -32,19 +32,15 @@ import type { ModelState, ModelStateEvent } from "../types";
  * updates automatically when the state changes in the registry.
  *
  * @param filePath - Absolute path to the file, or null for no state
- * @param sandboxId - Optional sandbox ID for VM file operations
  * @returns The current model state, or null if no model exists for this path
  */
-export function useModelState(
-  filePath: string | null,
-  sandboxId?: string,
-): ModelState | null {
+export function useModelState(filePath: string | null): ModelState | null {
   const [state, setState] = useState<ModelState | null>(() => {
     // Initialize with current state from registry
     if (filePath === null) return null;
 
     const registry = MonacoModelRegistry.getInstance();
-    const modelKey = createModelKey(filePath, sandboxId);
+    const modelKey = createModelKey(filePath);
     return registry.getModelState(modelKey);
   });
 
@@ -55,7 +51,7 @@ export function useModelState(
     }
 
     const registry = MonacoModelRegistry.getInstance();
-    const modelKey = createModelKey(filePath, sandboxId);
+    const modelKey = createModelKey(filePath);
 
     // Get initial state
     const initialState = registry.getModelState(modelKey);
@@ -118,7 +114,7 @@ export function useModelState(
     return () => {
       disposable.dispose();
     };
-  }, [filePath, sandboxId]);
+  }, [filePath]);
 
   return state;
 }

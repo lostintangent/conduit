@@ -243,11 +243,9 @@ export class FileSystemProviderService {
   ): Promise<DiskFileSystemProvider> {
     // Validate that the path exists before creating a provider
     // This prevents attempting to watch paths that don't exist locally
-    // (e.g., VM paths like /workspace when vmId is not provided)
     if (!fs.existsSync(normalizedPath)) {
       throw new Error(
-        `Cannot create local filesystem provider for non-existent path: ${normalizedPath}. ` +
-          `If this is a remote/VM path, ensure sandboxId is passed through the component hierarchy.`,
+        `Cannot create local filesystem provider for non-existent path: ${normalizedPath}.`,
       );
     }
 

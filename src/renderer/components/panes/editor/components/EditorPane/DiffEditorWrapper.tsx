@@ -76,9 +76,6 @@ export interface DiffEditorWrapperProps {
    */
   baseBranch?: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
-
   /** Monaco theme name */
   theme?: string;
 
@@ -180,7 +177,6 @@ export function DiffEditorWrapper({
   originalSource: originalSourceProp,
   modifiedSource: modifiedSourceProp = "workingDirectory",
   baseBranch,
-  sandboxId,
   theme: themeProp,
   readOnly = false,
   onChange,
@@ -230,7 +226,6 @@ export function DiffEditorWrapper({
   const diffContent = useDiffContent(filePath, cwd, {
     originalSource,
     modifiedSource,
-    sandboxId,
     originalFilePath,
   });
 
@@ -249,7 +244,6 @@ export function DiffEditorWrapper({
     editorId,
     modifiedSource === "workingDirectory" ? filePath : null,
     cwd,
-    sandboxId,
   );
 
   // Detect language from file path
@@ -366,11 +360,9 @@ export function DiffEditorWrapper({
       // When filePath changes, React may re-run this effect with the OLD model
       // before useMonacoModel updates with the new model.
       const modelUri = registryModel.uri.toString();
-      const expectedModelKey = createModelKey(filePath, sandboxId);
+      const expectedModelKey = createModelKey(filePath);
       const modelMatchesFile =
-        modelUri === expectedModelKey ||
-        modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
-        registryModel.uri.fsPath === filePath;
+        modelUri === expectedModelKey || registryModel.uri.fsPath === filePath;
 
       if (!modelMatchesFile) {
         return;
@@ -489,7 +481,6 @@ export function DiffEditorWrapper({
     diffContent.modified,
     registryModel,
     effectiveReadOnly,
-    sandboxId,
   ]);
 
   // ---------------------------------------------------------------------------

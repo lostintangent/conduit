@@ -257,19 +257,7 @@ describe("TerminalGitStats", () => {
     it("should pass cwd to useUncommittedDiffStats", () => {
       render(<TerminalGitStats cwd="/my/project" />);
 
-      expect(mockUseUncommittedDiffStats).toHaveBeenCalledWith(
-        "/my/project",
-        undefined,
-      );
-    });
-
-    it("should pass sandboxId to useUncommittedDiffStats", () => {
-      render(<TerminalGitStats cwd="/my/project" sandboxId="sandbox-123" />);
-
-      expect(mockUseUncommittedDiffStats).toHaveBeenCalledWith(
-        "/my/project",
-        "sandbox-123",
-      );
+      expect(mockUseUncommittedDiffStats).toHaveBeenCalledWith("/my/project");
     });
   });
 

@@ -126,23 +126,8 @@ export function PaneControlFanButtons({
           const terminalConfig = action.config;
           const terminalCwd = terminalConfig.cwd || cwd;
 
-          // Start with base options including any cloud terminal config from pane action
           let paneOptions: any = {
-            terminalOptions: {
-              ...(terminalCwd ? { cwd: terminalCwd } : {}),
-              ...(terminalConfig.isRemoteVM !== undefined
-                ? { isRemoteVM: terminalConfig.isRemoteVM }
-                : {}),
-              ...(terminalConfig.vmImageId
-                ? { vmImageId: terminalConfig.vmImageId }
-                : {}),
-              ...(terminalConfig.vmLabels
-                ? { vmLabels: terminalConfig.vmLabels }
-                : {}),
-              ...(terminalConfig.githubRepo
-                ? { githubRepo: terminalConfig.githubRepo }
-                : {}),
-            },
+            terminalOptions: terminalCwd ? { cwd: terminalCwd } : {},
           };
 
           // Execute pre-command if specified
@@ -219,17 +204,7 @@ export function PaneControlFanButtons({
             editorCwd = homeDir || ".";
           }
 
-          // Get sandboxId from the current pane if it's a terminal or editor with VM
-          const sandboxId =
-            currentPane?.type === "terminal"
-              ? currentPane.sandboxId
-              : currentPane?.type === "editor"
-                ? currentPane.sandboxId
-                : undefined;
-
-          openEditorPane(tabId, paneId, editorCwd, direction, insertBefore, {
-            sandboxId,
-          });
+          openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);
         }
         break;
       }

@@ -42,7 +42,6 @@ export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
     sessionId: string;
     cwd: string | null;
     title: string;
-    sandboxId?: string;
   };
 
 export type BrowserPane = Omit<SharedBrowserPane, "url"> & {
@@ -53,7 +52,6 @@ export type BrowserPane = Omit<SharedBrowserPane, "url"> & {
 export type EditorPane = Omit<SharedEditorPane, "cwd"> &
   AgentPaneMetadata & {
     cwd: string;
-    sandboxId?: string;
   };
 
 export type CanvasPane = SharedCanvasPane;

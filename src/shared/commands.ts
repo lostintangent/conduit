@@ -74,7 +74,6 @@ export const ApplicationCommands = {
   PANE_VIEW_FILES: "pane.viewFiles",
 
   // Terminal commands
-  TERMINAL_CREATE_CLOUD: "terminal.createCloud",
   TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
 
   // Agent session commands

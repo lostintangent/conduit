@@ -4,7 +4,6 @@ import {
   useCommand,
 } from "@/commands/hooks/useCommand";
 import { TabPreviewOverlay } from "@/components/layout/overview/TabPreviewOverlay";
-import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabButton } from "@/components/shell/tabs/TabButton";
 import { TabPlaceholder } from "@/components/shell/tabs/TabPlaceholder";
 import {
@@ -24,11 +23,6 @@ import {
   openHyperTerminal,
   restoreMinimizedHyperTerminals,
 } from "@/store/actions/hyperTerminal";
-import {
-  dismissNotification,
-  enqueueNotification,
-  updateNotification,
-} from "@/store/actions/notifications";
 import {
   focusTab,
   getActiveTabCwd,
@@ -50,7 +44,6 @@ import { generateId } from "@shared/utils";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
   ChevronDown,
-  Cloud,
   Fullscreen,
   LayoutGrid,
   MoreHorizontal,
@@ -154,8 +147,6 @@ export const TabStrip = ({
   } | null>(null);
 
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-
-  const [isRepoDialogOpen, setIsRepoDialogOpen] = useState(false);
 
   // Track scroll position for gradient overlays and inline tab controls
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -611,51 +602,6 @@ export const TabStrip = ({
     });
   }, [activeTab, homeDirectory, setQuickPaneState]);
 
-  const handleOpenQuickCloudTerminal = useCallback(() => {
-    setIsRepoDialogOpen(true);
-  }, []);
-
-  const handleRepoSubmit = useCallback(
-    async (repo?: { owner: string; name: string }) => {
-      const api = window.conduit;
-
-      const notificationId = enqueueNotification({
-        kind: "info",
-        message: "Creating cloud VM...",
-        persistent: true,
-      });
-
-      try {
-        const result = await api.createTerminal({
-          isRemoteVM: true,
-          githubRepo: repo,
-        });
-
-        if (!result) {
-          throw new Error("Failed to create VM terminal");
-        }
-
-        dismissNotification(notificationId);
-
-        setQuickPaneState({
-          type: "terminal",
-          sessionId: result.sessionId,
-          cwd: result.cwd ?? null,
-          sandboxId: result.sandboxId ?? undefined,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        updateNotification(notificationId, {
-          kind: "error",
-          message: "Failed to create cloud VM",
-          details: message,
-          autoCloseMs: null,
-        });
-      }
-    },
-    [setQuickPaneState],
-  );
-
   // Use margins to create gaps that reveal the overlay underneath
   // On Windows, no rounded corners (Windows 11 handles rounding)
   const marginClass = alwaysShowTabs
@@ -825,10 +771,6 @@ export const TabStrip = ({
                   <Terminal size={16} className="mr-3" />
                   Quick Terminal (Local)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleOpenQuickCloudTerminal}>
-                  <Cloud size={16} className="mr-3" />
-                  Quick Terminal (Cloud)
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {/*<DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
                   <FolderTree size={16} className="mr-3" />
@@ -940,12 +882,6 @@ export const TabStrip = ({
       <TabPreviewOverlay
         preview={hoverPreview}
         onPreviewHoverChange={handlePreviewHoverChange}
-      />
-
-      <RepositoryDialog
-        isOpen={isRepoDialogOpen}
-        onClose={() => setIsRepoDialogOpen(false)}
-        onSubmit={handleRepoSubmit}
       />
     </>
   );

@@ -80,15 +80,10 @@ export type { Cleanup };
  *
  * All operations are scoped to the CWD provided at construction.
  * Manages subscriptions automatically and cleans up on release.
- *
- * When sandboxId is provided, operations are routed to the VM via conduit-server.
  */
 export class FileSystemV2API {
   /** The working directory this API is scoped to */
   readonly cwd: string;
-
-  /** Optional sandbox ID for cloud filesystem operations */
-  readonly sandboxId?: string;
 
   /** Active subscription ID, if subscribed to events */
   private subscriptionId: string | null = null;
@@ -133,11 +128,9 @@ export class FileSystemV2API {
    * for missed events between construction and first listener registration.
    *
    * @param cwd - Working directory to scope operations to
-   * @param sandboxId - Optional sandbox ID for cloud filesystem operations
    */
-  constructor(cwd: string, sandboxId?: string) {
+  constructor(cwd: string) {
     this.cwd = cwd;
-    this.sandboxId = sandboxId;
     this.setupEventListeners();
     // Eagerly subscribe to reduce race condition window
     this.ensureSubscribed();
@@ -157,7 +150,7 @@ export class FileSystemV2API {
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
-    return window.conduit.fs.readDirectory(this.cwd, dirPath, this.sandboxId);
+    return window.conduit.fs.readDirectory(this.cwd, dirPath);
   }
 
   /**
@@ -170,7 +163,7 @@ export class FileSystemV2API {
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
-    return window.conduit.fs.readFile(this.cwd, filePath, this.sandboxId);
+    return window.conduit.fs.readFile(this.cwd, filePath);
   }
 
   /**
@@ -190,7 +183,7 @@ export class FileSystemV2API {
    */
   async readTextFile(filePath: string): Promise<string> {
     this.ensureNotReleased();
-    return window.conduit.fs.readTextFile(this.cwd, filePath, this.sandboxId);
+    return window.conduit.fs.readTextFile(this.cwd, filePath);
   }
 
   /**
@@ -203,7 +196,7 @@ export class FileSystemV2API {
    */
   async stat(path: string): Promise<FileStat> {
     this.ensureNotReleased();
-    return window.conduit.fs.stat(this.cwd, path, this.sandboxId);
+    return window.conduit.fs.stat(this.cwd, path);
   }
 
   /**
@@ -215,7 +208,7 @@ export class FileSystemV2API {
    */
   async exists(path: string): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.fs.exists(this.cwd, path, this.sandboxId);
+    return window.conduit.fs.exists(this.cwd, path);
   }
 
   // ---------------------------------------------------------------------------
@@ -235,12 +228,7 @@ export class FileSystemV2API {
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.writeFile(
-      this.cwd,
-      filePath,
-      content,
-      this.sandboxId,
-    );
+    return window.conduit.fs.writeFile(this.cwd, filePath, content);
   }
 
   /**
@@ -268,7 +256,7 @@ export class FileSystemV2API {
    */
   async delete(path: string, options?: DeleteOptions): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.delete(this.cwd, path, options, this.sandboxId);
+    return window.conduit.fs.delete(this.cwd, path, options);
   }
 
   /**
@@ -281,7 +269,7 @@ export class FileSystemV2API {
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.rename(this.cwd, oldPath, newPath, this.sandboxId);
+    return window.conduit.fs.rename(this.cwd, oldPath, newPath);
   }
 
   /**
@@ -295,7 +283,7 @@ export class FileSystemV2API {
    */
   async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.createDirectory(this.cwd, dirPath, this.sandboxId);
+    return window.conduit.fs.createDirectory(this.cwd, dirPath);
   }
 
   // ---------------------------------------------------------------------------
@@ -724,9 +712,8 @@ export class FileSystemV2API {
     }
 
     // Start subscription
-    // Note: subscribe takes (cwd, type, path?, sandboxId?) - path is optional filter, sandboxId for VM routing
     this.subscriptionPromise = window.conduit.fs
-      .subscribe(this.cwd, "all", undefined, this.sandboxId)
+      .subscribe(this.cwd, "all")
       .then((id: string) => {
         // Check if we were released while waiting for the subscription
         // This handles the race condition where release() is called

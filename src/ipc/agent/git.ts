@@ -426,89 +426,8 @@ export async function hasUnpushedCommits(cwd: string): Promise<boolean> {
 }
 
 /**
- * Push commits to a remote VM via SSH
- * This uses git push directly over SSH instead of creating bundles
- *
- * @param cwd - Current working directory
- * @param sshHost - SSH host (IP or hostname)
- * @param sshPort - SSH port
- * @param sshKeyPath - Path to SSH private key
- * @param remotePath - Path to git repository on remote VM (e.g., /workspace)
- * @returns true if successful, false otherwise
- */
-export async function pushCommitsViaSSH(
-  cwd: string,
-  sshHost: string,
-  sshPort: number,
-  sshKeyPath: string,
-  remotePath = "/workspace",
-): Promise<boolean> {
-  try {
-    const repoRoot = await findRepoRoot(cwd);
-    if (!repoRoot) {
-      console.error("[Git] No git repository found");
-      return false;
-    }
-
-    const branch = await getCurrentBranch(repoRoot);
-    if (!branch) {
-      console.error("[Git] No current branch");
-      return false;
-    }
-
-    // Check if there are unpushed commits
-    const hasUnpushed = await hasUnpushedCommits(repoRoot);
-    if (!hasUnpushed) {
-      console.log("[Git] No unpushed commits to transfer");
-      return true; // Not an error
-    }
-
-    // Create temporary remote name
-    const remoteName = `conduit-vm-${Date.now()}`;
-    const remoteUrl = `ssh://ace@${sshHost}:${sshPort}${remotePath}`;
-
-    console.log(`[Git] Adding temporary remote: ${remoteName} -> ${remoteUrl}`);
-
-    try {
-      // Add temporary remote
-      await runGit(repoRoot, ["remote", "add", remoteName, remoteUrl]);
-
-      // Configure SSH to use our key and skip host verification
-      const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "${sshKeyPath}" -p ${sshPort}`;
-
-      // Push to the VM using the temporary remote
-      // Use --force to handle cases where we're creating a new branch or rebasing
-      console.log(`[Git] Pushing ${branch} to VM...`);
-      await runGit(repoRoot, [
-        "-c",
-        `core.sshCommand=${sshCommand}`,
-        "push",
-        "--force",
-        remoteName,
-        `${branch}:${branch}`,
-      ]);
-
-      console.log(`[Git] Successfully pushed commits to VM`);
-      return true;
-    } finally {
-      // Always remove the temporary remote, even if push failed
-      try {
-        await runGit(repoRoot, ["remote", "remove", remoteName]);
-        console.log(`[Git] Removed temporary remote ${remoteName}`);
-      } catch (error) {
-        console.warn(`[Git] Failed to remove temporary remote:`, error);
-      }
-    }
-  } catch (error) {
-    console.error("[Git] Failed to push commits via SSH:", error);
-    return false;
-  }
-}
-
-/**
  * Create a binary diff patch that includes ONLY working tree changes
  * (staged/unstaged/untracked files), NOT unpushed commits.
- * Unpushed commits are transferred via pushCommitsViaSSH() to preserve history.
  *
  * This creates patches that preserve staging state when applied with `git apply`
  *

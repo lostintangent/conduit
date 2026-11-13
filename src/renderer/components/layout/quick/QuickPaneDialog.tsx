@@ -13,8 +13,8 @@ import type { EditorPane as EditorPaneType, Pane } from "@/types";
 import type { FileTreeNode } from "@shared/types";
 import { generateId } from "@shared/utils";
 import { useSetAtom } from "jotai";
-import { ArrowUpRight, Cloud, PictureInPicture2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowUpRight, PictureInPicture2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PaneDescriptor = Omit<Pane, "id">;
 
@@ -113,18 +113,6 @@ export function QuickPaneDialog({
     });
   }, []);
 
-  const isVmTerminal = useMemo(
-    () =>
-      currentDescriptor.type === "terminal" && !!currentDescriptor.sandboxId,
-    [currentDescriptor],
-  );
-  const vmTitle = useMemo(() => {
-    if (!isVmTerminal) {
-      return undefined;
-    }
-    return `Connected to VM ${currentDescriptor.sandboxId ?? ""}`;
-  }, [currentDescriptor, isVmTerminal]);
-
   const handleOpenAsTabClick = useCallback(() => {
     const {
       onClose: _onClose,
@@ -180,7 +168,6 @@ export function QuickPaneDialog({
                 cwd: currentDescriptor.cwd,
                 file: currentDescriptor.file,
                 treeMode: currentDescriptor.treeMode,
-                sandboxId: (currentDescriptor as EditorPaneType).sandboxId,
               }}
               onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
               onFileChange={({ file }) => handleEditorUpdate({ file })}
@@ -222,17 +209,7 @@ export function QuickPaneDialog({
         </div>
 
         <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">
-          <div
-            className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur"
-            title={vmTitle}
-          >
-            {isVmTerminal && (
-              <Cloud
-                size={16}
-                className="text-white/80 mr-2"
-                aria-hidden="true"
-              />
-            )}
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
             {currentDescriptor.type === "terminal" && onOpenAsFloating && (
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -378,24 +378,4 @@ describe("useImagePreview", () => {
       expect(result.current.isLoading).toBe(true);
     });
   });
-
-  // ===========================================================================
-  // Sandbox ID
-  // ===========================================================================
-
-  describe("sandbox ID", () => {
-    it("should pass sandbox ID to file system hook", async () => {
-      mockFs.readFile.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
-
-      const { result } = renderHook(() =>
-        useImagePreview("/path/to/image.png", "/cwd", "sandbox-123"),
-      );
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.imageUrl).not.toBe(null);
-    });
-  });
 });

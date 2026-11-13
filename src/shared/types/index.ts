@@ -6,7 +6,6 @@ export * from "./settings";
 export * from "./terminal";
 export * from "./ui";
 export * from "./updates";
-export * from "./vm";
 export * from "./workspace";
 
 /* Event System Types */

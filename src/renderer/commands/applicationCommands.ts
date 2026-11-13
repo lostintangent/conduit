@@ -24,7 +24,6 @@ import {
 } from "@/commands/contextKeys/appContextKeys";
 import {
   handleCloseWorkspace,
-  handleCreateVM,
   handleDuplicateWorkspace,
   handleManageSessions,
   handleMergeAndClose,
@@ -1267,14 +1266,8 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
-        const sandboxId =
-          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
-            ? sourcePane.sandboxId
-            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "row", true, {
-            sandboxId,
-          });
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", true);
         }
       }
     },
@@ -1306,14 +1299,8 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
-        const sandboxId =
-          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
-            ? sourcePane.sandboxId
-            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "row", false, {
-            sandboxId,
-          });
+          openEditorPane(targetTabId, targetPaneId, cwd, "row", false);
         }
       }
     },
@@ -1345,14 +1332,8 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
-        const sandboxId =
-          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
-            ? sourcePane.sandboxId
-            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "column", true, {
-            sandboxId,
-          });
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", true);
         }
       }
     },
@@ -1384,14 +1365,8 @@ export function registerApplicationCommands(
           sourcePane?.type === "terminal" || sourcePane?.type === "editor"
             ? sourcePane.cwd
             : null;
-        const sandboxId =
-          sourcePane?.type === "terminal" || sourcePane?.type === "editor"
-            ? sourcePane.sandboxId
-            : undefined;
         if (cwd) {
-          openEditorPane(targetTabId, targetPaneId, cwd, "column", false, {
-            sandboxId,
-          });
+          openEditorPane(targetTabId, targetPaneId, cwd, "column", false);
         }
       }
     },
@@ -1482,18 +1457,6 @@ export function registerApplicationCommands(
       if (targetTabId && targetPaneId) {
         openCanvasPane(targetTabId, targetPaneId, "column", false);
       }
-    },
-  });
-
-  // Terminal: Create VM
-  commandRegistry.registerCommand({
-    id: ApplicationCommands.TERMINAL_CREATE_CLOUD,
-    title: "New Cloud Terminal",
-    description: "Create a new cloud terminal",
-    category: "Terminal",
-    when: hasActivePane.isTrue(),
-    run: () => {
-      void handleCreateVM();
     },
   });
 

@@ -4,7 +4,6 @@
 
 import {
   createAgentSession,
-  detectGitHubRepoForCloud,
   registerDefaultPreCommands,
   verifyGitRepo,
 } from "@/commands/preCommands/registeredPreCommands";
@@ -30,10 +29,6 @@ describe("registeredPreCommands", () => {
       conduit: {
         hasGitRepository: vi.fn(),
         spawnAgentSession: vi.fn(),
-        getGitHubRepoInfo: vi.fn(),
-        hasUncommittedChanges: vi.fn(),
-        hasUnpushedCommits: vi.fn(),
-        createDiffPatch: vi.fn(),
         getSettings: vi.fn().mockResolvedValue({
           homeDirectory: "/home/user",
         }),
@@ -284,162 +279,6 @@ describe("registeredPreCommands", () => {
     });
   });
 
-  describe("detectGitHubRepoForCloud", () => {
-    it("should have correct metadata", () => {
-      expect(detectGitHubRepoForCloud.id).toBe("detect-github-repo-for-cloud");
-      expect(detectGitHubRepoForCloud.label).toBe(
-        "Detect GitHub Repo (Cloud Terminal)",
-      );
-      expect(detectGitHubRepoForCloud.description).toBeDefined();
-    });
-
-    it("should succeed with GitHub repo info when in a GitHub repository", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
-      mockApi.getGitHubRepoInfo.mockResolvedValue({
-        owner: "test-owner",
-        name: "test-repo",
-        branch: "main",
-      });
-      mockApi.hasUncommittedChanges.mockResolvedValue(false);
-      mockApi.hasUnpushedCommits.mockResolvedValue(false);
-
-      const config: TerminalConfig = {
-        command: "",
-        cwd: "/path/to/repo",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      expect(result.success).toBe(true);
-      expect(result.error).toBeUndefined();
-      expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.githubRepo).toEqual({
-        owner: "test-owner",
-        name: "test-repo",
-        branch: "main",
-      });
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/path/to/repo");
-      expect(mockApi.getGitHubRepoInfo).toHaveBeenCalledWith("/path/to/repo");
-    });
-
-    it("should succeed without repo info when not in a git repository", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(false);
-
-      const config: TerminalConfig = {
-        command: "",
-        cwd: "/tmp",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      expect(result.success).toBe(true);
-      expect(result.error).toBeUndefined();
-      expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.githubRepo).toBeUndefined();
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/tmp");
-      expect(mockApi.getGitHubRepoInfo).not.toHaveBeenCalled();
-    });
-
-    it("should succeed without repo info when in non-GitHub git repository", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
-      mockApi.getGitHubRepoInfo.mockResolvedValue(null);
-
-      const config: TerminalConfig = {
-        command: "",
-        cwd: "/path/to/gitlab/repo",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      expect(result.success).toBe(true);
-      expect(result.error).toBeUndefined();
-      expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.githubRepo).toBeUndefined();
-    });
-
-    it("should use home directory when cwd is not specified", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(false);
-
-      const config: TerminalConfig = {
-        command: "",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      expect(result.success).toBe(true);
-      expect(mockApi.getSettings).toHaveBeenCalled();
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/home/user");
-    });
-
-    it("should succeed with cloud terminal flag even when no cwd available", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.getSettings.mockResolvedValue({ homeDirectory: null });
-
-      const config: TerminalConfig = {
-        command: "",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      expect(result.success).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.githubRepo).toBeUndefined();
-    });
-
-    it("should handle errors gracefully and still succeed", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockRejectedValue(new Error("API error"));
-
-      const config: TerminalConfig = {
-        command: "",
-        cwd: "/path/to/repo",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      // Should still succeed (fails silently to allow cloud terminal creation)
-      expect(result.success).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-    });
-
-    it("should return paneOptions with cloud terminal configuration", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
-      mockApi.getGitHubRepoInfo.mockResolvedValue({
-        owner: "lostintangent",
-        name: "conduit",
-        branch: "feature-branch",
-      });
-      mockApi.hasUncommittedChanges.mockResolvedValue(false);
-      mockApi.hasUnpushedCommits.mockResolvedValue(false);
-
-      const config: TerminalConfig = {
-        command: "",
-        cwd: "/workspace/conduit",
-      };
-
-      const result = await detectGitHubRepoForCloud.run(config);
-
-      expect(result.success).toBe(true);
-      expect(result.paneOptions).toBeDefined();
-      expect(result.paneOptions?.terminalOptions).toBeDefined();
-      expect(result.paneOptions?.terminalOptions?.isRemoteVM).toBe(true);
-      expect(result.paneOptions?.terminalOptions?.githubRepo?.owner).toBe(
-        "lostintangent",
-      );
-      expect(result.paneOptions?.terminalOptions?.githubRepo?.name).toBe(
-        "conduit",
-      );
-      expect(result.paneOptions?.terminalOptions?.githubRepo?.branch).toBe(
-        "feature-branch",
-      );
-    });
-  });
-
   describe("registerDefaultPreCommands", () => {
     it("should register all pre-commands", () => {
       const registry = PreCommandRegistry.getInstance();
@@ -448,12 +287,11 @@ describe("registeredPreCommands", () => {
       registerDefaultPreCommands();
 
       const commands = registry.getAll();
-      expect(commands).toHaveLength(3);
+      expect(commands).toHaveLength(2);
 
       const ids = commands.map((cmd) => cmd.id);
       expect(ids).toContain("verify-git-repo");
       expect(ids).toContain("create-agent-session");
-      expect(ids).toContain("detect-github-repo-for-cloud");
     });
 
     it("should make pre-commands retrievable by ID", () => {
@@ -464,16 +302,12 @@ describe("registeredPreCommands", () => {
 
       const verifyCmd = registry.get("verify-git-repo");
       const agentCmd = registry.get("create-agent-session");
-      const cloudCmd = registry.get("detect-github-repo-for-cloud");
 
       expect(verifyCmd).toBeDefined();
       expect(verifyCmd?.id).toBe("verify-git-repo");
 
       expect(agentCmd).toBeDefined();
       expect(agentCmd?.id).toBe("create-agent-session");
-
-      expect(cloudCmd).toBeDefined();
-      expect(cloudCmd?.id).toBe("detect-github-repo-for-cloud");
     });
 
     it("should not duplicate pre-commands when called multiple times", () => {
@@ -484,8 +318,8 @@ describe("registeredPreCommands", () => {
       registerDefaultPreCommands(); // Call again
 
       const commands = registry.getAll();
-      // Should still be 3, not 6 (registry overwrites duplicates)
-      expect(commands).toHaveLength(3);
+      // Should still be 2, not 4 (registry overwrites duplicates)
+      expect(commands).toHaveLength(2);
     });
 
     it("should register pre-commands with correct labels", () => {
@@ -496,11 +330,9 @@ describe("registeredPreCommands", () => {
 
       const verifyCmd = registry.get("verify-git-repo");
       const agentCmd = registry.get("create-agent-session");
-      const cloudCmd = registry.get("detect-github-repo-for-cloud");
 
       expect(verifyCmd?.label).toBe("Verify Git Repository");
       expect(agentCmd?.label).toBe("Create Agent Session");
-      expect(cloudCmd?.label).toBe("Detect GitHub Repo (Cloud Terminal)");
     });
 
     it("should register pre-commands with descriptions", () => {
@@ -511,16 +343,12 @@ describe("registeredPreCommands", () => {
 
       const verifyCmd = registry.get("verify-git-repo");
       const agentCmd = registry.get("create-agent-session");
-      const cloudCmd = registry.get("detect-github-repo-for-cloud");
 
       expect(verifyCmd?.description).toBeDefined();
       expect(verifyCmd?.description).toBeTruthy();
 
       expect(agentCmd?.description).toBeDefined();
       expect(agentCmd?.description).toBeTruthy();
-
-      expect(cloudCmd?.description).toBeDefined();
-      expect(cloudCmd?.description).toBeTruthy();
     });
 
     it("should register pre-commands that can be executed", async () => {

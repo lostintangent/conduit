@@ -31,9 +31,6 @@ export interface UseFilePrefetchOptions {
   /** Working directory for file resolution */
   cwd: string;
 
-  /** Optional sandbox ID for VM files */
-  sandboxId?: string;
-
   /** Whether prefetching is enabled (default: true) */
   enabled?: boolean;
 }
@@ -51,7 +48,6 @@ export interface UseFilePrefetchResult {
  */
 export function useFilePrefetch({
   cwd,
-  sandboxId,
   enabled = true,
 }: UseFilePrefetchOptions): UseFilePrefetchResult {
   // Map of file path to pending timeout ID
@@ -78,7 +74,7 @@ export function useFilePrefetch({
 
         // Prefetch the file - MonacoModelRegistry handles deduplication
         const registry = MonacoModelRegistry.getInstance();
-        registry.getOrCreateModel(path, cwd, sandboxId).catch(() => {
+        registry.getOrCreateModel(path, cwd).catch(() => {
           // Silently ignore prefetch failures - this is an optimization,
           // the actual load will show errors if needed
         });
@@ -86,7 +82,7 @@ export function useFilePrefetch({
 
       pendingPrefetchRef.current.set(path, timerId);
     },
-    [cwd, sandboxId, enabled],
+    [cwd, enabled],
   );
 
   /**

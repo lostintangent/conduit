@@ -267,9 +267,6 @@ export class GitV2API {
   /** The working directory this API is scoped to */
   readonly cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  readonly sandboxId?: string;
-
   /** The git root directory (resolved after first operation) */
   private gitRoot: string | null = null;
 
@@ -310,11 +307,9 @@ export class GitV2API {
    * for missed events between construction and first listener registration.
    *
    * @param cwd - Working directory to scope operations to
-   * @param sandboxId - Optional sandbox ID for cloud VM git operations
    */
-  constructor(cwd: string, sandboxId?: string) {
+  constructor(cwd: string) {
     this.cwd = cwd;
-    this.sandboxId = sandboxId;
     this.setupEventListeners();
     // Eagerly subscribe to reduce race condition window
     this.ensureSubscribed();
@@ -359,10 +354,7 @@ export class GitV2API {
    */
   async getStatus(): Promise<GitStatus | null> {
     this.ensureNotReleased();
-    const serialized = await window.conduit.git.getStatus(
-      this.cwd,
-      this.sandboxId,
-    );
+    const serialized = await window.conduit.git.getStatus(this.cwd);
 
     if (!serialized) {
       return null;
@@ -469,7 +461,7 @@ export class GitV2API {
    */
   async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
     this.ensureNotReleased();
-    return window.conduit.git.getFileStatus(this.cwd, filePath, this.sandboxId);
+    return window.conduit.git.getFileStatus(this.cwd, filePath);
   }
 
   /**
@@ -480,7 +472,7 @@ export class GitV2API {
    */
   async hasUncommittedChanges(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.git.hasUncommittedChanges(this.cwd, this.sandboxId);
+    return window.conduit.git.hasUncommittedChanges(this.cwd);
   }
 
   /**
@@ -491,7 +483,7 @@ export class GitV2API {
    */
   async hasUnpushedCommits(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.git.hasUnpushedCommits(this.cwd, this.sandboxId);
+    return window.conduit.git.hasUnpushedCommits(this.cwd);
   }
 
   // ---------------------------------------------------------------------------
@@ -511,12 +503,7 @@ export class GitV2API {
     staged?: boolean,
   ): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.git.getFileDiff(
-      this.cwd,
-      filePath,
-      staged,
-      this.sandboxId,
-    );
+    return window.conduit.git.getFileDiff(this.cwd, filePath, staged);
   }
 
   /**
@@ -531,12 +518,7 @@ export class GitV2API {
    */
   async getFileAtRef(filePath: string, ref: string): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.git.getFileAtRef(
-      this.cwd,
-      filePath,
-      ref,
-      this.sandboxId,
-    );
+    return window.conduit.git.getFileAtRef(this.cwd, filePath, ref);
   }
 
   // ---------------------------------------------------------------------------
@@ -552,7 +534,7 @@ export class GitV2API {
    */
   async stage(files: string[]): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.stage(this.cwd, files, this.sandboxId);
+    return window.conduit.git.stage(this.cwd, files);
   }
 
   /**
@@ -564,7 +546,7 @@ export class GitV2API {
    */
   async unstage(files: string[]): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.unstage(this.cwd, files, this.sandboxId);
+    return window.conduit.git.unstage(this.cwd, files);
   }
 
   // ---------------------------------------------------------------------------
@@ -589,7 +571,6 @@ export class GitV2API {
       this.cwd,
       message,
       options,
-      this.sandboxId,
     );
 
     if (!serialized) {
@@ -611,7 +592,7 @@ export class GitV2API {
    */
   async getCurrentBranch(): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.git.getCurrentBranch(this.cwd, this.sandboxId);
+    return window.conduit.git.getCurrentBranch(this.cwd);
   }
 
   /**
@@ -622,10 +603,7 @@ export class GitV2API {
    */
   async getBranches(): Promise<GitBranch[]> {
     this.ensureNotReleased();
-    const serialized = await window.conduit.git.getBranches(
-      this.cwd,
-      this.sandboxId,
-    );
+    const serialized = await window.conduit.git.getBranches(this.cwd);
     return serialized.map(deserializeGitBranch);
   }
 
@@ -639,7 +617,7 @@ export class GitV2API {
    */
   async checkout(ref: string, force = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.checkout(this.cwd, ref, force, this.sandboxId);
+    return window.conduit.git.checkout(this.cwd, ref, force);
   }
 
   /**
@@ -675,7 +653,7 @@ export class GitV2API {
    */
   async stash(message?: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.stash(this.cwd, message, this.sandboxId);
+    return window.conduit.git.stash(this.cwd, message);
   }
 
   /**
@@ -688,7 +666,7 @@ export class GitV2API {
    */
   async stashPop(): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.stashPop(this.cwd, this.sandboxId);
+    return window.conduit.git.stashPop(this.cwd);
   }
 
   // ---------------------------------------------------------------------------
@@ -708,12 +686,7 @@ export class GitV2API {
    */
   async push(force = false, setUpstream = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.push(
-      this.cwd,
-      force,
-      setUpstream,
-      this.sandboxId,
-    );
+    return window.conduit.git.push(this.cwd, force, setUpstream);
   }
 
   /**
@@ -725,7 +698,7 @@ export class GitV2API {
    */
   async pull(rebase = false): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.pull(this.cwd, rebase, this.sandboxId);
+    return window.conduit.git.pull(this.cwd, rebase);
   }
 
   /**
@@ -738,7 +711,7 @@ export class GitV2API {
    */
   async hasUpstream(): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.git.hasUpstream(this.cwd, this.sandboxId);
+    return window.conduit.git.hasUpstream(this.cwd);
   }
 
   // ---------------------------------------------------------------------------
@@ -758,7 +731,7 @@ export class GitV2API {
       return this.gitRoot;
     }
 
-    this.gitRoot = await window.conduit.git.findRoot(this.cwd, this.sandboxId);
+    this.gitRoot = await window.conduit.git.findRoot(this.cwd);
     return this.gitRoot;
   }
 
@@ -778,11 +751,7 @@ export class GitV2API {
    */
   async getChangedFilesFromBranch(baseBranch: string): Promise<string[]> {
     this.ensureNotReleased();
-    return window.conduit.git.getChangedFilesFromBranch(
-      this.cwd,
-      baseBranch,
-      this.sandboxId,
-    );
+    return window.conduit.git.getChangedFilesFromBranch(this.cwd, baseBranch);
   }
 
   /**
@@ -802,7 +771,6 @@ export class GitV2API {
     const result = await window.conduit.git.getStatusFromBranch(
       this.cwd,
       baseBranch,
-      this.sandboxId,
     );
     // Convert plain object back to Map
     return new Map(Object.entries(result));
@@ -816,7 +784,7 @@ export class GitV2API {
    */
   async getUncommittedDiffStats(): Promise<GitDiffStats> {
     this.ensureNotReleased();
-    return window.conduit.git.getUncommittedDiffStats(this.cwd, this.sandboxId);
+    return window.conduit.git.getUncommittedDiffStats(this.cwd);
   }
 
   /**
@@ -831,7 +799,7 @@ export class GitV2API {
   async getPerFileDiffStats(): Promise<SplitPerFileDiffStats> {
     this.ensureNotReleased();
     const serialized: SerializedSplitPerFileDiffStats =
-      await window.conduit.git.getPerFileDiffStats(this.cwd, this.sandboxId);
+      await window.conduit.git.getPerFileDiffStats(this.cwd);
 
     // Convert plain objects back to Maps
     const deserializeMap = (
@@ -860,7 +828,7 @@ export class GitV2API {
    */
   async getMostRecentDirtyFile(): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.git.getMostRecentDirtyFile(this.cwd, this.sandboxId);
+    return window.conduit.git.getMostRecentDirtyFile(this.cwd);
   }
 
   /**
@@ -876,11 +844,7 @@ export class GitV2API {
     commitLimit?: number,
   ): Promise<string | null> {
     this.ensureNotReleased();
-    return window.conduit.git.getMostRecentCommittedFile(
-      this.cwd,
-      commitLimit,
-      this.sandboxId,
-    );
+    return window.conduit.git.getMostRecentCommittedFile(this.cwd, commitLimit);
   }
 
   /**
@@ -893,7 +857,7 @@ export class GitV2API {
    */
   async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
     this.ensureNotReleased();
-    return window.conduit.git.getDirtyFilesWithTimes(this.cwd, this.sandboxId);
+    return window.conduit.git.getDirtyFilesWithTimes(this.cwd);
   }
 
   /**
@@ -908,7 +872,7 @@ export class GitV2API {
    */
   async revert(files: string[]): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.git.revert(this.cwd, files, this.sandboxId);
+    return window.conduit.git.revert(this.cwd, files);
   }
 
   // ---------------------------------------------------------------------------
@@ -1263,10 +1227,7 @@ export class GitV2API {
     // Start subscription
     this.subscriptionPromise = (async () => {
       try {
-        const subscriptionId = await window.conduit.git.subscribe(
-          this.cwd,
-          this.sandboxId,
-        );
+        const subscriptionId = await window.conduit.git.subscribe(this.cwd);
 
         if (!subscriptionId) {
           // Not a git repository - subscriptions won't work
@@ -1287,10 +1248,7 @@ export class GitV2API {
         this.subscriptionId = subscriptionId;
 
         // Also resolve the git root while we're at it
-        this.gitRoot = await window.conduit.git.findRoot(
-          this.cwd,
-          this.sandboxId,
-        );
+        this.gitRoot = await window.conduit.git.findRoot(this.cwd);
       } catch (error) {
         console.error("[GitV2API] Failed to subscribe:", error);
       } finally {

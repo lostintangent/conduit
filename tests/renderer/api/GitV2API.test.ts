@@ -171,7 +171,6 @@ describe("GitV2API", () => {
       expect(mockGit.getFileStatus).toHaveBeenCalledWith(
         "/test/project",
         "src/file.ts",
-        undefined,
       );
       expect(result).toEqual(fileStatus);
 
@@ -199,7 +198,6 @@ describe("GitV2API", () => {
 
       expect(mockGit.hasUncommittedChanges).toHaveBeenCalledWith(
         "/test/project",
-        undefined,
       );
       expect(result).toBe(true);
 
@@ -225,10 +223,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       const result = await api.hasUnpushedCommits();
 
-      expect(mockGit.hasUnpushedCommits).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-      );
+      expect(mockGit.hasUnpushedCommits).toHaveBeenCalledWith("/test/project");
       expect(result).toBe(true);
 
       api.release();
@@ -251,7 +246,6 @@ describe("GitV2API", () => {
         "/test/project",
         "src/file.ts",
         undefined,
-        undefined,
       );
       expect(result).toBe(diff);
 
@@ -268,7 +262,6 @@ describe("GitV2API", () => {
         "/test/project",
         "src/file.ts",
         true,
-        undefined,
       );
 
       api.release();
@@ -287,7 +280,6 @@ describe("GitV2API", () => {
         "/test/project",
         "src/file.ts",
         "HEAD",
-        undefined,
       );
       expect(result).toBe(content);
 
@@ -306,11 +298,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.stage(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGit.stage).toHaveBeenCalledWith(
-        "/test/project",
-        ["src/file1.ts", "src/file2.ts"],
-        undefined,
-      );
+      expect(mockGit.stage).toHaveBeenCalledWith("/test/project", [
+        "src/file1.ts",
+        "src/file2.ts",
+      ]);
 
       api.release();
     });
@@ -323,11 +314,9 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.unstage(["src/file.ts"]);
 
-      expect(mockGit.unstage).toHaveBeenCalledWith(
-        "/test/project",
-        ["src/file.ts"],
-        undefined,
-      );
+      expect(mockGit.unstage).toHaveBeenCalledWith("/test/project", [
+        "src/file.ts",
+      ]);
 
       api.release();
     });
@@ -357,7 +346,6 @@ describe("GitV2API", () => {
         "/test/project",
         "Test commit",
         undefined,
-        undefined,
       );
 
       expect(result).not.toBeNull();
@@ -382,15 +370,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.commit("Test", { amend: true, signoff: true });
 
-      expect(mockGit.commit).toHaveBeenCalledWith(
-        "/test/project",
-        "Test",
-        {
-          amend: true,
-          signoff: true,
-        },
-        undefined,
-      );
+      expect(mockGit.commit).toHaveBeenCalledWith("/test/project", "Test", {
+        amend: true,
+        signoff: true,
+      });
 
       api.release();
     });
@@ -500,7 +483,6 @@ describe("GitV2API", () => {
         "/test/project",
         "feature/new",
         false,
-        undefined,
       );
 
       api.release();
@@ -516,7 +498,6 @@ describe("GitV2API", () => {
         "/test/project",
         "feature/new",
         true,
-        undefined,
       );
 
       api.release();
@@ -534,11 +515,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.stash();
 
-      expect(mockGit.stash).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-        undefined,
-      );
+      expect(mockGit.stash).toHaveBeenCalledWith("/test/project", undefined);
 
       api.release();
     });
@@ -552,7 +529,6 @@ describe("GitV2API", () => {
       expect(mockGit.stash).toHaveBeenCalledWith(
         "/test/project",
         "WIP: feature work",
-        undefined,
       );
 
       api.release();
@@ -566,7 +542,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.stashPop();
 
-      expect(mockGit.stashPop).toHaveBeenCalledWith("/test/project", undefined);
+      expect(mockGit.stashPop).toHaveBeenCalledWith("/test/project");
 
       api.release();
     });
@@ -583,12 +559,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push();
 
-      expect(mockGit.push).toHaveBeenCalledWith(
-        "/test/project",
-        false,
-        false,
-        undefined,
-      );
+      expect(mockGit.push).toHaveBeenCalledWith("/test/project", false, false);
 
       api.release();
     });
@@ -599,12 +570,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push(true);
 
-      expect(mockGit.push).toHaveBeenCalledWith(
-        "/test/project",
-        true,
-        false,
-        undefined,
-      );
+      expect(mockGit.push).toHaveBeenCalledWith("/test/project", true, false);
 
       api.release();
     });
@@ -615,12 +581,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.push(false, true);
 
-      expect(mockGit.push).toHaveBeenCalledWith(
-        "/test/project",
-        false,
-        true,
-        undefined,
-      );
+      expect(mockGit.push).toHaveBeenCalledWith("/test/project", false, true);
 
       api.release();
     });
@@ -633,11 +594,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.pull();
 
-      expect(mockGit.pull).toHaveBeenCalledWith(
-        "/test/project",
-        false,
-        undefined,
-      );
+      expect(mockGit.pull).toHaveBeenCalledWith("/test/project", false);
 
       api.release();
     });
@@ -648,11 +605,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.pull(true);
 
-      expect(mockGit.pull).toHaveBeenCalledWith(
-        "/test/project",
-        true,
-        undefined,
-      );
+      expect(mockGit.pull).toHaveBeenCalledWith("/test/project", true);
 
       api.release();
     });
@@ -665,10 +618,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       const result = await api.hasUpstream();
 
-      expect(mockGit.hasUpstream).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-      );
+      expect(mockGit.hasUpstream).toHaveBeenCalledWith("/test/project");
       expect(result).toBe(true);
 
       api.release();
@@ -695,10 +645,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project/src");
       const result = await api.findRoot();
 
-      expect(mockGit.findRoot).toHaveBeenCalledWith(
-        "/test/project/src",
-        undefined,
-      );
+      expect(mockGit.findRoot).toHaveBeenCalledWith("/test/project/src");
       expect(result).toBe("/test/repo");
 
       api.release();
@@ -740,7 +687,6 @@ describe("GitV2API", () => {
       expect(mockGit.getChangedFilesFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
-        undefined,
       );
       expect(result).toEqual(changedFiles);
 
@@ -782,7 +728,6 @@ describe("GitV2API", () => {
       expect(mockGit.getStatusFromBranch).toHaveBeenCalledWith(
         "/test/project",
         "main",
-        undefined,
       );
       expect(result).toBeInstanceOf(Map);
       expect(result.get("src/newFile.ts")?.status).toBe("added");
@@ -823,7 +768,6 @@ describe("GitV2API", () => {
 
       expect(mockGit.getUncommittedDiffStats).toHaveBeenCalledWith(
         "/test/project",
-        undefined,
       );
       expect(result).toEqual(stats);
 
@@ -854,7 +798,6 @@ describe("GitV2API", () => {
 
       expect(mockGit.getMostRecentDirtyFile).toHaveBeenCalledWith(
         "/test/project",
-        undefined,
       );
       expect(result).toBe("src/recent.ts");
 
@@ -883,7 +826,6 @@ describe("GitV2API", () => {
       expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         undefined,
-        undefined,
       );
       expect(result).toBe("src/index.ts");
 
@@ -899,7 +841,6 @@ describe("GitV2API", () => {
       expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(
         "/test/project",
         5,
-        undefined,
       );
 
       api.release();
@@ -924,11 +865,10 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.revert(["src/file1.ts", "src/file2.ts"]);
 
-      expect(mockGit.revert).toHaveBeenCalledWith(
-        "/test/project",
-        ["src/file1.ts", "src/file2.ts"],
-        undefined,
-      );
+      expect(mockGit.revert).toHaveBeenCalledWith("/test/project", [
+        "src/file1.ts",
+        "src/file2.ts",
+      ]);
 
       api.release();
     });
@@ -939,11 +879,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       await api.revert([]);
 
-      expect(mockGit.revert).toHaveBeenCalledWith(
-        "/test/project",
-        [],
-        undefined,
-      );
+      expect(mockGit.revert).toHaveBeenCalledWith("/test/project", []);
 
       api.release();
     });
@@ -970,10 +906,7 @@ describe("GitV2API", () => {
       const cleanup = api.onStatusChanged(callback);
 
       await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockGit.subscribe).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-      );
+      expect(mockGit.subscribe).toHaveBeenCalledWith("/test/project");
 
       expect(typeof cleanup).toBe("function");
       cleanup();

@@ -21,7 +21,6 @@ import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
 import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
-import { CloudTerminalOverlay } from "./shell/sandbox/CloudTerminalOverlay";
 import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
 import { TerminalGitStats } from "./shell/TerminalGitStats";
@@ -177,7 +176,7 @@ export const TerminalPane = ({
   isTabSynchronized = false,
   fontSize,
 }: TerminalPaneProps) => {
-  const { id: paneId, sessionId: terminalId, cwd, sandboxId } = pane;
+  const { id: paneId, sessionId: terminalId, cwd } = pane;
   const settings = useAtomValue(userSettingsAtom);
   const { showTerminalRuler } = settings;
   const playButtonTarget = settings.playButtonTarget ?? "newPane";
@@ -612,7 +611,7 @@ export const TerminalPane = ({
       )}
 
       {/* Git stats badge (top-right, pinned) - only show when in a tab (not hyper terminal or quick pane) */}
-      {tabId && <TerminalGitStats cwd={cwd} sandboxId={sandboxId} />}
+      {tabId && <TerminalGitStats cwd={cwd} />}
 
       <SearchWidget
         ref={searchWidgetRef}
@@ -628,26 +627,16 @@ export const TerminalPane = ({
         </div>
       )}
 
-      {/* Compute target UI (VM/agent indicators, cloud overlays, port forwarding) */}
+      {/* Agent session indicator */}
       <ComputeTargetIndicator
         paneId={paneId}
         hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
-        setLinkHandler={(handler) => {
-          terminalRef.current?.setLinkHandler(handler);
-        }}
       />
 
       {/* Repository scripts menu */}
       <div className="pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-50">
-        <RepoScriptsMenu
-          cwd={cwd}
-          sandboxId={sandboxId}
-          onRunScript={handleRunScript}
-        />
+        <RepoScriptsMenu cwd={cwd} onRunScript={handleRunScript} />
       </div>
-
-      {/* Cloud terminal SSH connection state overlays */}
-      <CloudTerminalOverlay terminalId={sessionId} paneId={paneId} />
 
       {/* Agent Panel - floats above terminal */}
       <AgentPanel

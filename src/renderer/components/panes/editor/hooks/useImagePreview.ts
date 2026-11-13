@@ -6,8 +6,8 @@
  *
  * @example
  * ```tsx
- * function ImageViewer({ filePath, cwd, sandboxId }: Props) {
- *   const { imageUrl, isLoading, error } = useImagePreview(filePath, cwd, sandboxId);
+ * function ImageViewer({ filePath, cwd }: Props) {
+ *   const { imageUrl, isLoading, error } = useImagePreview(filePath, cwd);
  *
  *   if (isLoading) return <div>Loading...</div>;
  *   if (error) return <div>Error: {error}</div>;
@@ -88,19 +88,17 @@ export interface UseImagePreviewResult {
  *
  * @param filePath - Absolute path to the image file
  * @param cwd - Working directory for file operations
- * @param sandboxId - Optional sandbox ID for VM file operations
  * @returns The image URL, loading state, and any error
  */
 export function useImagePreview(
   filePath: string,
   cwd: string,
-  sandboxId?: string,
 ): UseImagePreviewResult {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fs = useFileSystemV2(cwd, sandboxId);
+  const fs = useFileSystemV2(cwd);
 
   useEffect(() => {
     let cancelled = false;

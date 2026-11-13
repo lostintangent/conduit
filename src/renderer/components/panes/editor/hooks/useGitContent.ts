@@ -136,14 +136,12 @@ function createGitContentError(
  * @param filePath - Absolute path to the file, or null for no content
  * @param source - Git source to fetch from (must not be 'workingDirectory')
  * @param cwd - Working directory for git operations
- * @param sandboxId - Optional sandbox ID for VM file operations
  * @returns GitContentResult with content, loading state, and error
  */
 export function useGitContent(
   filePath: string | null,
   source: ContentSource,
   cwd: string,
-  sandboxId?: string,
 ): GitContentResult {
   const [state, setState] = useState<GitContentResult>({
     content: null,
@@ -151,7 +149,7 @@ export function useGitContent(
     error: null,
   });
 
-  const git = useGitV2(cwd, sandboxId);
+  const git = useGitV2(cwd);
 
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);

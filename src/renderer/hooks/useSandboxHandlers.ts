@@ -1,17 +1,9 @@
-import {
-  enqueueNotification,
-  updateNotification,
-} from "@/store/actions/notifications";
-import {
-  completeAgentSession,
-  deleteAgentSession,
-  splitPane,
-} from "@/store/actions/pane";
+import { enqueueNotification } from "@/store/actions/notifications";
+import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
 import { useCallback } from "react";
 
 type UseSandboxHandlersOptions = {
   tabId: string;
-  paneId?: string;
 };
 
 /**
@@ -89,57 +81,9 @@ export async function handleDeleteAgentSessionAction(
 }
 
 /**
- * Handles forking a VM and creating a new pane with the forked VM
- */
-export async function handleForkVMAction(
-  tabId: string,
-  paneId: string,
-  sandboxId: string,
-) {
-  const notificationId = enqueueNotification({
-    kind: "info",
-    message: "Forking VM...",
-    persistent: true,
-  });
-
-  try {
-    const forkedVM = await window.conduit.forkVM(sandboxId);
-
-    if (!forkedVM) {
-      throw new Error("Failed to fork VM");
-    }
-
-    await splitPane(tabId, paneId, "column", false, {
-      terminalOptions: {
-        existingSandboxId: forkedVM.id,
-      },
-    });
-
-    updateNotification(notificationId, {
-      kind: "success",
-      message: "VM forked successfully",
-      details: `New VM: ${forkedVM.id}`,
-      autoCloseMs: 3000,
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    updateNotification(notificationId, {
-      kind: "error",
-      message: "Failed to fork VM",
-      details: errorMessage,
-      autoCloseMs: 5000,
-    });
-    console.error("Failed to fork VM", error);
-  }
-}
-
-/**
  * React hook that provides memoized handlers for sandbox operations
  */
-export function useSandboxHandlers({
-  tabId,
-  paneId,
-}: UseSandboxHandlersOptions) {
+export function useSandboxHandlers({ tabId }: UseSandboxHandlersOptions) {
   const handleCompleteAgentSession = useCallback(
     async (agentSessionId: string) => {
       await handleCompleteAgentSessionAction(tabId, agentSessionId);
@@ -154,19 +98,8 @@ export function useSandboxHandlers({
     [tabId],
   );
 
-  const handleForkVM = useCallback(
-    async (sandboxId: string) => {
-      if (!paneId) {
-        throw new Error("No pane ID available for forking VM");
-      }
-      await handleForkVMAction(tabId, paneId, sandboxId);
-    },
-    [tabId, paneId],
-  );
-
   return {
     handleCompleteAgentSession,
     handleDeleteAgentSession,
-    handleForkVM,
   };
 }

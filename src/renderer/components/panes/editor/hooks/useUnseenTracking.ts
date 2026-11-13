@@ -59,9 +59,6 @@ export interface UseUnseenTrackingOptions {
   /** Working directory (absolute path) */
   cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
-
   /** Whether unseen tracking is enabled (from user settings) */
   enabled: boolean;
 
@@ -156,7 +153,6 @@ export const DISABLED_UNSEEN_TRACKING: UnseenTrackingResult = {
 export function useUnseenTracking({
   git,
   cwd,
-  sandboxId,
   enabled,
   currentlyOpenFile,
   gitChangedFiles,
@@ -229,7 +225,7 @@ export function useUnseenTracking({
 
     try {
       fsApi = FileSystemV2APIService.getInstance();
-      const api = fsApi.acquire(cwd, sandboxId);
+      const api = fsApi.acquire(cwd);
 
       // Subscribe to all file content changes in this cwd
       cleanup = api.onAnyFileContentChanged((fullPath: string) => {
@@ -276,10 +272,10 @@ export function useUnseenTracking({
     return () => {
       cleanup?.();
       if (fsApi) {
-        fsApi.release(cwd, sandboxId);
+        fsApi.release(cwd);
       }
     };
-  }, [cwd, sandboxId, enabled, processStatusChange]);
+  }, [cwd, enabled, processStatusChange]);
 
   // ---------------------------------------------------------------------------
   // Return API

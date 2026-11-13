@@ -18,8 +18,6 @@
  * - Only explicit subscriptions create providers with watchers. This ensures
  *   operations like searching for package.json in parent directories don't
  *   accidentally create watchers for /Users or /.
- * - When vmId is provided, operations are routed to the VM via conduit-server
- *   WebSocket connection instead of local filesystem.
  *
  * IPC Channels:
  * - `fs-v2:read-directory` - Read directory contents
@@ -39,7 +37,6 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { getSandboxClient } from "../vm/store";
 import {
   warmFileCache,
   getPreWarmedCache,
@@ -47,7 +44,6 @@ import {
 } from "./fileCacheWarmer";
 import { FileSystemProviderService } from "./FileSystemProviderService";
 import { pathEquals, pathStartsWith } from "./pathUtils";
-import { VMFileSystemProvider } from "./VMFileSystemProvider";
 import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
 
 // ============================================================================
@@ -61,14 +57,10 @@ interface Subscription {
   id: string;
   windowId: number;
   cwd: string;
-  vmId?: string;
   type: "directory" | "file" | "all";
   path?: string;
   dispose: () => void;
 }
-
-/** Cache of VM filesystem providers by vmId */
-const vmProviders = new Map<string, VMFileSystemProvider>();
 
 // ============================================================================
 // State
@@ -136,70 +128,28 @@ function getService(): FileSystemProviderService {
  * Result from getOrAcquireProvider - includes whether we need to release.
  */
 interface ProviderHandle {
-  provider:
-    | ReturnType<FileSystemProviderService["getExistingProvider"]>
-    | VMFileSystemProvider;
+  provider: ReturnType<FileSystemProviderService["getExistingProvider"]>;
   needsRelease: boolean;
-  isVM: boolean;
-}
-
-/**
- * Get or create a VM filesystem provider for the given vmId.
- * VM providers are cached and reused across operations.
- * Will wait for sandbox connection if not yet established.
- */
-async function getOrCreateVMProvider(
-  vmId: string,
-  cwd: string,
-): Promise<VMFileSystemProvider> {
-  // Check if we already have a provider for this VM
-  const existing = vmProviders.get(vmId);
-  if (existing && existing.cwd === cwd) {
-    return existing;
-  }
-
-  // Get the sandbox client, connecting if needed (this will wait for connection)
-  const sandboxClient = await getSandboxClient(vmId);
-  if (!sandboxClient) {
-    throw new Error(`VM ${vmId} does not have an active sandbox connection`);
-  }
-
-  // Create and cache the provider
-  const provider = new VMFileSystemProvider(cwd, sandboxClient);
-  vmProviders.set(vmId, provider);
-
-  return provider;
 }
 
 /**
  * Get a provider for an operation.
  *
- * If vmId is provided, returns a VM provider for cloud operations.
- * Otherwise uses local disk provider:
  * - If an active subscription exists, uses that provider without touching refCount.
  * - Otherwise, temporarily acquires a provider which must be released after use.
  */
-async function getOrAcquireProvider(
-  cwd: string,
-  vmId?: string,
-): Promise<ProviderHandle> {
-  // If vmId is provided, use VM provider
-  if (vmId) {
-    const provider = await getOrCreateVMProvider(vmId, cwd);
-    return { provider, needsRelease: false, isVM: true };
-  }
-
+async function getOrAcquireProvider(cwd: string): Promise<ProviderHandle> {
   const service = getService();
 
   // First try existing provider (from an active subscription)
   const existing = service.getExistingProvider(cwd);
   if (existing) {
-    return { provider: existing, needsRelease: false, isVM: false };
+    return { provider: existing, needsRelease: false };
   }
 
   // No active subscription - acquire temporarily
   const provider = await service.getProvider(cwd);
-  return { provider, needsRelease: true, isVM: false };
+  return { provider, needsRelease: true };
 }
 
 /**
@@ -228,7 +178,6 @@ export function initializeFileSystemV2Handlers(): void {
   //
   // Operations prefer using an existing provider from an active subscription.
   // If no subscription exists, they temporarily acquire a provider.
-  // When vmId is provided, operations are routed to the VM.
   // -------------------------------------------------------------------------
 
   /**
@@ -237,11 +186,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:read-directory",
-    async (
-      _,
-      params: { cwd: string; dirPath: string; vmId?: string },
-    ): Promise<object[]> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; dirPath: string }): Promise<object[]> => {
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         const entries = await handle.provider.readDirectory(params.dirPath);
         return serializeDirectoryEntries(entries);
@@ -259,9 +205,9 @@ export function initializeFileSystemV2Handlers(): void {
     "fs-v2:read-file",
     async (
       _,
-      params: { cwd: string; filePath: string; vmId?: string },
+      params: { cwd: string; filePath: string },
     ): Promise<Uint8Array> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+      const handle = await getOrAcquireProvider(params.cwd);
 
       try {
         return await handle.provider.readFile(params.filePath);
@@ -277,11 +223,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:read-text-file",
-    async (
-      _,
-      params: { cwd: string; filePath: string; vmId?: string },
-    ): Promise<string> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; filePath: string }): Promise<string> => {
+      const handle = await getOrAcquireProvider(params.cwd);
 
       try {
         return await handle.provider.readTextFile(params.filePath);
@@ -297,11 +240,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:stat",
-    async (
-      _,
-      params: { cwd: string; path: string; vmId?: string },
-    ): Promise<object> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; path: string }): Promise<object> => {
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         const stat = await handle.provider.stat(params.path);
         return serializeFileStat(stat);
@@ -317,11 +257,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:exists",
-    async (
-      _,
-      params: { cwd: string; path: string; vmId?: string },
-    ): Promise<boolean> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; path: string }): Promise<boolean> => {
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         return await handle.provider.exists(params.path);
       } finally {
@@ -335,7 +272,6 @@ export function initializeFileSystemV2Handlers(): void {
   //
   // Write operations may trigger file system events that propagate to
   // subscribed renderers via the event subscription system.
-  // When vmId is provided, operations are routed to the VM.
   // -------------------------------------------------------------------------
 
   /**
@@ -351,10 +287,9 @@ export function initializeFileSystemV2Handlers(): void {
         cwd: string;
         filePath: string;
         content: Uint8Array;
-        vmId?: string;
       },
     ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         await handle.provider.writeFile(params.filePath, params.content);
       } finally {
@@ -376,10 +311,9 @@ export function initializeFileSystemV2Handlers(): void {
         cwd: string;
         path: string;
         options?: DeleteOptions;
-        vmId?: string;
       },
     ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         await handle.provider.delete(params.path, params.options);
       } finally {
@@ -396,9 +330,9 @@ export function initializeFileSystemV2Handlers(): void {
     "fs-v2:rename",
     async (
       _,
-      params: { cwd: string; oldPath: string; newPath: string; vmId?: string },
+      params: { cwd: string; oldPath: string; newPath: string },
     ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         await handle.provider.rename(params.oldPath, params.newPath);
       } finally {
@@ -414,11 +348,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:create-directory",
-    async (
-      _,
-      params: { cwd: string; dirPath: string; vmId?: string },
-    ): Promise<void> => {
-      const handle = await getOrAcquireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; dirPath: string }): Promise<void> => {
+      const handle = await getOrAcquireProvider(params.cwd);
       try {
         await handle.provider.createDirectory(params.dirPath);
       } finally {
@@ -432,7 +363,6 @@ export function initializeFileSystemV2Handlers(): void {
   //
   // Subscriptions hold a provider reference until explicitly unsubscribed
   // or the window closes. Events are forwarded to the renderer via IPC.
-  // When vmId is provided, subscriptions are for VM filesystem events.
   //
   // Subscription types:
   // - "directory": Directory listing changes only
@@ -455,87 +385,11 @@ export function initializeFileSystemV2Handlers(): void {
         cwd: string;
         type: "directory" | "file" | "all";
         path?: string;
-        vmId?: string;
       },
     ): Promise<string> => {
       const windowId = getWindowId(event);
       const subscriptionId = generateSubscriptionId();
 
-      // Handle VM subscriptions
-      if (params.vmId) {
-        const vmProvider = await getOrCreateVMProvider(params.vmId, params.cwd);
-
-        // Set up event forwarding for VM provider
-        const disposables: Array<{ dispose: () => void }> = [];
-
-        if (params.type === "directory" || params.type === "all") {
-          const sub = vmProvider.onDirectoryListingChanged((e) => {
-            if (!params.path || pathStartsWith(e.path, params.path)) {
-              sendToRenderer(event.sender, "fs-v2:directory-listing-changed", {
-                subscriptionId,
-                path: e.path,
-                entries: e.entries,
-              });
-            }
-          });
-          disposables.push(sub);
-        }
-
-        if (params.type === "file" || params.type === "all") {
-          const fileSub = vmProvider.onFileContentChanged((e) => {
-            if (!params.path || pathStartsWith(e.path, params.path)) {
-              sendToRenderer(event.sender, "fs-v2:file-content-changed", {
-                subscriptionId,
-                path: e.path,
-              });
-            }
-          });
-          disposables.push(fileSub);
-
-          const deleteSub = vmProvider.onFileDeleted((e) => {
-            if (!params.path || pathStartsWith(e.path, params.path)) {
-              sendToRenderer(event.sender, "fs-v2:file-deleted", {
-                subscriptionId,
-                path: e.path,
-              });
-            }
-          });
-          disposables.push(deleteSub);
-
-          const renameSub = vmProvider.onFileRenamed((e) => {
-            if (
-              !params.path ||
-              pathStartsWith(e.oldPath, params.path) ||
-              pathStartsWith(e.newPath, params.path)
-            ) {
-              sendToRenderer(event.sender, "fs-v2:file-renamed", {
-                subscriptionId,
-                oldPath: e.oldPath,
-                newPath: e.newPath,
-              });
-            }
-          });
-          disposables.push(renameSub);
-        }
-
-        subscriptions.set(subscriptionId, {
-          id: subscriptionId,
-          windowId,
-          cwd: params.cwd,
-          vmId: params.vmId,
-          type: params.type,
-          path: params.path,
-          dispose: () => {
-            for (const d of disposables) {
-              d.dispose();
-            }
-          },
-        });
-
-        return subscriptionId;
-      }
-
-      // Local filesystem subscription (existing logic)
       const provider = await service.getProvider(params.cwd);
       const disposables: Array<{ dispose: () => void }> = [];
 

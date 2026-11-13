@@ -9,7 +9,7 @@
  *
  * @example
  * ```tsx
- * <ImagePreview filePath="/path/to/image.png" sandboxId={sandboxId} />
+ * <ImagePreview filePath="/path/to/image.png" />
  * ```
  */
 
@@ -20,19 +20,13 @@ export interface ImagePreviewProps {
   filePath: string;
   /** Working directory for file operations */
   cwd: string;
-  /** Sandbox/VM ID for remote operations (optional) */
-  sandboxId?: string;
 }
 
 /**
  * Image preview component.
  */
-export function ImagePreview({ filePath, cwd, sandboxId }: ImagePreviewProps) {
-  const { imageUrl, isLoading, error } = useImagePreview(
-    filePath,
-    cwd,
-    sandboxId,
-  );
+export function ImagePreview({ filePath, cwd }: ImagePreviewProps) {
+  const { imageUrl, isLoading, error } = useImagePreview(filePath, cwd);
 
   // Render loading state
   if (isLoading) {

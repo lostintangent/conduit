@@ -676,7 +676,6 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     title: result.title,
-    sandboxId: result.sandboxId,
     agentSessionId,
     agentBranchName,
     agentBaseBranch,
@@ -767,7 +766,6 @@ export async function splitTabLayoutAtRoot(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     title: result.title,
-    sandboxId: result.sandboxId,
   };
 
   const newLayoutNode: LayoutNode = {
@@ -973,7 +971,6 @@ export function openBrowserPane(
 type OpenEditorPaneOptions = {
   file?: string;
   preview?: boolean;
-  sandboxId?: string;
 };
 
 export function openEditorPane(
@@ -991,7 +988,6 @@ export function openEditorPane(
     cwd,
     file: options.file,
     preview: options.preview,
-    sandboxId: options.sandboxId,
   };
 
   const newLayoutNode: LayoutNode = {
@@ -1319,58 +1315,4 @@ export function closePane(tabId: string, paneId: string) {
 
   // Otherwise, just remove the pane
   removePane(tabId, paneId);
-}
-
-/**
- * Forward a port from a cloud VM and open it in a new web pane
- */
-export async function forwardPortAndOpen(
-  tabId: string,
-  paneId: string,
-  sandboxId: string,
-  port: number,
-): Promise<void> {
-  try {
-    // Show loading notification
-    const notificationId = enqueueNotification({
-      kind: "info",
-      message: `Forwarding port ${port}...`,
-      persistent: true,
-    });
-
-    // Call the VM API to forward the port
-    const result = await api.forwardPort(sandboxId, port, `Port ${port}`);
-
-    // Dismiss loading notification
-    const { dismissNotification } = await import("./notifications");
-    dismissNotification(notificationId);
-
-    // Split the pane vertically and open the connection URL in a BrowserPane
-    // openBrowserPane handles both splitting and creating the browser pane
-    openBrowserPane(
-      tabId,
-      paneId,
-      `http://${result.connection_url}`,
-      "row",
-      false,
-    );
-
-    // Show success notification
-    enqueueNotification({
-      kind: "success",
-      message: `Port ${port} forwarded`,
-      details: `Access at ${result.connection_url}`,
-      autoCloseMs: 3000,
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    enqueueNotification({
-      kind: "error",
-      message: `Failed to forward port ${port}`,
-      details: errorMessage,
-      autoCloseMs: 5000,
-    });
-    console.error("Failed to forward port:", error);
-    throw error;
-  }
 }

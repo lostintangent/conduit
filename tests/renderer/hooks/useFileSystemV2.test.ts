@@ -161,10 +161,7 @@ describe("useFileSystemV2", () => {
     it("should acquire instance from service", () => {
       renderHook(() => useFileSystemV2("/test/project"));
 
-      expect(mockServiceInstance.acquire).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-      );
+      expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/test/project");
     });
 
     it("should return the same instance on re-renders with same cwd", () => {
@@ -219,15 +216,9 @@ describe("useFileSystemV2", () => {
       rerender({ cwd: "/project/b" });
 
       // Service should have been called to release the old cwd
-      expect(mockServiceInstance.release).toHaveBeenCalledWith(
-        "/project/a",
-        undefined,
-      );
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/a");
       // And acquire the new cwd
-      expect(mockServiceInstance.acquire).toHaveBeenCalledWith(
-        "/project/b",
-        undefined,
-      );
+      expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/project/b");
     });
 
     it("should keep same instance when cwd stays the same", () => {
@@ -259,10 +250,7 @@ describe("useFileSystemV2", () => {
 
       unmount();
 
-      expect(mockServiceInstance.release).toHaveBeenCalledWith(
-        "/test/project",
-        undefined,
-      );
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/test/project");
     });
 
     it("should handle multiple CWD changes then unmount", () => {
@@ -277,22 +265,13 @@ describe("useFileSystemV2", () => {
       rerender({ cwd: "/project/c" });
 
       // First two should have been released from CWD changes
-      expect(mockServiceInstance.release).toHaveBeenCalledWith(
-        "/project/a",
-        undefined,
-      );
-      expect(mockServiceInstance.release).toHaveBeenCalledWith(
-        "/project/b",
-        undefined,
-      );
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/a");
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/b");
 
       unmount();
 
       // The last cwd should be released on unmount
-      expect(mockServiceInstance.release).toHaveBeenCalledWith(
-        "/project/c",
-        undefined,
-      );
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/c");
     });
   });
 
@@ -371,17 +350,13 @@ describe("useFileSystemV2", () => {
       for (let i = 1; i < 10; i++) {
         expect(mockServiceInstance.release).toHaveBeenCalledWith(
           `/project/${i}`,
-          undefined,
         );
       }
 
       unmount();
 
       // Final cwd should be released on unmount
-      expect(mockServiceInstance.release).toHaveBeenCalledWith(
-        "/project/10",
-        undefined,
-      );
+      expect(mockServiceInstance.release).toHaveBeenCalledWith("/project/10");
     });
   });
 });

@@ -268,7 +268,6 @@ export function EditorPaneV2({
     filePath,
     treeMode,
     changesViewMode: paneChangesViewMode,
-    sandboxId,
     agentSessionId,
     preview: initialPreview,
   } = pane as EditorPaneType & { filePath?: string };
@@ -298,7 +297,6 @@ export function EditorPaneV2({
     handleDeleteAgentSession: handleDeleteAgentSessionBase,
   } = useSandboxHandlers({
     tabId: currentTab?.id ?? "",
-    paneId: pane.id,
   });
 
   // Wrap the base handlers to check for required values
@@ -466,13 +464,10 @@ export function EditorPaneV2({
   // ---------------------------------------------------------------------------
 
   // Git API for checking file status
-  const git = useGitV2(currentCwd, sandboxId);
+  const git = useGitV2(currentCwd);
 
   // Monitor selected file's model state for orphan detection
-  const selectedFileModelState = useModelState(
-    selectedFile?.path ?? null,
-    sandboxId,
-  );
+  const selectedFileModelState = useModelState(selectedFile?.path ?? null);
 
   // ---------------------------------------------------------------------------
   // Git State
@@ -497,7 +492,6 @@ export function EditorPaneV2({
   const unseenTracking = useUnseenTracking({
     git,
     cwd: currentCwd,
-    sandboxId,
     enabled: trackUnseenChanges && gitStatus !== null,
     currentlyOpenFile,
     gitChangedFiles,
@@ -704,7 +698,7 @@ export function EditorPaneV2({
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
   // FileSystem API for reading file content (for callbacks)
-  const fs = useFileSystemV2(currentCwd, sandboxId);
+  const fs = useFileSystemV2(currentCwd);
 
   // Auto-open file on mount (validates initial file, falls back to most recently modified)
   useAutoOpenFile({
@@ -1232,15 +1226,12 @@ export function EditorPaneV2({
    * Check if a file has unsaved changes in the editor.
    * Used to prevent staging files with unsaved changes.
    */
-  const isFileDirty = useCallback(
-    (filePath: string): boolean => {
-      const registry = MonacoModelRegistry.getInstance();
-      const modelKey = createModelKey(filePath, sandboxId);
-      const state = registry.getModelState(modelKey);
-      return state?.isDirty ?? false;
-    },
-    [sandboxId],
-  );
+  const isFileDirty = useCallback((filePath: string): boolean => {
+    const registry = MonacoModelRegistry.getInstance();
+    const modelKey = createModelKey(filePath);
+    const state = registry.getModelState(modelKey);
+    return state?.isDirty ?? false;
+  }, []);
 
   /**
    * Toggle tree panel collapsed state.
@@ -1763,7 +1754,6 @@ export function EditorPaneV2({
           <EditorPane
             editorId={editorId}
             cwd={currentCwd}
-            sandboxId={sandboxId}
             git={git}
             selectedFile={selectedFile}
             selectedMapKey={selectedMapKey}
@@ -1814,9 +1804,8 @@ export function EditorPaneV2({
           onOpenChange={setIsBranchSelectorOpen}
         />
 
-        {/* Cloud VM / Agent Session Indicator */}
+        {/* Agent Session Indicator */}
         <SandboxIndicator
-          sandboxId={sandboxId ?? null}
           agentSessionId={agentSessionId ?? null}
           onCompleteAgentSession={handleCompleteAgentSession}
           onDeleteAgentSession={handleDeleteAgentSession}

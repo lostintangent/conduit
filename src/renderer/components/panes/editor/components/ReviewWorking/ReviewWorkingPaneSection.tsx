@@ -65,9 +65,6 @@ export interface ReviewWorkingPaneSectionProps {
   /** Working directory */
   cwd: string;
 
-  /** Optional sandbox ID for cloud VM operations */
-  sandboxId?: string;
-
   /** Git API instance */
   git: GitV2API;
 
@@ -124,7 +121,6 @@ export function ReviewWorkingPaneSection({
   onBulkAction,
   isBulkActionLoading = false,
   cwd,
-  sandboxId,
   git,
   baseBranch,
   expandedFiles,
@@ -221,7 +217,6 @@ export function ReviewWorkingPaneSection({
               context="working"
               filePath={status.path}
               cwd={cwd}
-              sandboxId={sandboxId}
               git={git}
               status={status}
               baseBranch={baseBranch}

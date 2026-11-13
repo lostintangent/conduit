@@ -31,7 +31,7 @@ type AgentLauncherDialogProps = {
         instances?: AgentInstance[];
       };
     };
-    launchTarget: "same-folder" | "worktree" | "cloud-vm";
+    launchTarget: "same-folder" | "worktree";
   }) => Promise<void> | void;
 };
 
@@ -69,9 +69,9 @@ export function AgentLauncherDialog({
     new Set(),
   );
   const [_expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
-  const [launchTarget, setLaunchTarget] = useState<
-    "same-folder" | "worktree" | "cloud-vm"
-  >("worktree");
+  const [launchTarget, setLaunchTarget] = useState<"same-folder" | "worktree">(
+    "worktree",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCelebrating, setIsCelebrating] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -556,14 +556,13 @@ export function AgentLauncherDialog({
                   value={launchTarget}
                   onChange={(e) =>
                     setLaunchTarget(
-                      e.target.value as "same-folder" | "worktree" | "cloud-vm",
+                      e.target.value as "same-folder" | "worktree",
                     )
                   }
                   className="px-2 py-1.5 bg-background border border-white/10 rounded-md text-xs text-foreground focus:outline-none focus:border-accent"
                 >
                   <option value="same-folder">Same Folder</option>
                   <option value="worktree">Worktree</option>
-                  <option value="cloud-vm">Cloud VM</option>
                 </select>
               </div>
 

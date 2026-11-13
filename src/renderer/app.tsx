@@ -28,7 +28,6 @@ import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
-import { RepositoryDialog } from "@/components/shell/tabs/RepositoryDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
@@ -49,7 +48,6 @@ import {
   updateHyperTerminalPosition,
 } from "@/store/actions/hyperTerminal";
 import {
-  dismissNotification,
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
@@ -129,7 +127,6 @@ export function App() {
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
   const [quickOpenInitialValue, setQuickOpenInitialValue] = useState("");
 
-  const [isVMRepoDialogOpen, setIsVMRepoDialogOpen] = useState(false);
   const [cleanupDialogSessions, setCleanupDialogSessions] = useState<
     AgentSessionInfo[] | null
   >(null);
@@ -455,49 +452,6 @@ export function App() {
       return false;
     },
   });
-
-  const handleVMRepoSubmit = useCallback(
-    async (repo?: { owner: string; name: string }) => {
-      const notificationId = enqueueNotification({
-        kind: "info",
-        message: "Creating VM...",
-        persistent: true,
-      });
-
-      try {
-        const result = await api.createTerminal({
-          isRemoteVM: true,
-          githubRepo: repo,
-        });
-
-        if (!result) {
-          throw new Error("Failed to create VM terminal");
-        }
-
-        dismissNotification(notificationId);
-
-        // Open a new tab with the VM terminal session
-        const { openTabFromExistingSession } = await import(
-          "@/store/actions/tab"
-        );
-        openTabFromExistingSession({
-          sessionId: result.sessionId,
-          cwd: result.cwd,
-          title: result.title,
-          sandboxId: result.sandboxId ?? undefined,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        updateNotification(notificationId, {
-          kind: "error",
-          message: "Failed to create VM terminal",
-          details: message,
-          autoCloseMs: null,
-        });
-      }
-    },
-    [],
-  );
 
   const closeAgentSessionPanes = useCallback(
     (sessionId: string) => {
@@ -1003,12 +957,6 @@ export function App() {
         onOpen={handleAgentSessionOpen}
       />
 
-      <RepositoryDialog
-        isOpen={isVMRepoDialogOpen}
-        onClose={() => setIsVMRepoDialogOpen(false)}
-        onSubmit={handleVMRepoSubmit}
-      />
-
       {settingsTab && commandSystem && paneActionsSystem && homeDirectory ? (
         <SettingsDialog
           onClose={() => setSettingsTab(null)}
@@ -1061,17 +1009,12 @@ export function App() {
                 api,
                 onClose: () => setShowAgentLauncher(false),
               });
-            } else if (payload.launchTarget === "same-folder") {
+            } else {
               await launchAgentsInSameFolder(payload, {
                 cwd,
                 agents: agents || [],
                 api,
                 onClose: () => setShowAgentLauncher(false),
-              });
-            } else {
-              enqueueNotification({
-                kind: "error",
-                message: `Launch target "${payload.launchTarget}" is not yet implemented`,
               });
             }
           } catch (error) {

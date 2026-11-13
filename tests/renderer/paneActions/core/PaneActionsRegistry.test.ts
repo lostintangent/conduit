@@ -12,12 +12,11 @@ describe("PaneActionsRegistry", () => {
       const registry = new PaneActionsRegistry();
       const actions = registry.getActions();
 
-      expect(actions).toHaveLength(5);
+      expect(actions).toHaveLength(4);
       expect(actions[0].name).toBe("Agent");
       expect(actions[1].name).toBe("Editor");
       expect(actions[2].name).toBe("Browser");
       expect(actions[3].name).toBe("Canvas");
-      expect(actions[4].name).toBe("Cloud");
     });
   });
 
@@ -49,7 +48,7 @@ describe("PaneActionsRegistry", () => {
 
       // Internal state should be unchanged
       const internalActions = registry.getActions();
-      expect(internalActions).toHaveLength(5);
+      expect(internalActions).toHaveLength(4);
     });
   });
 
@@ -219,7 +218,7 @@ describe("PaneActionsRegistry", () => {
 
       expect(loaded).toBe(false);
       // Should keep default actions
-      expect(registry.getActions()).toHaveLength(5);
+      expect(registry.getActions()).toHaveLength(4);
     });
 
     it("should throw for invalid file", async () => {
@@ -284,7 +283,7 @@ describe("PaneActionsRegistry", () => {
       // Reset
       registry.resetToDefaults();
 
-      expect(registry.getActions()).toHaveLength(5);
+      expect(registry.getActions()).toHaveLength(4);
       expect(registry.getActions()[0].name).toBe("Agent");
     });
 

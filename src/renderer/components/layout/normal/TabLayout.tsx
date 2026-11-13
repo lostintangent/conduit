@@ -19,7 +19,6 @@ import type {
 import {
   handleCompleteAgentSessionAction,
   handleDeleteAgentSessionAction,
-  handleForkVMAction,
 } from "@/hooks/useSandboxHandlers";
 import { enterFocusMode } from "@/store/actions/focusMode";
 import {
@@ -553,7 +552,6 @@ export function TabLayout({
                       type: "editor",
                       cwd: pane?.cwd,
                       file: node.path,
-                      sandboxId: pane?.sandboxId,
                     })
                   }
                   onHover={(isHovering) => {
@@ -1003,41 +1001,18 @@ export function TabLayout({
           )}
           {unifiedSandbox && (
             <SandboxIndicator
-              sandboxId={
-                unifiedSandbox.type === "vm" ? unifiedSandbox.sandboxId : null
+              agentSessionId={unifiedSandbox.agentSessionId}
+              onCompleteAgentSession={() =>
+                handleCompleteAgentSessionAction(
+                  tab.id,
+                  unifiedSandbox.agentSessionId,
+                )
               }
-              agentSessionId={
-                unifiedSandbox.type === "agent"
-                  ? unifiedSandbox.agentSessionId
-                  : null
-              }
-              onCompleteAgentSession={
-                unifiedSandbox.type === "agent"
-                  ? () =>
-                      handleCompleteAgentSessionAction(
-                        tab.id,
-                        unifiedSandbox.agentSessionId,
-                      )
-                  : undefined
-              }
-              onDeleteAgentSession={
-                unifiedSandbox.type === "agent"
-                  ? () =>
-                      handleDeleteAgentSessionAction(
-                        tab.id,
-                        unifiedSandbox.agentSessionId,
-                      )
-                  : undefined
-              }
-              onForkVM={
-                unifiedSandbox.type === "vm"
-                  ? () =>
-                      handleForkVMAction(
-                        tab.id,
-                        tab.activePaneId,
-                        unifiedSandbox.sandboxId,
-                      )
-                  : undefined
+              onDeleteAgentSession={() =>
+                handleDeleteAgentSessionAction(
+                  tab.id,
+                  unifiedSandbox.agentSessionId,
+                )
               }
             />
           )}

@@ -11,7 +11,7 @@
  *
  * @example
  * ```tsx
- * const { stats, gitStatus, isGitRepo } = useUncommittedDiffStats(cwd, sandboxId);
+ * const { stats, gitStatus, isGitRepo } = useUncommittedDiffStats(cwd);
  *
  * if (!isGitRepo || !stats) return null;
  * return (
@@ -47,7 +47,6 @@ export interface UseUncommittedDiffStatsResult {
 /**
  * In-memory cache for stats by cwd.
  * Prevents flash when component remounts (e.g., when switching panes).
- * Cache is keyed by "cwd" or "cwd::vm:sandboxId" for cloud VMs.
  */
 const statsCache = new Map<
   string,
@@ -58,22 +57,15 @@ const statsCache = new Map<
   }
 >();
 
-function getCacheKey(cwd: string, sandboxId?: string): string {
-  return sandboxId ? `${cwd}::vm:${sandboxId}` : cwd;
-}
-
 /**
  * Hook to subscribe to aggregate uncommitted diff stats.
  *
  * @param cwd - Working directory
- * @param sandboxId - Optional sandbox ID for cloud VM operations
  */
 export function useUncommittedDiffStats(
   cwd: string,
-  sandboxId?: string,
 ): UseUncommittedDiffStatsResult {
-  const cacheKey = getCacheKey(cwd, sandboxId);
-  const cached = statsCache.get(cacheKey);
+  const cached = statsCache.get(cwd);
 
   // Initialize from cache to prevent flash on remount
   const [stats, setStats] = useState<UncommittedDiffStats | null>(
@@ -86,8 +78,8 @@ export function useUncommittedDiffStats(
     cached?.isGitRepo ?? null,
   );
 
-  const git = useGitV2(cwd, sandboxId);
-  const fs = useFileSystemV2(cwd, sandboxId);
+  const git = useGitV2(cwd);
+  const fs = useFileSystemV2(cwd);
 
   const fetchStats = useCallback(
     async (event?: GitStatusChangedEvent) => {
@@ -100,7 +92,7 @@ export function useUncommittedDiffStats(
           setGitStatus(null);
           // Don't cache isGitRepo: false - findRoot() may have failed transiently
           // (e.g., git provider not yet initialized). Allow retry on next mount.
-          statsCache.delete(cacheKey);
+          statsCache.delete(cwd);
           return;
         }
 
@@ -116,7 +108,7 @@ export function useUncommittedDiffStats(
         const diffStats = await git.getUncommittedDiffStats();
         setStats(diffStats);
 
-        statsCache.set(cacheKey, {
+        statsCache.set(cwd, {
           stats: diffStats,
           gitStatus: newGitStatus,
           isGitRepo: true,
@@ -130,7 +122,7 @@ export function useUncommittedDiffStats(
         // Don't update cache on error - keep previous cached value
       }
     },
-    [git, cacheKey],
+    [git, cwd],
   );
 
   // Subscribe to git and file system changes

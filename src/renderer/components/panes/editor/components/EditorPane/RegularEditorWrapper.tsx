@@ -64,9 +64,6 @@ export interface RegularEditorWrapperProps {
   /** Working directory for file operations */
   cwd: string;
 
-  /** Optional sandbox ID for VM file operations */
-  sandboxId?: string;
-
   /** Absolute path to the file to edit */
   filePath: string;
 
@@ -164,7 +161,6 @@ const DEFAULT_EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions
 export function RegularEditorWrapper({
   editorId,
   cwd,
-  sandboxId,
   filePath,
   theme: themeProp,
   source = "workingDirectory",
@@ -225,7 +221,6 @@ export function RegularEditorWrapper({
     isGitSourceMode ? filePath : null,
     source,
     cwd,
-    sandboxId,
   );
 
   // Get model from registry for working directory source
@@ -235,7 +230,6 @@ export function RegularEditorWrapper({
     editorId,
     isGitSourceMode ? null : filePath,
     cwd,
-    sandboxId,
   );
 
   // Auto-sizing hook - grows height with content up to maxHeight
@@ -432,12 +426,9 @@ export function RegularEditorWrapper({
     // before useMonacoModel updates with the new model. We must skip attaching
     // stale models to avoid ending the session prematurely.
     const modelUri = registryModel.uri.toString();
-    const expectedModelKey = createModelKey(filePath, sandboxId);
-    // Handle sandboxId in model key: file:///path::vm:sandboxId
+    const expectedModelKey = createModelKey(filePath);
     const modelMatchesFile =
-      modelUri === expectedModelKey ||
-      modelUri.startsWith(expectedModelKey.split("::")[0] + "::") ||
-      registryModel.uri.fsPath === filePath;
+      modelUri === expectedModelKey || registryModel.uri.fsPath === filePath;
 
     if (!modelMatchesFile) {
       // Model is for a different file - skip this render cycle
@@ -487,7 +478,7 @@ export function RegularEditorWrapper({
       }
     };
     // Note: onChange handled via ref to avoid listener re-setup when callback changes
-  }, [editorId, filePath, registryModel, sandboxId, isGitSourceMode]);
+  }, [editorId, filePath, registryModel, isGitSourceMode]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update

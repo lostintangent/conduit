@@ -140,13 +140,7 @@ vi.mock("../../../../../src/renderer/components/panes/editor/registry", () => ({
     }),
     resetInstance: vi.fn(),
   },
-  createModelKey: (filePath: string, sandboxId?: string) => {
-    const uri = `file://${filePath}`;
-    if (sandboxId) {
-      return `${uri}::vm:${sandboxId}`;
-    }
-    return uri;
-  },
+  createModelKey: (filePath: string) => `file://${filePath}`,
 }));
 
 // Import component after mocks are set up

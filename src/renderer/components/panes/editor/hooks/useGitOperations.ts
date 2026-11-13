@@ -137,14 +137,10 @@ function getErrorMessage(error: unknown): string {
  * Hook for git operations with loading and error state management.
  *
  * @param cwd - Working directory for git operations
- * @param sandboxId - Optional sandbox ID for cloud VM operations
  * @returns Tuple of [state, operations]
  */
-export function useGitOperations(
-  cwd: string,
-  sandboxId?: string,
-): UseGitOperationsResult {
-  const git = useGitV2(cwd, sandboxId);
+export function useGitOperations(cwd: string): UseGitOperationsResult {
+  const git = useGitV2(cwd);
 
   // Operation loading states
   const [isStaging, setIsStaging] = useState(false);

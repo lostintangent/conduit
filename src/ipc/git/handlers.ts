@@ -56,7 +56,6 @@
  */
 
 import { ipcMain, type IpcMainInvokeEvent, type WebContents } from "electron";
-import { getSandboxClient, onSessionEvent } from "../vm/store";
 import { GitProviderService } from "./GitProviderService";
 import type {
   CommitFile,
@@ -71,7 +70,6 @@ import type {
   HistoryCommit,
   TrackedBranchInfo,
 } from "./types";
-import { VMGitProvider } from "./VMGitProvider";
 
 /**
  * Serialized git status for IPC transport.
@@ -194,9 +192,6 @@ const subscriptions = new Map<string, Subscription>();
 
 /** Counter for generating unique subscription IDs */
 let subscriptionIdCounter = 0;
-
-/** VM git providers by vmId */
-const vmProviders = new Map<string, VMGitProvider>();
 
 /**
  * Get window ID from IPC event.
@@ -322,78 +317,23 @@ function getService(): GitProviderService {
 }
 
 /**
- * Get or create VM git provider for a given vmId.
- *
- * The provider needs access to the VM's sandbox-ipc client for
- * making git operations via WebSocket.
- * Will wait for sandbox connection if not yet established.
- */
-async function getOrCreateVMProvider(
-  vmId: string,
-  cwd = "/workspace",
-): Promise<VMGitProvider> {
-  // Check if we already have a provider for this VM
-  let provider = vmProviders.get(vmId);
-  if (provider) {
-    return provider;
-  }
-
-  // Get the sandbox client, connecting if needed (this will wait for connection)
-  const sandboxClient = await getSandboxClient(vmId);
-  if (!sandboxClient) {
-    throw new Error(`VM ${vmId} does not have an active sandbox connection`);
-  }
-
-  // Create and cache the provider
-  provider = new VMGitProvider(cwd, sandboxClient, cwd);
-  vmProviders.set(vmId, provider);
-
-  return provider;
-}
-
-/**
- * Clean up the VM git provider for a specific VM.
- * Called when a VM session is disposed.
- */
-export function disposeVMProvider(vmId: string): void {
-  const provider = vmProviders.get(vmId);
-  if (provider) {
-    try {
-      provider.dispose();
-    } catch (error) {
-      console.error(`[Git-V2] Error disposing VM provider for ${vmId}:`, error);
-    }
-    vmProviders.delete(vmId);
-  }
-}
-
-/**
  * Get the existing provider for a cwd, returning null if none exists.
  *
- * If vmId is provided, returns a VM git provider instead.
  * Operations use this to access the provider held by an active subscription
  * or FileSystemProvider. Returns null for non-git directories or when no
  * provider exists.
  */
-async function getExistingProvider(cwd: string, vmId?: string) {
-  // Route to VM provider if vmId is specified
-  if (vmId) {
-    const provider = await getOrCreateVMProvider(vmId, cwd);
-    // For VM providers, we use cwd as the gitRoot since we don't have
-    // the same discovery mechanism as local providers
-    return { provider, gitRoot: cwd };
-  }
+async function getExistingProvider(cwd: string) {
   return getService().getExistingProviderByCwd(cwd);
 }
 
 /**
  * Get the existing provider for a cwd, throwing if none exists.
  *
- * If vmId is provided, returns a VM git provider instead.
  * Use this for operations that require an active provider.
  */
-async function requireProvider(cwd: string, vmId?: string) {
-  const result = await getExistingProvider(cwd, vmId);
+async function requireProvider(cwd: string) {
+  const result = await getExistingProvider(cwd);
   if (!result) {
     throw new Error(`No active git provider for: ${cwd}`);
   }
@@ -412,24 +352,6 @@ async function requireProvider(cwd: string, vmId?: string) {
 export function initializeGitV2Handlers(): void {
   const service = getService();
 
-  // Subscribe to VM session events to clean up providers when VMs are disposed
-  onSessionEvent((vmId, _session, event) => {
-    if (event === "disposed") {
-      const provider = vmProviders.get(vmId);
-      if (provider) {
-        try {
-          provider.dispose();
-        } catch (error) {
-          console.error(
-            `[Git-V2] Error disposing VM provider for ${vmId}:`,
-            error,
-          );
-        }
-        vmProviders.delete(vmId);
-      }
-    }
-  });
-
   // -------------------------------------------------------------------------
   // Status Operations
   //
@@ -446,11 +368,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:status",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<SerializedGitStatus | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<SerializedGitStatus | null> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -467,9 +386,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:file-status",
     async (
       _,
-      params: { cwd: string; filePath: string; vmId?: string },
+      params: { cwd: string; filePath: string },
     ): Promise<GitFileStatus | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -484,8 +403,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:has-uncommitted-changes",
-    async (_, params: { cwd: string; vmId?: string }): Promise<boolean> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<boolean> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return false;
       }
@@ -500,8 +419,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:has-unpushed-commits",
-    async (_, params: { cwd: string; vmId?: string }): Promise<boolean> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<boolean> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return false;
       }
@@ -518,9 +437,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:changed-files-from-branch",
     async (
       _,
-      params: { cwd: string; baseBranch: string; vmId?: string },
+      params: { cwd: string; baseBranch: string },
     ): Promise<string[]> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return [];
       }
@@ -537,9 +456,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:status-from-branch",
     async (
       _,
-      params: { cwd: string; baseBranch: string; vmId?: string },
+      params: { cwd: string; baseBranch: string },
     ): Promise<Record<string, GitFileStatus>> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return {};
       }
@@ -558,11 +477,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:uncommitted-diff-stats",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<SerializedDiffStats> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<SerializedDiffStats> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return { added: 0, removed: 0, files: 0 };
       }
@@ -579,9 +495,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:per-file-diff-stats",
     async (
       _,
-      params: { cwd: string; vmId?: string },
+      params: { cwd: string },
     ): Promise<SerializedSplitPerFileDiffStats> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return { staged: {}, unstaged: {} };
       }
@@ -612,11 +528,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:most-recent-dirty-file",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<string | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<string | null> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -634,9 +547,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:most-recent-committed-file",
     async (
       _,
-      params: { cwd: string; commitLimit?: number; vmId?: string },
+      params: { cwd: string; commitLimit?: number },
     ): Promise<string | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -651,11 +564,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:dirty-files-with-times",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<FileWithTime[]> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<FileWithTime[]> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return [];
       }
@@ -670,11 +580,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:revert",
-    async (
-      _,
-      params: { cwd: string; files: string[]; vmId?: string },
-    ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; files: string[] }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
       await provider.revert(params.files);
     },
   );
@@ -698,10 +605,9 @@ export function initializeGitV2Handlers(): void {
         cwd: string;
         filePath: string;
         staged?: boolean;
-        vmId?: string;
       },
     ): Promise<string | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -718,9 +624,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:file-at-ref",
     async (
       _,
-      params: { cwd: string; filePath: string; ref: string; vmId?: string },
+      params: { cwd: string; filePath: string; ref: string },
     ): Promise<string | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -868,11 +774,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:stage",
-    async (
-      _,
-      params: { cwd: string; files: string[]; vmId?: string },
-    ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; files: string[] }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
       await provider.stage(params.files);
     },
   );
@@ -884,11 +787,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:unstage",
-    async (
-      _,
-      params: { cwd: string; files: string[]; vmId?: string },
-    ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; files: string[] }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
       await provider.unstage(params.files);
     },
   );
@@ -914,10 +814,9 @@ export function initializeGitV2Handlers(): void {
         cwd: string;
         message: string;
         options?: GitCommitOptions;
-        vmId?: string;
       },
     ): Promise<SerializedGitCommit> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+      const { provider } = await requireProvider(params.cwd);
       const commit = await provider.commit(params.message, params.options);
       return serializeGitCommit(commit);
     },
@@ -936,11 +835,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:branch",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<string | null> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<string | null> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return null;
       }
@@ -955,11 +851,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:branches",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<SerializedGitBranch[]> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<SerializedGitBranch[]> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return [];
       }
@@ -978,9 +871,9 @@ export function initializeGitV2Handlers(): void {
     "git-v2:checkout",
     async (
       _,
-      params: { cwd: string; ref: string; force?: boolean; vmId?: string },
+      params: { cwd: string; ref: string; force?: boolean },
     ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+      const { provider } = await requireProvider(params.cwd);
       await provider.checkout(params.ref, { force: params.force });
     },
   );
@@ -1016,11 +909,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:stash",
-    async (
-      _,
-      params: { cwd: string; message?: string; vmId?: string },
-    ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; message?: string }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
       await provider.stash(params.message);
     },
   );
@@ -1031,8 +921,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:stash-pop",
-    async (_, params: { cwd: string; vmId?: string }): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
       await provider.stashPop();
     },
   );
@@ -1057,10 +947,9 @@ export function initializeGitV2Handlers(): void {
         cwd: string;
         force?: boolean;
         setUpstream?: boolean;
-        vmId?: string;
       },
     ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+      const { provider } = await requireProvider(params.cwd);
       await provider.push(params.force, params.setUpstream);
     },
   );
@@ -1072,11 +961,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:pull",
-    async (
-      _,
-      params: { cwd: string; rebase?: boolean; vmId?: string },
-    ): Promise<void> => {
-      const { provider } = await requireProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string; rebase?: boolean }): Promise<void> => {
+      const { provider } = await requireProvider(params.cwd);
       await provider.pull(params.rebase);
     },
   );
@@ -1088,8 +974,8 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:has-upstream",
-    async (_, params: { cwd: string; vmId?: string }): Promise<boolean> => {
-      const result = await getExistingProvider(params.cwd, params.vmId);
+    async (_, params: { cwd: string }): Promise<boolean> => {
+      const result = await getExistingProvider(params.cwd);
       if (!result) {
         return false;
       }
@@ -1118,31 +1004,18 @@ export function initializeGitV2Handlers(): void {
    */
   ipcMain.handle(
     "git-v2:subscribe",
-    async (
-      event,
-      params: { cwd: string; vmId?: string },
-    ): Promise<string | null> => {
+    async (event, params: { cwd: string }): Promise<string | null> => {
       const windowId = getWindowId(event);
 
-      let provider:
-        | Awaited<ReturnType<typeof service.getProvider>>["provider"]
-        | VMGitProvider;
+      let provider: Awaited<ReturnType<typeof service.getProvider>>["provider"];
       let gitRoot: string;
-      let isVMProvider = false;
 
-      // Route to VM provider if vmId is specified
-      if (params.vmId) {
-        provider = await getOrCreateVMProvider(params.vmId, params.cwd);
-        gitRoot = params.cwd; // Use cwd as gitRoot for VM providers
-        isVMProvider = true;
-      } else {
-        try {
-          const result = await service.getProvider(params.cwd);
-          provider = result.provider;
-          gitRoot = result.gitRoot;
-        } catch {
-          return null; // Not a git repository
-        }
+      try {
+        const result = await service.getProvider(params.cwd);
+        provider = result.provider;
+        gitRoot = result.gitRoot;
+      } catch {
+        return null; // Not a git repository
       }
       const subscriptionId = generateSubscriptionId();
 
@@ -1199,10 +1072,7 @@ export function initializeGitV2Handlers(): void {
         for (const d of disposables) {
           d.dispose();
         }
-        // Only release provider reference for local providers
-        if (!isVMProvider) {
-          service.releaseProvider(gitRoot);
-        }
+        service.releaseProvider(gitRoot);
       };
 
       // Track the subscription
@@ -1253,18 +1123,10 @@ export function initializeGitV2Handlers(): void {
    * Find the git root directory for a given path.
    * Traverses parent directories to find .git folder.
    * Returns null if not in a git repository.
-   * For VM providers, returns the cwd as the git root (simplified behavior).
    */
   ipcMain.handle(
     "git-v2:find-root",
-    async (
-      _,
-      params: { cwd: string; vmId?: string },
-    ): Promise<string | null> => {
-      // For VM providers, we assume cwd is the git root (simplified for now)
-      if (params.vmId) {
-        return params.cwd;
-      }
+    async (_, params: { cwd: string }): Promise<string | null> => {
       return service.findGitRoot(params.cwd);
     },
   );
@@ -1299,17 +1161,6 @@ export function cleanupGitV2Handlers(): void {
   }
 
   subscriptions.clear();
-
-  // Dispose all VM git providers
-  for (const provider of vmProviders.values()) {
-    try {
-      provider.dispose();
-    } catch (error) {
-      console.error("[Git-V2] Error disposing VM provider:", error);
-    }
-  }
-
-  vmProviders.clear();
 }
 
 /**
