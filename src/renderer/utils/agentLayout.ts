@@ -117,24 +117,3 @@ export function generateAgentLayout(totalInstances: number): LayoutSplit[] {
 
   return splits;
 }
-
-/**
- * Get a human-readable description of the layout pattern
- *
- * @param totalInstances - Number of agent instances
- * @returns Description string
- */
-export function getLayoutDescription(totalInstances: number): string {
-  if (totalInstances <= 1) return "Single pane";
-  if (totalInstances === 2) return "Side by side";
-  if (totalInstances === 3) return "One large, two stacked";
-  if (totalInstances === 4) return "2x2 grid";
-  if (totalInstances === 5) return "Asymmetric 5-pane layout";
-  if (totalInstances === 6) return "3x2 grid";
-  if (totalInstances === 7) return "Asymmetric 7-pane layout";
-  if (totalInstances === 8) return "Asymmetric 8-pane layout";
-
-  const rows = Math.ceil(Math.sqrt(totalInstances));
-  const cols = Math.ceil(totalInstances / rows);
-  return `${cols}x${rows} grid`;
-}

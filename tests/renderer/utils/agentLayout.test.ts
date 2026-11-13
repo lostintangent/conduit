@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateAgentLayout, getLayoutDescription } from "@/utils/agentLayout";
+import { generateAgentLayout } from "@/utils/agentLayout";
 
 describe("agentLayout", () => {
   describe("generateAgentLayout", () => {
@@ -64,21 +64,6 @@ describe("agentLayout", () => {
         // Number of splits should be one less than number of panes
         expect(layout).toHaveLength(i - 1);
       }
-    });
-  });
-
-  describe("getLayoutDescription", () => {
-    it("returns correct descriptions for each layout", () => {
-      expect(getLayoutDescription(1)).toBe("Single pane");
-      expect(getLayoutDescription(2)).toBe("Side by side");
-      expect(getLayoutDescription(3)).toBe("One large, two stacked");
-      expect(getLayoutDescription(4)).toBe("2x2 grid");
-      expect(getLayoutDescription(5)).toBe("Asymmetric 5-pane layout");
-      expect(getLayoutDescription(6)).toBe("3x2 grid");
-      expect(getLayoutDescription(7)).toBe("Asymmetric 7-pane layout");
-      expect(getLayoutDescription(8)).toBe("Asymmetric 8-pane layout");
-      expect(getLayoutDescription(9)).toBe("3x3 grid");
-      expect(getLayoutDescription(12)).toContain("grid");
     });
   });
 });
