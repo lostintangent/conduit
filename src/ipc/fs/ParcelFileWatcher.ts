@@ -28,7 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { EventEmitter } from "../../shared/EventEmitter";
-import { isCaseInsensitiveFS, normalizePathForComparison } from "./pathUtils";
+import { normalizePathForComparison } from "./pathUtils";
 import type {
   Event,
   FileContentChangedEvent,
@@ -344,8 +344,6 @@ export class ParcelFileWatcher {
       return;
     }
 
-    const backend = this.getBackend();
-
     this.subscription = await watcher.subscribe(
       this.path,
       (err, events) => {
@@ -356,7 +354,7 @@ export class ParcelFileWatcher {
         this.handleEvents(events);
       },
       {
-        backend,
+        backend: "fs-events",
         ignore: this.ignored,
       },
     );
@@ -404,20 +402,6 @@ export class ParcelFileWatcher {
   // -------------------------------------------------------------------------
   // Private Methods
   // -------------------------------------------------------------------------
-
-  /**
-   * Get the appropriate watcher backend for the current platform.
-   */
-  private getBackend(): "fs-events" | "inotify" | "windows" {
-    switch (process.platform) {
-      case "darwin":
-        return "fs-events";
-      case "linux":
-        return "inotify";
-      default:
-        return "windows";
-    }
-  }
 
   /**
    * Handle a batch of events from @parcel/watcher.
@@ -470,16 +454,11 @@ export class ParcelFileWatcher {
    * - Double-star/*.ext: ends with .ext
    * - Double-star/name: ends with /name or equals name
    *
-   * On case-insensitive filesystems (macOS/Windows), matching is case-insensitive.
+   * Matching is case-insensitive, like the macOS filesystem.
    */
   private matchPattern(filePath: string, pattern: string): boolean {
-    // Normalize case on case-insensitive filesystems
-    const normalizedPath = isCaseInsensitiveFS
-      ? filePath.toLowerCase()
-      : filePath;
-    const normalizedPattern = isCaseInsensitiveFS
-      ? pattern.toLowerCase()
-      : pattern;
+    const normalizedPath = filePath.toLowerCase();
+    const normalizedPattern = pattern.toLowerCase();
 
     // Handle `**/dir/**` pattern (match path containing /dir/)
     const dirMatch = normalizedPattern.match(/^\*\*\/(.+)\/\*\*$/);

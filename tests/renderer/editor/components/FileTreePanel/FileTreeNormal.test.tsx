@@ -32,7 +32,6 @@ const mockShowContextMenu = vi.fn();
 globalThis.window.conduit = {
   onContextMenuCommand: mockOnContextMenuCommand,
   showContextMenu: mockShowContextMenu,
-  platform: "darwin",
 };
 
 // Mock the command system

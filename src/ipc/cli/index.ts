@@ -22,10 +22,6 @@ let cliState: CliState | null = null;
 function resolveSocketPath(baseDir: string) {
   const envSuffix = app.isPackaged ? "" : "-dev";
 
-  if (process.platform === "win32") {
-    return `\\\\.\\pipe\\${CLI_COMMAND_NAME}${envSuffix}-${process.pid}`;
-  }
-
   const socketFileName = `cli${envSuffix}.sock`;
   return path.join(baseDir, socketFileName);
 }

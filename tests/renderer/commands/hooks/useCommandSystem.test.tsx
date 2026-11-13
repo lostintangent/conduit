@@ -5,9 +5,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock window.conduit before importing modules that use it
 // @ts-ignore
-window.conduit = {
-  platform: "darwin",
-};
+window.conduit = {};
 
 import { renderHook, waitFor } from "@testing-library/react";
 import { Provider, createStore } from "jotai";

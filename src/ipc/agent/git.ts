@@ -35,7 +35,6 @@ export async function findRepoRoot(startPath: string): Promise<string | null> {
           ...process.env,
           LC_ALL: "C",
         },
-        windowsHide: true,
       },
     );
 
@@ -52,7 +51,6 @@ export async function findRepoRoot(startPath: string): Promise<string | null> {
             ...process.env,
             LC_ALL: "C",
           },
-          windowsHide: true,
         },
       );
       return toplevel.trim();
@@ -105,7 +103,6 @@ export async function runGit(
         ...process.env,
         LC_ALL: "C",
       },
-      windowsHide: true,
     });
 
     return {

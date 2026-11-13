@@ -1,8 +1,7 @@
 /**
  * Path utilities for filesystem operations.
  *
- * Provides cross-platform helpers for path manipulation,
- * especially for case-insensitive filesystem handling on macOS and Windows.
+ * Helpers for comparing paths on macOS's case-insensitive filesystem.
  */
 
 import * as path from "node:path";
@@ -12,44 +11,28 @@ import * as path from "node:path";
 // ============================================================================
 
 /**
- * Whether the current platform has a case-insensitive filesystem.
- * True for macOS (darwin) and Windows, false for Linux.
- */
-export const isCaseInsensitiveFS =
-  process.platform === "darwin" || process.platform === "win32";
-
-/**
- * Normalize a path for case-insensitive comparison.
- *
- * On case-insensitive filesystems (macOS, Windows), lowercases the path.
- * On case-sensitive filesystems (Linux), returns the path unchanged.
+ * Normalize a path for case-insensitive comparison by lowercasing it.
  *
  * Use this when comparing paths that may have different casing but refer
  * to the same file (e.g., git returns canonical paths that may differ from
  * user-provided paths).
  *
  * @param filePath - The path to normalize
- * @returns The normalized path (lowercased on case-insensitive systems)
+ * @returns The lowercased path
  */
 export function normalizePathForComparison(filePath: string): string {
-  return isCaseInsensitiveFS ? filePath.toLowerCase() : filePath;
+  return filePath.toLowerCase();
 }
 
 /**
- * Check if two paths are equal, handling case sensitivity correctly.
- *
- * On case-insensitive filesystems (macOS, Windows), comparison is case-insensitive.
- * On case-sensitive filesystems (Linux), comparison is case-sensitive.
+ * Check if two paths are equal, ignoring case.
  *
  * @param path1 - First path to compare
  * @param path2 - Second path to compare
  * @returns True if paths refer to the same location (case-aware)
  *
  * @example
- * // On macOS:
  * pathEquals("/Users/Foo/Project", "/users/foo/project") // true
- * // On Linux:
- * pathEquals("/Users/Foo/Project", "/users/foo/project") // false
  */
 export function pathEquals(path1: string, path2: string): boolean {
   return (

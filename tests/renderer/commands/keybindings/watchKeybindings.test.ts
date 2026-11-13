@@ -15,7 +15,6 @@ function createMockConduit(
   } = {},
 ): typeof window.conduit {
   return {
-    platform: "darwin",
     fs: {
       subscribe: overrides.fs?.subscribe ?? vi.fn().mockResolvedValue("sub-1"),
       unsubscribe: overrides.fs?.unsubscribe ?? vi.fn(),

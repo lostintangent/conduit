@@ -23,27 +23,6 @@ import type { IPty } from "node-pty";
  * - Zombie process filtering
  */
 describe("captureTerminalCommand", () => {
-  describe("platform support", () => {
-    it("should return null on Windows platform", async () => {
-      if (process.platform !== "win32") {
-        // Skip test if not on Windows
-        return;
-      }
-
-      const mockTerminal: TerminalInstance = {
-        id: "terminal-1",
-        pty: { pid: 1234 } as IPty,
-        cwd: "/home/user",
-        lastProcessName: "bash",
-        isRendererReady: true,
-        bufferedOutput: [],
-      };
-
-      const result = await captureTerminalCommand(mockTerminal);
-      expect(result).toBeNull();
-    });
-  });
-
   describe("invalid terminal state", () => {
     it("should return null if shell PID is invalid (negative)", async () => {
       const mockTerminal: TerminalInstance = {

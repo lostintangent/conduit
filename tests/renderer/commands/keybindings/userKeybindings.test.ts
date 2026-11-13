@@ -25,7 +25,6 @@ function createMockConduit(
   } = {},
 ): typeof window.conduit {
   return {
-    platform: "darwin",
     createTerminal: vi.fn(),
     closeTerminal: vi.fn(),
     sendKeypress: vi.fn(),

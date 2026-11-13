@@ -45,25 +45,21 @@ export async function updateApplicationMenu(
   const updateMenuItem = buildCheckForUpdatesMenuItem();
 
   const template = [
-    ...(process.platform === "darwin"
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: "about" },
-              updateMenuItem,
-              { type: "separator" },
-              { role: "services" },
-              { type: "separator" },
-              { role: "hide" },
-              { role: "hideOthers" },
-              { role: "unhide" },
-              { type: "separator" },
-              { role: "quit" },
-            ],
-          },
-        ]
-      : []),
+    {
+      label: app.name,
+      submenu: [
+        { role: "about" },
+        updateMenuItem,
+        { type: "separator" },
+        { role: "services" },
+        { type: "separator" },
+        { role: "hide" },
+        { role: "hideOthers" },
+        { role: "unhide" },
+        { type: "separator" },
+        { role: "quit" },
+      ],
+    },
     {
       label: "File",
       submenu: [
@@ -96,7 +92,7 @@ export async function updateApplicationMenu(
             ]
           : []),
         { type: "separator" },
-        process.platform === "darwin" ? { role: "close" } : { role: "quit" },
+        { role: "close" },
       ],
     },
     { role: "editMenu" },
@@ -114,14 +110,6 @@ export async function updateApplicationMenu(
       ],
     },
     { role: "windowMenu" },
-    ...(process.platform !== "darwin"
-      ? [
-          {
-            label: "Help",
-            submenu: [updateMenuItem],
-          },
-        ]
-      : []),
   ];
 
   const menu = Menu.buildFromTemplate(

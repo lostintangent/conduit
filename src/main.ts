@@ -1,5 +1,4 @@
 import { app, BrowserWindow } from "electron";
-import squirrelStartup from "electron-squirrel-startup";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import {
@@ -9,47 +8,13 @@ import {
   shutdownCliServer,
 } from "./ipc";
 
-// Handle Squirrel events on Windows (install/uninstall/update).
-// When the installer runs (via Squirrel), it launches the app with special flags
-// to perform setup tasks. We need to quit immediately in these cases to let
-// the installer complete, rather than showing the main window.
-if (squirrelStartup) {
-  app.quit();
-}
-
 // Build-time constants injected by @electron-forge/plugin-vite.
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
 // GUI-launched builds often miss PATH; hydrate env so spawned terminals see user tools.
 function hydrateEnvFromLoginShell() {
-  if (process.platform === "win32") {
-    // Try pwsh.exe (PowerShell Core) first, then fallback to powershell.exe (Windows PowerShell)
-    const shells = ["pwsh.exe", "powershell.exe"];
-
-    for (const shell of shells) {
-      try {
-        const output = execFileSync(
-          shell,
-          ["-NoProfile", "-Command", "$env:PATH"],
-          { encoding: "utf8" },
-        );
-        if (output && output.trim()) {
-          process.env.PATH = output.trim();
-        }
-        return; // Success, exit function
-      } catch {
-        // Continue to next shell
-      }
-    }
-
-    console.warn("Failed to read PowerShell PATH, continuing with defaults.");
-    return;
-  }
-
-  const shell =
-    process.env.SHELL ??
-    (process.platform === "darwin" ? "/bin/zsh" : "/bin/bash");
+  const shell = process.env.SHELL ?? "/bin/zsh";
 
   try {
     const output = execFileSync(shell, ["-ilc", "printenv"], {
@@ -84,37 +49,22 @@ function hydrateEnvFromLoginShell() {
 hydrateEnvFromLoginShell();
 
 async function createWindow() {
-  const isWindows = process.platform === "win32";
-  const isMac = process.platform === "darwin";
-
   const mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    // On macOS: hiddenInset gives traffic lights with custom titlebar area
-    // On Windows/Linux: hidden allows custom titlebar with native window controls overlay
-    titleBarStyle: isMac ? "hiddenInset" : "hidden",
+    // hiddenInset keeps the traffic lights inside the custom titlebar area
+    titleBarStyle: "hiddenInset",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
     },
-    // All platforms use frameless window with custom styling
-    // Windows uses titleBarOverlay for native min/max/close buttons
     frame: false,
-    transparent: !isWindows,
+    transparent: true,
     backgroundColor: "#00000000",
     // Don't show until content is ready to avoid blank window flash
     show: false,
-    // Windows: use native window controls overlay (like VSCode)
-    // This gives us proper snap/resize behavior with custom titlebar
-    ...(isWindows && {
-      titleBarOverlay: {
-        color: "rgba(0,0,0,0)",
-        symbolColor: "#a1a1aa",
-        height: 34,
-      },
-    }),
   });
 
   // Show window only when content is ready to avoid blank screen

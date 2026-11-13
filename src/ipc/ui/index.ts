@@ -227,7 +227,6 @@ export function initializeUIHandlers(window: BrowserWindow) {
             cwd,
             detached: true,
             stdio: "ignore",
-            windowsHide: true,
           });
 
           const handleError = (error: Error) => {

@@ -94,11 +94,9 @@ describe("Case Sensitivity", () => {
         const paths = DirectoryCache.getPathsUnder("/Users/Foo/Project");
 
         // On case-insensitive filesystems, should find both
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(paths).toHaveLength(2);
-          expect(paths).toContain("/users/foo/project/src");
-          expect(paths).toContain("/users/foo/project/lib");
-        }
+        expect(paths).toHaveLength(2);
+        expect(paths).toContain("/users/foo/project/src");
+        expect(paths).toContain("/users/foo/project/lib");
       });
 
       it("getPathsUnder should handle exact match with different case", () => {
@@ -106,10 +104,8 @@ describe("Case Sensitivity", () => {
 
         const paths = DirectoryCache.getPathsUnder("/Users/Foo/Project");
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(paths).toHaveLength(1);
-          expect(paths).toContain("/users/foo/project");
-        }
+        expect(paths).toHaveLength(1);
+        expect(paths).toContain("/users/foo/project");
       });
 
       it("getPathsUnder should not match partial directory names", () => {
@@ -119,11 +115,9 @@ describe("Case Sensitivity", () => {
 
         const paths = DirectoryCache.getPathsUnder("/Users/Foo/Project");
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(paths).toHaveLength(1);
-          expect(paths).toContain("/users/foo/project");
-          expect(paths).not.toContain("/users/foo/project-old");
-        }
+        expect(paths).toHaveLength(1);
+        expect(paths).toContain("/users/foo/project");
+        expect(paths).not.toContain("/users/foo/project-old");
       });
     });
 
@@ -134,10 +128,8 @@ describe("Case Sensitivity", () => {
         // On case-insensitive FS, different case should find the same entry
         const result = DirectoryCache.get("/users/foo/project");
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result).toBeDefined();
-          expect(result?.entries).toEqual([fileEntry("a.ts")]);
-        }
+        expect(result).toBeDefined();
+        expect(result?.entries).toEqual([fileEntry("a.ts")]);
       });
 
       it("should update same cache entry regardless of case on case-insensitive FS", () => {
@@ -147,12 +139,10 @@ describe("Case Sensitivity", () => {
         // Update with different case
         DirectoryCache.set("/users/foo/project", [fileEntry("b.ts")]);
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          // Should be the same entry (version 2)
-          const result = DirectoryCache.get("/USERS/FOO/PROJECT");
-          expect(result?.version).toBe(2);
-          expect(result?.entries).toEqual([fileEntry("b.ts")]);
-        }
+        // Should be the same entry (version 2)
+        const result = DirectoryCache.get("/USERS/FOO/PROJECT");
+        expect(result?.version).toBe(2);
+        expect(result?.entries).toEqual([fileEntry("b.ts")]);
       });
     });
 
@@ -169,11 +159,9 @@ describe("Case Sensitivity", () => {
         });
 
         const result = DirectoryCache.get("/project");
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result?.entries).toHaveLength(1);
-          // Should have the new casing
-          expect(result?.entries[0].name).toBe("readme.md");
-        }
+        expect(result?.entries).toHaveLength(1);
+        // Should have the new casing
+        expect(result?.entries[0].name).toBe("readme.md");
       });
     });
 
@@ -189,10 +177,8 @@ describe("Case Sensitivity", () => {
         DirectoryCache.removeEntry("/project", "readme.md"); // lowercase
 
         const result = DirectoryCache.get("/project");
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result?.entries).toHaveLength(1);
-          expect(result?.entries[0].name).toBe("index.ts");
-        }
+        expect(result?.entries).toHaveLength(1);
+        expect(result?.entries[0].name).toBe("index.ts");
       });
     });
   });
@@ -212,9 +198,7 @@ describe("Case Sensitivity", () => {
         );
 
         // Should still correctly identify ignored files
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result.has("debug.log")).toBe(true);
-        }
+        expect(result.has("debug.log")).toBe(true);
       });
 
       it("should handle provided gitRoot with different case than dirPath", async () => {
@@ -228,9 +212,7 @@ describe("Case Sensitivity", () => {
           "/Users/Foo/Project", // mixed case
         );
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result.has("debug.log")).toBe(true);
-        }
+        expect(result.has("debug.log")).toBe(true);
       });
     });
 
@@ -245,9 +227,7 @@ describe("Case Sensitivity", () => {
           "/users/foo/project/debug.log", // lowercase
         );
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result).toBe(true);
-        }
+        expect(result).toBe(true);
       });
 
       it("should correctly identify non-ignored files with case differences", () => {
@@ -259,9 +239,7 @@ describe("Case Sensitivity", () => {
           "/users/foo/project/index.ts",
         );
 
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result).toBe(false);
-        }
+        expect(result).toBe(false);
       });
     });
 
@@ -285,11 +263,9 @@ describe("Case Sensitivity", () => {
         const statsAfter = GitIgnoreCache.getStats();
         // Currently this might not work if case doesn't match
         // This test documents the expected behavior
-        if (process.platform === "darwin" || process.platform === "win32") {
-          // Ideally should clear the matcher
-          // If this fails, it indicates a case sensitivity bug
-          expect(statsAfter.matcherCount).toBe(0);
-        }
+        // Ideally should clear the matcher
+        // If this fails, it indicates a case sensitivity bug
+        expect(statsAfter.matcherCount).toBe(0);
       });
     });
 
@@ -309,12 +285,10 @@ describe("Case Sensitivity", () => {
         );
 
         // Should ideally return cached result without spawning git again
-        if (process.platform === "darwin" || process.platform === "win32") {
-          expect(result2).toBe("/Users/Foo/Project");
-          // Currently spawns git twice due to case-sensitive cache lookup
-          // This test documents the expected (ideal) behavior
-          // expect(mockSpawn).toHaveBeenCalledTimes(1);
-        }
+        expect(result2).toBe("/Users/Foo/Project");
+        // Currently spawns git twice due to case-sensitive cache lookup
+        // This test documents the expected (ideal) behavior
+        // expect(mockSpawn).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -346,9 +320,7 @@ describe("Case Sensitivity", () => {
       // getPathsUnder should find the cached directories despite case difference
       const paths = DirectoryCache.getPathsUnder(gitRoot!);
 
-      if (process.platform === "darwin" || process.platform === "win32") {
-        expect(paths).toHaveLength(2);
-      }
+      expect(paths).toHaveLength(2);
     });
   });
 });

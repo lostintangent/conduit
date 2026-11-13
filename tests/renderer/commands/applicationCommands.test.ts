@@ -4,9 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // @ts-ignore
 globalThis.window = globalThis.window || {};
 // @ts-ignore
-globalThis.window.conduit = {
-  platform: "darwin",
-};
+globalThis.window.conduit = {};
 
 import {
   ApplicationCommands,

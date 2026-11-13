@@ -28,11 +28,7 @@
  * - Reasonable for long-running editor sessions
  */
 
-import {
-  isCaseInsensitiveFS,
-  normalizePathForComparison,
-  pathStartsWith,
-} from "./pathUtils";
+import { normalizePathForComparison, pathStartsWith } from "./pathUtils";
 import type { DirectoryEntry, Disposable } from "./types";
 
 // ============================================================================
@@ -461,17 +457,13 @@ class DirectoryCacheImpl {
   }
 
   /**
-   * Check if two entry names match, handling case sensitivity correctly.
+   * Check if two entry names match, ignoring case.
    *
-   * On case-insensitive filesystems (macOS/Windows), comparison is case-insensitive.
    * This ensures that when a watcher reports a file with different casing than
    * what's in the cache, we still match correctly.
    */
   private entryNamesMatch(name1: string, name2: string): boolean {
-    if (isCaseInsensitiveFS) {
-      return name1.toLowerCase() === name2.toLowerCase();
-    }
-    return name1 === name2;
+    return name1.toLowerCase() === name2.toLowerCase();
   }
 
   /**

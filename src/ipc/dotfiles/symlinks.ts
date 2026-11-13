@@ -289,11 +289,7 @@ async function cleanupBrokenSymlinks(
 
   for (const item of items) {
     // Skip macOS protected directories at the home directory level
-    if (
-      process.platform === "darwin" &&
-      currentDir === homeDirectory &&
-      MACOS_PROTECTED_DIRECTORIES.has(item)
-    ) {
+    if (currentDir === homeDirectory && MACOS_PROTECTED_DIRECTORIES.has(item)) {
       continue;
     }
 

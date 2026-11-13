@@ -487,18 +487,16 @@ describe("ParcelFileWatcher", () => {
         { type: "create", path: "/test/project/new.ts" },
       ]);
 
-      if (process.platform === "darwin" || process.platform === "win32") {
-        // Should detect as rename despite case difference
-        expect(renameListener).toHaveBeenCalledTimes(1);
-        // Original paths should be preserved
-        expect(renameListener).toHaveBeenCalledWith({
-          oldPath: "/Test/Project/old.ts",
-          newPath: "/test/project/new.ts",
-          isDirectory: false,
-        });
-        expect(deleteListener).not.toHaveBeenCalled();
-        expect(createListener).not.toHaveBeenCalled();
-      }
+      // Should detect as rename despite case difference
+      expect(renameListener).toHaveBeenCalledTimes(1);
+      // Original paths should be preserved
+      expect(renameListener).toHaveBeenCalledWith({
+        oldPath: "/Test/Project/old.ts",
+        newPath: "/test/project/new.ts",
+        isDirectory: false,
+      });
+      expect(deleteListener).not.toHaveBeenCalled();
+      expect(createListener).not.toHaveBeenCalled();
     });
   });
 

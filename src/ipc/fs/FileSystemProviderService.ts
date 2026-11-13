@@ -442,13 +442,8 @@ export class FileSystemProviderService {
    * to ensure consistent Map key lookups regardless of casing.
    */
   private normalizePath(filePath: string): string {
-    const resolved = path.resolve(filePath);
-    // On macOS (darwin) and Windows, filesystems are case-insensitive
-    // Lowercase for consistent Map key comparison
-    if (process.platform === "darwin" || process.platform === "win32") {
-      return resolved.toLowerCase();
-    }
-    return resolved;
+    // macOS filesystems are case-insensitive, so lowercase for consistent Map keys
+    return path.resolve(filePath).toLowerCase();
   }
 
   /**

@@ -27,7 +27,6 @@ import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fs/ParcelFileWatcher";
-import { isCaseInsensitiveFS } from "../fs/pathUtils";
 import type { Disposable, Event } from "../fs/types";
 import type {
   CommitFile,
@@ -355,13 +354,11 @@ export class DiskGitProvider implements GitProvider {
       return exactMatch;
     }
 
-    // On case-insensitive filesystems, try case-insensitive lookup
-    if (isCaseInsensitiveFS) {
-      const normalizedLookup = relativePath.toLowerCase();
-      for (const [key, value] of status.files) {
-        if (key.toLowerCase() === normalizedLookup) {
-          return value;
-        }
+    // The filesystem is case-insensitive, so fall back to a case-insensitive lookup
+    const normalizedLookup = relativePath.toLowerCase();
+    for (const [key, value] of status.files) {
+      if (key.toLowerCase() === normalizedLookup) {
+        return value;
       }
     }
 
@@ -2146,10 +2143,7 @@ export class DiskGitProvider implements GitProvider {
     let relativePath = path.relative(this.gitRoot, absolutePath);
 
     // If the result starts with "..", the paths might have different casings
-    if (
-      relativePath.startsWith("..") &&
-      (process.platform === "darwin" || process.platform === "win32")
-    ) {
+    if (relativePath.startsWith("..")) {
       // Try case-insensitive comparison
       const gitRootLower = this.gitRoot.toLowerCase();
       const absolutePathLower = absolutePath.toLowerCase();

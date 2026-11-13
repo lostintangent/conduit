@@ -63,19 +63,14 @@ import { GitProviderService } from "../../../src/ipc/git/GitProviderService";
 // Helper to create a mock that finds .git in specified directories
 function setupGitRootMock(gitRoots: string[]) {
   const normalizedRoots = gitRoots.map((r) => path.resolve(r));
-  const isCaseInsensitive =
-    process.platform === "darwin" || process.platform === "win32";
 
   vi.mocked(fs.promises.access).mockImplementation(async (filePath) => {
     const pathStr = path.resolve(filePath.toString());
-    const comparePath = isCaseInsensitive ? pathStr.toLowerCase() : pathStr;
+    const comparePath = pathStr.toLowerCase();
 
     for (const root of normalizedRoots) {
       const gitPath = path.join(root, ".git");
-      const compareGitPath = isCaseInsensitive
-        ? gitPath.toLowerCase()
-        : gitPath;
-      if (comparePath === compareGitPath) {
+      if (comparePath === gitPath.toLowerCase()) {
         return undefined;
       }
     }
@@ -584,13 +579,7 @@ describe("GitProviderService", () => {
     });
 
     it("should handle case-insensitive paths on macOS/Windows", async () => {
-      // This test verifies that paths with different cases are treated as the same
-      // on case-insensitive filesystems (macOS and Windows)
-      if (process.platform !== "darwin" && process.platform !== "win32") {
-        // Skip on Linux where filesystem is case-sensitive
-        return;
-      }
-
+      // Paths with different cases are treated as the same on macOS
       setupGitRootMock(["/test/repo"]);
       const service = GitProviderService.getInstance();
 
@@ -609,10 +598,6 @@ describe("GitProviderService", () => {
     });
 
     it("should return same provider for different case paths on case-insensitive FS", async () => {
-      if (process.platform !== "darwin" && process.platform !== "win32") {
-        return;
-      }
-
       setupGitRootMock(["/test/repo"]);
       const service = GitProviderService.getInstance();
 

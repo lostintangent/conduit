@@ -226,10 +226,6 @@ const pickActiveCommand = (
 const detectActiveCommand = async (
   session: TerminalInstance,
 ): Promise<string | null> => {
-  if (process.platform === "win32") {
-    return null;
-  }
-
   const shellPid = session.pty.pid;
   if (!Number.isInteger(shellPid) || shellPid <= 0) {
     return null;

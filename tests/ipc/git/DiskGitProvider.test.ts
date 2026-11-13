@@ -321,12 +321,10 @@ describe("DiskGitProvider", () => {
       // Look up with different case
       const fileStatus = await provider.getFileStatus("readme.md");
 
-      if (process.platform === "darwin" || process.platform === "win32") {
-        expect(fileStatus).not.toBeNull();
-        expect(fileStatus?.status).toBe("modified");
-        // The path in the status object should preserve git's casing
-        expect(fileStatus?.path).toBe("README.md");
-      }
+      expect(fileStatus).not.toBeNull();
+      expect(fileStatus?.status).toBe("modified");
+      // The path in the status object should preserve git's casing
+      expect(fileStatus?.path).toBe("README.md");
     });
   });
 

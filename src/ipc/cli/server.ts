@@ -64,8 +64,6 @@ export async function createCliServer(
   });
 
   function cleanupSocket(socketPath: string) {
-    if (process.platform === "win32") return;
-
     if (fs.existsSync(socketPath)) {
       fs.unlinkSync(socketPath);
     }

@@ -28,8 +28,6 @@ import configureWorkspaceModule from "./modules/workspace";
 import { createEventListener } from "./utils";
 
 const conduitAPI = {
-  platform: process.platform,
-
   /* Terminal methods (UI->main) */
 
   createTerminal: (options?: TerminalCreateOptions) =>
