@@ -479,4 +479,19 @@ describe("MonacoModelRegistry", () => {
       expect(registry.modelCount).toBe(0);
     });
   });
+
+  describe("filesystem API lifetime", () => {
+    it("releases a cwd's filesystem API once its last model is disposed", async () => {
+      const registry = MonacoModelRegistry.getInstance();
+      await registry.getOrCreateModel("/test/file1.ts", "/test");
+      await registry.getOrCreateModel("/test/file2.ts", "/test");
+
+      registry.disposeModel(pathToUri("/test/file1.ts"));
+      expect(mockFsServiceInstance.release).not.toHaveBeenCalled();
+
+      registry.disposeModel(pathToUri("/test/file2.ts"));
+      expect(mockFsServiceInstance.release).toHaveBeenCalledTimes(1);
+      expect(mockFsServiceInstance.release).toHaveBeenCalledWith("/test");
+    });
+  });
 });
