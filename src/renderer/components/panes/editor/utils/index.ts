@@ -18,7 +18,6 @@ export {
   getRelativePath,
   getFileStatusForEntry,
   isDiffableStatus,
-  isDeletedOnRevert,
   computeStagedForChangesMode,
   getFileEntryPresence,
   // FileChangeDisplay converters

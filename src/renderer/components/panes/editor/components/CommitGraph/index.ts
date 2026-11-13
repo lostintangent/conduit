@@ -74,10 +74,7 @@ export {
   parseRef,
   parseRefs,
   sortRefs,
-  filterRefsByType,
   filterRefsForDisplay,
-  getHeadRef,
-  hasRefs,
   RefBadge,
   RefBadgeList,
 } from "./refs";
@@ -87,12 +84,7 @@ export type { RefBadgeProps, RefBadgeListProps } from "./refs";
 // Graph Algorithm Utilities
 // =============================================================================
 
-export {
-  computeSwimlanes,
-  getMaxLaneCount,
-  findNodeByCommitId,
-  getLaneIndexForCommit,
-} from "./graph";
+export { computeSwimlanes } from "./graph";
 export type { ComputeSwimlanesOptions } from "./graph";
 
 // =============================================================================

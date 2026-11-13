@@ -7,11 +7,8 @@ import {
   BRANCH_COLOR_COUNT,
   ROTATING_COLORS,
   GRAPH_COLOR_CSS,
-  GRAPH_COLOR_CLASSES,
   getNextColor,
   getColorCss,
-  getColorClass,
-  isSemanticColor,
 } from "@/components/panes/editor/components/CommitGraph/graph/colors";
 
 describe("Graph Colors", () => {
@@ -30,18 +27,6 @@ describe("Graph Colors", () => {
         expect(
           GRAPH_COLOR_CSS[color as keyof typeof GRAPH_COLOR_CSS],
         ).toContain("var(--");
-      }
-    });
-
-    it("should have Tailwind classes for all colors", () => {
-      const allColors = ["current", "remote", "base", ...ROTATING_COLORS];
-      for (const color of allColors) {
-        expect(
-          GRAPH_COLOR_CLASSES[color as keyof typeof GRAPH_COLOR_CLASSES],
-        ).toBeDefined();
-        expect(
-          GRAPH_COLOR_CLASSES[color as keyof typeof GRAPH_COLOR_CLASSES],
-        ).toContain("text-");
       }
     });
   });
@@ -88,29 +73,6 @@ describe("Graph Colors", () => {
     it("should include fallback colors", () => {
       // CSS variables should have fallback hex colors
       expect(getColorCss("current")).toMatch(/var\(--.*,\s*#[0-9a-f]{6}\)/i);
-    });
-  });
-
-  describe("getColorClass", () => {
-    it("should return Tailwind classes for all colors", () => {
-      expect(getColorClass("current")).toBe("text-blue-500");
-      expect(getColorClass("remote")).toBe("text-purple-500");
-      expect(getColorClass("base")).toBe("text-orange-500");
-      expect(getColorClass("branch-1")).toBe("text-green-500");
-    });
-  });
-
-  describe("isSemanticColor", () => {
-    it("should return true for semantic colors", () => {
-      expect(isSemanticColor("current")).toBe(true);
-      expect(isSemanticColor("remote")).toBe(true);
-      expect(isSemanticColor("base")).toBe(true);
-    });
-
-    it("should return false for branch colors", () => {
-      expect(isSemanticColor("branch-1")).toBe(false);
-      expect(isSemanticColor("branch-2")).toBe(false);
-      expect(isSemanticColor("branch-5")).toBe(false);
     });
   });
 });

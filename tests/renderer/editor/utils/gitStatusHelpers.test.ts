@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  isDeletedOnRevert,
   isDiffableStatus,
   normalizeMapKey,
 } from "../../../../src/renderer/components/panes/editor/utils/gitStatusHelpers";
@@ -24,32 +23,6 @@ describe("gitStatusHelpers", () => {
       expect(normalizeMapKey("gone.ts\0unstaged", ["a.ts"])).toBe(
         "gone.ts\0unstaged",
       );
-    });
-  });
-
-  describe("isDeletedOnRevert", () => {
-    it("should return true for untracked files", () => {
-      expect(isDeletedOnRevert(createStatus("untracked"))).toBe(true);
-    });
-
-    it("should return true for added files", () => {
-      expect(isDeletedOnRevert(createStatus("added", true))).toBe(true);
-    });
-
-    it("should return false for modified files", () => {
-      expect(isDeletedOnRevert(createStatus("modified"))).toBe(false);
-    });
-
-    it("should return false for deleted files", () => {
-      expect(isDeletedOnRevert(createStatus("deleted"))).toBe(false);
-    });
-
-    it("should return false for renamed files", () => {
-      expect(isDeletedOnRevert(createStatus("renamed"))).toBe(false);
-    });
-
-    it("should return false for undefined status", () => {
-      expect(isDeletedOnRevert(undefined)).toBe(false);
     });
   });
 

@@ -11,9 +11,6 @@ import {
   parseRefs,
   filterRefsForDisplay,
   sortRefs,
-  filterRefsByType,
-  getHeadRef,
-  hasRefs,
 } from "@/components/panes/editor/components/CommitGraph/refs/parseRefs";
 import type { GitRef } from "@/components/panes/editor/components/CommitGraph/types";
 
@@ -369,112 +366,5 @@ describe("filterRefsForDisplay", () => {
   it("should handle empty array", () => {
     const result = filterRefsForDisplay([]);
     expect(result).toEqual([]);
-  });
-});
-
-// =============================================================================
-// filterRefsByType Tests
-// =============================================================================
-
-describe("filterRefsByType", () => {
-  const refs: GitRef[] = [
-    { type: "head", name: "main", isHead: true },
-    { type: "head", name: "develop" },
-    { type: "remote", name: "main", remote: "origin" },
-    { type: "tag", name: "v1.0" },
-  ];
-
-  it("should filter to only head refs", () => {
-    const result = filterRefsByType(refs, ["head"]);
-    expect(result).toHaveLength(2);
-    expect(result.every((r) => r.type === "head")).toBe(true);
-  });
-
-  it("should filter to only remote refs", () => {
-    const result = filterRefsByType(refs, ["remote"]);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("remote");
-  });
-
-  it("should filter to only tag refs", () => {
-    const result = filterRefsByType(refs, ["tag"]);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("tag");
-  });
-
-  it("should filter to multiple types", () => {
-    const result = filterRefsByType(refs, ["head", "remote"]);
-    expect(result).toHaveLength(3);
-    expect(result.every((r) => r.type === "head" || r.type === "remote")).toBe(
-      true,
-    );
-  });
-
-  it("should return empty array for no matching types", () => {
-    const refs: GitRef[] = [{ type: "head", name: "main" }];
-    const result = filterRefsByType(refs, ["tag"]);
-    expect(result).toEqual([]);
-  });
-});
-
-// =============================================================================
-// getHeadRef Tests
-// =============================================================================
-
-describe("getHeadRef", () => {
-  it("should return the HEAD ref when present", () => {
-    const refs: GitRef[] = [
-      { type: "head", name: "develop" },
-      { type: "head", name: "main", isHead: true },
-      { type: "remote", name: "main", remote: "origin" },
-    ];
-    const result = getHeadRef(refs);
-    expect(result).toEqual({ type: "head", name: "main", isHead: true });
-  });
-
-  it("should return undefined when no HEAD ref", () => {
-    const refs: GitRef[] = [
-      { type: "head", name: "develop" },
-      { type: "remote", name: "main", remote: "origin" },
-    ];
-    const result = getHeadRef(refs);
-    expect(result).toBeUndefined();
-  });
-
-  it("should return undefined for empty array", () => {
-    const result = getHeadRef([]);
-    expect(result).toBeUndefined();
-  });
-});
-
-// =============================================================================
-// hasRefs Tests
-// =============================================================================
-
-describe("hasRefs", () => {
-  it("should return true for valid refs", () => {
-    expect(hasRefs(["HEAD -> main"])).toBe(true);
-    expect(hasRefs(["origin/main"])).toBe(true);
-    expect(hasRefs(["tag: v1.0"])).toBe(true);
-    expect(hasRefs(["main"])).toBe(true);
-  });
-
-  it("should return false for only skipped refs", () => {
-    expect(hasRefs(["HEAD"])).toBe(false);
-    expect(hasRefs(["origin/HEAD"])).toBe(false);
-    expect(hasRefs(["HEAD", "origin/HEAD"])).toBe(false);
-  });
-
-  it("should return true if at least one valid ref", () => {
-    expect(hasRefs(["HEAD", "main"])).toBe(true);
-    expect(hasRefs(["origin/HEAD", "origin/main"])).toBe(true);
-  });
-
-  it("should return false for undefined", () => {
-    expect(hasRefs(undefined)).toBe(false);
-  });
-
-  it("should return false for empty array", () => {
-    expect(hasRefs([])).toBe(false);
   });
 });

@@ -5,7 +5,6 @@
 export type { SelectableItem, FileEntry, FolderNode } from "./types";
 
 export {
-  getDirectoryPath,
   buildFolderTree,
   buildVisualOrderFromTree,
   buildFlatVisualOrder,

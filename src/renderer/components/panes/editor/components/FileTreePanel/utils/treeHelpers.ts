@@ -6,15 +6,6 @@ import type { GitFileStatus } from "@/api/GitV2API";
 import type { FolderNode, SelectableItem } from "./types";
 
 /**
- * Get the directory path from a file path.
- * Returns empty string for root-level files.
- */
-export function getDirectoryPath(filePath: string): string {
-  const lastSlash = filePath.lastIndexOf("/");
-  return lastSlash === -1 ? "" : filePath.slice(0, lastSlash);
-}
-
-/**
  * Build a nested tree structure from a flat list of file paths.
  * Groups files by their directory hierarchy.
  *

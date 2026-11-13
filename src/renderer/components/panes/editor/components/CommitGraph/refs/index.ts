@@ -18,10 +18,7 @@ export {
   parseRef,
   parseRefs,
   sortRefs,
-  filterRefsByType,
   filterRefsForDisplay,
-  getHeadRef,
-  hasRefs,
 } from "./parseRefs";
 
 // Components

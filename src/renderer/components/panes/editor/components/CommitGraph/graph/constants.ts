@@ -70,47 +70,8 @@ export const STROKE_WIDTH = 1;
 export const LINE_GAP = 2;
 
 // =============================================================================
-// Layout Constraints
-// =============================================================================
-
-/**
- * Maximum number of lanes to display before horizontal scrolling.
- *
- * Beyond this, the graph column becomes scrollable.
- * 8 lanes handles most real-world scenarios without being too wide.
- */
-export const MAX_VISIBLE_LANES = 8;
-
-/**
- * Minimum width of the graph column in pixels.
- *
- * Even with a single lane, maintain minimum width for visual consistency.
- * Equals 2 lane widths to ensure the circle has breathing room.
- */
-export const MIN_GRAPH_WIDTH = LANE_WIDTH * 2;
-
-/**
- * Padding from edge of graph column to first/last lane center.
- *
- * Half a lane width ensures circles don't touch the edges.
- */
-export const GRAPH_PADDING = LANE_WIDTH / 2;
-
-// =============================================================================
 // Derived Constants
 // =============================================================================
-
-/**
- * Y-coordinate where commit circles are centered (middle of row).
- */
-export const CIRCLE_CENTER_Y = ROW_HEIGHT / 2;
-
-/**
- * Outer radius for HEAD commit indicator (double-circle effect).
- *
- * The HEAD commit gets an outer ring to make it stand out.
- */
-export const HEAD_OUTER_RADIUS = CIRCLE_RADIUS + 3;
 
 /**
  * Extra padding between lines and HEAD commit circle.
@@ -145,22 +106,3 @@ export const GRAPH_CONFIG: GraphRenderConfig = {
   strokeWidth: STROKE_WIDTH,
   lineGap: LINE_GAP,
 };
-
-/**
- * Create a custom configuration by overriding defaults.
- *
- * Use this when you need non-standard dimensions (e.g., for expanded rows).
- *
- * @param overrides - Partial config to merge with defaults
- * @returns Complete GraphRenderConfig
- *
- * @example
- * ```ts
- * const expandedConfig = createConfig({ rowHeight: 200 });
- * ```
- */
-export function createConfig(
-  overrides: Partial<GraphRenderConfig>,
-): GraphRenderConfig {
-  return { ...GRAPH_CONFIG, ...overrides };
-}

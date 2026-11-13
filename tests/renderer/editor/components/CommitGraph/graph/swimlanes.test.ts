@@ -11,12 +11,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  computeSwimlanes,
-  getMaxLaneCount,
-  findNodeByCommitId,
-  getLaneIndexForCommit,
-} from "@/components/panes/editor/components/CommitGraph/graph/swimlanes";
+import { computeSwimlanes } from "@/components/panes/editor/components/CommitGraph/graph/swimlanes";
 import type { HistoryCommit } from "@/components/panes/editor/components/CommitGraph/types";
 
 // =============================================================================
@@ -396,76 +391,10 @@ describe("computeSwimlanes", () => {
       const result = computeSwimlanes(commits);
 
       // Verify consistent lane assignment
-      expect(getLaneIndexForCommit(result, "a")).toBe(0);
-      expect(getLaneIndexForCommit(result, "b")).toBe(0);
-      expect(getLaneIndexForCommit(result, "c")).toBe(1);
-      expect(getLaneIndexForCommit(result, "d")).toBe(0);
-    });
-  });
-});
-
-describe("Utility Functions", () => {
-  describe("getMaxLaneCount", () => {
-    it("should return 0 for empty nodes", () => {
-      expect(getMaxLaneCount([])).toBe(0);
-    });
-
-    it("should return 1 for linear history", () => {
-      const commits = createLinearHistory(["a", "b", "c"]);
-      const nodes = computeSwimlanes(commits);
-      expect(getMaxLaneCount(nodes)).toBe(1);
-    });
-
-    it("should return max lanes across all commits", () => {
-      const commits = [
-        createCommit("a", ["b", "c", "d"]),
-        createCommit("b", ["e"]),
-        createCommit("c", ["e"]),
-        createCommit("d", ["e"]),
-        createCommit("e"),
-      ];
-      const nodes = computeSwimlanes(commits);
-      expect(getMaxLaneCount(nodes)).toBe(3);
-    });
-  });
-
-  describe("findNodeByCommitId", () => {
-    it("should find existing commit", () => {
-      const commits = createLinearHistory(["a", "b", "c"]);
-      const nodes = computeSwimlanes(commits);
-
-      const found = findNodeByCommitId(nodes, "b");
-      expect(found).toBeDefined();
-      expect(found?.commit.id).toBe("b");
-    });
-
-    it("should return undefined for non-existent commit", () => {
-      const commits = createLinearHistory(["a", "b"]);
-      const nodes = computeSwimlanes(commits);
-
-      expect(findNodeByCommitId(nodes, "z")).toBeUndefined();
-    });
-  });
-
-  describe("getLaneIndexForCommit", () => {
-    it("should return lane index for existing commit", () => {
-      const commits = [
-        createCommit("a", ["b", "c"]),
-        createCommit("b", ["d"]),
-        createCommit("c", ["d"]),
-        createCommit("d"),
-      ];
-      const nodes = computeSwimlanes(commits);
-
-      expect(getLaneIndexForCommit(nodes, "a")).toBe(0);
-      expect(getLaneIndexForCommit(nodes, "c")).toBe(1);
-    });
-
-    it("should return -1 for non-existent commit", () => {
-      const commits = createLinearHistory(["a", "b"]);
-      const nodes = computeSwimlanes(commits);
-
-      expect(getLaneIndexForCommit(nodes, "z")).toBe(-1);
+      const lanes = Object.fromEntries(
+        result.map((node) => [node.commit.id, node.laneIndex]),
+      );
+      expect(lanes).toEqual({ a: 0, b: 0, c: 1, d: 0 });
     });
   });
 });

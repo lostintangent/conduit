@@ -7,10 +7,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
-  truncateText,
-  getFirstLine,
-} from "@/components/panes/editor/components/CommitGraph/commit/utils";
-import {
   formatRelativeTime,
   formatFullDate,
 } from "@/components/panes/editor/utils";
@@ -99,62 +95,5 @@ describe("formatFullDate", () => {
     expect(result).toContain("Jan");
     expect(result).toContain("1");
     expect(result).toContain("2024");
-  });
-});
-
-// =============================================================================
-// truncateText
-// =============================================================================
-
-describe("truncateText", () => {
-  it("should not truncate short text", () => {
-    expect(truncateText("Hello", 10)).toBe("Hello");
-  });
-
-  it("should return exact text when at max length", () => {
-    expect(truncateText("Hello", 5)).toBe("Hello");
-  });
-
-  it("should truncate long text with ellipsis", () => {
-    expect(truncateText("Hello World", 8)).toBe("Hello W…");
-  });
-
-  it("should handle empty string", () => {
-    expect(truncateText("", 10)).toBe("");
-  });
-
-  it("should handle max length of 1", () => {
-    expect(truncateText("Hello", 1)).toBe("…");
-  });
-});
-
-// =============================================================================
-// getFirstLine
-// =============================================================================
-
-describe("getFirstLine", () => {
-  it("should return the first line of multi-line text", () => {
-    expect(getFirstLine("First line\nSecond line")).toBe("First line");
-  });
-
-  it("should return the whole text if no newline", () => {
-    expect(getFirstLine("Single line")).toBe("Single line");
-  });
-
-  it("should handle empty string", () => {
-    expect(getFirstLine("")).toBe("");
-  });
-
-  it("should handle text starting with newline", () => {
-    expect(getFirstLine("\nSecond line")).toBe("");
-  });
-
-  it("should handle Windows-style line endings", () => {
-    // \r\n - should stop at \n
-    expect(getFirstLine("First\r\nSecond")).toBe("First\r");
-  });
-
-  it("should handle multiple newlines", () => {
-    expect(getFirstLine("First\n\nThird")).toBe("First");
   });
 });

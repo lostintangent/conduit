@@ -15,6 +15,7 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { GitBadge, getStatusConfig } from "../../shared";
+import { getDirectoryPath } from "../../../utils";
 import { FileDiffStats } from "../../FileDiffStats";
 import { ActionButtons } from "./ActionButtons";
 import { FileTreeItemRename } from "../FileTreeItemRename";
@@ -57,15 +58,6 @@ export interface ChangeFileItemProps {
   onCommitRename?: (newName: string) => void;
   /** Callback when rename is cancelled */
   onCancelRename?: () => void;
-}
-
-/**
- * Get the directory path from a file path.
- * Returns empty string for root-level files.
- */
-function getDirectoryPath(filePath: string): string {
-  const lastSlash = filePath.lastIndexOf("/");
-  return lastSlash === -1 ? "" : filePath.slice(0, lastSlash);
 }
 
 export function ChangeFileItem({

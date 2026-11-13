@@ -114,40 +114,6 @@ export function verticalLinePath(
 }
 
 /**
- * Generate SVG path for a curve from one lane to another.
- *
- * Uses a quadratic bezier curve with the control point positioned
- * to create a smooth S-curve transition between lanes.
- *
- * The curve goes from (fromX, fromY) to (toX, toY) with the control
- * point at (fromX, toY) to create a 90-degree turn effect.
- *
- * @param fromLane - Starting lane index
- * @param toLane - Ending lane index
- * @param fromY - Starting Y coordinate
- * @param toY - Ending Y coordinate
- * @param config - Render configuration
- * @returns SVG path 'd' attribute value
- */
-export function curvePathBetweenLanes(
-  fromLane: number,
-  toLane: number,
-  fromY: number,
-  toY: number,
-  config: GraphRenderConfig,
-): string {
-  const fromX = laneX(fromLane, config);
-  const toX = laneX(toLane, config);
-
-  // For smooth curves, use quadratic bezier with control point
-  // at the corner of the bounding box
-  const controlX = fromX;
-  const controlY = toY;
-
-  return `M ${fromX} ${fromY} Q ${controlX} ${controlY} ${toX} ${toY}`;
-}
-
-/**
  * Generate SVG path for a line from above to the commit circle.
  *
  * Handles three cases:
@@ -692,33 +658,6 @@ export function calculateGraphCell(
 // =============================================================================
 // Utility Functions
 // =============================================================================
-
-/**
- * Calculate the required width for a set of nodes.
- *
- * Useful for sizing the graph column based on the maximum lane count.
- *
- * @param nodes - Array of graph nodes
- * @param config - Render configuration
- * @returns Required width in pixels
- */
-export function calculateGraphWidth(
-  nodes: CommitGraphNode[],
-  config: GraphRenderConfig,
-): number {
-  if (nodes.length === 0) return config.laneWidth;
-
-  let maxLanes = 0;
-  for (const node of nodes) {
-    maxLanes = Math.max(
-      maxLanes,
-      node.inputSwimlanes.length,
-      node.outputSwimlanes.length,
-    );
-  }
-
-  return Math.max(maxLanes * config.laneWidth, config.laneWidth);
-}
 
 /**
  * Calculate render data for an expanded section (just continuation lines).

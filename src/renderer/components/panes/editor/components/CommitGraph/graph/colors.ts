@@ -66,21 +66,6 @@ export const GRAPH_COLOR_CSS: Record<GraphColor, string> = {
   "branch-5": "var(--color-graph-branch-5, #ef4444)", // Red
 };
 
-/**
- * Tailwind class equivalents for each color.
- * Used when rendering with Tailwind utilities instead of inline styles.
- */
-export const GRAPH_COLOR_CLASSES: Record<GraphColor, string> = {
-  current: "text-blue-500",
-  remote: "text-purple-500",
-  base: "text-orange-500",
-  "branch-1": "text-green-500",
-  "branch-2": "text-yellow-500",
-  "branch-3": "text-cyan-500",
-  "branch-4": "text-pink-500",
-  "branch-5": "text-red-500",
-};
-
 // =============================================================================
 // Color Utilities
 // =============================================================================
@@ -126,36 +111,4 @@ export function getNextColor(index: number): GraphColor {
  */
 export function getColorCss(color: GraphColor): string {
   return GRAPH_COLOR_CSS[color];
-}
-
-/**
- * Get the Tailwind class for a graph color.
- *
- * Returns the Tailwind utility class for the color.
- * Use this when applying colors via className.
- *
- * @param color - The GraphColor to get class for
- * @returns Tailwind color class
- *
- * @example
- * ```ts
- * <circle className={getColorClass('branch-1')} />
- * // className="text-green-500"
- * ```
- */
-export function getColorClass(color: GraphColor): string {
-  return GRAPH_COLOR_CLASSES[color];
-}
-
-/**
- * Check if a color is a semantic color (not from rotating palette).
- *
- * Semantic colors have special meaning (current branch, remote, base)
- * and should not be used for regular branches.
- *
- * @param color - The GraphColor to check
- * @returns True if the color is semantic
- */
-export function isSemanticColor(color: GraphColor): boolean {
-  return color === "current" || color === "remote" || color === "base";
 }

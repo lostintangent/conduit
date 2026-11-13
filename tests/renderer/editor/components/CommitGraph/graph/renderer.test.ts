@@ -10,7 +10,6 @@ import {
   laneX,
   rowCenterY,
   verticalLinePath,
-  curvePathBetweenLanes,
   pathFromAbove,
   pathToBelow,
   passThroughPath,
@@ -18,7 +17,6 @@ import {
   findCommitInputLane,
   calculateCircle,
   calculateGraphCell,
-  calculateGraphWidth,
 } from "@/components/panes/editor/components/CommitGraph/graph/renderer";
 import type {
   CommitGraphNode,
@@ -130,23 +128,6 @@ describe("verticalLinePath", () => {
   it("should handle different coordinates", () => {
     const path = verticalLinePath(24, 10, 30);
     expect(path).toBe("M 24 10 L 24 30");
-  });
-});
-
-describe("curvePathBetweenLanes", () => {
-  it("should generate curve from left to right", () => {
-    const path = curvePathBetweenLanes(0, 1, 0, 22, defaultConfig);
-    // Should start at lane 0, end at lane 1
-    expect(path).toContain("M 8 0");
-    expect(path).toContain("Q");
-    expect(path).toContain("24 22");
-  });
-
-  it("should generate curve from right to left", () => {
-    const path = curvePathBetweenLanes(2, 0, 0, 22, defaultConfig);
-    // Should start at lane 2, end at lane 0
-    expect(path).toContain("M 40 0");
-    expect(path).toContain("8 22");
   });
 });
 
@@ -564,54 +545,5 @@ describe("calculateGraphCell", () => {
 
     // Should have outgoing but no incoming
     expect(cell.paths.some((p) => !p.isPassThrough)).toBe(true);
-  });
-});
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-describe("calculateGraphWidth", () => {
-  it("should return minimum width for empty nodes", () => {
-    expect(calculateGraphWidth([], defaultConfig)).toBe(16);
-  });
-
-  it("should calculate width from max lanes", () => {
-    const nodes = [
-      createNode(
-        createCommit("a", ["b"]),
-        0,
-        [createSwimlane("a")],
-        [createSwimlane("b")],
-      ),
-      createNode(
-        createCommit("b", ["c", "d", "e"]),
-        0,
-        [createSwimlane("b")],
-        [createSwimlane("c"), createSwimlane("d"), createSwimlane("e")],
-      ),
-    ];
-
-    const width = calculateGraphWidth(nodes, defaultConfig);
-    expect(width).toBe(48); // 3 lanes * 16
-  });
-
-  it("should use input or output lanes for max", () => {
-    const nodes = [
-      createNode(
-        createCommit("a", ["b"]),
-        0,
-        [
-          createSwimlane("a"),
-          createSwimlane("x"),
-          createSwimlane("y"),
-          createSwimlane("z"),
-        ], // 4 input lanes
-        [createSwimlane("b")], // 1 output lane
-      ),
-    ];
-
-    const width = calculateGraphWidth(nodes, defaultConfig);
-    expect(width).toBe(64); // 4 lanes * 16
   });
 });

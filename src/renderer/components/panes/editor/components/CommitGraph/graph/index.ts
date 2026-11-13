@@ -36,12 +36,7 @@
 // Swimlane Algorithm
 // =============================================================================
 
-export {
-  computeSwimlanes,
-  getMaxLaneCount,
-  findNodeByCommitId,
-  getLaneIndexForCommit,
-} from "./swimlanes";
+export { computeSwimlanes } from "./swimlanes";
 
 export type { ComputeSwimlanesOptions } from "./swimlanes";
 
@@ -55,13 +50,7 @@ export {
   CIRCLE_RADIUS,
   CURVE_RADIUS,
   STROKE_WIDTH,
-  MAX_VISIBLE_LANES,
-  MIN_GRAPH_WIDTH,
-  GRAPH_PADDING,
-  CIRCLE_CENTER_Y,
-  HEAD_OUTER_RADIUS,
   GRAPH_CONFIG,
-  createConfig,
 } from "./constants";
 
 // =============================================================================
@@ -72,11 +61,8 @@ export {
   BRANCH_COLOR_COUNT,
   ROTATING_COLORS,
   GRAPH_COLOR_CSS,
-  GRAPH_COLOR_CLASSES,
   getNextColor,
   getColorCss,
-  getColorClass,
-  isSemanticColor,
 } from "./colors";
 
 // =============================================================================
@@ -89,7 +75,6 @@ export {
   rowCenterY,
   // Path generation
   verticalLinePath,
-  curvePathBetweenLanes,
   pathFromAbove,
   pathToBelow,
   passThroughPath,
@@ -100,8 +85,6 @@ export {
   calculateCircle,
   // Complete cell calculation
   calculateGraphCell,
-  // Utilities
-  calculateGraphWidth,
 } from "./renderer";
 
 // =============================================================================

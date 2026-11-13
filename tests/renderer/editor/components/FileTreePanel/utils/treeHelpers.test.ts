@@ -4,7 +4,6 @@
 import { describe, it, expect } from "vitest";
 import type { GitFileStatus } from "@/api/GitV2API";
 import {
-  getDirectoryPath,
   buildFolderTree,
   buildVisualOrderFromTree,
   expandFoldersToFiles,
@@ -24,32 +23,6 @@ function mockStatus(
 ): GitFileStatus {
   return { path, status, staged };
 }
-
-// ============================================================================
-// getDirectoryPath
-// ============================================================================
-
-describe("getDirectoryPath", () => {
-  it("should return empty string for root-level files", () => {
-    expect(getDirectoryPath("file.ts")).toBe("");
-    expect(getDirectoryPath("README.md")).toBe("");
-  });
-
-  it("should return parent directory for nested files", () => {
-    expect(getDirectoryPath("src/index.ts")).toBe("src");
-    expect(getDirectoryPath("src/utils/helpers.ts")).toBe("src/utils");
-  });
-
-  it("should handle deeply nested paths", () => {
-    expect(getDirectoryPath("a/b/c/d/e/file.ts")).toBe("a/b/c/d/e");
-  });
-
-  it("should handle files with dots in directory names", () => {
-    expect(getDirectoryPath("src/components.v2/Button.tsx")).toBe(
-      "src/components.v2",
-    );
-  });
-});
 
 // ============================================================================
 // buildFolderTree
