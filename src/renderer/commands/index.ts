@@ -3,7 +3,6 @@ import { ContextKeyService } from "./contextKeys/ContextKeyServiceImpl";
 import { KeybindingRegistry } from "./keybindings/KeybindingRegistry";
 import { MenuRegistry } from "./menus/MenuRegistry";
 import type { ICommandRegistry } from "./core/CommandRegistry";
-import type { IContextKeyService } from "./contextKeys/ContextKeyService";
 import type { CommandContext, CommandDescriptor } from "./core/types";
 
 export { CommandRegistry } from "./core/CommandRegistryImpl";
@@ -26,7 +25,6 @@ export {
 export type { CommandDescriptor, CommandContext } from "./core/types";
 export type { WhenClause } from "./whenClauses/WhenClause";
 export type { ICommandRegistry } from "./core/CommandRegistry";
-export type { IContextKeyService } from "./contextKeys/ContextKeyService";
 export type {
   KeybindingDescriptor,
   KeyChord,
@@ -37,7 +35,7 @@ export type { UserKeybinding } from "./keybindings/keybindingsFile";
 
 // Global instances (to be initialized in app startup)
 let commandRegistry: ICommandRegistry | null = null;
-let contextKeyService: IContextKeyService | null = null;
+let contextKeyService: ContextKeyService | null = null;
 let keybindingRegistry: KeybindingRegistry | null = null;
 let menuRegistry: MenuRegistry | null = null;
 
@@ -78,7 +76,7 @@ export function getCommandRegistry(): ICommandRegistry {
   return commandRegistry;
 }
 
-export function getContextKeyService(): IContextKeyService {
+export function getContextKeyService(): ContextKeyService {
   if (!contextKeyService) {
     throw new Error(
       "Command system not initialized. Call initializeCommandSystem() first.",

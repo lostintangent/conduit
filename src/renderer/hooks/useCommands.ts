@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useAtomValue } from "jotai";
 import type { ICommandRegistry } from "@/commands/core/CommandRegistry";
 import type { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
-import type { IContextKeyService } from "@/commands/contextKeys/ContextKeyService";
+import type { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
 import { keybindingsAtom } from "@/store/atoms";
 import type { Command } from "@/types";
@@ -36,7 +36,7 @@ import type { Command } from "@/types";
 export function useCommands(
   commandRegistry: ICommandRegistry | undefined,
   keybindingRegistry: KeybindingRegistry | undefined,
-  contextKeyService: IContextKeyService | undefined,
+  contextKeyService: ContextKeyService | undefined,
 ): Command[] {
   // Track context key changes via subscription
   const [contextRevision, setContextRevision] = useState(0);

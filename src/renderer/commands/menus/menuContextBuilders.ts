@@ -1,4 +1,4 @@
-import type { IContextKeyService } from "../contextKeys/ContextKeyService";
+import type { ContextKeyService } from "../contextKeys/ContextKeyServiceImpl";
 import type { MenuId } from "./types";
 
 /**
@@ -21,7 +21,7 @@ export interface MenuContextParams {
  * @returns Promise that resolves when context is built
  */
 export type MenuContextBuilder = (
-  contextKeyService: IContextKeyService,
+  contextKeyService: ContextKeyService,
   params: MenuContextParams,
   checkGitRepo: (cwd: string | null | undefined) => Promise<boolean>,
 ) => Promise<void>;

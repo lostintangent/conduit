@@ -1,6 +1,6 @@
 import type { ICommandRegistry } from "./CommandRegistry";
 import type { CommandDescriptor, CommandContext, Disposable } from "./types";
-import type { IContextKeyService } from "../contextKeys/ContextKeyService";
+import type { ContextKeyService } from "../contextKeys/ContextKeyServiceImpl";
 import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";
 import type { MenuRegistry } from "../menus/MenuRegistry";
 
@@ -11,7 +11,7 @@ export class CommandRegistry implements ICommandRegistry {
   private commands = new Map<string, CommandDescriptor>();
 
   constructor(
-    private contextKeyService: IContextKeyService,
+    private contextKeyService: ContextKeyService,
     private keybindingRegistry?: KeybindingRegistry,
     private menuRegistry?: MenuRegistry,
   ) {}

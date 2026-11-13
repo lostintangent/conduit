@@ -24,9 +24,6 @@ const {
   const contextKeyService = {
     setGlobal: vi.fn(),
     getAll: vi.fn(() => ({})),
-    setTabProperty: vi.fn(),
-    setPaneProperty: vi.fn(),
-    get: vi.fn(),
     onDidChangeContext: vi.fn(() => () => {}),
   };
 

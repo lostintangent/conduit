@@ -1,10 +1,10 @@
 import {
+  type ContextKeyService,
   getCommandRegistry,
   getContextKeyService,
   getKeybindingRegistry,
   initializeCommandSystem,
   type ICommandRegistry,
-  type IContextKeyService,
   type KeybindingRegistry,
 } from "@/commands";
 import {
@@ -25,7 +25,7 @@ import { useEffect, useState } from "react";
 export interface CommandSystemState {
   commandRegistry: ICommandRegistry;
   keybindingRegistry: KeybindingRegistry;
-  contextKeyService: IContextKeyService;
+  contextKeyService: ContextKeyService;
   isReady: boolean;
 }
 
@@ -103,7 +103,7 @@ export function useCommandSystem(
   const [commandSystem, setCommandSystem] = useState<{
     commandRegistry: ICommandRegistry;
     keybindingRegistry: KeybindingRegistry;
-    contextKeyService: IContextKeyService;
+    contextKeyService: ContextKeyService;
   } | null>(null);
 
   // Initialize command system ONCE
@@ -303,54 +303,35 @@ export function useCommandSystem(
       "hasActivePane",
       !!(activeTab && activeTab.activePaneId),
     );
-    contextKeyService.setGlobal("isFocusMode", applicationMode === "focus");
     contextKeyService.setGlobal("tabIsLocked", Boolean(activeTab?.locked));
     contextKeyService.setGlobal("dotfilesEnabled", !!dotfilesRepo);
 
-    // Update hasCustomLayout context key
-    if (activeTab && hasCustomLayout) {
-      contextKeyService.setGlobal(
-        "hasCustomLayout",
-        hasCustomLayout(activeTab.id),
-      );
-    } else {
-      contextKeyService.setGlobal("hasCustomLayout", false);
-    }
+    contextKeyService.setGlobal(
+      "hasCustomLayout",
+      activeTab && hasCustomLayout ? hasCustomLayout(activeTab.id) : false,
+    );
 
-    // Update pane-level context keys for active pane
-    if (activeTab?.activePaneId) {
-      const activePane = activeTab.panes?.[activeTab.activePaneId];
-      if (activePane) {
-        contextKeyService.setGlobal("activePaneType", activePane.type || "");
-        contextKeyService.setGlobal(
-          "isInAgentSession",
-          !!activePane.agentSessionId,
-        );
-        contextKeyService.setGlobal(
-          "hasCwd",
-          !!(activePane.type === "terminal" && activePane.cwd),
-        );
-        // Active pane is never collapsed (you can't interact with collapsed panes)
-        contextKeyService.setGlobal("paneIsCollapsed", false);
-        // For command palette, assume pane can be collapsed if there are multiple panes
-        const paneCount = Object.keys(activeTab.panes || {}).length;
-        contextKeyService.setGlobal("paneCanBeCollapsed", paneCount > 1);
-      } else {
-        // Clear pane context keys if no active pane
-        contextKeyService.setGlobal("activePaneType", "");
-        contextKeyService.setGlobal("isInAgentSession", false);
-        contextKeyService.setGlobal("hasCwd", false);
-        contextKeyService.setGlobal("paneIsCollapsed", false);
-        contextKeyService.setGlobal("paneCanBeCollapsed", false);
-      }
-    } else {
-      // Clear pane context keys if no active pane
-      contextKeyService.setGlobal("activePaneType", "");
-      contextKeyService.setGlobal("isInAgentSession", false);
-      contextKeyService.setGlobal("hasCwd", false);
-      contextKeyService.setGlobal("paneIsCollapsed", false);
-      contextKeyService.setGlobal("paneCanBeCollapsed", false);
-    }
+    // Pane-level context keys for the active pane (cleared when there is none)
+    const panes = activeTab?.panes;
+    const activePane = activeTab?.activePaneId
+      ? panes?.[activeTab.activePaneId]
+      : undefined;
+    contextKeyService.setGlobal("activePaneType", activePane?.type || "");
+    contextKeyService.setGlobal(
+      "isInAgentSession",
+      !!activePane?.agentSessionId,
+    );
+    contextKeyService.setGlobal(
+      "hasCwd",
+      !!(activePane?.type === "terminal" && activePane.cwd),
+    );
+    // Active pane is never collapsed (you can't interact with collapsed panes)
+    contextKeyService.setGlobal("paneIsCollapsed", false);
+    // For command palette, assume pane can be collapsed if there are multiple panes
+    contextKeyService.setGlobal(
+      "paneCanBeCollapsed",
+      !!activePane && Object.keys(panes || {}).length > 1,
+    );
   }, [
     commandSystem,
     workspaceName,
@@ -358,7 +339,6 @@ export function useCommandSystem(
     tabs,
     activeTab,
     hasCustomLayout,
-    applicationMode,
     dotfilesRepo,
   ]);
 

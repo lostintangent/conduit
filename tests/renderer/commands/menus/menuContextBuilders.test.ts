@@ -7,10 +7,10 @@ import {
   type MenuContextParams,
 } from "@/commands/menus/menuContextBuilders";
 import { MenuId } from "@/commands/menus/types";
-import type { IContextKeyService } from "@/commands/contextKeys/ContextKeyService";
+import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 
 describe("menuContextBuilders", () => {
-  let mockContextKeyService: IContextKeyService;
+  let mockContextKeyService: ContextKeyService;
   let mockCheckGitRepo: (cwd: string | null | undefined) => Promise<boolean>;
 
   beforeEach(() => {
@@ -18,14 +18,8 @@ describe("menuContextBuilders", () => {
     // Note: In a real implementation, you might want to export a reset function
     // For now, we'll just overwrite registrations
 
-    mockContextKeyService = {
-      setGlobal: vi.fn(),
-      setTabProperty: vi.fn(),
-      setPaneProperty: vi.fn(),
-      get: vi.fn(),
-      getAll: vi.fn(() => ({})),
-      onDidChangeContext: vi.fn(() => () => {}),
-    };
+    mockContextKeyService = new ContextKeyService();
+    vi.spyOn(mockContextKeyService, "setGlobal");
 
     mockCheckGitRepo = vi.fn();
   });

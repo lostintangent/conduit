@@ -53,12 +53,6 @@ export const hasCustomLayout = new ContextKey<boolean>(
   false,
 );
 
-/**
- * Whether the application is in focus mode
- * Used by: commands that should behave differently in focus mode
- */
-export const isFocusMode = new ContextKey<boolean>("isFocusMode", false);
-
 // ============================================================================
 // Pane-level Context Keys
 // ============================================================================
