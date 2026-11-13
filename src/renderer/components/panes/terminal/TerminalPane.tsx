@@ -545,7 +545,7 @@ export const TerminalPane = ({
     const terminal = terminalRef.current?.terminal;
     if (!terminal) return;
 
-    terminal.options.overviewRulerWidth = showTerminalRuler ? 15 : 0;
+    terminal.options.overviewRuler = showTerminalRuler ? { width: 15 } : {};
   }, [showTerminalRuler]);
 
   return (

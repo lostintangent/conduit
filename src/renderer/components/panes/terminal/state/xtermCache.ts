@@ -53,10 +53,17 @@ const LIGHT_ANSI_COLORS = {
   brightWhite: "#a5a5a5",
 };
 
-function getAnsiColors() {
-  return document.documentElement.dataset.theme === "light"
-    ? LIGHT_ANSI_COLORS
-    : DARK_ANSI_COLORS;
+function getTerminalTheme() {
+  return {
+    background: resolveColor("background"),
+    foreground: resolveColor("foreground"),
+    cursor: resolveColor("foreground"),
+    selectionBackground: resolveColor("selection"),
+    overviewRulerBorder: resolveColor("border"),
+    ...(document.documentElement.dataset.theme === "light"
+      ? LIGHT_ANSI_COLORS
+      : DARK_ANSI_COLORS),
+  };
 }
 
 export type xtermInstance = {
@@ -144,13 +151,7 @@ export function getOrCreate(
   // If the xterm instance doesn't already exist, then create it.
   if (!instance) {
     // Resolve the color theme and font settings
-    const theme = {
-      background: resolveColor("background"),
-      foreground: resolveColor("foreground"),
-      cursor: resolveColor("foreground"),
-      selectionBackground: resolveColor("selection"),
-      ...getAnsiColors(),
-    };
+    const theme = getTerminalTheme();
 
     const fontFamily = userSettings.terminalFontFamily!;
     const fontSize = userSettings.terminalFontSize!;
@@ -456,13 +457,7 @@ export function serializeSession(
  * Called when the app theme changes
  */
 export function updateTerminalThemes() {
-  const terminalTheme = {
-    background: resolveColor("background"),
-    foreground: resolveColor("foreground"),
-    cursor: resolveColor("foreground"),
-    selectionBackground: resolveColor("selection"),
-    ...getAnsiColors(),
-  };
+  const terminalTheme = getTerminalTheme();
 
   xtermInstancesByPane.forEach((instance) => {
     instance.terminal.options.theme = terminalTheme;
