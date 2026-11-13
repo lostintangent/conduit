@@ -110,3 +110,23 @@ export async function writePaneActionsFile(
   const contentBytes = new TextEncoder().encode(content);
   await api.fs.writeFile(cwd, filePath, contentBytes);
 }
+
+/**
+ * Check whether the pane actions file exists
+ *
+ * @param filePath - Path to the pane actions file
+ */
+export async function paneActionsFileExists(
+  filePath: string,
+): Promise<boolean> {
+  return window.conduit.fs.exists(getParentDirectory(filePath), filePath);
+}
+
+/**
+ * Delete the pane actions file
+ *
+ * @param filePath - Path to the pane actions file
+ */
+export async function deletePaneActionsFile(filePath: string): Promise<void> {
+  await window.conduit.fs.delete(getParentDirectory(filePath), filePath);
+}

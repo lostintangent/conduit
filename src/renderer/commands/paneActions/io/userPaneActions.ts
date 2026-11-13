@@ -1,6 +1,11 @@
 import { getDefaultActions } from "../core/defaults";
 import type { Action } from "../core/types";
-import { getUserPaneActionsPath, writePaneActionsFile } from "./fileOperations";
+import {
+  deletePaneActionsFile,
+  getUserPaneActionsPath,
+  paneActionsFileExists,
+  writePaneActionsFile,
+} from "./fileOperations";
 import { updatePaneActionsAtom } from "./updatePaneActionsAtom";
 
 /**
@@ -39,15 +44,7 @@ export async function savePaneActions(
 export async function resetPaneActionsToDefaults(
   homeDirectory: string,
 ): Promise<void> {
-  const filePath = getUserPaneActionsPath(homeDirectory);
-
-  // Delete the user config file
-  const api = window.conduit;
-  if (!api?.deleteFile) {
-    throw new Error("Conduit API not available");
-  }
-
-  await api.deleteFile(filePath);
+  await deletePaneActionsFile(getUserPaneActionsPath(homeDirectory));
 
   // Update global atom with defaults for immediate reactive updates
   const defaults = getDefaultActions();
@@ -63,18 +60,5 @@ export async function resetPaneActionsToDefaults(
 export async function hasUserPaneActionsFile(
   homeDirectory: string,
 ): Promise<boolean> {
-  const filePath = getUserPaneActionsPath(homeDirectory);
-  const api = window.conduit;
-
-  if (!api?.readFile) {
-    return false;
-  }
-
-  try {
-    await api.readFile(filePath);
-    return true;
-  } catch {
-    // File doesn't exist
-    return false;
-  }
+  return paneActionsFileExists(getUserPaneActionsPath(homeDirectory));
 }
