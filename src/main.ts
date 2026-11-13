@@ -4,8 +4,7 @@ import path from "node:path";
 import { initializeIpcHandlers, shutdownIpcHandlers } from "./ipc";
 
 // Build-time constants injected by build/bun.build.ts.
-declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
-declare const MAIN_WINDOW_VITE_NAME: string;
+declare const RENDERER_DEV_SERVER_URL: string | undefined;
 
 // GUI-launched builds often miss PATH; hydrate env so spawned terminals see user tools.
 function hydrateEnvFromLoginShell() {
@@ -103,12 +102,10 @@ async function createWindow() {
 
   await initializeIpcHandlers(mainWindow);
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  if (RENDERER_DEV_SERVER_URL) {
+    await mainWindow.loadURL(RENDERER_DEV_SERVER_URL);
   } else {
-    await mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-    );
+    await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
 

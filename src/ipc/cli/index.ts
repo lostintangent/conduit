@@ -35,7 +35,7 @@ async function prepareCliEnvironment(
   await fs.mkdir(binDir, { recursive: true });
 
   const electronBinary = process.execPath;
-  const cliPath = path.join(app.getAppPath(), ".vite", "build", "cli.js");
+  const cliPath = path.join(app.getAppPath(), "dist", "main", "cli.js");
 
   await ensureLauncherScripts(binDir, electronBinary, cliPath);
 

@@ -39,7 +39,7 @@
     "node_modules/",
     "build/",
     "out/",
-    ".vite/",
+    "dist/",
     "coverage/",
     ".git/"
   ]

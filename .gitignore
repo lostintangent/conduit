@@ -4,7 +4,7 @@ node_modules/
 .conduit/
 
 # Build artifacts
-.vite/
+dist/
 out/
 
 # Test coverage

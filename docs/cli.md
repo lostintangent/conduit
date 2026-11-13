@@ -203,13 +203,13 @@ The renderer process handles CLI requests by:
 
 ### Build Configuration
 
-The CLI is built as a separate entry point by `buildCli` in `build/bun.build.ts`, which bundles `src/cli/index.ts` into `.vite/build/cli.js`:
+The CLI is built as a separate entry point by `buildCli` in `build/bun.build.ts`, which bundles `src/cli/index.ts` into `dist/main/cli.js`:
 
 ```typescript
 export function buildCli({ dev = false }: Options = {}) {
   return run("cli", {
     entrypoints: [path.join(root, "src/cli/index.ts")],
-    outdir: buildDir,
+    outdir: mainDir,
     naming: "cli.js",
     target: "node",
     format: "cjs",
@@ -239,7 +239,7 @@ When the application is installed:
 
 1. Launcher scripts are placed in: `{userData}/cli/bin/`
 2. The IPC socket is created at: `{userData}/cli/cli.sock` (or a named pipe on Windows)
-3. The CLI binary is available at: `{appPath}/.vite/build/cli.js`
+3. The CLI binary is available at: `{appPath}/dist/main/cli.js`
 
 Users access the CLI via the `conduit` command, which is automatically added to the `PATH` environment variable in terminal sessions.
 

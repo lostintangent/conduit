@@ -2,11 +2,12 @@
  * Bun build for every Conduit bundle. Replaces @electron-forge/plugin-vite and
  * the five build/vite.*.config.ts files. Electron Forge still owns packaging.
  *
- *   bun build/bun.build.ts        production build into .vite/
+ *   bun build/bun.build.ts        production build into dist/
  *   import { buildMain, ... }     used by build/bun.dev.ts for the dev loop
  *
- * Output layout is unchanged from plugin-vite, so main.ts, the CLI launcher
- * and forge.config.ts keep their existing paths.
+ * Main, the CLI and both preloads go to dist/main/, and the renderer to
+ * dist/renderer/. main.ts, the CLI launcher and forge.config.ts depend on
+ * this layout.
  */
 import type { BuildConfig } from "bun";
 import tailwind from "./bun.tailwind";
@@ -14,8 +15,9 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dir, "..");
-export const buildDir = path.join(root, ".vite/build");
-export const rendererDir = path.join(root, ".vite/renderer/main_window");
+const distDir = path.join(root, "dist");
+const mainDir = path.join(distDir, "main");
+const rendererDir = path.join(distDir, "renderer");
 export const monacoWorkerDir = path.join(rendererDir, "monaco");
 
 // Native modules stay external and are resolved from
@@ -50,7 +52,7 @@ async function run(name: string, config: BuildConfig) {
 export function buildMain({ dev = false, devServerUrl }: Options = {}) {
   return run("main", {
     entrypoints: [path.join(root, "src/main.ts")],
-    outdir: buildDir,
+    outdir: mainDir,
     target: "node",
     format: "cjs",
     external: nodeExternals,
@@ -59,10 +61,9 @@ export function buildMain({ dev = false, devServerUrl }: Options = {}) {
     banner: runtimePaths.banner,
     define: {
       ...runtimePaths.define,
-      MAIN_WINDOW_VITE_DEV_SERVER_URL: devServerUrl
+      RENDERER_DEV_SERVER_URL: devServerUrl
         ? JSON.stringify(devServerUrl)
         : "undefined",
-      MAIN_WINDOW_VITE_NAME: JSON.stringify("main_window"),
     },
   });
 }
@@ -70,7 +71,7 @@ export function buildMain({ dev = false, devServerUrl }: Options = {}) {
 export function buildCli({ dev = false }: Options = {}) {
   return run("cli", {
     entrypoints: [path.join(root, "src/cli/index.ts")],
-    outdir: buildDir,
+    outdir: mainDir,
     naming: "cli.js",
     target: "node",
     format: "cjs",
@@ -89,7 +90,7 @@ export function buildPreloads({ dev = false }: Options = {}) {
     ].map(([entry, naming]) =>
       run(naming, {
         entrypoints: [path.join(root, entry)],
-        outdir: buildDir,
+        outdir: mainDir,
         naming,
         target: "browser",
         format: "cjs",
@@ -143,7 +144,7 @@ export function buildRenderer() {
 
 if (import.meta.main) {
   const started = performance.now();
-  await rm(path.join(root, ".vite"), { recursive: true, force: true });
+  await rm(distDir, { recursive: true, force: true });
   const results = await Promise.all([
     buildMain(),
     buildCli(),

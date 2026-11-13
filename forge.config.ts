@@ -29,10 +29,10 @@ const config: ForgeConfig = {
         "**/node_modules/{node-pty,@parcel/watcher*,@vscode/ripgrep*}/**/*",
     },
     // Only the bundled output ships; native modules are installed below.
-    ignore: (file: string) => !!file && !file.startsWith("/.vite"),
+    ignore: (file: string) => !!file && !file.startsWith("/dist"),
     icon: "./build/assets/icon",
     extraResource: [
-      path.resolve(__dirname, ".vite/build/webview-preload.js"),
+      path.resolve(__dirname, "dist/main/webview-preload.js"),
       path.resolve(__dirname, "src/ipc/terminal/shell"),
     ],
     appBundleId: "dev.conduit",
