@@ -104,21 +104,7 @@ export class ProviderPool<T> {
     return this.entries.get(toProviderKey(filePath))?.value;
   }
 
-  refCount(filePath: string): number {
-    return this.entries.get(toProviderKey(filePath))?.refCount ?? 0;
-  }
-
-  has(filePath: string): boolean {
-    return this.entries.has(toProviderKey(filePath));
-  }
-
-  get size(): number {
-    return this.entries.size;
-  }
-
-  /** Dispose a provider now, skipping the grace period. */
-  async dispose(filePath: string): Promise<void> {
-    const key = toProviderKey(filePath);
+  private async dispose(key: string): Promise<void> {
     const entry = this.entries.get(key);
     if (!entry) {
       return;

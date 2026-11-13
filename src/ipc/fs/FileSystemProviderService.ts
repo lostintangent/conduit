@@ -131,25 +131,8 @@ export class FileSystemProviderService {
     this.pool.release(cwd);
   }
 
-  /** Dispose a provider immediately, skipping the grace period. */
-  forceDispose(cwd: string): Promise<void> {
-    return this.pool.dispose(cwd);
-  }
-
-  getRefCount(cwd: string): number {
-    return this.pool.refCount(cwd);
-  }
-
-  hasProvider(cwd: string): boolean {
-    return this.pool.has(cwd);
-  }
-
   /** Get an existing provider without incrementing its reference count. */
   getExistingProvider(cwd: string): DiskFileSystemProvider | null {
     return this.pool.get(cwd)?.provider ?? null;
-  }
-
-  get providerCount(): number {
-    return this.pool.size;
   }
 }

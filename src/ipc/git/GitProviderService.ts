@@ -84,11 +84,6 @@ export class GitProviderService {
     this.pool.release(gitRoot);
   }
 
-  /** Dispose a provider immediately, skipping the grace period. */
-  forceDispose(gitRoot: string): Promise<void> {
-    return this.pool.dispose(gitRoot);
-  }
-
   /**
    * Find the git repository root for a given path.
    *
@@ -121,28 +116,6 @@ export class GitProviderService {
     } catch {
       return null;
     }
-  }
-
-  /**
-   * Get the current reference count for a provider.
-   *
-   * Returns 0 if no provider exists for the path.
-   *
-   * @param gitRoot - The git repository root path
-   * @returns The current reference count
-   */
-  getRefCount(gitRoot: string): number {
-    return this.pool.refCount(gitRoot);
-  }
-
-  /**
-   * Check if a provider exists for the given git root.
-   *
-   * @param gitRoot - The git repository root path
-   * @returns True if a provider exists (regardless of refCount)
-   */
-  hasProvider(gitRoot: string): boolean {
-    return this.pool.has(gitRoot);
   }
 
   /**
@@ -179,15 +152,6 @@ export class GitProviderService {
 
     const provider = this.pool.get(gitRoot);
     return provider ? { provider, gitRoot: toProviderKey(gitRoot) } : null;
-  }
-
-  /**
-   * Get the number of active providers.
-   *
-   * @returns The count of providers currently managed by this service
-   */
-  get providerCount(): number {
-    return this.pool.size;
   }
 
   /**
