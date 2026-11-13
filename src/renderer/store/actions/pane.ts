@@ -20,6 +20,7 @@ import type {
 } from "@/types";
 import {
   getPaneDirectionConfig,
+  layoutContainsPaneId,
   walkLayout,
   type PaneDirection,
 } from "@/utils/layout";
@@ -36,24 +37,6 @@ const api = window.conduit;
 const store = getDefaultStore();
 
 // Internal utilities
-
-/**
- * Check whether a specific layout node contains a pane.
- * @param node The layout node to check.
- * @param paneId The ID of the pane to look for.
- * @returns True if the pane is found, false otherwise.
- */
-function containsPane(node: LayoutNode, paneId: string): boolean {
-  let found = false;
-  walkLayout(node, ({ node: current }) => {
-    if (current.type === "pane" && current.paneId === paneId) {
-      found = true;
-      return false;
-    }
-    return true;
-  });
-  return found;
-}
 
 function splitLayoutNode(
   node: LayoutNode,
@@ -79,69 +62,54 @@ function splitLayoutNode(
   }
 
   const childIndex = node.children.findIndex((child) =>
-    containsPane(child, targetPaneId),
+    layoutContainsPaneId(child, targetPaneId),
   );
   if (childIndex === -1) {
     return { node, modified: false };
   }
 
+  // The target child contains the pane, so recursing into it always splits.
   const targetChild = node.children[childIndex];
-
+  const newChildren = [...node.children];
   if (
     node.direction === direction &&
     targetChild.type === "pane" &&
     targetChild.paneId === targetPaneId
   ) {
-    const newChildren = [...node.children];
     newChildren.splice(insertBefore ? childIndex : childIndex + 1, 0, newNode);
-    return {
-      node: {
-        ...node,
-        children: newChildren,
-      },
-      modified: true,
-    };
+  } else {
+    newChildren[childIndex] = splitLayoutNode(
+      targetChild,
+      targetPaneId,
+      direction,
+      newNode,
+      insertBefore,
+    ).node;
   }
 
-  const { node: updatedChild, modified } = splitLayoutNode(
-    targetChild,
-    targetPaneId,
-    direction,
-    newNode,
-    insertBefore,
-  );
-  if (modified) {
-    const newChildren = [...node.children];
-    newChildren[childIndex] = updatedChild;
-    return {
-      node: {
-        ...node,
-        children: newChildren,
-      },
-      modified: true,
-    };
-  }
-
-  return { node, modified: false };
+  return { node: { ...node, children: newChildren }, modified: true };
 }
 
-function removePaneFromLayoutNode(
-  node: LayoutNode,
-  targetPaneId: string,
-): { node: LayoutNode | null; removed: boolean } {
-  const {
-    node: updatedNode,
-    removedPane,
-    modified,
-  } = extractPaneNode(node, targetPaneId);
+type AgentPaneFields = Pick<
+  TerminalPane,
+  | "agentSessionId"
+  | "agentBranchName"
+  | "agentBaseBranch"
+  | "agentRepoRoot"
+  | "agentWorktreePath"
+>;
 
-  if (!modified || !removedPane) {
-    return { node, removed: false };
-  }
-
+/** Agent-session metadata for a new pane: `session` wins over `source`. */
+export function inheritAgentSession(
+  session: AgentSessionInfo | undefined,
+  source: Partial<AgentPaneFields> = {},
+): AgentPaneFields {
   return {
-    node: updatedNode,
-    removed: true,
+    agentSessionId: session?.id ?? source.agentSessionId,
+    agentBranchName: session?.branchName ?? source.agentBranchName,
+    agentBaseBranch: session?.baseBranch ?? source.agentBaseBranch,
+    agentRepoRoot: session?.repoRoot ?? source.agentRepoRoot,
+    agentWorktreePath: session?.worktreePath ?? source.agentWorktreePath,
   };
 }
 
@@ -253,19 +221,19 @@ export function setPaneCollapsed(
 type ExtractPaneResult = {
   node: LayoutNode | null;
   removedPane: LayoutPaneNode | null;
-  modified: boolean;
 };
 
+/**
+ * Remove a pane from a layout, collapsing splits left with a single child.
+ * `removedPane` is null (and `node` unchanged) when the pane isn't found.
+ */
 function extractPaneNode(node: LayoutNode, paneId: string): ExtractPaneResult {
   if (node.type === "pane") {
-    if (node.paneId === paneId) {
-      return { node: null, removedPane: node, modified: true };
-    }
-
-    return { node, removedPane: null, modified: false };
+    return node.paneId === paneId
+      ? { node: null, removedPane: node }
+      : { node, removedPane: null };
   }
 
-  let modified = false;
   let removedPane: LayoutPaneNode | null = null;
   const newChildren: LayoutNode[] = [];
 
@@ -276,45 +244,21 @@ function extractPaneNode(node: LayoutNode, paneId: string): ExtractPaneResult {
     }
 
     const result = extractPaneNode(child, paneId);
-    if (result.modified) {
-      modified = true;
-    }
-    if (!removedPane && result.removedPane) {
-      removedPane = result.removedPane;
-    }
+    removedPane = result.removedPane;
     if (result.node) {
       newChildren.push(result.node);
     }
   });
 
-  if (!modified || !removedPane) {
-    return { node, removedPane: null, modified: false };
+  if (!removedPane) {
+    return { node, removedPane: null };
   }
 
-  if (newChildren.length === 0) {
-    return { node: null, removedPane, modified: true };
+  if (newChildren.length <= 1) {
+    return { node: newChildren[0] ?? null, removedPane };
   }
 
-  if (newChildren.length === 1) {
-    const soleChild = newChildren[0];
-    return { node: soleChild, removedPane, modified: true };
-  }
-
-  if (
-    newChildren.length === node.children.length &&
-    newChildren.every((child, idx) => child === node.children[idx])
-  ) {
-    return { node, removedPane, modified: true };
-  }
-
-  return {
-    node: {
-      ...node,
-      children: newChildren,
-    },
-    removedPane,
-    modified: true,
-  };
+  return { node: { ...node, children: newChildren }, removedPane };
 }
 
 export function updatePaneProperty<T extends Pane>(
@@ -398,7 +342,7 @@ export function movePane(
         const sourceNode = ancestorEntry.node.children[childEntry.index];
         const originalChildSize = sourceNode.size;
         const detachResult = extractPaneNode(sourceNode, paneId);
-        if (!detachResult.modified || !detachResult.removedPane) {
+        if (!detachResult.removedPane) {
           continue;
         }
 
@@ -521,12 +465,12 @@ export function detachPane(
         return;
       }
 
-      const { node: newLayout, removed } = removePaneFromLayoutNode(
+      const { node: newLayout, removedPane } = extractPaneNode(
         tab.layout,
         paneId,
       );
 
-      if (!removed) {
+      if (!removedPane) {
         next.push(tab);
         return;
       }
@@ -621,34 +565,18 @@ export async function splitPane(
       ? { cwd: defaultCwd }
       : undefined;
 
-  const agentSessionId =
-    options.agentSession?.id ?? sourceTerminalPane?.agentSessionId;
-  const agentBranchName =
-    options.agentSession?.branchName ?? sourceTerminalPane?.agentBranchName;
-  const agentBaseBranch =
-    options.agentSession?.baseBranch ?? sourceTerminalPane?.agentBaseBranch;
-  const agentRepoRoot =
-    options.agentSession?.repoRoot ?? sourceTerminalPane?.agentRepoRoot;
-  const agentWorktreePath =
-    options.agentSession?.worktreePath ?? sourceTerminalPane?.agentWorktreePath;
-
   const result = await api.createTerminal(requestOptions);
   if (!result) {
     return;
   }
 
-  const newPaneId = generateId();
   const newPaneState: Pane = {
-    id: newPaneId,
+    id: generateId(),
     type: "terminal",
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     title: result.title,
-    agentSessionId,
-    agentBranchName,
-    agentBaseBranch,
-    agentRepoRoot,
-    agentWorktreePath,
+    ...inheritAgentSession(options.agentSession, sourceTerminalPane),
   };
 
   insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
@@ -885,36 +813,16 @@ export function cloneTerminalPane(
 ) {
   // Note: This method is only expected to be called from the clone
   // command, which is already guarded by checks for whether the pane
-  // can be cloned. So we're not repeating those checks here. That said,
-  store.set(tabsAtom, (tabs) => {
-    const tab = tabs.find(({ id }) => id === tabId);
-    const sourcePane = tab.panes[paneId] as TerminalPane;
-
-    const newPaneId = generateId();
-    const newPane: TerminalPane = {
-      ...sourcePane,
-      id: newPaneId,
-      cloneOf: sourcePane.cloneOf ?? paneId,
-    };
-
-    const newLayoutNode: LayoutNode = {
-      id: generateId(),
-      type: "pane",
-      paneId: newPaneId,
-    };
-
-    const { node: newLayout } = splitLayoutNode(
-      tab.layout,
-      paneId,
-      direction,
-      newLayoutNode,
-      insertBefore,
-    );
-
-    tab.panes[newPaneId] = newPane;
-    tab.layout = newLayout;
-    tab.activePaneId = newPaneId;
-  });
+  // can be cloned. So we're not repeating those checks here.
+  const tab = store.get(tabsAtom).find(({ id }) => id === tabId);
+  const sourcePane = tab.panes[paneId] as TerminalPane;
+  insertPaneNextTo(
+    tabId,
+    paneId,
+    { ...sourcePane, id: generateId(), cloneOf: sourcePane.cloneOf ?? paneId },
+    direction,
+    insertBefore,
+  );
 }
 
 type RemovePaneOptions = {
@@ -926,10 +834,6 @@ export function removePane(
   paneId: string,
   options: RemovePaneOptions = {},
 ) {
-  if (!api) {
-    return;
-  }
-
   store.set(tabsAtom, (current) =>
     current.map((tab) => {
       if (tab.id !== tabId) {
@@ -945,12 +849,12 @@ export function removePane(
         return tab;
       }
 
-      const { node: newLayout, removed } = removePaneFromLayoutNode(
+      const { node: newLayout, removedPane } = extractPaneNode(
         tab.layout,
         paneId,
       );
 
-      if (!removed || !newLayout) {
+      if (!removedPane || !newLayout) {
         return tab;
       }
 
@@ -1038,10 +942,6 @@ export async function completeAgentSession(
   tabId: string,
   agentSessionId: string,
 ): Promise<AgentSessionFinalizeResult | null> {
-  if (!api) {
-    return null;
-  }
-
   const result = await api.finalizeAgentSession({ sessionId: agentSessionId });
 
   if (result.status !== "conflict") {
@@ -1055,10 +955,6 @@ export async function deleteAgentSession(
   tabId: string,
   agentSessionId: string,
 ): Promise<AgentSessionCleanupResult | null> {
-  if (!api) {
-    return null;
-  }
-
   const result = await api.cleanupAgentSession({ sessionId: agentSessionId });
 
   closeAgentSessionPanes(tabId, agentSessionId);

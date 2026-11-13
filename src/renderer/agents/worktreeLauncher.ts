@@ -10,12 +10,11 @@ import {
   enqueueNotification,
   updateNotification,
 } from "@/store/actions/notifications";
-import { splitPane } from "@/store/actions/pane";
-import { tabsAtom } from "@/store/atoms";
-import { getDefaultStore } from "jotai";
-import type { Tab } from "@/types";
-
-const store = getDefaultStore();
+import {
+  inheritAgentSession,
+  splitPane,
+  updatePaneProperty,
+} from "@/store/actions/pane";
 
 export interface LaunchPayload {
   prompt: string;
@@ -126,28 +125,7 @@ export async function launchAgentsInWorktrees(
 
     const { tabId, paneId } = tabResult;
 
-    // Update the pane with agent session metadata
-    const tabs = store.get(tabsAtom);
-    store.set(
-      tabsAtom,
-      tabs.map((tab: Tab) => {
-        if (tab.id !== tabId) return tab;
-        return {
-          ...tab,
-          panes: {
-            ...tab.panes,
-            [paneId]: {
-              ...tab.panes[paneId],
-              agentSessionId: firstSession.id,
-              agentBranchName: firstSession.branchName,
-              agentBaseBranch: firstSession.baseBranch,
-              agentRepoRoot: firstSession.repoRoot,
-              agentWorktreePath: firstSession.worktreePath,
-            },
-          },
-        };
-      }),
-    );
+    updatePaneProperty(tabId, paneId, inheritAgentSession(firstSession));
 
     // Send the interactive command for the first agent
     const firstInstances = payload.agentInstances?.[firstAgentId]

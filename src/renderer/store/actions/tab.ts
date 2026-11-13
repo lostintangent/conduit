@@ -7,7 +7,11 @@ import {
   onSessionStateChange,
 } from "@/components/panes/terminal/state/stateTracker";
 import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
-import { detachPane, removePane } from "@/store/actions/pane";
+import {
+  detachPane,
+  inheritAgentSession,
+  removePane,
+} from "@/store/actions/pane";
 import {
   activeTabAtom,
   activeTabIdAtom,
@@ -132,40 +136,25 @@ export async function openTab(
     return null;
   }
 
-  const paneId = generateId();
-  const tabId = generateId();
-
-  const paneState: Pane = {
-    id: paneId,
-    type: "terminal",
-    sessionId: result.sessionId,
-    cwd: result.cwd ?? null,
-    title: result.title,
-  };
-
-  const layout: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId,
-  };
-
-  store.set(tabsAtom, (current) => [
-    ...current,
+  const { tabId, paneId } = createTabWithPane(
     {
-      id: tabId,
-      panes: { [paneId]: paneState },
-      layout,
-      activePaneId: paneId,
-      name: options?.title,
+      id: generateId(),
+      type: "terminal",
+      sessionId: result.sessionId,
+      cwd: result.cwd ?? null,
+      title: result.title,
     },
-  ]);
-  focusTab(tabId);
+    options?.title,
+  );
 
   return { tabId, paneId, sessionId: result.sessionId };
 }
 
 // Helper function to create a tab with a pane
-function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
+function createTabWithPane(
+  paneState: Pane,
+  name?: string,
+): { tabId: string; paneId: string } {
   const tabId = generateId();
 
   const layout: LayoutNode = {
@@ -181,6 +170,7 @@ function createTabWithPane(paneState: Pane): { tabId: string; paneId: string } {
       panes: { [paneState.id]: paneState },
       layout,
       activePaneId: paneState.id,
+      name,
     },
   ]);
   focusTab(tabId);
@@ -227,11 +217,7 @@ export async function openTabFromExistingAgentSession(
     sessionId: result.sessionId,
     cwd: result.cwd ?? session.worktreePath,
     title: result.title ?? session.branchName,
-    agentSessionId: session.id,
-    agentBranchName: session.branchName,
-    agentBaseBranch: session.baseBranch ?? undefined,
-    agentRepoRoot: session.repoRoot,
-    agentWorktreePath: session.worktreePath,
+    ...inheritAgentSession(session),
   };
 
   const { tabId } = createTabWithPane(paneState);
@@ -516,29 +502,13 @@ export async function duplicateTab(
         continue;
       }
 
-      // Use agent session from options if provided, otherwise preserve from source
-      const agentSessionId =
-        options?.agentSession?.id ?? sourcePane.agentSessionId;
-      const agentBranchName =
-        options?.agentSession?.branchName ?? sourcePane.agentBranchName;
-      const agentBaseBranch =
-        options?.agentSession?.baseBranch ?? sourcePane.agentBaseBranch;
-      const agentRepoRoot =
-        options?.agentSession?.repoRoot ?? sourcePane.agentRepoRoot;
-      const agentWorktreePath =
-        options?.agentSession?.worktreePath ?? sourcePane.agentWorktreePath;
-
       newPanes[newPaneId] = {
         id: newPaneId,
         type: "terminal",
         sessionId: result.sessionId,
         cwd: result.cwd ?? null,
         title: result.title,
-        agentSessionId,
-        agentBranchName,
-        agentBaseBranch,
-        agentRepoRoot,
-        agentWorktreePath,
+        ...inheritAgentSession(options?.agentSession, sourcePane),
       };
     } else if (sourcePane.type === "editor") {
       // Translate file path if duplicating into a new CWD or worktree
@@ -565,28 +535,12 @@ export async function duplicateTab(
         }
       }
 
-      // Use agent session from options if provided, otherwise preserve from source
-      const agentSessionId =
-        options?.agentSession?.id ?? sourcePane.agentSessionId;
-      const agentBranchName =
-        options?.agentSession?.branchName ?? sourcePane.agentBranchName;
-      const agentBaseBranch =
-        options?.agentSession?.baseBranch ?? sourcePane.agentBaseBranch;
-      const agentRepoRoot =
-        options?.agentSession?.repoRoot ?? sourcePane.agentRepoRoot;
-      const agentWorktreePath =
-        options?.agentSession?.worktreePath ?? sourcePane.agentWorktreePath;
-
       newPanes[newPaneId] = {
         id: newPaneId,
         type: "editor",
         cwd: options?.cwd || sourcePane.cwd,
         file: translatedFile,
-        agentSessionId,
-        agentBranchName,
-        agentBaseBranch,
-        agentRepoRoot,
-        agentWorktreePath,
+        ...inheritAgentSession(options?.agentSession, sourcePane),
       };
     } else if (sourcePane.type === "browser") {
       newPanes[newPaneId] = {
@@ -601,15 +555,10 @@ export async function duplicateTab(
   // Clone the layout tree, replacing old pane IDs with new ones
   const cloneLayoutNode = (node: LayoutNode): LayoutNode => {
     if (node.type === "pane") {
-      const newPaneId = paneIdMap.get(node.paneId);
-      if (!newPaneId) {
-        // This shouldn't happen, but return the original if mapping is missing
-        return node;
-      }
       return {
         id: generateId(),
         type: "pane",
-        paneId: newPaneId,
+        paneId: paneIdMap.get(node.paneId),
         size: node.size,
       };
     }
@@ -630,23 +579,13 @@ export async function duplicateTab(
   const newTitle =
     options?.title || generateIncrementedTabTitle(sourceTab.name, tabs);
 
-  // Map the active pane ID
-  const newActivePaneId = paneIdMap.get(sourceTab.activePaneId);
-  if (!newActivePaneId) {
-    // Fallback to first pane if mapping fails
-    const firstPaneId = Object.keys(newPanes)[0];
-    if (!firstPaneId) {
-      return null;
-    }
-  }
-
-  // Create the new tab
+  // Every source pane (including the active one) was mapped above.
   const newTabId = generateId();
   const newTab: Tab = {
     id: newTabId,
     panes: newPanes,
     layout: newLayout,
-    activePaneId: newActivePaneId || Object.keys(newPanes)[0],
+    activePaneId: paneIdMap.get(sourceTab.activePaneId),
     name: newTitle,
     locked: sourceTab.locked,
     synchronized: sourceTab.synchronized,
