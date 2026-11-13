@@ -1,7 +1,4 @@
-import {
-  launchAgentsInSameFolder,
-  launchAgentsInWorktrees,
-} from "@/agents/worktreeLauncher";
+import { launchAgents } from "@/agents/worktreeLauncher";
 import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
@@ -903,21 +900,12 @@ export function App() {
               agents: agents || [],
             });
 
-            if (payload.launchTarget === "worktree") {
-              await launchAgentsInWorktrees(payload, {
-                cwd,
-                agents: agents || [],
-                api,
-                onClose: () => setShowAgentLauncher(false),
-              });
-            } else {
-              await launchAgentsInSameFolder(payload, {
-                cwd,
-                agents: agents || [],
-                api,
-                onClose: () => setShowAgentLauncher(false),
-              });
-            }
+            await launchAgents(payload, {
+              cwd,
+              agents: agents || [],
+              api,
+              onClose: () => setShowAgentLauncher(false),
+            });
           } catch (error) {
             const errorMessage =
               error instanceof Error ? error.message : String(error);
