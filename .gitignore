@@ -1,7 +1,6 @@
 # Dependencies / system files
 node_modules/
 .DS_Store
-icon.icns
 .conduit/
 
 # Build artifacts

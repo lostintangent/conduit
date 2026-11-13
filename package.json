@@ -14,7 +14,6 @@
     "lint:ci": "oxlint --quiet",
     "format": "biome format --write ./src",
     "rebuild": "electron-rebuild",
-    "build:icon": "node build/scripts/macOS/generate-icon.js",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
@@ -27,8 +26,7 @@
     "test:sandbox:docker:start": "bash build/sandbox/scripts/start-test-container.sh",
     "test:sandbox:docker:stop": "bash build/sandbox/scripts/stop-test-container.sh",
     "postinstall": "node build/scripts/setup-keys.js",
-    "prepare": "husky",
-    "premake": "npm run build:icon"
+    "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.10",
