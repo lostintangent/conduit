@@ -79,6 +79,8 @@ function setupGitRootMock(gitRoots: string[]) {
 }
 
 describe("GitProviderService", () => {
+  // Ref-counting, the grace period and path keys are ProviderPool's, tested in
+  // tests/ipc/ProviderPool.test.ts. These cover what the service adds.
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -195,21 +197,6 @@ describe("GitProviderService", () => {
         "Not a git repository",
       );
     });
-
-    it("should increment refCount on each getProvider call", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      await service.getProvider("/test/repo");
-      expect(service.getRefCount(gitRoot)).toBe(1);
-
-      await service.getProvider("/test/repo/src");
-      expect(service.getRefCount(gitRoot)).toBe(2);
-
-      await service.getProvider("/test/repo/tests");
-      expect(service.getRefCount(gitRoot)).toBe(3);
-    });
   });
 
   // ===========================================================================
@@ -217,238 +204,15 @@ describe("GitProviderService", () => {
   // ===========================================================================
 
   describe("releaseProvider()", () => {
-    it("should decrement refCount on release", async () => {
-      setupGitRootMock(["/test/repo"]);
+    it("should dispose the provider after the grace period when released by its gitRoot", async () => {
       const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
 
-      await service.getProvider("/test/repo");
-      await service.getProvider("/test/repo/src");
-      expect(service.getRefCount(gitRoot)).toBe(2);
-
+      const { provider, gitRoot } = await service.getProvider("/test/repo/src");
       service.releaseProvider(gitRoot);
-      expect(service.getRefCount(gitRoot)).toBe(1);
-    });
-
-    it("should not immediately dispose when refCount reaches 0", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-
-      // Provider should still exist
-      expect(service.hasProvider(gitRoot)).toBe(true);
-      expect(provider.dispose).not.toHaveBeenCalled();
-    });
-
-    it("should dispose provider after grace period when refCount is 0", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-
-      // Advance past grace period (5 seconds)
       await vi.advanceTimersByTimeAsync(5000);
 
       expect(provider.dispose).toHaveBeenCalled();
-      expect(service.hasProvider(gitRoot)).toBe(false);
-    });
-
-    it("should not dispose before grace period expires", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-
-      // Advance just before grace period expires
-      await vi.advanceTimersByTimeAsync(4999);
-
-      expect(provider.dispose).not.toHaveBeenCalled();
-      expect(service.hasProvider(gitRoot)).toBe(true);
-    });
-
-    it("should warn when releasing unknown provider", async () => {
-      const service = GitProviderService.getInstance();
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-      service.releaseProvider("/unknown/repo");
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Attempted to release unknown provider"),
-      );
-
-      consoleSpy.mockRestore();
-    });
-  });
-
-  // ===========================================================================
-  // Grace Period Cancellation
-  // ===========================================================================
-
-  describe("grace period cancellation", () => {
-    it("should cancel grace period if getProvider is called before expiry", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-
-      // Advance part way through grace period
-      await vi.advanceTimersByTimeAsync(3000);
-
-      // Re-acquire provider
-      const result2 = await service.getProvider("/test/repo");
-
-      // Should be same instance
-      expect(result2.provider).toBe(provider);
-
-      // Advance past original grace period
-      await vi.advanceTimersByTimeAsync(3000);
-
-      // Should NOT be disposed (timer was cancelled)
-      expect(provider.dispose).not.toHaveBeenCalled();
-      expect(service.hasProvider(gitRoot)).toBe(true);
-    });
-
-    it("should reset refCount when reacquiring during grace period", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-      expect(service.getRefCount(gitRoot)).toBe(0);
-
-      // Advance part way through grace period
-      await vi.advanceTimersByTimeAsync(2000);
-
-      // Re-acquire
-      await service.getProvider("/test/repo");
-      expect(service.getRefCount(gitRoot)).toBe(1);
-    });
-  });
-
-  // ===========================================================================
-  // forceDispose
-  // ===========================================================================
-
-  describe("forceDispose()", () => {
-    it("should immediately dispose provider without grace period", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-
-      await service.forceDispose(gitRoot);
-
-      expect(provider.dispose).toHaveBeenCalled();
-      expect(service.hasProvider(gitRoot)).toBe(false);
-    });
-
-    it("should cancel pending grace period timer", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-
-      // Grace period started
-      await vi.advanceTimersByTimeAsync(2000);
-
-      // Force dispose
-      await service.forceDispose(gitRoot);
-
-      expect(provider.dispose).toHaveBeenCalledTimes(1);
-
-      // Advance past original grace period
-      await vi.advanceTimersByTimeAsync(5000);
-
-      // Should not try to dispose again
-      expect(provider.dispose).toHaveBeenCalledTimes(1);
-    });
-
-    it("should handle force dispose of non-existent provider", async () => {
-      const service = GitProviderService.getInstance();
-
-      // Should not throw
-      await expect(
-        service.forceDispose("/non/existent"),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  // ===========================================================================
-  // hasProvider and providerCount
-  // ===========================================================================
-
-  describe("hasProvider() and providerCount", () => {
-    it("should return false for unknown paths", () => {
-      const service = GitProviderService.getInstance();
-
-      expect(service.hasProvider("/unknown/repo")).toBe(false);
-    });
-
-    it("should return true for known git roots", async () => {
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      await service.getProvider("/test/repo");
-
-      expect(service.hasProvider(gitRoot)).toBe(true);
-    });
-
-    it("should track providerCount correctly", async () => {
-      // Setup: two different repos
-      setupGitRootMock(["/test/repo1", "/test/repo2"]);
-
-      const service = GitProviderService.getInstance();
-
-      expect(service.providerCount).toBe(0);
-
-      await service.getProvider("/test/repo1");
-      expect(service.providerCount).toBe(1);
-
-      await service.getProvider("/test/repo2");
-      expect(service.providerCount).toBe(2);
-
-      await service.forceDispose(path.resolve("/test/repo1"));
-      expect(service.providerCount).toBe(1);
-    });
-  });
-
-  // ===========================================================================
-  // getRefCount
-  // ===========================================================================
-
-  describe("getRefCount()", () => {
-    it("should return 0 for unknown paths", () => {
-      const service = GitProviderService.getInstance();
-
-      expect(service.getRefCount("/unknown/repo")).toBe(0);
-    });
-
-    it("should return current refCount for known paths", async () => {
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      await service.getProvider("/test/repo");
-      await service.getProvider("/test/repo/src");
-
-      expect(service.getRefCount(gitRoot)).toBe(2);
-
-      service.releaseProvider(gitRoot);
-
-      expect(service.getRefCount(gitRoot)).toBe(1);
+      expect(service.getExistingProvider(gitRoot)).toBeNull();
     });
   });
 
@@ -463,19 +227,20 @@ describe("GitProviderService", () => {
       expect(service.getExistingProvider("/unknown/repo")).toBeNull();
     });
 
-    it("should return provider without incrementing refCount", async () => {
+    it("should return the provider without taking a reference", async () => {
       setupGitRootMock(["/test/repo"]);
       const service = GitProviderService.getInstance();
       const gitRoot = path.resolve("/test/repo");
 
       const { provider: originalProvider } =
         await service.getProvider("/test/repo");
-      expect(service.getRefCount(gitRoot)).toBe(1);
 
-      const existingProvider = service.getExistingProvider(gitRoot);
+      expect(service.getExistingProvider(gitRoot)).toBe(originalProvider);
 
-      expect(existingProvider).toBe(originalProvider);
-      expect(service.getRefCount(gitRoot)).toBe(1); // RefCount should not change
+      // One release is enough to dispose it, so no second reference was taken
+      service.releaseProvider(gitRoot);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(originalProvider.dispose).toHaveBeenCalled();
     });
   });
 
@@ -503,7 +268,7 @@ describe("GitProviderService", () => {
       expect(result).toBeNull();
     });
 
-    it("should return provider and git root without incrementing refCount", async () => {
+    it("should return provider and git root without taking a reference", async () => {
       setupGitRootMock(["/test/repo"]);
       const service = GitProviderService.getInstance();
       const gitRoot = path.resolve("/test/repo");
@@ -511,7 +276,6 @@ describe("GitProviderService", () => {
       // Create a provider first
       const { provider: originalProvider } =
         await service.getProvider("/test/repo");
-      expect(service.getRefCount(gitRoot)).toBe(1);
 
       // Get existing provider via cwd
       const result = await service.getExistingProviderByCwd(
@@ -521,7 +285,11 @@ describe("GitProviderService", () => {
       expect(result).not.toBeNull();
       expect(result!.provider).toBe(originalProvider);
       expect(result!.gitRoot).toBe(gitRoot);
-      expect(service.getRefCount(gitRoot)).toBe(1); // RefCount should not change
+
+      // One release is enough to dispose it, so no second reference was taken
+      service.releaseProvider(gitRoot);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(originalProvider.dispose).toHaveBeenCalled();
     });
   });
 
@@ -544,23 +312,6 @@ describe("GitProviderService", () => {
       expect(result1.provider.dispose).toHaveBeenCalled();
       expect(result2.provider.dispose).toHaveBeenCalled();
     });
-
-    it("should clear all pending timers", async () => {
-      const service = GitProviderService.getInstance();
-      const gitRoot = path.resolve("/test/repo");
-
-      const { provider } = await service.getProvider("/test/repo");
-      service.releaseProvider(gitRoot);
-
-      // Grace period timer started
-      GitProviderService.resetInstance();
-
-      // Advance past grace period
-      await vi.advanceTimersByTimeAsync(10000);
-
-      // Dispose should only have been called once (during reset, not by timer)
-      expect(provider.dispose).toHaveBeenCalledTimes(1);
-    });
   });
 
   // ===========================================================================
@@ -568,48 +319,21 @@ describe("GitProviderService", () => {
   // ===========================================================================
 
   describe("path normalization", () => {
-    it("should normalize paths for consistent lookup", async () => {
-      const service = GitProviderService.getInstance();
-
-      const result1 = await service.getProvider("/test/repo");
-      const result2 = await service.getProvider("/test/repo/");
-
-      expect(result1.provider).toBe(result2.provider);
-      expect(createdInstances.length).toBe(1);
-    });
-
-    it("should handle case-insensitive paths on macOS/Windows", async () => {
-      // Paths with different cases are treated as the same on macOS
-      setupGitRootMock(["/test/repo"]);
-      const service = GitProviderService.getInstance();
-
-      // First call with one case
-      const result1 = await service.getProvider("/test/repo");
-
-      // hasProvider should find it with different case
-      expect(service.hasProvider("/Test/Repo")).toBe(true);
-
-      // getRefCount should work with different case
-      expect(service.getRefCount("/TEST/REPO")).toBe(1);
-
-      // releaseProvider should work with different case
-      service.releaseProvider("/Test/Repo");
-      expect(service.getRefCount(path.resolve("/test/repo"))).toBe(0);
-    });
-
-    it("should return same provider for different case paths on case-insensitive FS", async () => {
+    it("should share one provider across path case, releasable by any case", async () => {
       setupGitRootMock(["/test/repo"]);
       const service = GitProviderService.getInstance();
 
       const result1 = await service.getProvider("/test/repo");
       const result2 = await service.getProvider("/Test/Repo");
 
-      // Should be the same provider instance
-      expect(result1.provider).toBe(result2.provider);
-      // Only one provider should have been created
+      expect(result2.provider).toBe(result1.provider);
       expect(createdInstances.length).toBe(1);
-      // RefCount should be 2
-      expect(service.getRefCount(path.resolve("/test/repo"))).toBe(2);
+      expect(service.getExistingProvider("/TEST/REPO")).toBe(result1.provider);
+
+      service.releaseProvider("/Test/Repo");
+      service.releaseProvider("/test/repo");
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(result1.provider.dispose).toHaveBeenCalledTimes(1);
     });
   });
 });

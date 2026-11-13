@@ -74,6 +74,8 @@ import { FileSystemProviderService } from "../../../src/ipc/fs/FileSystemProvide
 // ============================================================================
 
 describe("FileSystemProviderService", () => {
+  // Ref-counting, the grace period and path keys are ProviderPool's, tested in
+  // tests/ipc/ProviderPool.test.ts. These cover what the service adds.
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
@@ -142,42 +144,6 @@ describe("FileSystemProviderService", () => {
       expect(provider1).toBe(provider2);
       expect(createdInstances.length).toBe(1);
     });
-
-    it("should share one provider between concurrent calls for the same path", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const [provider1, provider2] = await Promise.all([
-        service.getProvider("/test/project"),
-        service.getProvider("/test/project"),
-      ]);
-
-      expect(provider1).toBe(provider2);
-      expect(createdInstances.length).toBe(1);
-      expect(service.getRefCount("/test/project")).toBe(2);
-    });
-
-    it("should create different providers for different paths", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider1 = await service.getProvider("/test/project1");
-      const provider2 = await service.getProvider("/test/project2");
-
-      expect(provider1).not.toBe(provider2);
-      expect(createdInstances.length).toBe(2);
-    });
-
-    it("should increment refCount on each getProvider call", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(1);
-
-      await service.getProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(2);
-
-      await service.getProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(3);
-    });
   });
 
   // ===========================================================================
@@ -185,28 +151,6 @@ describe("FileSystemProviderService", () => {
   // ===========================================================================
 
   describe("releaseProvider()", () => {
-    it("should decrement refCount on release", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-      await service.getProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(2);
-
-      service.releaseProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(1);
-    });
-
-    it("should not immediately dispose when refCount reaches 0", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider = await service.getProvider("/test/project");
-      service.releaseProvider("/test/project");
-
-      // Provider should still exist
-      expect(service.hasProvider("/test/project")).toBe(true);
-      expect(provider.dispose).not.toHaveBeenCalled();
-    });
-
     it("should dispose provider after grace period when refCount is 0", async () => {
       const service = FileSystemProviderService.getInstance();
 
@@ -217,195 +161,22 @@ describe("FileSystemProviderService", () => {
       await vi.advanceTimersByTimeAsync(5000);
 
       expect(provider.dispose).toHaveBeenCalled();
-      expect(service.hasProvider("/test/project")).toBe(false);
+      expect(service.getExistingProvider("/test/project")).toBeNull();
     });
 
-    it("should not dispose before grace period expires", async () => {
+    it("should keep the provider if getProvider is called before expiry", async () => {
       const service = FileSystemProviderService.getInstance();
 
       const provider = await service.getProvider("/test/project");
       service.releaseProvider("/test/project");
-
-      // Advance just before grace period expires
-      await vi.advanceTimersByTimeAsync(4999);
-
-      expect(provider.dispose).not.toHaveBeenCalled();
-      expect(service.hasProvider("/test/project")).toBe(true);
-    });
-
-    it("should warn when releasing unknown provider", async () => {
-      const service = FileSystemProviderService.getInstance();
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-      service.releaseProvider("/unknown/path");
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Attempted to release unknown provider"),
-      );
-
-      consoleSpy.mockRestore();
-    });
-  });
-
-  // ===========================================================================
-  // Grace Period Cancellation
-  // ===========================================================================
-
-  describe("grace period cancellation", () => {
-    it("should cancel grace period if getProvider is called before expiry", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider = await service.getProvider("/test/project");
-      service.releaseProvider("/test/project");
-
-      // Advance part way through grace period
       await vi.advanceTimersByTimeAsync(3000);
 
-      // Re-acquire provider
       const provider2 = await service.getProvider("/test/project");
-
-      // Should be same instance
-      expect(provider2).toBe(provider);
-
-      // Advance past original grace period
       await vi.advanceTimersByTimeAsync(3000);
 
-      // Should NOT be disposed (timer was cancelled)
+      expect(provider2).toBe(provider);
       expect(provider.dispose).not.toHaveBeenCalled();
-      expect(service.hasProvider("/test/project")).toBe(true);
-    });
-
-    it("should reset refCount when reacquiring during grace period", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-      service.releaseProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(0);
-
-      // Advance part way through grace period
-      await vi.advanceTimersByTimeAsync(2000);
-
-      // Re-acquire
-      await service.getProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(1);
-    });
-  });
-
-  // ===========================================================================
-  // Path Normalization
-  // ===========================================================================
-
-  describe("path normalization", () => {
-    it("should normalize relative paths", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider1 = await service.getProvider("/test/project");
-      const provider2 = await service.getProvider("/test/project/../project");
-
-      expect(provider1).toBe(provider2);
-      expect(createdInstances.length).toBe(1);
-    });
-
-    it("should normalize paths with trailing slashes", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider1 = await service.getProvider("/test/project");
-      const provider2 = await service.getProvider("/test/project/");
-
-      expect(provider1).toBe(provider2);
-      expect(createdInstances.length).toBe(1);
-    });
-
-    it("should normalize paths with double slashes", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider1 = await service.getProvider("/test/project");
-      const provider2 = await service.getProvider("/test//project");
-
-      expect(provider1).toBe(provider2);
-      expect(createdInstances.length).toBe(1);
-    });
-  });
-
-  // ===========================================================================
-  // forceDispose
-  // ===========================================================================
-
-  describe("forceDispose()", () => {
-    it("should immediately dispose provider without grace period", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider = await service.getProvider("/test/project");
-
-      await service.forceDispose("/test/project");
-
-      expect(provider.dispose).toHaveBeenCalled();
-      expect(service.hasProvider("/test/project")).toBe(false);
-    });
-
-    it("should cancel pending grace period timer", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider = await service.getProvider("/test/project");
-      service.releaseProvider("/test/project");
-
-      // Grace period started
-      await vi.advanceTimersByTimeAsync(2000);
-
-      // Force dispose
-      await service.forceDispose("/test/project");
-
-      expect(provider.dispose).toHaveBeenCalledTimes(1);
-
-      // Advance past original grace period
-      await vi.advanceTimersByTimeAsync(5000);
-
-      // Should not try to dispose again
-      expect(provider.dispose).toHaveBeenCalledTimes(1);
-    });
-
-    it("should handle force dispose of non-existent provider", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      // Should not throw
-      await expect(
-        service.forceDispose("/non/existent"),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  // ===========================================================================
-  // hasProvider and providerCount
-  // ===========================================================================
-
-  describe("hasProvider() and providerCount", () => {
-    it("should return false for unknown paths", () => {
-      const service = FileSystemProviderService.getInstance();
-
-      expect(service.hasProvider("/unknown/path")).toBe(false);
-    });
-
-    it("should return true for known paths", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-
-      expect(service.hasProvider("/test/project")).toBe(true);
-    });
-
-    it("should track providerCount correctly", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      expect(service.providerCount).toBe(0);
-
-      await service.getProvider("/test/project1");
-      expect(service.providerCount).toBe(1);
-
-      await service.getProvider("/test/project2");
-      expect(service.providerCount).toBe(2);
-
-      await service.forceDispose("/test/project1");
-      expect(service.providerCount).toBe(1);
+      expect(service.getExistingProvider("/test/project")).toBe(provider);
     });
   });
 
@@ -422,94 +193,16 @@ describe("FileSystemProviderService", () => {
       expect(result).toBeNull();
     });
 
-    it("should return provider without incrementing refCount", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      // Create provider via getProvider (subscription pattern)
-      await service.getProvider("/test/project");
-      expect(service.getRefCount("/test/project")).toBe(1);
-
-      // Get existing provider (operation pattern)
-      const provider = service.getExistingProvider("/test/project");
-
-      expect(provider).toBeDefined();
-      expect(provider).not.toBeNull();
-      expect(service.getRefCount("/test/project")).toBe(1); // Still 1, not 2
-    });
-
-    it("should return same instance as getProvider", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider1 = await service.getProvider("/test/project");
-      const provider2 = service.getExistingProvider("/test/project");
-
-      expect(provider2).toBe(provider1);
-    });
-
-    it("should work during grace period", async () => {
+    it("should return the provider without taking a reference", async () => {
       const service = FileSystemProviderService.getInstance();
 
       const provider = await service.getProvider("/test/project");
+      expect(service.getExistingProvider("/test/project")).toBe(provider);
+
+      // One release is enough to dispose it, so no second reference was taken
       service.releaseProvider("/test/project");
-
-      // During grace period, provider should still be accessible
-      await vi.advanceTimersByTimeAsync(3000);
-
-      const existingProvider = service.getExistingProvider("/test/project");
-
-      expect(existingProvider).toBe(provider);
-    });
-
-    it("should return null after grace period expires", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-      service.releaseProvider("/test/project");
-
-      // After grace period
       await vi.advanceTimersByTimeAsync(5000);
-
-      const result = service.getExistingProvider("/test/project");
-
-      expect(result).toBeNull();
-    });
-
-    it("should normalize paths", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-
-      // Various path formats should work
-      expect(service.getExistingProvider("/test/project")).not.toBeNull();
-      expect(service.getExistingProvider("/test/project/")).not.toBeNull();
-      expect(
-        service.getExistingProvider("/test/../test/project"),
-      ).not.toBeNull();
-    });
-  });
-
-  // ===========================================================================
-  // getRefCount
-  // ===========================================================================
-
-  describe("getRefCount()", () => {
-    it("should return 0 for unknown paths", () => {
-      const service = FileSystemProviderService.getInstance();
-
-      expect(service.getRefCount("/unknown/path")).toBe(0);
-    });
-
-    it("should return current refCount for known paths", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project");
-      await service.getProvider("/test/project");
-
-      expect(service.getRefCount("/test/project")).toBe(2);
-
-      service.releaseProvider("/test/project");
-
-      expect(service.getRefCount("/test/project")).toBe(1);
+      expect(provider.dispose).toHaveBeenCalled();
     });
   });
 
@@ -528,72 +221,6 @@ describe("FileSystemProviderService", () => {
 
       expect(provider1.dispose).toHaveBeenCalled();
       expect(provider2.dispose).toHaveBeenCalled();
-    });
-
-    it("should clear all pending timers", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      const provider = await service.getProvider("/test/project");
-      service.releaseProvider("/test/project");
-
-      // Grace period timer started
-      FileSystemProviderService.resetInstance();
-
-      // Advance past grace period
-      await vi.advanceTimersByTimeAsync(10000);
-
-      // Dispose should only have been called once (during reset, not by timer)
-      expect(provider.dispose).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  // ===========================================================================
-  // Multiple Providers
-  // ===========================================================================
-
-  describe("multiple providers", () => {
-    it("should manage multiple providers independently", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project1");
-      await service.getProvider("/test/project1");
-      await service.getProvider("/test/project2");
-
-      expect(service.getRefCount("/test/project1")).toBe(2);
-      expect(service.getRefCount("/test/project2")).toBe(1);
-
-      service.releaseProvider("/test/project1");
-      expect(service.getRefCount("/test/project1")).toBe(1);
-      expect(service.getRefCount("/test/project2")).toBe(1);
-    });
-
-    it("should dispose providers independently based on their grace periods", async () => {
-      const service = FileSystemProviderService.getInstance();
-
-      await service.getProvider("/test/project1");
-      await service.getProvider("/test/project2");
-
-      service.releaseProvider("/test/project1");
-
-      // Advance 3 seconds
-      await vi.advanceTimersByTimeAsync(3000);
-
-      // Release project2
-      service.releaseProvider("/test/project2");
-
-      // Advance 2 more seconds (5 total for project1)
-      await vi.advanceTimersByTimeAsync(2000);
-
-      // Project1 should be disposed
-      expect(createdInstances[0].dispose).toHaveBeenCalled();
-      // Project2 should not be disposed yet (only 2 seconds into grace)
-      expect(createdInstances[1].dispose).not.toHaveBeenCalled();
-
-      // Advance 3 more seconds (5 total for project2)
-      await vi.advanceTimersByTimeAsync(3000);
-
-      // Now project2 should be disposed
-      expect(createdInstances[1].dispose).toHaveBeenCalled();
     });
   });
 });
