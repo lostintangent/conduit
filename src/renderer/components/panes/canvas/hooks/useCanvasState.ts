@@ -9,10 +9,8 @@ import {
   clearCanvas as storeClearCanvas,
   deleteElements as storeDeleteElements,
   setSelectedIds as storeSetSelectedIds,
-  setViewport as storeSetViewport,
   updateElement as storeUpdateElement,
   updateCanvasState,
-  type ViewportState,
 } from "@/store/canvasStore";
 import type { CanvasElement, FillStyle } from "@shared/types/canvas";
 import { useAtomValue } from "jotai";
@@ -71,21 +69,6 @@ export function useCanvasState(paneId: string) {
   const clearSelection = useCallback(() => {
     storeSetSelectedIds(paneId, []);
   }, [paneId]);
-
-  const toggleSelection = useCallback(
-    (elementId: string) => {
-      const isSelected = state.selectedIds.includes(elementId);
-      if (isSelected) {
-        storeSetSelectedIds(
-          paneId,
-          state.selectedIds.filter((id) => id !== elementId),
-        );
-      } else {
-        storeSetSelectedIds(paneId, [...state.selectedIds, elementId]);
-      }
-    },
-    [paneId, state.selectedIds],
-  );
 
   // ---------------------------------------------------------------------------
   // Canvas Operations
@@ -229,36 +212,13 @@ export function useCanvasState(paneId: string) {
   }, [paneId]);
 
   // ---------------------------------------------------------------------------
-  // Viewport Operations
-  // ---------------------------------------------------------------------------
-
-  const setViewport = useCallback(
-    (viewport: ViewportState) => {
-      storeSetViewport(paneId, viewport);
-    },
-    [paneId],
-  );
-
-  const updateViewport = useCallback(
-    (updates: Partial<ViewportState>) => {
-      updateCanvasState(paneId, (s) => ({
-        ...s,
-        viewport: { ...s.viewport, ...updates },
-      }));
-    },
-    [paneId],
-  );
-
-  // ---------------------------------------------------------------------------
   // Return
   // ---------------------------------------------------------------------------
 
   return {
     // State
-    state,
     elements: state.elements,
     selectedIds: state.selectedIds,
-    viewport: state.viewport,
     backgroundColor: state.backgroundColor,
     showDotGrid: state.showDotGrid,
 
@@ -271,7 +231,6 @@ export function useCanvasState(paneId: string) {
     // Selection operations
     selectElements,
     clearSelection,
-    toggleSelection,
 
     // Canvas operations
     clearCanvas,
@@ -281,9 +240,5 @@ export function useCanvasState(paneId: string) {
     addElementsAtIndices,
     updateElementPosition,
     updateElementStyle,
-
-    // Viewport operations
-    setViewport,
-    updateViewport,
   };
 }

@@ -1,7 +1,7 @@
 import {
   type ViewportState,
-  updateCanvasState,
   canvasStateAtomFamily,
+  setViewport as storeSetViewport,
 } from "@/store/canvasStore";
 import { useAtomValue } from "jotai";
 import { useCallback } from "react";
@@ -25,12 +25,7 @@ export function useViewport(paneId: string) {
 
   // Update viewport in the global store
   const setViewport = useCallback(
-    (newViewport: ViewportState) => {
-      updateCanvasState(paneId, (state) => ({
-        ...state,
-        viewport: newViewport,
-      }));
-    },
+    (newViewport: ViewportState) => storeSetViewport(paneId, newViewport),
     [paneId],
   );
 
