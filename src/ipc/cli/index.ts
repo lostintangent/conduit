@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CLI_COMMAND_NAME, type CliResponse } from "../../shared/cli/types";
+import { capturePage } from "../browser";
 import { ensureLauncherScripts } from "./launchers";
 import {
   createCliServer,
@@ -93,7 +94,7 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
       try {
         const contents = webContents.fromId(webContentsId);
 
-        const image = await contents.capturePage(clip);
+        const image = await capturePage(contents, clip);
         const buffer = image.toPNG();
 
         const filePath = path.join(tmpdir(), `capture-${randomUUID()}.png`);
