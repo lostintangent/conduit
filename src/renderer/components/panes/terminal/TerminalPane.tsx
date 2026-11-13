@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useImageDrop } from "@/hooks/useImageDrop";
 import {
   isHyperTerminal,
   openHyperTerminal,
@@ -27,7 +28,7 @@ import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { createFitController } from "./state/fitController";
 import { broadcastTerminalInput } from "./state/synchronizeInput";
 import { attach, getOrCreate, serializeSession } from "./state/xtermCache";
-import { useImageDrop } from "./useImageDrop";
+import { pasteImage } from "./pasteImage";
 import { useRuntimeTimer } from "./useRuntimeTimer";
 
 import "@xterm/xterm/css/xterm.css";
@@ -202,7 +203,8 @@ export const TerminalPane = ({
   const sessionId = resolvedSessionId ?? terminalId;
 
   const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
-    sessionId,
+    enabled: applicationMode === "normal",
+    onImageDrop: (file) => pasteImage(sessionId, file),
   });
 
   const { display: runtimeDisplay, isRunning: isRuntimeRunning } =

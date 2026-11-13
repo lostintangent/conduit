@@ -1,3 +1,4 @@
+import { useImageDrop } from "@/hooks/useImageDrop";
 import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
 import { resolveColor, watchAppTheme } from "@/utils/theme";
 import type { CanvasPane as CanvasPaneType } from "@shared/types";
@@ -34,7 +35,6 @@ import {
   useCanvasHistory,
 } from "./history";
 import { useCanvasState } from "./hooks/useCanvasState";
-import { useImageDrop } from "./hooks/useImageDrop";
 import { useViewport } from "./hooks/useViewport";
 import { renderDotGrid } from "./render/dotGrid";
 import {

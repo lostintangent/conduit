@@ -1,7 +1,7 @@
 /**
- * Hook for handling image drag and drop onto the canvas pane.
+ * Hook for handling image drag and drop onto a pane (canvas, terminal).
  *
- * When an image file is dragged over the canvas, shows an overlay.
+ * When an image file is dragged over the pane, shows an overlay.
  * When dropped, calls the provided handler with the image file.
  */
 
@@ -13,6 +13,8 @@ import { useCallback, useState } from "react";
 // =============================================================================
 
 export interface UseImageDropOptions {
+  /** When false, image drags are ignored (default: true) */
+  enabled?: boolean;
   /** Called when an image file is dropped */
   onImageDrop: (file: File) => Promise<void>;
 }
@@ -33,17 +35,21 @@ export interface UseImageDropResult {
 // =============================================================================
 
 export function useImageDrop({
+  enabled = true,
   onImageDrop,
 }: UseImageDropOptions): UseImageDropResult {
   const [isImageDragOver, setIsImageDragOver] = useState(false);
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    if (!hasImageFile(e)) return;
+  const onDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!enabled || !hasImageFile(e)) return;
 
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    setIsImageDragOver(true);
-  }, []);
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setIsImageDragOver(true);
+    },
+    [enabled],
+  );
 
   const onDragLeave = useCallback((e: React.DragEvent) => {
     // Only reset if leaving the container (not entering a child)
@@ -54,7 +60,7 @@ export function useImageDrop({
   const onDrop = useCallback(
     async (e: React.DragEvent) => {
       const imageFile = getImageFile(e);
-      if (!imageFile) return;
+      if (!imageFile || !enabled) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -62,7 +68,7 @@ export function useImageDrop({
 
       await onImageDrop(imageFile);
     },
-    [onImageDrop],
+    [enabled, onImageDrop],
   );
 
   return {
