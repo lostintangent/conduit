@@ -452,23 +452,6 @@ export function serializeSession(
 }
 
 /**
- * Sends input to the specified terminal session or pane.
- * @param sessionOrPaneId The ID of the terminal session or pane to send input to
- * @param input The input string to send to the terminal
- * @returns True if the input was sent successfully, false if the session does not exist
- */
-export function inputToSession(
-  sessionOrPaneId: string,
-  input: string,
-): boolean {
-  const instance = resolveTerminalInstance(sessionOrPaneId);
-  if (!instance) return false;
-
-  instance.terminal.input(input);
-  return true;
-}
-
-/**
  * Update terminal theme for all active terminals
  * Called when the app theme changes
  */

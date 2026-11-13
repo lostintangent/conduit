@@ -163,17 +163,6 @@ export function hitTestElements(
 }
 
 /**
- * Find all elements at a given point.
- * Returns elements in z-order (first = bottom, last = top).
- */
-export function hitTestAllElements(
-  point: Point,
-  elements: CanvasElement[],
-): CanvasElement[] {
-  return elements.filter((element) => hitTestElement(point, element));
-}
-
-/**
  * Get the axis-aligned bounding box (AABB) of an element in world coordinates.
  * Accounts for position, rotation, and scale transforms.
  */

@@ -111,11 +111,6 @@ export interface Action {
 }
 
 /**
- * Root configuration structure (array of actions)
- */
-export type PaneActionsConfig = Action[];
-
-/**
  * Type guard to check if config is TerminalConfig
  */
 export function isTerminalConfig(config: PaneConfig): config is TerminalConfig {
@@ -134,12 +129,4 @@ export function isEditorConfig(config: PaneConfig): config is EditorConfig {
  */
 export function isBrowserConfig(config: PaneConfig): config is BrowserConfig {
   return "url" in config;
-}
-
-/**
- * Type guard to check if config is CanvasConfig.
- * Note: Use after checking paneType === "canvas".
- */
-export function isCanvasConfig(config: PaneConfig): config is CanvasConfig {
-  return !("command" in config) && !("url" in config);
 }

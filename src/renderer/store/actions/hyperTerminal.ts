@@ -114,15 +114,6 @@ export function restoreMinimizedHyperTerminals() {
 }
 
 /**
- * Checks if there are any minimized hyper terminals.
- *
- * @returns True if there are minimized terminals, false otherwise
- */
-export function hasMinimizedHyperTerminals(): boolean {
-  return store.get(hyperTerminalsAtom).some((t) => t.state === "minimized");
-}
-
-/**
  * Closes a hyper terminal and cleans up its resources.
  * This will dispose of the terminal session and remove it from the state.
  *

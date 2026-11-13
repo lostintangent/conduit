@@ -130,10 +130,3 @@ export function dismissNotification(id: string) {
     current.filter((notification) => notification.id !== id),
   );
 }
-
-export function clearNotifications() {
-  timers.forEach((timer) => clearTimeout(timer));
-  timers.clear();
-
-  store.set(notificationsAtom, []);
-}

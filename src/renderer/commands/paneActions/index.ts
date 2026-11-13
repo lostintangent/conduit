@@ -14,7 +14,6 @@ export type {
   CanvasConfig,
   PaneConfig,
   Action,
-  PaneActionsConfig,
 } from "./core/types";
 
 // Type guards
@@ -22,7 +21,6 @@ export {
   isTerminalConfig,
   isEditorConfig,
   isBrowserConfig,
-  isCanvasConfig,
 } from "./core/types";
 
 // Registry
@@ -72,8 +70,6 @@ export {
 export {
   usePaneActions,
   useEnabledPaneActions,
-  usePaneAction,
-  usePaneActionByIndex,
 } from "./hooks/usePaneActions";
 
 // UI components

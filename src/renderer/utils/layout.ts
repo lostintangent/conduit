@@ -1,9 +1,4 @@
-import type {
-  LayoutNode,
-  LayoutPaneNode,
-  LayoutSplitNode,
-  SplitDirection,
-} from "@/types";
+import type { LayoutNode, LayoutSplitNode, SplitDirection } from "@/types";
 
 export type PaneDirection = "left" | "right" | "up" | "down";
 
@@ -59,23 +54,6 @@ export const walkLayout = (
 
   return true;
 };
-
-export function findPaneNodeByPaneId(
-  root: LayoutNode,
-  paneId: string,
-): LayoutPaneNode | null {
-  let match: LayoutPaneNode | null = null;
-
-  walkLayout(root, ({ node }) => {
-    if (node.type === "pane" && node.paneId === paneId) {
-      match = node;
-      return false;
-    }
-    return true;
-  });
-
-  return match;
-}
 
 /**
  * Count the number of panes in a layout tree

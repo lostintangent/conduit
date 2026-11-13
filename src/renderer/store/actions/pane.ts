@@ -55,21 +55,6 @@ function containsPane(node: LayoutNode, paneId: string): boolean {
   return found;
 }
 
-/**
- * Check whether a pane is collapsed in a tab's layout.
- */
-export function isPaneCollapsed(tab: Tab, paneId: string): boolean {
-  let collapsed = false;
-  walkLayout(tab.layout, ({ node }) => {
-    if (node.type === "pane" && node.paneId === paneId) {
-      collapsed = !!node.collapsed;
-      return false;
-    }
-    return true;
-  });
-  return collapsed;
-}
-
 function splitLayoutNode(
   node: LayoutNode,
   targetPaneId: string,
@@ -706,89 +691,6 @@ export async function splitPane(
       if (!modified) {
         return currentTab;
       }
-
-      return {
-        ...currentTab,
-        panes: {
-          ...currentTab.panes,
-          [newPaneId]: newPaneState,
-        },
-        layout: newLayout,
-        activePaneId: newPaneId,
-      };
-    }),
-  );
-
-  return newPaneState;
-}
-
-/**
- * Create a new terminal pane at the root level of the tab layout.
- * This wraps the entire existing layout in a new split, creating a
- * full-width or full-height pane alongside all existing content.
- */
-export async function splitTabLayoutAtRoot(
-  tabId: string,
-  direction: SplitDirection,
-  insertBefore = false,
-  options: SplitPaneOptions = {},
-) {
-  const tabs = store.get(tabsAtom);
-  const tab = tabs.find((t) => t.id === tabId);
-  if (!tab) {
-    return;
-  }
-
-  if (tab.locked) {
-    return;
-  }
-
-  // Get cwd from active pane if it's a terminal
-  const activePane = tab.panes[tab.activePaneId];
-  const defaultCwd =
-    activePane?.type === "terminal" ? (activePane.cwd ?? undefined) : undefined;
-
-  const requestOptions = options.terminalOptions
-    ? { ...options.terminalOptions }
-    : defaultCwd
-      ? { cwd: defaultCwd }
-      : undefined;
-
-  const result = await api.createTerminal(requestOptions);
-  if (!result) {
-    return;
-  }
-
-  const newPaneId = generateId();
-  const newPaneState: Pane = {
-    id: newPaneId,
-    type: "terminal",
-    sessionId: result.sessionId,
-    cwd: result.cwd ?? null,
-    title: result.title,
-  };
-
-  const newLayoutNode: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId: newPaneId,
-  };
-
-  store.set(tabsAtom, (current) =>
-    current.map((currentTab) => {
-      if (currentTab.id !== tabId) {
-        return currentTab;
-      }
-
-      // Wrap entire existing layout in a new split at root level
-      const newLayout: LayoutSplitNode = {
-        id: generateId(),
-        type: "split",
-        direction,
-        children: insertBefore
-          ? [newLayoutNode, currentTab.layout]
-          : [currentTab.layout, newLayoutNode],
-      };
 
       return {
         ...currentTab,

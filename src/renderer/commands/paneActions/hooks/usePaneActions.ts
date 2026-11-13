@@ -35,35 +35,3 @@ export function useEnabledPaneActions(): Action[] {
     return actions.filter((action) => action.enabled);
   }, [actions]);
 }
-
-/**
- * Get pane action by name
- *
- * Finds an action by its name.
- *
- * @param name - Action name to find
- * @returns Action if found, undefined otherwise
- */
-export function usePaneAction(name: string): Action | undefined {
-  const actions = useAtomValue(paneActionsAtom);
-
-  return useMemo(() => {
-    return actions.find((action) => action.name === name);
-  }, [actions, name]);
-}
-
-/**
- * Get pane action by index
- *
- * Gets an action by its position in the array.
- *
- * @param index - Action index
- * @returns Action if found, undefined otherwise
- */
-export function usePaneActionByIndex(index: number): Action | undefined {
-  const actions = useAtomValue(paneActionsAtom);
-
-  return useMemo(() => {
-    return actions[index];
-  }, [actions, index]);
-}

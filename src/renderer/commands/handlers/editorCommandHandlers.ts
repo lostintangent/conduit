@@ -90,22 +90,3 @@ export function invokeEditorCommand(
 
   return false;
 }
-
-/**
- * Check if handlers are registered for a pane.
- * Useful for testing.
- *
- * @param paneId - The pane ID to check
- * @returns true if handlers are registered
- */
-export function hasEditorHandlers(paneId: string): boolean {
-  return registeredHandlers.has(paneId);
-}
-
-/**
- * Clear all registered handlers.
- * Primarily for testing.
- */
-export function clearEditorHandlers(): void {
-  registeredHandlers.clear();
-}

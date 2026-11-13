@@ -208,16 +208,6 @@ export function formatKeybindingForElectron(chords: KeyChord[]): string {
 }
 
 /**
- * Conflict information for a keybinding
- */
-export interface KeybindingConflict {
-  /** Normalized key string */
-  normalizedKey: string;
-  /** Command IDs that share this keybinding */
-  commandIds: string[];
-}
-
-/**
  * Detect keybinding conflicts
  *
  * Returns a map of normalized keybinding strings to the command IDs that use them.

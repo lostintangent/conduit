@@ -78,22 +78,6 @@ export function getSessionState(sessionId: string): SessionState {
 }
 
 /**
- * Get the current progress state of a session.
- * Returns "hidden" if the session is not tracked.
- */
-export function getProgressState(sessionId: string): ProgressState {
-  return sessionStateMap.get(sessionId)?.progressState ?? "hidden";
-}
-
-/**
- * Get the current progress percentage of a session.
- * Returns 0 if the session is not tracked.
- */
-export function getProgressPercent(sessionId: string): number {
-  return sessionStateMap.get(sessionId)?.progressPercent ?? 0;
-}
-
-/**
  * Runtime timestamps for a terminal session.
  */
 export type RuntimeTimestamps = {

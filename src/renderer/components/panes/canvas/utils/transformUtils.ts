@@ -22,12 +22,6 @@ export type HandleType =
   | "line-start"
   | "line-end";
 
-export type ResizeHandle =
-  | "resize-tl"
-  | "resize-tr"
-  | "resize-br"
-  | "resize-bl";
-
 // =============================================================================
 // Constants
 // =============================================================================

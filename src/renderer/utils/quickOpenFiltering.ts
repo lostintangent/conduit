@@ -219,12 +219,3 @@ function formatDisplayPath(filePath: string): string {
   }
   return filePath;
 }
-
-/**
- * Get workspace root by finding .git directory
- */
-export async function getWorkspaceRoot(startPath?: string): Promise<string> {
-  // For now, simple implementation
-  // TODO: Walk up to find .git directory using FileSystemV2API
-  return startPath || "";
-}
