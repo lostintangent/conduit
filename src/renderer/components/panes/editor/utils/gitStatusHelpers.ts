@@ -129,13 +129,16 @@ export function normalizeMapKey(
 // ============================================================================
 
 /**
- * Get the relative path from an absolute path and cwd.
+ * Get the relative path from an absolute path and cwd. Paths outside cwd,
+ * including siblings that share its prefix (`/a/bc` for `/a/b`), are
+ * returned unchanged.
  */
 export function getRelativePath(absolutePath: string, cwd: string): string {
-  if (absolutePath.startsWith(cwd)) {
-    return absolutePath.slice(cwd.length).replace(/^\//, "");
+  const prefix = cwd.endsWith("/") ? cwd : `${cwd}/`;
+  if (absolutePath.startsWith(prefix)) {
+    return absolutePath.slice(prefix.length);
   }
-  return absolutePath;
+  return absolutePath === cwd ? "" : absolutePath;
 }
 
 /**
