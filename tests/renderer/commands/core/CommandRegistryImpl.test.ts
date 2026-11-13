@@ -449,7 +449,6 @@ describe("CommandRegistry", () => {
   });
 
   describe("dispose()", () => {
-
     it("should cleanup keybindings when disposed", () => {
       const keybindingRegistry = new KeybindingRegistry();
       const registryWithKeybindings = new CommandRegistry(
