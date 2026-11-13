@@ -46,6 +46,13 @@ export function isSvg(filePath: string): boolean {
 }
 
 /**
+ * Check if a file is an image that can be previewed.
+ */
+export function isImageFile(filePath: string): boolean {
+  return isBinaryImage(filePath) || isSvg(filePath);
+}
+
+/**
  * Get MIME type for an image file.
  */
 export function getMimeType(filePath: string): string {

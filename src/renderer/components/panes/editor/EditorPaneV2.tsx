@@ -57,6 +57,7 @@ import {
   useReviewModeState,
   useUnseenTracking,
 } from "./hooks";
+import { isImageFile } from "./hooks/useImagePreview";
 import { MonacoModelRegistry, createModelKey } from "./registry";
 import type { FileNode, TreeViewMode, ViewMode } from "./types";
 import {
@@ -73,26 +74,6 @@ import {
   mapKeyToPath,
   selectNextAvailableFile,
 } from "./utils";
-
-/** Image extensions for auto-preview */
-const IMAGE_EXTENSIONS = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".bmp",
-  ".ico",
-  ".svg",
-];
-
-/**
- * Check if a file is an image (should auto-open in preview mode).
- */
-function isImageFile(fileName: string): boolean {
-  const lower = fileName.toLowerCase();
-  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
 
 /**
  * Compute the parent directory of a given path.

@@ -36,6 +36,7 @@ import {
   useModelState,
   type UnseenTrackingResult,
 } from "../../hooks";
+import { isImageFile } from "../../hooks/useImagePreview";
 import { createModelKey, MonacoModelRegistry } from "../../registry";
 import type {
   ContentSource,
@@ -62,26 +63,6 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  * zero-size or incorrectly-sized container.
  */
 const MODE_TRANSITION_DELAY_MS = 50;
-
-/** Image extensions supported for preview */
-const IMAGE_EXTENSIONS = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".bmp",
-  ".ico",
-  ".svg",
-];
-
-/**
- * Check if a file path is an image that can be previewed.
- */
-function isImageFile(filePath: string): boolean {
-  const lower = filePath.toLowerCase();
-  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
 
 export interface EditorPaneProps {
   /** Unique ID for the editor instance */
