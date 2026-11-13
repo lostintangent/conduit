@@ -9,7 +9,10 @@ window.conduit = {};
 
 import { renderHook, waitFor } from "@testing-library/react";
 import { Provider, createStore } from "jotai";
-import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
+import {
+  type UseCommandSystemOptions,
+  useCommandSystem,
+} from "@/commands/hooks/useCommandSystem";
 import { keybindingsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import type { ApplicationMode } from "@/store/atoms";
@@ -27,19 +30,39 @@ describe("useCommandSystem", () => {
     <Provider store={store}>{children}</Provider>
   );
 
+  function options(
+    overrides: Partial<UseCommandSystemOptions> = {},
+  ): UseCommandSystemOptions {
+    return {
+      activeTab: null,
+      tabs: [],
+      applicationMode: "normal",
+      setApplicationMode: setApplicationModeMock,
+      hasCustomLayout: () => false,
+      hasLastWorkspace: false,
+      setShowGeneralSettings: vi.fn(),
+      setShowKeybindingsEditor: vi.fn(),
+      setShowPaneActionsEditor: vi.fn(),
+      setShowAgentsEditor: vi.fn(),
+      setShowAgentLauncher: vi.fn(),
+      setShowRenameWorkspaceDialog: vi.fn(),
+      setShowWorkspacePicker: vi.fn(),
+      setIsUrlDialogOpen: vi.fn(),
+      setCleanupDialogSessions: vi.fn(),
+      setShowCreateWorkspaceDialog: vi.fn(),
+      setShowDuplicateWorkspaceDialog: vi.fn(),
+      setShowDuplicateTabWithCwdDialog: vi.fn(),
+      setTitleModal: vi.fn(),
+      setIsQuickOpenOpen: vi.fn(),
+      setQuickOpenInitialValue: vi.fn(),
+      ...overrides,
+    };
+  }
+
   function renderCommandSystem(
-    overrides: Partial<Parameters<typeof useCommandSystem>[0]> = {},
+    overrides: Partial<UseCommandSystemOptions> = {},
   ) {
-    return renderHook(
-      () =>
-        useCommandSystem({
-          activeTab: null,
-          applicationMode: "normal" as ApplicationMode,
-          setApplicationMode: setApplicationModeMock,
-          ...overrides,
-        }),
-      { wrapper },
-    );
+    return renderHook(() => useCommandSystem(options(overrides)), { wrapper });
   }
 
   describe("initialization", () => {
@@ -225,12 +248,7 @@ describe("useCommandSystem", () => {
 
     it("should update context when applicationMode changes", async () => {
       const { result, rerender } = renderHook(
-        ({ mode }) =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: mode,
-            setApplicationMode: setApplicationModeMock,
-          }),
+        ({ mode }) => useCommandSystem(options({ applicationMode: mode })),
         {
           initialProps: { mode: "normal" as ApplicationMode },
           wrapper,
@@ -257,12 +275,7 @@ describe("useCommandSystem", () => {
       const mockTab2 = { id: "tab-2", activePaneId: "pane-2", panes: {} };
 
       const { result, rerender } = renderHook(
-        ({ tab }) =>
-          useCommandSystem({
-            activeTab: tab,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
+        ({ tab }) => useCommandSystem(options({ activeTab: tab })),
         {
           initialProps: { tab: mockTab1 },
           wrapper,
