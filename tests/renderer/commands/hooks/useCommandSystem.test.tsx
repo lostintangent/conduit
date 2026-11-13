@@ -23,21 +23,28 @@ describe("useCommandSystem", () => {
     setApplicationModeMock = vi.fn();
   });
 
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
+
+  function renderCommandSystem(
+    overrides: Partial<Parameters<typeof useCommandSystem>[0]> = {},
+  ) {
+    return renderHook(
+      () =>
+        useCommandSystem({
+          activeTab: null,
+          applicationMode: "normal" as ApplicationMode,
+          setApplicationMode: setApplicationModeMock,
+          ...overrides,
+        }),
+      { wrapper },
+    );
+  }
+
   describe("initialization", () => {
     it("should initialize command system", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       // In test environment, effects run synchronously so system is ready immediately
       await waitFor(() => {
@@ -46,19 +53,7 @@ describe("useCommandSystem", () => {
     });
 
     it("should initialize and return command system state when ready", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       // Wait for initialization
       await waitFor(() => {
@@ -73,19 +68,7 @@ describe("useCommandSystem", () => {
     });
 
     it("should have commandRegistry with methods", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -98,19 +81,7 @@ describe("useCommandSystem", () => {
     });
 
     it("should have keybindingRegistry with methods", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -124,19 +95,7 @@ describe("useCommandSystem", () => {
 
   describe("application commands registration", () => {
     it("should register application commands", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -165,19 +124,7 @@ describe("useCommandSystem", () => {
     });
 
     it("should have keybindings for application commands", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -194,19 +141,7 @@ describe("useCommandSystem", () => {
 
   describe("keybindings atom population", () => {
     it("should populate keybindings atom with initial bindings", async () => {
-      renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      renderCommandSystem();
 
       await waitFor(() => {
         const keybindings = store.get(keybindingsAtom);
@@ -215,19 +150,7 @@ describe("useCommandSystem", () => {
     });
 
     it("should include application command keybindings in atom", async () => {
-      renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      renderCommandSystem();
 
       await waitFor(() => {
         const keybindings = store.get(keybindingsAtom);
@@ -246,19 +169,7 @@ describe("useCommandSystem", () => {
 
   describe("context builder", () => {
     it("should set context builder with view service", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -287,19 +198,7 @@ describe("useCommandSystem", () => {
         panes: {},
       };
 
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: mockTab,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem({ activeTab: mockTab });
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -334,9 +233,7 @@ describe("useCommandSystem", () => {
           }),
         {
           initialProps: { mode: "normal" as ApplicationMode },
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
+          wrapper,
         },
       );
 
@@ -368,9 +265,7 @@ describe("useCommandSystem", () => {
           }),
         {
           initialProps: { tab: mockTab1 },
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
+          wrapper,
         },
       );
 
@@ -405,19 +300,7 @@ describe("useCommandSystem", () => {
 
   describe("ready state management", () => {
     it("should set context builder before returning system", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       // Wait for system to be ready
       await waitFor(() => {
@@ -429,19 +312,7 @@ describe("useCommandSystem", () => {
     });
 
     it("should have isReady=true when returned", async () => {
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -453,19 +324,7 @@ describe("useCommandSystem", () => {
 
   describe("stability", () => {
     it("should not reinitialize on rerender", async () => {
-      const { result, rerender } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result, rerender } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -496,20 +355,7 @@ describe("useCommandSystem", () => {
         },
       } as unknown as typeof window.conduit;
 
-      renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-            // homeDirectory not provided
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      renderCommandSystem();
 
       await waitFor(() => {
         // Give time for effects to run
@@ -538,20 +384,7 @@ describe("useCommandSystem", () => {
         },
       } as unknown as typeof window.conduit;
 
-      const { unmount } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-            homeDirectory: "/test/home",
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { unmount } = renderCommandSystem({ homeDirectory: "/test/home" });
 
       await waitFor(() => {
         expect(mockSubscribe).toHaveBeenCalledWith(
@@ -600,20 +433,7 @@ describe("useCommandSystem", () => {
         },
       } as unknown as typeof window.conduit;
 
-      const { result } = renderHook(
-        () =>
-          useCommandSystem({
-            activeTab: null,
-            applicationMode: "normal" as ApplicationMode,
-            setApplicationMode: setApplicationModeMock,
-            homeDirectory: "/test/home",
-          }),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result } = renderCommandSystem({ homeDirectory: "/test/home" });
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
