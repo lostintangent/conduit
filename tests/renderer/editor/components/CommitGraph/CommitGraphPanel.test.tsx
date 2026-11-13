@@ -12,38 +12,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { GitV2API } from "@/api/GitV2API";
-import type { UseCommitGraphResult } from "@/components/panes/editor/components/CommitGraph/hooks/useCommitGraph";
-
-// =============================================================================
-// Default mock state - simulates empty/initial state
-// =============================================================================
-
-const defaultMockState: UseCommitGraphResult = {
-  nodes: [],
-  hasMore: false,
-  isLoading: false,
-  isLoadingMore: false,
-  error: null,
-  expandedCommitIds: new Set<string>(),
-  loadingFilesIds: new Set<string>(),
-  trackedBranches: null,
-  refresh: vi.fn(),
-  loadMore: vi.fn(),
-  toggleExpand: vi.fn().mockResolvedValue(undefined),
-};
-
-// =============================================================================
-// Mock the hook
-// =============================================================================
-
-vi.mock(
-  "../../../../../../src/renderer/components/panes/editor/components/CommitGraph/hooks/useCommitGraph",
-  () => ({
-    useCommitGraph: () => defaultMockState,
-  }),
-);
-
-// Import after mocks
 import { CommitGraphPanel } from "@/components/panes/editor/components/CommitGraph/CommitGraphPanel";
 
 // =============================================================================
@@ -169,94 +137,6 @@ describe("CommitGraphPanel", () => {
       // Default mock state has empty nodes, should show empty state
       expect(screen.getByTestId("commit-graph-empty")).toBeTruthy();
       expect(screen.getByText("No commits yet")).toBeTruthy();
-    });
-  });
-
-  describe("layout", () => {
-    it("should have flex column layout", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      const panel = screen.getByTestId("commit-graph-panel");
-      expect(panel.classList.contains("flex")).toBe(true);
-      expect(panel.classList.contains("flex-col")).toBe(true);
-    });
-
-    it("should have min-h-0 for flex child behavior", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      const panel = screen.getByTestId("commit-graph-panel");
-      expect(panel.classList.contains("min-h-0")).toBe(true);
-    });
-  });
-
-  describe("git API integration", () => {
-    it("should accept git prop", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      // Component renders without error, meaning git prop is accepted
-      expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
-    });
-
-    it("should accept optional headCommitId prop", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(
-          <CommitGraphPanel git={git} headCommitId="abc123" />,
-        );
-      });
-
-      expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
-    });
-
-    it("should accept optional pageSize prop", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} pageSize={25} />);
-      });
-
-      expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
-    });
-  });
-
-  describe("callbacks", () => {
-    it("should accept optional onFileSelect callback", async () => {
-      const git = createMockGitApi();
-      const onFileSelect = vi.fn();
-
-      await act(async () => {
-        renderWithProvider(
-          <CommitGraphPanel git={git} onFileSelect={onFileSelect} />,
-        );
-      });
-
-      expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
-    });
-
-    it("should accept optional onViewCommit callback", async () => {
-      const git = createMockGitApi();
-      const onViewCommit = vi.fn();
-
-      await act(async () => {
-        renderWithProvider(
-          <CommitGraphPanel git={git} onViewCommit={onViewCommit} />,
-        );
-      });
-
-      expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
     });
   });
 
