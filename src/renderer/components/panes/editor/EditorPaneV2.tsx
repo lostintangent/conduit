@@ -80,57 +80,17 @@ import {
  * Returns null if already at filesystem root.
  */
 function getParentDirectory(path: string): string | null {
-  // Normalize: remove trailing slash
   const normalized = path.endsWith("/") ? path.slice(0, -1) : path;
-
-  // Check for root paths
-  if (normalized === "" || normalized === "/") {
-    return null;
-  }
-
-  // Windows root check (e.g., "C:" or "C:\")
-  if (/^[A-Za-z]:$/.test(normalized) || /^[A-Za-z]:\\?$/.test(normalized)) {
-    return null;
-  }
-
-  // Find last separator
   const lastSlash = normalized.lastIndexOf("/");
-
-  if (lastSlash === -1) {
-    // No slash found - Windows root like "C:\folder"
-    const backslashIndex = normalized.lastIndexOf("\\");
-    if (backslashIndex <= 2) {
-      // At or near root
-      return normalized.slice(0, backslashIndex + 1) || null;
-    }
-    return normalized.slice(0, backslashIndex);
-  }
-
-  if (lastSlash === 0) {
-    // Root directory (Unix)
-    return "/";
-  }
-
-  return normalized.slice(0, lastSlash);
+  if (lastSlash === -1) return null;
+  return lastSlash === 0 ? "/" : normalized.slice(0, lastSlash);
 }
 
 /**
  * Check if a path is at the filesystem root.
  */
 function isAtFilesystemRoot(path: string): boolean {
-  const normalized = path.endsWith("/") ? path.slice(0, -1) : path;
-
-  // Unix root
-  if (normalized === "" || normalized === "/") {
-    return true;
-  }
-
-  // Windows root
-  if (/^[A-Za-z]:$/.test(normalized) || /^[A-Za-z]:\\?$/.test(normalized)) {
-    return true;
-  }
-
-  return false;
+  return path === "" || path === "/";
 }
 
 /**

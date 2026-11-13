@@ -47,17 +47,7 @@ export interface FileTreeToolbarProps {
  * Check if a path is at the filesystem root.
  */
 function isAtRoot(cwd: string): boolean {
-  const normalized = cwd.endsWith("/") ? cwd.slice(0, -1) : cwd;
-
-  if (normalized === "" || normalized === "/") {
-    return true;
-  }
-
-  if (/^[A-Za-z]:$/.test(normalized) || /^[A-Za-z]:\\?$/.test(normalized)) {
-    return true;
-  }
-
-  return false;
+  return cwd === "" || cwd === "/";
 }
 
 /**

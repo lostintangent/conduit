@@ -64,6 +64,14 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  */
 const MODE_TRANSITION_DELAY_MS = 50;
 
+/** Show a path relative to cwd when it is inside cwd (like v1). */
+function toDisplayPath(filePath: string, cwd: string): string {
+  const cwdWithSlash = cwd.endsWith("/") ? cwd : `${cwd}/`;
+  return filePath.startsWith(cwdWithSlash)
+    ? filePath.slice(cwdWithSlash.length)
+    : filePath;
+}
+
 export interface EditorPaneProps {
   /** Unique ID for the editor instance */
   editorId: string;
@@ -266,27 +274,7 @@ export const EditorPane = memo(function EditorPane({
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
 
-  // Calculate display path relative to cwd (like v1)
-  const displayFilePath = useMemo(() => {
-    if (!filePath) {
-      return "";
-    }
-
-    const normalizedFilePath = filePath.replace(/\\/g, "/");
-    const normalizedCwd = cwd.replace(/\\/g, "/");
-
-    const cwdWithSlash = normalizedCwd.endsWith("/")
-      ? normalizedCwd
-      : `${normalizedCwd}/`;
-
-    // If file is under cwd, show relative path
-    if (normalizedFilePath.startsWith(cwdWithSlash)) {
-      return normalizedFilePath.slice(cwdWithSlash.length);
-    }
-
-    // Otherwise show full path
-    return filePath;
-  }, [filePath, cwd]);
+  const displayFilePath = filePath ? toDisplayPath(filePath, cwd) : "";
 
   // Get model state for the current file
   const modelState = useModelState(filePath);
@@ -542,19 +530,7 @@ export const EditorPane = memo(function EditorPane({
       originalPath,
     } = viewMode;
 
-    // Calculate display path for the commit file (relative to cwd)
-    const commitDisplayPath = (() => {
-      const normalizedFilePath = commitFilePath.replace(/\\/g, "/");
-      const normalizedCwd = cwd.replace(/\\/g, "/");
-      const cwdWithSlash = normalizedCwd.endsWith("/")
-        ? normalizedCwd
-        : `${normalizedCwd}/`;
-
-      if (normalizedFilePath.startsWith(cwdWithSlash)) {
-        return normalizedFilePath.slice(cwdWithSlash.length);
-      }
-      return commitFilePath;
-    })();
+    const commitDisplayPath = toDisplayPath(commitFilePath, cwd);
 
     return (
       <div
