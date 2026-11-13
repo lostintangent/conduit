@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, type Mock, vi } from "vitest";
 
 // Mock window.conduit before importing modules that use it
 // @ts-ignore
@@ -19,7 +19,7 @@ import type { ApplicationMode } from "@/store/atoms";
 
 describe("useCommandSystem", () => {
   let store: ReturnType<typeof createStore>;
-  let setApplicationModeMock: ReturnType<typeof vi.fn>;
+  let setApplicationModeMock: Mock<(mode: ApplicationMode) => void>;
 
   beforeEach(() => {
     store = createStore();

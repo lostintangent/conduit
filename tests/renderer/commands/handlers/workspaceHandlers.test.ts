@@ -1,6 +1,6 @@
 import type { Tab } from "@/types";
 import type { Workspace, WorkspaceTab } from "@shared/types";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing handlers
 const mockWorkspaceApi = {
@@ -52,7 +52,7 @@ import * as jotaiModule from "jotai";
 
 describe("workspaceHandlers", () => {
   let mockTabs: Tab[];
-  let mockSetShowCreateWorkspaceDialog: ReturnType<typeof vi.fn>;
+  let mockSetShowCreateWorkspaceDialog: Mock<(show: boolean) => void>;
   let mockStoreGet: ReturnType<typeof vi.fn>;
   let mockStoreSet: ReturnType<typeof vi.fn>;
 

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, type Mock, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import {
   useKeybindingDispatch,
@@ -17,7 +17,7 @@ describe("useKeybindingDispatch", () => {
   let commandRegistry: CommandRegistry;
   let keybindingRegistry: KeybindingRegistry;
   let contextKeyService: ContextKeyService;
-  let mockCommandRun: ReturnType<typeof vi.fn>;
+  let mockCommandRun: Mock<() => void>;
 
   beforeEach(() => {
     contextKeyService = new ContextKeyService();
