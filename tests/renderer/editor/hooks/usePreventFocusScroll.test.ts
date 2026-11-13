@@ -21,7 +21,7 @@ describe("usePreventFocusScroll", () => {
 
   describe("basic setup", () => {
     it("should not throw when containerRef is null", () => {
-      const containerRef = { current: null };
+      const containerRef = { current: null as HTMLElement | null };
 
       expect(() => {
         renderHook(() => usePreventFocusScroll(containerRef));
