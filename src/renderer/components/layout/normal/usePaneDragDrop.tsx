@@ -1,9 +1,5 @@
 import { enterFocusMode } from "@/store/actions/focusMode";
-import {
-  detachPane,
-  insertPaneAtTabRoot,
-  insertPaneNextTo,
-} from "@/store/actions/pane";
+import { dropPane } from "@/store/actions/pane";
 import { applicationModeAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import { type EdgeZone, getDirectionFromZone } from "@/utils/dragDrop";
@@ -184,17 +180,11 @@ export function usePaneDragDrop({
         e.preventDefault();
         e.stopPropagation();
 
-        // Determine direction and insertBefore based on tab edge zone
-        const { direction, insertBefore } =
-          getDirectionFromZone(tabEdgeDropZone);
-
-        // Detach the pane from its original location
-        const sourceTab = sourceTabId || tabId;
-        const detachResult = detachPane(sourceTab, draggedPaneId);
-        if (!detachResult) return;
-
-        // Insert at root level of tab layout
-        insertPaneAtTabRoot(tabId, detachResult.pane, direction, insertBefore);
+        // Move the pane to the root level of the tab layout
+        const moved = dropPane(sourceTabId || tabId, draggedPaneId, {
+          tabId,
+          ...getDirectionFromZone(tabEdgeDropZone),
+        });
 
         // Clear drag state
         setDraggedPaneId(null);
@@ -203,8 +193,9 @@ export function usePaneDragDrop({
         setTabEdgeDropZone(null);
         setDragHoverPaneId(null);
 
-        // Notify that drop is complete
-        onDropComplete(draggedPaneId);
+        if (moved) {
+          onDropComplete(draggedPaneId);
+        }
       },
     }),
     [
@@ -275,23 +266,13 @@ export function usePaneDragDrop({
             return;
           }
 
-          // Determine direction and insertBefore based on drop zone
-          const { direction, insertBefore } = getDirectionFromZone(dropZone);
-
-          // Detach the pane from its original location
-          // Use sourceTabId if available (cross-tab drag), otherwise use tabId (same-tab drag)
-          const sourceTab = sourceTabId || tabId;
-          const detachResult = detachPane(sourceTab, draggedPaneId);
-          if (!detachResult) return;
-
           // Split the target pane with the dragged pane
-          insertPaneNextTo(
+          // Use sourceTabId if available (cross-tab drag), otherwise use tabId (same-tab drag)
+          const moved = dropPane(sourceTabId || tabId, draggedPaneId, {
             tabId,
-            paneId,
-            detachResult.pane,
-            direction,
-            insertBefore,
-          );
+            targetPaneId: paneId,
+            ...getDirectionFromZone(dropZone),
+          });
 
           // Clear drag state
           setDraggedPaneId(null);
@@ -299,8 +280,9 @@ export function usePaneDragDrop({
           setDropZone(null);
           setDragHoverPaneId(null);
 
-          // Notify that drop is complete
-          onDropComplete(draggedPaneId);
+          if (moved) {
+            onDropComplete(draggedPaneId);
+          }
         },
       };
     },

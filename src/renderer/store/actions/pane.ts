@@ -584,11 +584,73 @@ export async function splitPane(
   return newPaneState;
 }
 
+type PaneDropTarget = {
+  tabId: string;
+  direction: SplitDirection;
+  insertBefore: boolean;
+  /** Split next to this pane, or wrap the tab's whole layout when omitted */
+  targetPaneId?: string;
+};
+
+/**
+ * Move a dragged pane next to another pane, or to an edge of a tab, in the
+ * same tab or another one. Returns false and changes nothing when the target
+ * can't take the pane, so a drop never detaches a pane it can't re-insert.
+ */
+export function dropPane(
+  sourceTabId: string,
+  paneId: string,
+  target: PaneDropTarget,
+): boolean {
+  const targetTab = store.get(tabsAtom).find((tab) => tab.id === target.tabId);
+  if (!targetTab || targetTab.locked) {
+    return false;
+  }
+
+  if (target.targetPaneId) {
+    if (
+      target.targetPaneId === paneId ||
+      !targetTab.panes[target.targetPaneId]
+    ) {
+      return false;
+    }
+  } else if (
+    sourceTabId === target.tabId &&
+    Object.keys(targetTab.panes).length === 1
+  ) {
+    // Detaching a tab's only pane closes the tab before it could be re-inserted
+    return false;
+  }
+
+  const detached = detachPane(sourceTabId, paneId);
+  if (!detached) {
+    return false;
+  }
+
+  if (target.targetPaneId) {
+    insertPaneNextTo(
+      target.tabId,
+      target.targetPaneId,
+      detached.pane,
+      target.direction,
+      target.insertBefore,
+    );
+  } else {
+    insertPaneAtTabRoot(
+      target.tabId,
+      detached.pane,
+      target.direction,
+      target.insertBefore,
+    );
+  }
+  return true;
+}
+
 /**
  * Insert an existing pane at the root level of the tab layout.
  * Used by drag/drop to create full-width or full-height panes.
  */
-export function insertPaneAtTabRoot(
+function insertPaneAtTabRoot(
   tabId: string,
   pane: Pane,
   direction: SplitDirection,
