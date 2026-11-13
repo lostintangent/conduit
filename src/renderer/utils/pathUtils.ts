@@ -51,19 +51,16 @@ export function formatHomePath(path: string, homeDirectory?: string): string {
     return path;
   }
 
-  const normalizedPath = path.replace(/\\/g, "/");
-  const normalizedHome = homeDirectory.replace(/\\/g, "/");
-
-  if (normalizedPath === normalizedHome) {
+  if (path === homeDirectory) {
     return "~";
   }
 
-  const homeWithSlash = normalizedHome.endsWith("/")
-    ? normalizedHome
-    : `${normalizedHome}/`;
+  const homeWithSlash = homeDirectory.endsWith("/")
+    ? homeDirectory
+    : `${homeDirectory}/`;
 
-  if (normalizedPath.startsWith(homeWithSlash)) {
-    const suffix = normalizedPath.slice(homeWithSlash.length);
+  if (path.startsWith(homeWithSlash)) {
+    const suffix = path.slice(homeWithSlash.length);
     return suffix ? `~/${suffix}` : "~";
   }
 

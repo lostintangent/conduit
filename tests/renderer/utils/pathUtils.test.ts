@@ -96,12 +96,9 @@ describe("pathUtils", () => {
       expect(result).toBe("/Users/john/Project/myapp");
     });
 
-    it("should handle Windows-style paths in home directory", () => {
-      const result = formatHomePath(
-        "C:/Users/john/Project/myapp",
-        "C:\\Users\\john",
-      );
-      expect(result).toBe("~/Project/myapp");
+    it("should keep backslashes in macOS file names", () => {
+      const result = formatHomePath("/Users/john/a\\b", "/Users/john");
+      expect(result).toBe("~/a\\b");
     });
 
     it("should handle deeply nested paths under home", () => {
