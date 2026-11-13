@@ -1,5 +1,3 @@
-import { BrowserPane } from "@/components/panes/browser/BrowserPane";
-import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneAnchor } from "@/components/panes/editor";
 import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -23,7 +21,11 @@ export type PaneDescriptor = Pane extends infer P
     : never
   : never;
 
-export type QuickPaneDescriptor = PaneDescriptor & {
+// Quick panes only host terminals and editors.
+export type QuickPaneDescriptor = Extract<
+  PaneDescriptor,
+  { type: "terminal" | "editor" }
+> & {
   closeOnSave?: boolean;
   onClose?: () => void;
 };
@@ -85,19 +87,6 @@ export function QuickPaneDialog({
         setCurrentDescriptor((prev) =>
           prev.type === "editor" ? { ...prev, ...updates } : prev,
         );
-      }
-    },
-    [currentDescriptor.type],
-  );
-
-  // Handle updates from browser pane
-  const handleBrowserUpdate = useCallback(
-    (updates: { url?: string; title?: string }) => {
-      if (currentDescriptor.type === "browser") {
-        setCurrentDescriptor((prev) => ({
-          ...prev,
-          ...updates,
-        }));
       }
     },
     [currentDescriptor.type],
@@ -188,26 +177,6 @@ export function QuickPaneDialog({
               }}
               onClose={onClose}
               className="h-full w-full"
-            />
-          )}
-          {currentDescriptor.type === "browser" && (
-            <BrowserPane
-              url={currentDescriptor.url}
-              paneId={quickPaneId}
-              onUrlChange={(url) => handleBrowserUpdate({ url })}
-              onTitleChange={(title) => handleBrowserUpdate({ title })}
-            />
-          )}
-          {currentDescriptor.type === "canvas" && (
-            <CanvasPane
-              pane={{
-                ...currentDescriptor,
-                id: quickPaneId,
-                type: "canvas",
-              }}
-              paneId={quickPaneId}
-              tabId=""
-              onContextMenu={() => {}}
             />
           )}
         </div>
