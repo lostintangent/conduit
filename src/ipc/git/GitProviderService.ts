@@ -1,18 +1,13 @@
 /**
  * GitProviderService - Lifecycle management for git providers.
  *
- * This service manages DiskGitProvider instances with reference counting
- * and graceful disposal. Unlike FileSystemProviderService which is
- * CWD-scoped, this service is repository-scoped - multiple CWDs within
- * the same git repository share a single provider instance.
+ * Unlike FileSystemProviderService, which is CWD-scoped, this service is
+ * repository-scoped: multiple CWDs within the same git repository share a
+ * single provider instance.
  *
- * Key Features:
- * 1. **Repository-Scoped**: Providers are keyed by git root, not CWD
- * 2. **Git Root Discovery**: Automatically finds the repository root
- * 3. **Reference Counting**: Tracks how many consumers use each provider
- * 4. **Grace Period**: 5-second delay before disposing unused providers
- * 5. **File Change Notifications**: Receives file change events from
- *    FileSystemProviderService and triggers status refreshes
+ * Providers are ref-counted by ProviderPool, which also owns the grace
+ * period. This service adds git root discovery and receives file change
+ * events from FileSystemProviderService to trigger status refreshes.
  *
  * Usage Pattern:
  * ```typescript
@@ -30,116 +25,38 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { simpleGit } from "simple-git";
-import { normalizePathForComparison } from "../fs/pathUtils";
+import { ProviderPool, toProviderKey } from "../ProviderPool";
 import { DiskGitProvider } from "./DiskGitProvider";
 
-/** Grace period before disposing a provider with zero references (ms) */
-const DISPOSE_GRACE_PERIOD_MS = 5000;
-
-/**
- * Internal entry tracking a provider instance and its lifecycle state.
- */
-interface ProviderEntry {
-  /** The git provider instance */
-  provider: DiskGitProvider;
-
-  /** Current number of active references */
-  refCount: number;
-
-  /** Pending disposal timer (set when refCount reaches 0) */
-  disposeTimer?: NodeJS.Timeout;
-}
-
-// ============================================================================
-// GitProviderService
-// ============================================================================
-
-/**
- * Service for managing git provider lifecycles.
- *
- * This is a singleton service that should be accessed via `getInstance()`.
- * It handles provider creation, reference counting, and graceful disposal.
- *
- * @example
- * ```typescript
- * const service = GitProviderService.getInstance();
- *
- * // Get provider for any directory within a repo
- * const provider = await service.getProvider('/project/src');
- *
- * // Same repo returns same instance
- * const provider2 = await service.getProvider('/project/tests');
- * console.log(provider === provider2); // true (same git root)
- *
- * // Release references (use the gitRoot)
- * service.releaseProvider('/project');
- * service.releaseProvider('/project');
- *
- * // After 5 seconds with no references, provider is disposed
- * ```
- */
 export class GitProviderService {
-  // -------------------------------------------------------------------------
-  // Singleton
-  // -------------------------------------------------------------------------
-
   private static instance: GitProviderService | null = null;
 
-  /**
-   * Get the singleton instance of the service.
-   */
   static getInstance(): GitProviderService {
-    if (!GitProviderService.instance) {
-      GitProviderService.instance = new GitProviderService();
-    }
+    GitProviderService.instance ??= new GitProviderService();
     return GitProviderService.instance;
   }
 
-  /**
-   * Reset the singleton instance (for testing only).
-   *
-   * This disposes all providers and clears the singleton.
-   * Should only be used in test cleanup.
-   */
+  /** Dispose all providers and clear the singleton (for testing only). */
   static resetInstance(): void {
-    if (GitProviderService.instance) {
-      GitProviderService.instance.disposeAll();
-      GitProviderService.instance = null;
-    }
+    GitProviderService.instance?.pool.disposeAll();
+    GitProviderService.instance = null;
   }
 
-  // -------------------------------------------------------------------------
-  // Internal State
-  // -------------------------------------------------------------------------
-
-  /** Map of git roots to provider entries */
-  private providers = new Map<string, ProviderEntry>();
-
-  /** Map of pending provider creation promises to prevent race conditions */
-  private pendingCreations = new Map<
-    string,
-    Promise<{ provider: DiskGitProvider; gitRoot: string }>
-  >();
+  /** Providers keyed by git root */
+  private pool = new ProviderPool<DiskGitProvider>("GitProviderService", {
+    dispose: (provider) => provider.dispose(),
+  });
 
   /** Cached result of git availability check */
   private gitAvailableCache: boolean | undefined = undefined;
 
-  /** Private constructor - use getInstance() */
   private constructor() {}
 
-  // -------------------------------------------------------------------------
-  // Public Methods
-  // -------------------------------------------------------------------------
-
   /**
-   * Get a git provider for the specified directory.
+   * Acquire the git provider for the repository containing `cwd`.
    *
-   * Automatically finds the git repository root containing the directory.
-   * If a provider already exists for this repository, the reference count
-   * is incremented and the existing provider is returned.
-   *
-   * @param cwd - The working directory (any directory within a git repo)
-   * @returns The git provider instance and the git root path
+   * @returns The provider and its normalized git root, which is the key to
+   *   pass to `releaseProvider`
    * @throws If the directory is not within a git repository
    */
   async getProvider(
@@ -151,111 +68,25 @@ export class GitProviderService {
       throw new Error(`Not a git repository: ${cwd}`);
     }
 
-    const normalizedRoot = this.normalizePath(gitRoot);
-
-    // Check if provider already exists
-    const existing = this.providers.get(normalizedRoot);
-    if (existing) {
-      // Cancel any pending disposal
-      if (existing.disposeTimer) {
-        clearTimeout(existing.disposeTimer);
-        existing.disposeTimer = undefined;
-      }
-
-      // Increment reference count
-      existing.refCount++;
-
-      return { provider: existing.provider, gitRoot: normalizedRoot };
-    }
-
-    // Check if creation is already in progress (prevent race condition)
-    const pendingCreation = this.pendingCreations.get(normalizedRoot);
-    if (pendingCreation) {
-      // Wait for the pending creation to complete, then increment refCount
-      const result = await pendingCreation;
-      const entry = this.providers.get(normalizedRoot);
-      if (entry) {
-        entry.refCount++;
-      }
-      return result;
-    }
-
-    // Create the provider with race condition protection
-    const creationPromise = this.createProvider(normalizedRoot, cwd);
-    this.pendingCreations.set(normalizedRoot, creationPromise);
-
-    try {
-      const result = await creationPromise;
-      return result;
-    } finally {
-      this.pendingCreations.delete(normalizedRoot);
-    }
+    const provider = await this.pool.acquire(
+      gitRoot,
+      async (normalizedRoot) => {
+        const provider = new DiskGitProvider(normalizedRoot, cwd);
+        await provider.startWatching();
+        return provider;
+      },
+    );
+    return { provider, gitRoot: toProviderKey(gitRoot) };
   }
 
-  /**
-   * Internal method to create a new provider.
-   * Separated to support the pending creations pattern.
-   */
-  private async createProvider(
-    normalizedRoot: string,
-    cwd: string,
-  ): Promise<{ provider: DiskGitProvider; gitRoot: string }> {
-    // Create new provider
-    const provider = new DiskGitProvider(normalizedRoot, cwd);
-
-    // Start watching for git changes
-    await provider.startWatching();
-
-    // Store entry with initial refCount of 1
-    this.providers.set(normalizedRoot, {
-      provider,
-      refCount: 1,
-    });
-
-    return { provider, gitRoot: normalizedRoot };
-  }
-
-  /**
-   * Release a reference to a git provider.
-   *
-   * Decrements the reference count for the provider at the specified git root.
-   * When the count reaches zero, a grace period timer is started. If no new
-   * references are acquired within the grace period, the provider is disposed.
-   *
-   * @param gitRoot - The git repository root path
-   */
+  /** Release a reference, starting the grace period when it was the last. */
   releaseProvider(gitRoot: string): void {
-    const normalizedRoot = this.normalizePath(gitRoot);
-    const entry = this.providers.get(normalizedRoot);
-
-    if (!entry) {
-      console.warn(
-        `[GitProviderService] Attempted to release unknown provider: ${normalizedRoot}`,
-      );
-      return;
-    }
-
-    // Decrement reference count
-    entry.refCount--;
-
-    if (entry.refCount <= 0) {
-      // Start grace period timer
-      entry.disposeTimer = setTimeout(() => {
-        this.disposeProvider(normalizedRoot);
-      }, DISPOSE_GRACE_PERIOD_MS);
-    }
+    this.pool.release(gitRoot);
   }
 
-  /**
-   * Immediately dispose a provider without waiting for grace period.
-   *
-   * This is primarily useful for testing or forced cleanup scenarios.
-   *
-   * @param gitRoot - The git repository root path
-   */
-  async forceDispose(gitRoot: string): Promise<void> {
-    const normalizedRoot = this.normalizePath(gitRoot);
-    await this.disposeProvider(normalizedRoot);
+  /** Dispose a provider immediately, skipping the grace period. */
+  forceDispose(gitRoot: string): Promise<void> {
+    return this.pool.dispose(gitRoot);
   }
 
   /**
@@ -301,9 +132,7 @@ export class GitProviderService {
    * @returns The current reference count
    */
   getRefCount(gitRoot: string): number {
-    const normalizedRoot = this.normalizePath(gitRoot);
-    const entry = this.providers.get(normalizedRoot);
-    return entry?.refCount ?? 0;
+    return this.pool.refCount(gitRoot);
   }
 
   /**
@@ -313,8 +142,7 @@ export class GitProviderService {
    * @returns True if a provider exists (regardless of refCount)
    */
   hasProvider(gitRoot: string): boolean {
-    const normalizedRoot = this.normalizePath(gitRoot);
-    return this.providers.has(normalizedRoot);
+    return this.pool.has(gitRoot);
   }
 
   /**
@@ -327,8 +155,7 @@ export class GitProviderService {
    * @returns The provider if it exists, null otherwise
    */
   getExistingProvider(gitRoot: string): DiskGitProvider | null {
-    const normalizedRoot = this.normalizePath(gitRoot);
-    return this.providers.get(normalizedRoot)?.provider ?? null;
+    return this.pool.get(gitRoot) ?? null;
   }
 
   /**
@@ -350,14 +177,8 @@ export class GitProviderService {
       return null;
     }
 
-    const normalizedRoot = this.normalizePath(gitRoot);
-    const entry = this.providers.get(normalizedRoot);
-
-    if (!entry) {
-      return null;
-    }
-
-    return { provider: entry.provider, gitRoot: normalizedRoot };
+    const provider = this.pool.get(gitRoot);
+    return provider ? { provider, gitRoot: toProviderKey(gitRoot) } : null;
   }
 
   /**
@@ -366,7 +187,7 @@ export class GitProviderService {
    * @returns The count of providers currently managed by this service
    */
   get providerCount(): number {
-    return this.providers.size;
+    return this.pool.size;
   }
 
   /**
@@ -386,14 +207,8 @@ export class GitProviderService {
       return;
     }
 
-    const normalizedRoot = this.normalizePath(gitRoot);
-    const entry = this.providers.get(normalizedRoot);
-
-    if (entry) {
-      // Provider exists for this repo, trigger status refresh
-      entry.provider.triggerStatusRefresh();
-    }
     // Silently ignore files in repos without active providers
+    this.pool.get(gitRoot)?.triggerStatusRefresh();
   }
 
   /**
@@ -418,64 +233,5 @@ export class GitProviderService {
       this.gitAvailableCache = false;
       return false;
     }
-  }
-
-  // -------------------------------------------------------------------------
-  // Internal Methods
-  // -------------------------------------------------------------------------
-
-  /**
-   * Normalize a path for consistent lookup.
-   * Resolves to absolute path and handles case-insensitivity on macOS/Windows.
-   */
-  private normalizePath(filePath: string): string {
-    const resolved = path.resolve(filePath);
-    return normalizePathForComparison(resolved);
-  }
-
-  /**
-   * Dispose a provider and remove it from the map.
-   */
-  private async disposeProvider(normalizedRoot: string): Promise<void> {
-    const entry = this.providers.get(normalizedRoot);
-
-    if (!entry) {
-      return;
-    }
-
-    // Clear any pending timer
-    if (entry.disposeTimer) {
-      clearTimeout(entry.disposeTimer);
-    }
-
-    // Remove from map
-    this.providers.delete(normalizedRoot);
-
-    // Dispose the provider
-    entry.provider.dispose();
-  }
-
-  /**
-   * Dispose all providers (used during service shutdown/reset).
-   */
-  private disposeAll(): void {
-    for (const [normalizedRoot, entry] of this.providers) {
-      // Clear any pending timer
-      if (entry.disposeTimer) {
-        clearTimeout(entry.disposeTimer);
-      }
-
-      // Dispose provider
-      try {
-        entry.provider.dispose();
-      } catch (error) {
-        console.error(
-          `[GitProviderService] Error disposing provider ${normalizedRoot}:`,
-          error,
-        );
-      }
-    }
-
-    this.providers.clear();
   }
 }
