@@ -113,8 +113,16 @@ vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
 vi.mock(
   "../../../src/renderer/components/panes/editor/components/FileTreePanel",
   () => ({
-    FileTreePanel: ({ onFileSelect, treeViewMode, onTreeViewModeChange }) => (
+    FileTreePanel: ({
+      onFileSelect,
+      treeViewMode,
+      onTreeViewModeChange,
+      gitStatus,
+    }) => (
       <div data-testid="mock-file-tree-panel">
+        <span data-testid="tree-git-status">
+          {[...(gitStatus?.keys() ?? [])].join(",")}
+        </span>
         <button
           data-testid="select-file-button"
           onClick={() =>
@@ -723,6 +731,91 @@ describe("EditorPaneV2", () => {
 
       // Component should still be rendered after multiple cwd changes
       expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+    });
+  });
+
+  describe("branch comparison", () => {
+    const statusListeners = [];
+    const changed = (path) => [path, { path, status: "modified" }];
+
+    beforeEach(() => {
+      statusListeners.length = 0;
+      mockGit.onStatusChanged.mockImplementation((listener) => {
+        statusListeners.push(listener);
+        return () => {};
+      });
+    });
+
+    // mockReset also drops unconsumed *Once values, which clearAllMocks keeps
+    afterEach(() => {
+      mockGit.onStatusChanged.mockReset().mockReturnValue(() => {});
+      mockGit.getStatus
+        .mockReset()
+        .mockResolvedValue({ files: new Map(), branch: "main" });
+      mockGit.getStatusFromBranch.mockReset().mockResolvedValue(new Map());
+    });
+
+    it("refreshes the comparison instead of showing HEAD status when files change", async () => {
+      mockGit.getStatusFromBranch
+        .mockResolvedValueOnce(new Map([changed("feature.ts")]))
+        .mockResolvedValueOnce(
+          new Map([changed("feature.ts"), changed("saved.ts")]),
+        );
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      fireEvent.click(screen.getByTestId("select-branch-button"));
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-git-status").textContent).toBe(
+          "feature.ts",
+        );
+      });
+
+      await act(async () => {
+        for (const listener of statusListeners) {
+          listener({
+            status: { files: new Map([changed("saved.ts")]), branch: "main" },
+          });
+        }
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-git-status").textContent).toBe(
+          "feature.ts,saved.ts",
+        );
+      });
+      expect(mockGit.getStatusFromBranch).toHaveBeenLastCalledWith(
+        "test-branch",
+      );
+    });
+
+    it("keeps an agent pane's comparison when HEAD status loads after it", async () => {
+      let resolveHeadStatus;
+      mockGit.getStatus.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveHeadStatus = resolve;
+        }),
+      );
+      mockGit.getStatusFromBranch.mockResolvedValueOnce(
+        new Map([changed("feature.ts")]),
+      );
+
+      render(<EditorPaneV2 pane={{ ...TEST_PANE, agentBaseBranch: "main" }} />);
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-git-status").textContent).toBe(
+          "feature.ts",
+        );
+      });
+
+      await act(async () => {
+        resolveHeadStatus({
+          files: new Map([changed("saved.ts")]),
+          branch: "main",
+        });
+      });
+
+      expect(screen.getByTestId("tree-git-status").textContent).toBe(
+        "feature.ts",
+      );
     });
   });
 

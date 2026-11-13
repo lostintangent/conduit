@@ -428,6 +428,11 @@ export function EditorPaneV2({
     null,
   );
 
+  // The base branch the current gitStatus belongs to, and a counter that
+  // asks the baseBranch effect to refetch the comparison after a status change
+  const baseBranchRef = useRef(baseBranch);
+  const [statusVersion, setStatusVersion] = useState(0);
+
   // Derived from gitStatus: changed paths and staged count (branch status entries are never staged)
   const gitChangedFiles = useMemo(
     () => new Set<string>(gitStatus?.keys()),
@@ -485,7 +490,11 @@ export function EditorPaneV2({
   // Helper to update git status state
   const updateGitStatusState = useCallback(
     (status: { files: Map<string, GitFileStatus>; branch?: string } | null) => {
-      setGitStatus(status?.files ?? null);
+      // While comparing against a base branch, gitStatus holds that
+      // comparison, which only the baseBranch effect below may replace
+      if (!status || !baseBranchRef.current) {
+        setGitStatus(status?.files ?? null);
+      }
 
       // Update current branch from status (if available)
       // This is more reliable than a separate async call since it comes with the status
@@ -507,6 +516,9 @@ export function EditorPaneV2({
         // Also update upstream status from the fresh status
         if (event.status) {
           setHasUpstream(!!event.status.upstream);
+          if (baseBranchRef.current) {
+            setStatusVersion((version) => version + 1);
+          }
         } else {
           // Not a git repo (anymore) - auto-switch from changes to files view
           // to avoid leaving the user stuck (GitBranchToolbar hides when no git)
@@ -587,10 +599,12 @@ export function EditorPaneV2({
   }, [git, updateGitStatusState]);
   // Note: Filesystem change subscription for unseen tracking is handled by useUnseenTracking
 
-  // Recompute git status when baseBranch changes
+  // Recompute git status when baseBranch changes, or when the working tree
+  // changes while comparing against a branch
   // When baseBranch is set, fetch status relative to that branch
   // When baseBranch is null, use normal HEAD status
   useEffect(() => {
+    baseBranchRef.current = baseBranch;
     let cancelled = false;
 
     const updateStatusForBranch = async () => {
@@ -625,7 +639,7 @@ export function EditorPaneV2({
     return () => {
       cancelled = true;
     };
-  }, [git, baseBranch, updateGitStatusState]);
+  }, [git, baseBranch, statusVersion, updateGitStatusState]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
