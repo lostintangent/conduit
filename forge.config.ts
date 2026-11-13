@@ -1,7 +1,4 @@
-import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerDMG } from "@electron-forge/maker-dmg";
-import { MakerRpm } from "@electron-forge/maker-rpm";
-import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { VitePlugin } from "@electron-forge/plugin-vite";
@@ -86,20 +83,6 @@ const config: ForgeConfig = {
       icon: path.resolve(__dirname, "build/assets/icon.icns"),
       name: "Conduit",
     }),
-    new MakerSquirrel({
-      name: "Conduit",
-      setupIcon: path.resolve(__dirname, "build/assets/icon.ico"),
-      iconUrl:
-        "https://raw.githubusercontent.com/lostintangent/conduit/main/build/assets/icon.ico",
-      windowsSign: process.env.WINDOWS_CERTIFICATE_FILE
-        ? {
-            certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
-            certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
-          }
-        : undefined,
-    }),
-    new MakerRpm({}),
-    new MakerDeb({}),
   ],
   publishers: [
     new PublisherGithub({
