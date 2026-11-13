@@ -604,8 +604,12 @@ export function App() {
           )}
 
           {shouldUseDrawer && tabPosition === "top" && (
-            <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-              <DrawerContent side="top">
+            <Drawer
+              direction="top"
+              open={isTabDrawerOpen}
+              onOpenChange={setIsTabDrawerOpen}
+            >
+              <DrawerContent>
                 <TabStrip
                   onTabContextMenu={handleContextMenu}
                   position={tabPosition}
@@ -649,8 +653,12 @@ export function App() {
           )}
 
           {shouldUseDrawer && tabPosition === "bottom" && (
-            <Drawer open={isTabDrawerOpen} onOpenChange={setIsTabDrawerOpen}>
-              <DrawerContent side="bottom">
+            <Drawer
+              direction="bottom"
+              open={isTabDrawerOpen}
+              onOpenChange={setIsTabDrawerOpen}
+            >
+              <DrawerContent>
                 <TabStrip
                   onTabContextMenu={handleContextMenu}
                   position={tabPosition}
