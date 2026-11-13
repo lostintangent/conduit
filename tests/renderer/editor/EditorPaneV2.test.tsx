@@ -872,5 +872,27 @@ describe("EditorPaneV2", () => {
         "preview",
       );
     });
+
+    // Markdown supports preview too, so only an explicit reset keeps the
+    // image's preview mode from carrying over to it
+    it("opens the next file in the editor after an image", async () => {
+      const { rerender } = render(
+        <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
+      );
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe(
+        "preview",
+      );
+
+      await act(async () => {
+        rerender(
+          <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/notes.md" }} />,
+        );
+      });
+
+      expect(screen.getByTestId("editor-file-path").textContent).toBe(
+        "/project/notes.md",
+      );
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe("editor");
+    });
   });
 });

@@ -393,9 +393,9 @@ export function EditorPaneV2({
       const name = initialFilePath.split("/").pop() ?? "";
       setSelectedFile({ path: initialFilePath, name, type: "file" });
 
-      if (isImageFile(name)) {
-        setViewModePreservingReview(() => ({ type: "preview" }));
-      }
+      setViewModePreservingReview(() =>
+        isImageFile(name) ? { type: "preview" } : { type: "editor" },
+      );
 
       // In single layout, switch to editor view when file is opened programmatically
       // (same behavior as clicking a file in the tree)
