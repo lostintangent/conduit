@@ -60,7 +60,9 @@ const config: ForgeConfig = {
       : undefined,
   },
   rebuildConfig: {
-    onlyModules: ["node-pty", "@parcel/watcher"],
+    // @parcel/watcher always loads its prebuilt @parcel/watcher-<platform>-<arch>
+    // package, so building it from source would only ship an unused copy.
+    onlyModules: ["node-pty"],
     // Only force rebuild during packaging, not during dev (npm start)
     force: !!process.env.ELECTRON_FORGE_PACKAGING,
   },
