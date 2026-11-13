@@ -101,10 +101,11 @@ export class FileSystemProviderService {
   private constructor() {}
 
   /**
-   * Acquire a filesystem provider for the specified directory.
+   * Acquire a filesystem provider for the specified directory, which starts
+   * a recursive watcher on it.
    *
-   * Used by subscriptions. Operations use `getExistingProvider()` instead,
-   * since they rely on an active subscription holding the reference.
+   * Used by subscriptions, and briefly by directory listings and writes when
+   * no subscription holds one. Plain reads never acquire a provider.
    */
   async getProvider(cwd: string): Promise<DiskFileSystemProvider> {
     const entry = await this.pool.acquire(cwd, async (resolvedPath) => {

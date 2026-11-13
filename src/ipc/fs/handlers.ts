@@ -10,14 +10,12 @@
  * Architecture:
  * - Subscriptions own the provider lifecycle - they acquire a provider
  *   reference on subscribe and release it on unsubscribe/window close.
- * - One-shot operations (read, write, etc.) prefer using an existing provider
- *   from an active subscription (no refCount change). If no subscription
- *   exists, they temporarily acquire a provider and release after the operation.
- * - This hybrid approach ensures operations work standalone while optimizing
- *   for the common case of having an active subscription.
- * - Only explicit subscriptions create providers with watchers. This ensures
- *   operations like searching for package.json in parent directories don't
- *   accidentally create watchers for /Users or /.
+ * - Reads (file, text, stat, exists) go straight to disk and never create a
+ *   provider, since a provider starts a recursive watcher on its cwd. Callers
+ *   like the package.json search pass parents such as /Users or /.
+ * - Directory listings and writes go through a provider, because they keep
+ *   the directory cache current. They use the provider from an active
+ *   subscription, or temporarily acquire one and release it afterwards.
  *
  * IPC Channels:
  * - `fs-v2:read-directory` - Read directory contents
@@ -38,6 +36,7 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { warmFileCache, getPreWarmedCache } from "./fileCacheWarmer";
+import { diskReads } from "./DiskFileSystemProvider";
 import { FileSystemProviderService } from "./FileSystemProviderService";
 import { pathEquals, pathStartsWith } from "./pathUtils";
 import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
@@ -172,8 +171,9 @@ export function initializeFileSystemV2Handlers(): void {
   // -------------------------------------------------------------------------
   // Read Operations
   //
-  // Operations prefer using an existing provider from an active subscription.
-  // If no subscription exists, they temporarily acquire a provider.
+  // Directory listings prefer the provider from an active subscription and
+  // otherwise acquire one temporarily. The other reads go straight to disk and
+  // ignore `cwd`, so they never start a watcher.
   // -------------------------------------------------------------------------
 
   /**
@@ -199,18 +199,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:read-file",
-    async (
-      _,
-      params: { cwd: string; filePath: string },
-    ): Promise<Uint8Array> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-
-      try {
-        return await handle.provider.readFile(params.filePath);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
-    },
+    async (_, params: { cwd: string; filePath: string }): Promise<Uint8Array> =>
+      diskReads.readFile(params.filePath),
   );
 
   /**
@@ -219,15 +209,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:read-text-file",
-    async (_, params: { cwd: string; filePath: string }): Promise<string> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-
-      try {
-        return await handle.provider.readTextFile(params.filePath);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
-    },
+    async (_, params: { cwd: string; filePath: string }): Promise<string> =>
+      diskReads.readTextFile(params.filePath),
   );
 
   /**
@@ -236,15 +219,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:stat",
-    async (_, params: { cwd: string; path: string }): Promise<object> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        const stat = await handle.provider.stat(params.path);
-        return serializeFileStat(stat);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
-    },
+    async (_, params: { cwd: string; path: string }): Promise<object> =>
+      serializeFileStat(await diskReads.stat(params.path)),
   );
 
   /**
@@ -253,14 +229,8 @@ export function initializeFileSystemV2Handlers(): void {
    */
   ipcMain.handle(
     "fs-v2:exists",
-    async (_, params: { cwd: string; path: string }): Promise<boolean> => {
-      const handle = await getOrAcquireProvider(params.cwd);
-      try {
-        return await handle.provider.exists(params.path);
-      } finally {
-        releaseIfNeeded(params.cwd, handle);
-      }
-    },
+    async (_, params: { cwd: string; path: string }): Promise<boolean> =>
+      diskReads.exists(params.path),
   );
 
   // -------------------------------------------------------------------------

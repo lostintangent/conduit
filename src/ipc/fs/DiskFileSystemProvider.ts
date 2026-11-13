@@ -20,7 +20,6 @@
  * ```
  */
 
-import * as fsSync from "node:fs";
 import * as fs from "node:fs/promises";
 import * as nodePath from "node:path";
 
@@ -56,6 +55,46 @@ const MAX_CONCURRENT_PREFETCH = 10;
 
 /** Cooldown between cache verification checks for the same directory (ms) */
 const VERIFY_CACHE_COOLDOWN_MS = 2000;
+
+// ============================================================================
+// Stateless reads
+// ============================================================================
+
+/**
+ * Reads that touch no provider state (cache, watcher or cwd), so callers that
+ * have no provider can use them without creating one and starting its watcher.
+ */
+export const diskReads = {
+  async stat(path: string): Promise<FileStat> {
+    const stats = await fs.stat(path);
+    return {
+      type: stats.isDirectory() ? "directory" : "file",
+      size: stats.size,
+      mtime: stats.mtimeMs,
+      ctime: stats.ctimeMs,
+      // eslint-disable-next-line no-bitwise
+      readonly: (stats.mode & 0o200) === 0,
+    };
+  },
+
+  async readFile(filePath: string): Promise<Uint8Array> {
+    return new Uint8Array(await fs.readFile(filePath));
+  },
+
+  /** Binary files will have invalid UTF-8 bytes replaced with U+FFFD. */
+  async readTextFile(filePath: string): Promise<string> {
+    return fs.readFile(filePath, "utf-8");
+  },
+
+  async exists(path: string): Promise<boolean> {
+    try {
+      await fs.access(path);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+};
 
 // ============================================================================
 // DiskFileSystemProvider
@@ -163,16 +202,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /**
    * Get metadata for a file or directory.
    */
-  async stat(path: string): Promise<FileStat> {
-    const stats = await fs.stat(path);
-
-    return {
-      type: stats.isDirectory() ? "directory" : "file",
-      size: stats.size,
-      mtime: stats.mtimeMs,
-      ctime: stats.ctimeMs,
-      readonly: this.isReadonly(stats),
-    };
+  stat(path: string): Promise<FileStat> {
+    return diskReads.stat(path);
   }
 
   /**
@@ -209,9 +240,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /**
    * Read complete file contents as binary.
    */
-  async readFile(filePath: string): Promise<Uint8Array> {
-    const buffer = await fs.readFile(filePath);
-    return new Uint8Array(buffer);
+  readFile(filePath: string): Promise<Uint8Array> {
+    return diskReads.readFile(filePath);
   }
 
   /**
@@ -219,11 +249,9 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    *
    * Convenience method that returns a string directly, avoiding the need
    * for TextDecoder on the caller side.
-   *
-   * Note: Binary files will have invalid UTF-8 bytes replaced with U+FFFD.
    */
-  async readTextFile(filePath: string): Promise<string> {
-    return fs.readFile(filePath, "utf-8");
+  readTextFile(filePath: string): Promise<string> {
+    return diskReads.readTextFile(filePath);
   }
 
   /**
@@ -344,13 +372,8 @@ export class DiskFileSystemProvider implements FileSystemProvider {
   /**
    * Check if a path exists.
    */
-  async exists(path: string): Promise<boolean> {
-    try {
-      await fs.access(path);
-      return true;
-    } catch {
-      return false;
-    }
+  exists(path: string): Promise<boolean> {
+    return diskReads.exists(path);
   }
 
   // -------------------------------------------------------------------------
@@ -839,18 +862,5 @@ export class DiskFileSystemProvider implements FileSystemProvider {
     } finally {
       this.activePrefetches.delete(dirPath);
     }
-  }
-
-  // -------------------------------------------------------------------------
-  // Internal: Helpers
-  // -------------------------------------------------------------------------
-
-  /**
-   * Check if a file is readonly based on its stats.
-   */
-  private isReadonly(stats: fsSync.Stats): boolean {
-    // Check if user has write permission
-    // eslint-disable-next-line no-bitwise
-    return (stats.mode & 0o200) === 0;
   }
 }
