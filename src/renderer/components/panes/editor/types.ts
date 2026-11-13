@@ -12,7 +12,6 @@ import type { GitFileStatusCode } from "@/api/GitV2API";
 // Common Types
 // ============================================================================
 
-// Common Types - Event system types for VS Code-style patterns
 // Defined locally to avoid barrel file import issues
 
 /**
@@ -23,32 +22,6 @@ import type { GitFileStatusCode } from "@/api/GitV2API";
 export interface Disposable {
   dispose(): void;
 }
-
-/**
- * Event - A function that registers a listener and returns a disposable.
- *
- * This is the VS Code event pattern where:
- * - Consumers call the event function with a listener
- * - The function returns a Disposable for cleanup
- * - Only the event owner can fire events
- *
- * @typeParam T - The type of data passed to the listener
- */
-export type Event<T> = (listener: (e: T) => void) => Disposable;
-
-// ============================================================================
-// Editor Mode Types
-// ============================================================================
-
-/**
- * The mode in which an editor displays a file.
- *
- * - `editor`: Standard code editor for viewing/editing
- * - `diff`: Side-by-side diff view comparing versions
- */
-export type EditorMode =
-  | { type: "editor" }
-  | { type: "diff"; baseBranch?: string };
 
 // ============================================================================
 // Model State Types
@@ -141,20 +114,6 @@ export interface EditorMetadata {
 
   /** Timestamp when editor was last used (for LRU eviction) */
   lastUsed: number;
-}
-
-/**
- * Internal entry for tracking an editor in EditorRegistry.
- */
-export interface EditorEntry {
-  /** The Monaco editor instance */
-  editor: monaco.editor.IStandaloneCodeEditor;
-
-  /** The DOM container element the editor is rendered in */
-  container: HTMLElement;
-
-  /** Metadata for lifecycle management */
-  metadata: EditorMetadata;
 }
 
 // ============================================================================
@@ -411,9 +370,7 @@ export function contentSourceToGitRef(source: ContentSource): string {
  * - Optional original path for renames
  * - No `staged` field - that's a working tree concept, not a display concept
  *
- * Use the converter functions to create from API types:
- * - `gitStatusToFileChange()` - from working tree status
- * - `commitFileToFileChange()` - from historical commit file
+ * Use `commitFileToFileChange()` to create one from a historical commit file.
  */
 export interface FileChangeDisplay {
   /** Relative path from repository root */
@@ -424,24 +381,4 @@ export interface FileChangeDisplay {
 
   /** Original path before rename/copy (only present for renamed/copied files) */
   originalPath?: string;
-}
-
-/**
- * File change with additional context needed for rendering in a list.
- *
- * Extends FileChangeDisplay with:
- * - A unique key for React rendering (handles partial staging where same path appears twice)
- * - Context about the change (staged vs unstaged, or commit info)
- */
-export interface FileChangeEntry {
-  /** Unique key for this entry (may differ from path for partial staging) */
-  key: string;
-
-  /** The file change display info */
-  file: FileChangeDisplay;
-
-  /** Context for working tree changes */
-  context:
-    | { type: "working"; staged: boolean; hasIndexChanges?: boolean }
-    | { type: "historical"; commitId: string; parentCommitId: string };
 }

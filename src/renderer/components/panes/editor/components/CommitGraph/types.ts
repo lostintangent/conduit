@@ -75,20 +75,6 @@ export interface GitRef {
 // Commit Types - Additional types for graph visualization
 // ============================================================================
 
-/**
- * Statistics for a commit's changes.
- */
-export interface CommitStats {
-  /** Number of files changed */
-  filesChanged: number;
-
-  /** Total lines inserted */
-  insertions: number;
-
-  /** Total lines deleted */
-  deletions: number;
-}
-
 // ============================================================================
 // Segment Types - Tracked branch segment coloring
 // ============================================================================
@@ -317,37 +303,6 @@ export interface GraphCellRenderData {
 // ============================================================================
 // State Types - Component state management
 // ============================================================================
-
-/**
- * State for the commit graph panel.
- *
- * Managed by the useCommitGraph hook, this tracks:
- * - The computed graph nodes
- * - Loading and error states
- * - User interaction state (expansion, selection)
- */
-export interface CommitGraphState {
-  /** Computed graph nodes with swimlane data */
-  nodes: CommitGraphNode[];
-
-  /** True if more commits are available (pagination) */
-  hasMore: boolean;
-
-  /** True during initial load */
-  isLoading: boolean;
-
-  /** True while loading more commits (pagination) */
-  isLoadingMore: boolean;
-
-  /** Error message if loading failed */
-  error: string | null;
-
-  /** Set of commit IDs that are expanded to show files */
-  expandedCommits: Set<string>;
-
-  /** Currently focused commit ID (for keyboard navigation) */
-  selectedCommitId: string | null;
-}
 
 // ============================================================================
 // Callback Types - Component communication

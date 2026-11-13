@@ -50,7 +50,6 @@ export type {
   // Commit types
   HistoryCommit,
   CommitFile,
-  CommitStats,
   // Segment types
   SegmentColor,
   // Graph types
@@ -62,8 +61,6 @@ export type {
   GraphPath,
   GraphCircle,
   GraphCellRenderData,
-  // State types
-  CommitGraphState,
   // Event types
   CommitFileSelectEvent,
   CommitViewEvent,

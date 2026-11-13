@@ -49,12 +49,6 @@ export type {
   UseFileTreeChangesContextMenuOptions,
   UseFileTreeChangesContextMenuResult,
 } from "./useFileTreeChangesContextMenu";
-export { useGitOperations } from "./useGitOperations";
-export type {
-  GitOperations,
-  GitOperationsState,
-  UseGitOperationsResult,
-} from "./useGitOperations";
 export {
   getMimeType,
   isBinaryImage,

@@ -9,10 +9,6 @@
  *
  * File rendering uses shared FileEditor component (from ../shared)
  * for consistency with ReviewCommitPane.
- *
- * Also exports hooks and types for extensibility:
- * - useExpandedFiles: File expansion state management
- * - DIFF_EDITOR_OPTIONS: Shared constants
  */
 
 // Main orchestrator
@@ -34,10 +30,3 @@ export type { ReviewWorkingPaneFooterProps } from "./ReviewWorkingPaneFooter";
 // Hooks
 export { useExpandedFiles } from "./hooks";
 export type { UseExpandedFilesResult } from "./hooks";
-
-// Types and constants
-export {
-  DIFF_EDITOR_OPTIONS,
-  type ReviewWorkingSectionType,
-  type ReviewWorkingPaneFilePassthroughProps,
-} from "./types";

@@ -21,7 +21,6 @@ export type { EditorPaneAnchorProps } from "./EditorPaneAnchor";
 // Re-export types
 export type {
   ContentSource,
-  EditorMode,
   FileNode,
   ModelState,
   ModelStateEvent,

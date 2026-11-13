@@ -10,8 +10,6 @@ export type { GitBadgeProps, StatusConfig } from "./GitBadge";
 export { aggregateFolderStatus } from "./gitFolderAggregation";
 export { EditorActionButtons } from "./EditorActionButtons";
 export type { EditorActionButtonsProps } from "./EditorActionButtons";
-export { PreviewModeToggle } from "./PreviewModeToggle";
-export type { PreviewModeToggleProps } from "./PreviewModeToggle";
 export { ReadOnlyBadge } from "./ReadOnlyBadge";
 export type { ReadOnlyBadgeProps } from "./ReadOnlyBadge";
 export { SourceBadge } from "./SourceBadge";
