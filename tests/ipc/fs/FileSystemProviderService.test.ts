@@ -143,6 +143,19 @@ describe("FileSystemProviderService", () => {
       expect(createdInstances.length).toBe(1);
     });
 
+    it("should share one provider between concurrent calls for the same path", async () => {
+      const service = FileSystemProviderService.getInstance();
+
+      const [provider1, provider2] = await Promise.all([
+        service.getProvider("/test/project"),
+        service.getProvider("/test/project"),
+      ]);
+
+      expect(provider1).toBe(provider2);
+      expect(createdInstances.length).toBe(1);
+      expect(service.getRefCount("/test/project")).toBe(2);
+    });
+
     it("should create different providers for different paths", async () => {
       const service = FileSystemProviderService.getInstance();
 
