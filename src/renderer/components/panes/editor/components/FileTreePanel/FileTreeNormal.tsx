@@ -4,12 +4,8 @@
  * Displays the file system hierarchy with:
  * - Lazy loading of directory contents (load when expanded)
  * - Real-time updates via FileSystemV2 events
- * - Git status badges via GitV2 API (or from parent for branch comparison)
+ * - Git status badges from the parent's status map
  * - Keyboard navigation support
- *
- * When `gitStatusFromParent` is provided, uses that for git badges instead
- * of fetching its own status. This allows the parent to control which
- * branch the badges compare against.
  *
  * @example
  * ```tsx
@@ -17,13 +13,12 @@
  *   cwd="/project"
  *   selectedFile={selectedFile}
  *   onFileSelect={(file) => openFile(file)}
- *   gitStatusFromParent={gitStatus} // Optional: for branch comparison badges
+ *   gitStatus={gitStatus}
  * />
  * ```
  */
 
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import type { GitV2API } from "@/api/GitV2API";
 import { userSettingsAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import { useAtomValue } from "jotai";
@@ -53,7 +48,7 @@ import {
 } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fs/types";
-import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
@@ -70,9 +65,6 @@ export interface FileTreeNormalProps {
   /** FileSystem API instance (shared from parent) */
   fs: FileSystemV2API;
 
-  /** Git API instance (shared from parent) */
-  git: GitV2API;
-
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
 
@@ -82,12 +74,8 @@ export interface FileTreeNormalProps {
   /** Callback when "change to this directory" is clicked */
   onDirectoryChange?: (path: string) => void;
 
-  /**
-   * Git status from parent (source of truth).
-   * When provided, component uses this instead of fetching its own.
-   * When null/undefined, component fetches its own HEAD-based status.
-   */
-  gitStatus?: Map<string, GitFileStatus> | null;
+  /** Git status map from the parent (relative paths to status) */
+  gitStatus: Map<string, GitFileStatus> | null;
 
   /** Callback when a file/folder is renamed - used to preserve seen status */
   onPathRename?: (oldPath: string, newPath: string) => void;
@@ -143,20 +131,16 @@ export const FileTreeNormal = memo(
       paneId,
       cwd,
       fs,
-      git,
       selectedFile,
       onFileSelect,
       onDirectoryChange,
-      gitStatus: gitStatusFromParent,
+      gitStatus,
       onPathRename,
     },
     ref,
   ) {
     // Get user settings for home directory (used for "Add to Dotfiles" context menu)
     const { homeDirectory } = useAtomValue(userSettingsAtom);
-
-    // Whether parent is providing git status (we skip internal fetching)
-    const hasParentStatus = gitStatusFromParent !== undefined;
 
     // Callback ref for scroll persistence across DOM moves
     const scrollContainerRef = useScrollPersistence(paneId, "fileTree");
@@ -173,9 +157,6 @@ export const FileTreeNormal = memo(
     // Directory contents cache
     const [directoryCache, setDirectoryCache] = useState<DirectoryCache>({});
 
-    // Internal git status - only used when parent doesn't provide status
-    const [internalGitStatus, setInternalGitStatus] =
-      useState<GitStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     // ---------------------------------------------------------------------------
@@ -316,7 +297,6 @@ export const FileTreeNormal = memo(
       if (prevCwdRef.current !== cwd) {
         setDirectoryCache({});
         resetExpandedPaths([cwd]);
-        setInternalGitStatus(null);
         expandedToFileRef.current = null;
         setFocusedPath(null); // Reset focus when cwd changes
         prevCwdRef.current = cwd;
@@ -392,17 +372,6 @@ export const FileTreeNormal = memo(
               [normalizePathForKey(cwd)]: entries,
             }));
           }
-
-          // Only fetch git status if parent isn't providing it
-          if (!hasParentStatus) {
-            await git.whenReady();
-            if (cancelled) return;
-
-            const status = await git.getStatus();
-            if (!cancelled) {
-              setInternalGitStatus(status);
-            }
-          }
         } catch (error) {
           console.error("Failed to load file tree:", error);
         } finally {
@@ -417,7 +386,7 @@ export const FileTreeNormal = memo(
       return () => {
         cancelled = true;
       };
-    }, [fs, git, cwd, hasParentStatus]);
+    }, [fs, cwd]);
 
     // ---------------------------------------------------------------------------
     // Directory Change Subscription
@@ -440,23 +409,6 @@ export const FileTreeNormal = memo(
         cleanups.forEach((cleanup) => cleanup());
       };
     }, [fs, expandedPaths]);
-
-    // ---------------------------------------------------------------------------
-    // Git Status Subscription (only when parent doesn't provide status)
-    // ---------------------------------------------------------------------------
-
-    useEffect(() => {
-      // Skip subscription if parent is providing status
-      if (hasParentStatus) {
-        return;
-      }
-
-      const cleanup = git.onStatusChanged((event) => {
-        setInternalGitStatus(event.status);
-      });
-
-      return cleanup;
-    }, [git, hasParentStatus]);
 
     // ---------------------------------------------------------------------------
     // Handlers
@@ -1283,30 +1235,19 @@ export const FileTreeNormal = memo(
     // Git Status Maps
     // ---------------------------------------------------------------------------
 
-    // Use parent's gitStatus when provided, otherwise use internal status
-    const effectiveGitStatusFiles =
-      gitStatusFromParent ?? internalGitStatus?.files ?? null;
-
     /**
      * Map of full paths to git status for quick lookup.
      */
     const gitStatusMap = useMemo(() => {
       const map = new Map<string, GitFileStatus>();
-      if (effectiveGitStatusFiles) {
-        for (const [relativePath, status] of effectiveGitStatusFiles) {
+      if (gitStatus) {
+        for (const [relativePath, status] of gitStatus) {
           const fullPath = joinPath(cwd, relativePath);
           map.set(fullPath, status);
         }
       }
       return map;
-    }, [effectiveGitStatusFiles, cwd]);
-
-    /**
-     * Map of relative paths to git status for folder aggregation.
-     */
-    const relativeGitStatusMap = useMemo(() => {
-      return effectiveGitStatusFiles;
-    }, [effectiveGitStatusFiles]);
+    }, [gitStatus, cwd]);
 
     // ---------------------------------------------------------------------------
     // Render Tree
@@ -1407,7 +1348,7 @@ export const FileTreeNormal = memo(
               relativePath={relativePath}
               depth={depth}
               gitStatus={status}
-              gitStatusMap={relativeGitStatusMap}
+              gitStatusMap={gitStatus}
               isSelected={isFileSelected}
               isFocused={pathsEqual(focusedPath, entryPath)}
               isExpanded={isExpanded}
@@ -1450,7 +1391,7 @@ export const FileTreeNormal = memo(
         isPathExpanded,
         gitStatusMap,
         gitStatusSuppressedPaths,
-        relativeGitStatusMap,
+        gitStatus,
         selectedFile?.path,
         focusedPath,
         renamingPath,

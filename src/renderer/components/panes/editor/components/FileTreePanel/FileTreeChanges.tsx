@@ -50,7 +50,7 @@ import {
   // MapKey helpers (centralized operations)
   normalizeMapKey,
 } from "../../utils";
-import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
@@ -92,8 +92,8 @@ export interface FileTreeChangesProps {
   onFileSelect: (file: FileNode, mapKey: string | null) => void;
   /** View mode for changes list (flat or nested) - controlled by parent */
   viewMode?: "flat" | "nested";
-  /** Git status from parent (source of truth). When provided, component uses this instead of fetching its own. */
-  gitStatus?: Map<string, GitFileStatus> | null;
+  /** Git status map from the parent (relative paths to status) */
+  gitStatus: Map<string, GitFileStatus> | null;
   /** Whether we're comparing to a branch (not HEAD). When true: hides action buttons, combines staged/unstaged sections. */
   isComparingToBranch?: boolean;
   /** Base branch name for display (e.g., "main") */
@@ -287,130 +287,6 @@ function useChangesViewState() {
 }
 
 // ============================================================================
-// Custom Hook: useGitStatus
-// ============================================================================
-
-interface OptimisticUpdate {
-  path: string;
-  action: "stage" | "unstage";
-  timestamp: number;
-}
-
-/**
- * Hook to manage git status loading, subscriptions, and optimistic updates.
- */
-function useGitStatus(git: GitV2API, cwd: string, skip = false) {
-  const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
-    useGitAvailable();
-
-  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(!skip);
-  const [isNotGitRepo, setIsNotGitRepo] = useState(false);
-  const [optimisticUpdates, setOptimisticUpdates] = useState<
-    OptimisticUpdate[]
-  >([]);
-
-  // Initial load
-  useEffect(() => {
-    if (skip) {
-      setIsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadStatus() {
-      if (!isGitAvailable || isCheckingGit) {
-        return;
-      }
-
-      setIsLoading(true);
-      setIsNotGitRepo(false);
-      try {
-        const status = await git.getStatus();
-        if (!cancelled) {
-          setGitStatus(status);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to load git status:", error);
-          setIsNotGitRepo(true);
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [git, cwd, skip, isGitAvailable, isCheckingGit]);
-
-  // Subscribe to status changes
-  useEffect(() => {
-    if (skip || !isGitAvailable || isCheckingGit) {
-      return;
-    }
-
-    const unsubscribe = git.onStatusChanged((event) => {
-      setGitStatus(event.status);
-      setOptimisticUpdates([]);
-    });
-
-    return unsubscribe;
-  }, [git, skip, isGitAvailable, isCheckingGit]);
-
-  // Apply optimistic update
-  const applyOptimisticUpdate = useCallback(
-    (path: string, action: "stage" | "unstage") => {
-      setOptimisticUpdates((prev) => [
-        ...prev.filter((u) => u.path !== path),
-        { path, action, timestamp: Date.now() },
-      ]);
-    },
-    [],
-  );
-
-  // Revert optimistic update
-  const revertOptimisticUpdate = useCallback((path: string) => {
-    setOptimisticUpdates((prev) => prev.filter((u) => u.path !== path));
-  }, []);
-
-  // Compute status with optimistic updates applied
-  const statusWithOptimistic = useMemo(() => {
-    if (!gitStatus || optimisticUpdates.length === 0) {
-      return gitStatus;
-    }
-
-    const files = new Map(gitStatus.files);
-
-    for (const update of optimisticUpdates) {
-      const current = files.get(update.path);
-      if (current) {
-        files.set(update.path, {
-          ...current,
-          staged: update.action === "stage",
-        });
-      }
-    }
-
-    return { ...gitStatus, files };
-  }, [gitStatus, optimisticUpdates]);
-
-  return {
-    gitStatus: statusWithOptimistic,
-    isLoading,
-    isNotGitRepo,
-    isGitAvailable,
-    isCheckingGit,
-    applyOptimisticUpdate,
-    revertOptimisticUpdate,
-  };
-}
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -423,7 +299,7 @@ export function FileTreeChanges({
   selectedMapKey,
   onFileSelect,
   viewMode = "nested",
-  gitStatus: gitStatusFromParent,
+  gitStatus,
   isComparingToBranch = false,
   baseBranchName,
   isFileUnseen,
@@ -431,27 +307,13 @@ export function FileTreeChanges({
   onPathRename,
   triggerRead,
 }: FileTreeChangesProps) {
-  const hasParentStatus = gitStatusFromParent !== undefined;
   const showActionButtons = !isComparingToBranch;
 
   // Scroll persistence
   const scrollContainerRef = useScrollPersistence(paneId, "changesTree");
 
-  // Git status (internal or from parent)
-  const {
-    gitStatus: gitStatusFromHook,
-    isLoading: isLoadingInternal,
-    isNotGitRepo,
-    isGitAvailable,
-    isCheckingGit,
-    applyOptimisticUpdate,
-    revertOptimisticUpdate,
-  } = useGitStatus(git, cwd, hasParentStatus);
-
-  const gitStatus = hasParentStatus
-    ? { files: gitStatusFromParent }
-    : gitStatusFromHook;
-  const isLoading = hasParentStatus ? false : isLoadingInternal;
+  const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
+    useGitAvailable();
 
   // View state (section/folder expansion)
   const {
@@ -470,8 +332,8 @@ export function FileTreeChanges({
     const staged: Array<[string, GitFileStatus]> = [];
     const unstaged: Array<[string, GitFileStatus]> = [];
 
-    if (gitStatus?.files) {
-      for (const [path, status] of gitStatus.files) {
+    if (gitStatus) {
+      for (const [path, status] of gitStatus) {
         if (isComparingToBranch) {
           unstaged.push([path, status]);
         } else if (status.staged) {
@@ -730,16 +592,6 @@ export function FileTreeChanges({
 
       if (allDirty) return;
 
-      // Get map keys for clean paths only (for optimistic updates)
-      const cleanMapKeys = mapKeys.filter((key) => {
-        const actualPath = mapKeyToActualPath.get(key) ?? key;
-        return !isFileDirty || !isFileDirty(joinCwdPath(cwd, actualPath));
-      });
-
-      for (const p of cleanMapKeys) {
-        applyOptimisticUpdate(p, "stage");
-      }
-
       // Mark files as seen when staging
       for (const path of cleanPaths) {
         triggerRead?.("file:stage", path);
@@ -747,9 +599,6 @@ export function FileTreeChanges({
 
       git.stage(cleanPaths).catch((error) => {
         console.error("Failed to stage file(s):", error);
-        for (const p of cleanMapKeys) {
-          revertOptimisticUpdate(p);
-        }
       });
 
       clearSelection();
@@ -757,13 +606,10 @@ export function FileTreeChanges({
     [
       git,
       cwd,
-      applyOptimisticUpdate,
-      revertOptimisticUpdate,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
       getActualPaths,
-      mapKeyToActualPath,
       isFileDirty,
       clearSelection,
       triggerRead,
@@ -780,10 +626,6 @@ export function FileTreeChanges({
       // Convert to actual paths for git operations
       const actualPaths = getActualPaths(mapKeys);
 
-      for (const p of mapKeys) {
-        applyOptimisticUpdate(p, "unstage");
-      }
-
       // Mark files as seen when unstaging
       for (const path of actualPaths) {
         triggerRead?.("file:unstage", path);
@@ -791,17 +633,12 @@ export function FileTreeChanges({
 
       git.unstage(actualPaths).catch((error) => {
         console.error("Failed to unstage file(s):", error);
-        for (const p of mapKeys) {
-          revertOptimisticUpdate(p);
-        }
       });
 
       clearSelection();
     },
     [
       git,
-      applyOptimisticUpdate,
-      revertOptimisticUpdate,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
@@ -1111,48 +948,19 @@ export function FileTreeChanges({
 
     if (allDirty) return;
 
-    // Map keys for optimistic updates
-    const mapKeys = cleanFiles.map(([path]) => path);
-    // Actual paths for git operations
     const actualPaths = cleanFiles.map(([, status]) => status.path);
-
-    for (const path of mapKeys) {
-      applyOptimisticUpdate(path, "stage");
-    }
-
     git.stage(actualPaths).catch((error) => {
       console.error("Failed to stage all files:", error);
-      for (const path of mapKeys) {
-        revertOptimisticUpdate(path);
-      }
     });
-  }, [
-    git,
-    cwd,
-    unstagedFiles,
-    isFileDirty,
-    applyOptimisticUpdate,
-    revertOptimisticUpdate,
-  ]);
+  }, [git, cwd, unstagedFiles, isFileDirty]);
 
   const handleUnstageAll = useCallback(() => {
     if (stagedFiles.length === 0) return;
-    // Map keys for optimistic updates
-    const mapKeys = stagedFiles.map(([path]) => path);
-    // Actual paths for git operations
     const actualPaths = stagedFiles.map(([, status]) => status.path);
-
-    for (const path of mapKeys) {
-      applyOptimisticUpdate(path, "unstage");
-    }
-
     git.unstage(actualPaths).catch((error) => {
       console.error("Failed to unstage all files:", error);
-      for (const path of mapKeys) {
-        revertOptimisticUpdate(path);
-      }
     });
-  }, [git, stagedFiles, applyOptimisticUpdate, revertOptimisticUpdate]);
+  }, [git, stagedFiles]);
 
   // Auto-expand folders in nested view
   const prevStateRef = useRef<{
@@ -1341,28 +1149,6 @@ export function FileTreeChanges({
       <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <AlertCircle className="w-8 h-8 text-yellow-500 mb-2" />
         <p className="text-sm text-foreground/70">Git is not installed</p>
-      </div>
-    );
-  }
-
-  // Not a git repo
-  if (isNotGitRepo) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-        <AlertCircle className="w-8 h-8 text-foreground/50 mb-2" />
-        <p className="text-sm text-foreground/70">Not a git repository</p>
-      </div>
-    );
-  }
-
-  // Loading
-  if (isLoading) {
-    return (
-      <div
-        className="flex items-center justify-center h-full"
-        data-testid="file-tree-changes-loading"
-      >
-        <p className="text-sm text-foreground/50">Loading...</p>
       </div>
     );
   }

@@ -97,7 +97,7 @@ export interface FileTreePanelProps {
   isComparingToBranch?: boolean;
 
   /** Git status map (relative paths to status) - source of truth from parent */
-  gitStatus?: Map<string, GitFileStatus> | null;
+  gitStatus: Map<string, GitFileStatus> | null;
 
   /** Number of changed files */
   changedFilesCount?: number;
@@ -364,7 +364,6 @@ export const FileTreePanel = memo(
               paneId={paneId}
               cwd={cwd}
               fs={fs}
-              git={git}
               selectedFile={selectedFile}
               onFileSelect={onFileSelect}
               onDirectoryChange={onDirectoryChange}

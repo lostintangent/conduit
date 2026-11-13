@@ -80,7 +80,18 @@ vi.mock("@/store/actions/notifications", () => ({
 }));
 
 // Import component after mocks
-import { FileTreeChanges } from "../../../../../src/renderer/components/panes/editor/components/FileTreePanel/FileTreeChanges";
+import { useEffect, useState } from "react";
+import { FileTreeChanges as FileTreeChangesView } from "../../../../../src/renderer/components/panes/editor/components/FileTreePanel/FileTreeChanges";
+
+// Supplies gitStatus from the mocked git API the way EditorPaneV2 does
+function FileTreeChanges(props) {
+  const [gitStatus, setGitStatus] = useState(undefined);
+  useEffect(() => {
+    props.git.getStatus().then((status) => setGitStatus(status.files));
+  }, [props.git]);
+  if (gitStatus === undefined) return null;
+  return <FileTreeChangesView {...props} gitStatus={gitStatus} />;
+}
 
 // ============================================================================
 // API Mocks
@@ -88,19 +99,15 @@ import { FileTreeChanges } from "../../../../../src/renderer/components/panes/ed
 
 // Mock git API (passed as prop)
 const mockGetStatus = vi.fn();
-const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
-const mockWhenReady = vi.fn().mockResolvedValue(undefined);
 
 const mockGitAPI = {
   getStatus: mockGetStatus,
-  onStatusChanged: mockOnStatusChanged,
   stage: mockStage,
   unstage: mockUnstage,
   revert: mockRevert,
-  whenReady: mockWhenReady,
 };
 
 // Mock useGitAvailable hook
@@ -181,7 +188,6 @@ describe("FileTreeChanges", () => {
 
     // Default mock implementations
     mockGetStatus.mockResolvedValue(MOCK_STATUS_WITH_CHANGES);
-    mockOnStatusChanged.mockReturnValue(() => {});
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
     mockRevert.mockResolvedValue(undefined);
@@ -192,24 +198,7 @@ describe("FileTreeChanges", () => {
   // ===========================================================================
 
   describe("initial rendering", () => {
-    it("should show loading state initially", () => {
-      mockGetStatus.mockReturnValue(new Promise(() => {}));
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      expect(screen.getByTestId("file-tree-changes-loading")).toBeDefined();
-    });
-
-    it("should render changes view after loading", async () => {
+    it("should render changes view", async () => {
       render(
         <FileTreeChanges
           viewMode="flat"
@@ -223,23 +212,6 @@ describe("FileTreeChanges", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-    });
-
-    it("should call getStatus on mount", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockGetStatus).toHaveBeenCalled();
       });
     });
   });
@@ -849,53 +821,6 @@ describe("FileTreeChanges", () => {
 
       const deletedItem = screen.getByTestId("change-item-README.md");
       expect(deletedItem.textContent).toContain("D");
-    });
-  });
-
-  // ===========================================================================
-  // Event Subscriptions
-  // ===========================================================================
-
-  describe("event subscriptions", () => {
-    it("should subscribe to git status changes", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockOnStatusChanged).toHaveBeenCalled();
-      });
-    });
-
-    it("should cleanup subscription on unmount", async () => {
-      const cleanup = vi.fn();
-      mockOnStatusChanged.mockReturnValue(cleanup);
-
-      const { unmount } = render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      unmount();
-
-      expect(cleanup).toHaveBeenCalled();
     });
   });
 

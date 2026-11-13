@@ -96,28 +96,9 @@ const mockFsAPI = {
   rename: mockRename,
 };
 
-// Mock git API - use stable references
-const mockGetStatus = vi.fn();
-const mockOnStatusChanged = vi.fn();
-const mockWhenReady = vi.fn().mockResolvedValue(undefined);
-
-// Create stable git API object (passed as prop)
-const mockGitAPI = {
-  cwd: "/project",
-  isReleased: false,
-  getStatus: mockGetStatus,
-  onStatusChanged: mockOnStatusChanged,
-  whenReady: mockWhenReady,
-};
-
 // Mock useFileSystemV2 hook
 vi.mock("@/hooks/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFsAPI,
-}));
-
-// Mock useGitV2 hook
-vi.mock("@/hooks/useGitV2", () => ({
-  useGitV2: () => mockGitAPI,
 }));
 
 // Mock useGitAvailable hook
@@ -154,19 +135,10 @@ const MOCK_SRC_ENTRIES = [
   { name: "utils", type: "directory" as const },
 ];
 
-const MOCK_GIT_STATUS = {
-  branch: "main",
-  files: new Map([
-    [
-      "src/index.ts",
-      { status: "modified", staged: false, path: "src/index.ts" },
-    ],
-    [
-      "package.json",
-      { status: "modified", staged: true, path: "package.json" },
-    ],
-  ]),
-};
+const MOCK_GIT_STATUS = new Map([
+  ["src/index.ts", { status: "modified", staged: false, path: "src/index.ts" }],
+  ["package.json", { status: "modified", staged: true, path: "package.json" }],
+]);
 
 // ============================================================================
 // Tests
@@ -180,9 +152,7 @@ describe("FileTreeNormal", () => {
 
     // Default mock implementations
     mockReadDirectory.mockResolvedValue(MOCK_DIRECTORY_ENTRIES);
-    mockGetStatus.mockResolvedValue(MOCK_GIT_STATUS);
     mockOnDirectoryListingChanged.mockReturnValue(() => {});
-    mockOnStatusChanged.mockReturnValue(() => {});
   });
 
   // ===========================================================================
@@ -199,7 +169,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -214,7 +184,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -236,7 +206,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -244,23 +214,6 @@ describe("FileTreeNormal", () => {
 
       await waitFor(() => {
         expect(mockReadDirectory).toHaveBeenCalledWith(TEST_CWD);
-      });
-    });
-
-    it("should call getStatus on mount", async () => {
-      render(
-        <FileTreeNormal
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          fs={mockFsAPI as any}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockGetStatus).toHaveBeenCalled();
       });
     });
   });
@@ -276,7 +229,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -303,7 +256,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -337,7 +290,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
         />,
@@ -363,7 +316,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -393,7 +346,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -419,7 +372,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -445,7 +398,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -456,35 +409,16 @@ describe("FileTreeNormal", () => {
       });
     });
 
-    it("should subscribe to git status changes", async () => {
-      render(
-        <FileTreeNormal
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          fs={mockFsAPI as any}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockOnStatusChanged).toHaveBeenCalled();
-      });
-    });
-
-    it("should cleanup subscriptions on unmount", async () => {
+    it("should cleanup directory subscription on unmount", async () => {
       const cleanupDir = vi.fn();
-      const cleanupGit = vi.fn();
       mockOnDirectoryListingChanged.mockReturnValue(cleanupDir);
-      mockOnStatusChanged.mockReturnValue(cleanupGit);
 
       const { unmount } = render(
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -497,7 +431,6 @@ describe("FileTreeNormal", () => {
       unmount();
 
       expect(cleanupDir).toHaveBeenCalled();
-      expect(cleanupGit).toHaveBeenCalled();
     });
   });
 
@@ -514,32 +447,13 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
       );
 
       expect(true).toBe(true);
-    });
-
-    it("should handle getStatus errors gracefully", async () => {
-      mockGetStatus.mockRejectedValueOnce(new Error("Not a git repo"));
-
-      render(
-        <FileTreeNormal
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          fs={mockFsAPI as any}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-normal")).toBeDefined();
-      });
     });
   });
 
@@ -554,7 +468,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
@@ -571,7 +485,7 @@ describe("FileTreeNormal", () => {
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
           fs={mockFsAPI as any}
-          git={mockGitAPI as any}
+          gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,

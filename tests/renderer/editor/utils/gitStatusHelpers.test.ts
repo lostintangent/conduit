@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isDeletedOnRevert,
   isDiffableStatus,
+  normalizeMapKey,
 } from "../../../../src/renderer/components/panes/editor/utils/gitStatusHelpers";
 import type { GitFileStatus } from "@/api/GitV2API";
 
@@ -14,6 +15,18 @@ function createStatus(
 }
 
 describe("gitStatusHelpers", () => {
+  describe("normalizeMapKey", () => {
+    it("drops the unstaged suffix once the file is no longer partially staged", () => {
+      expect(normalizeMapKey("a.ts\0unstaged", ["a.ts"])).toBe("a.ts");
+    });
+
+    it("returns the key unchanged when nothing matches", () => {
+      expect(normalizeMapKey("gone.ts\0unstaged", ["a.ts"])).toBe(
+        "gone.ts\0unstaged",
+      );
+    });
+  });
+
   describe("isDeletedOnRevert", () => {
     it("should return true for untracked files", () => {
       expect(isDeletedOnRevert(createStatus("untracked"))).toBe(true);
