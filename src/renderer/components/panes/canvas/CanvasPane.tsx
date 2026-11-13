@@ -534,12 +534,15 @@ export const CanvasPane = memo(function CanvasPane({
   // Watch for theme changes
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    let themeForeground = getThemeForegroundColor();
     return watchAppTheme(() => {
+      const previousForeground = themeForeground;
+      themeForeground = getThemeForegroundColor();
       setBackgroundColor(getThemeBackgroundColor());
-      setStrokeColor((current) => {
-        const newForeground = getThemeForegroundColor();
-        return current === getThemeForegroundColor() ? newForeground : current;
-      });
+      // Keep the pen on the theme's foreground unless the user picked a color
+      setStrokeColor((current) =>
+        current === previousForeground ? themeForeground : current,
+      );
     });
   }, [setBackgroundColor]);
 
@@ -651,6 +654,7 @@ export const CanvasPane = memo(function CanvasPane({
     shapeType,
     strokeColor,
     strokeWidth,
+    fill,
     addElement,
     selectElements,
     recordAdd,
