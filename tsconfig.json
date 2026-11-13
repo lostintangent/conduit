@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "noImplicitAny": true,
-    "sourceMap": true,
 
     "target": "ES2021",
     "useDefineForClassFields": true,
