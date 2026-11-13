@@ -48,8 +48,8 @@ export default function (program: Command): Command {
     );
 
   program
-    .cliCommand("pane-close", (request, { closeTab, pane }) =>
-      request({ closeTab: Boolean(closeTab), paneId: pane }),
+    .cliCommand("pane-close", (request, { tab, pane }) =>
+      request({ closeTab: Boolean(tab), paneId: pane }),
     )
     .alias("close")
     .description("Close the active pane or tab.")
