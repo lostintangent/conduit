@@ -40,9 +40,6 @@ export type LaunchGroup = {
   };
 };
 
-// Legacy type alias for backwards compatibility
-export type Team = LaunchGroup;
-
 export type PlayButtonTarget = "hyper" | "newPane";
 
 export type TerminalLinkTarget = "pane" | "sidebar" | "default";

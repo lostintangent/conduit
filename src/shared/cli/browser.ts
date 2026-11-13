@@ -125,19 +125,6 @@ export type BrowserAutomationAction = StripBrowserPrefix<
   Exclude<AllBrowserCliNames, RendererBrowserCommands>
 >;
 
-/**
- * Derives BrowserAutomationCommand from CliCommand by extracting browser
- * automation commands and stripping the "browser-" prefix from names.
- */
-export type BrowserAutomationCommand = {
-  [K in BrowserAutomationAction]: Extract<
-    CliCommand,
-    { name: `browser-${K}` }
-  > extends DefineCommand<`browser-${K}`, infer Args, infer Result>
-    ? DefineCommand<K, Args, Result>
-    : never;
-}[BrowserAutomationAction];
-
 /* Type utilities for extracting command args and results */
 
 export type BrowserAutomationCommandArgs<Name extends BrowserAutomationAction> =

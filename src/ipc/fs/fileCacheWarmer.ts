@@ -165,13 +165,3 @@ export function getPreWarmedCache(workspaceRoot: string): {
     valid: cache.valid,
   };
 }
-
-/**
- * Check if warming is in progress
- */
-export function isWarmingInProgress(workspaceRoot?: string): boolean {
-  if (workspaceRoot) {
-    return warmingInProgressMap.get(workspaceRoot) ?? false;
-  }
-  return Array.from(warmingInProgressMap.values()).some((warming) => warming);
-}

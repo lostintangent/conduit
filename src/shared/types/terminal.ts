@@ -18,17 +18,9 @@ export type TerminalDataPayload = TerminalPayload & {
   data: string;
 };
 
-export type TerminalTitlePayload = TerminalPayload & {
-  title: string;
-};
-
 export type TerminalExitPayload = TerminalPayload & {
   exitCode: number | null;
   signal: number | null;
-};
-
-export type TerminalCwdPayload = TerminalPayload & {
-  cwd: string;
 };
 
 export type TerminalResizePayload = TerminalPayload & {

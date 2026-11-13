@@ -280,27 +280,3 @@ export async function scanDirectoryWithRipgrep(
     });
   });
 }
-
-/**
- * Get the ripgrep binary path (for debugging/logging)
- */
-export function getRipgrepPath(): string {
-  return rgPath;
-}
-
-/**
- * Test if ripgrep is available
- */
-export async function testRipgrep(): Promise<boolean> {
-  return new Promise((resolve) => {
-    const rg = spawn(rgPath, ["--version"]);
-
-    rg.on("close", (code) => {
-      resolve(code === 0);
-    });
-
-    rg.on("error", () => {
-      resolve(false);
-    });
-  });
-}
