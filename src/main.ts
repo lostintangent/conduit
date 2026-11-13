@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { initializeIpcHandlers, shutdownIpcHandlers } from "./ipc";
+import { closeContextMenu } from "./ipc/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
 declare const RENDERER_DEV_SERVER_URL: string | undefined;
@@ -124,6 +125,8 @@ app.whenReady().then(async () => {
 
   await createWindow();
 });
+
+app.on("before-quit", closeContextMenu);
 
 // Native callbacks that land while Node is tearing down abort the process,
 // so hold the quit until PTYs have exited and watchers have unsubscribed.

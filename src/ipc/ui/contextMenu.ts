@@ -86,6 +86,14 @@ function groupMenuItems(items: ContextMenuItemData[]): GroupedItems {
   return { topLevel, submenus };
 }
 
+// While a menu is open, AppKit's tracking loop keeps the app from exiting,
+// so quitting closes it first.
+let openMenu: Menu | undefined;
+
+export function closeContextMenu() {
+  openMenu?.closePopup();
+}
+
 export function showContextMenu(
   window: BrowserWindow,
   options: ContextMenuOptions,
@@ -198,5 +206,12 @@ export function showContextMenu(
   });
 
   const menu = Menu.buildFromTemplate(menuTemplate);
-  menu.popup();
+  openMenu = menu;
+  menu.popup({
+    callback: () => {
+      if (openMenu === menu) {
+        openMenu = undefined;
+      }
+    },
+  });
 }

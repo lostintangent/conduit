@@ -1,6 +1,7 @@
 import { Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  closeContextMenu,
   showContextMenu,
   type ContextMenuItemData,
 } from "../../../src/ipc/ui/contextMenu";
@@ -24,6 +25,7 @@ describe("contextMenu", () => {
     // Setup mock menu
     mockMenu = {
       popup: vi.fn(),
+      closePopup: vi.fn(),
     };
     (Menu.buildFromTemplate as any).mockReturnValue(mockMenu);
 
@@ -447,6 +449,19 @@ describe("contextMenu", () => {
         tabId: "tab-1",
         menuItems,
       });
+    });
+  });
+
+  // Quit can't finish while AppKit is tracking a menu
+  describe("closeContextMenu", () => {
+    it("closes the open menu until it has closed on its own", () => {
+      showContextMenu(mockWindow, { tabId: "tab-1", menuItems: [] });
+      closeContextMenu();
+      expect(mockMenu.closePopup).toHaveBeenCalledTimes(1);
+
+      mockMenu.popup.mock.calls[0][0].callback();
+      closeContextMenu();
+      expect(mockMenu.closePopup).toHaveBeenCalledTimes(1);
     });
   });
 });
