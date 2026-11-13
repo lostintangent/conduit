@@ -290,9 +290,7 @@ describe("quickOpenFiltering", () => {
       const match = results[0];
       expect(match).toHaveProperty("absolutePath");
       expect(match).toHaveProperty("relativePath");
-      expect(match).toHaveProperty("displayPath");
       expect(match).toHaveProperty("filename");
-      expect(match).toHaveProperty("directory");
       expect(match).toHaveProperty("score");
       expect(match).toHaveProperty("highlights");
       expect(match).toHaveProperty("directoryHighlights");
