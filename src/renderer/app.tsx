@@ -325,14 +325,6 @@ export function App() {
       handleHyperTerminalExit(sessionId);
     });
 
-    const unsubscribeNotification = api.onShowNotification((payload) => {
-      enqueueNotification({
-        kind: payload.type,
-        message: payload.message,
-        autoCloseMs: payload.timeout,
-      });
-    });
-
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
       if (tabsRef.current.length > 0) {
@@ -345,7 +337,6 @@ export function App() {
 
     return () => {
       unsubscribeExit();
-      unsubscribeNotification();
       unsubscribeBeforeClose();
     };
   }, []);

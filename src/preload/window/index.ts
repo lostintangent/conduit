@@ -8,7 +8,6 @@ import type {
   BackgroundCommandRequest,
   BrowserPage,
   DotfilesStatus,
-  NotificationKind,
   TerminalCaptureCommandResponse,
   TerminalCreateOptions,
   TerminalCreateResponse,
@@ -106,15 +105,6 @@ const conduitAPI = {
   // Notify when the app is about to close
   onBeforeClose: (listener: () => void) =>
     createEventListener("app:before-close", listener),
-
-  // Notify when showing a notification/toast message
-  onShowNotification: (
-    listener: (payload: {
-      type: NotificationKind;
-      message: string;
-      timeout?: number;
-    }) => void,
-  ) => createEventListener("notification:show", listener),
 
   // Notify when dotfiles repo status changes
   onDotfilesStatusChanged: (listener: (status: DotfilesStatus) => void) =>
@@ -217,48 +207,6 @@ const conduitAPI = {
 
   hasGitRepository: (cwd: string) =>
     ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
-
-  getCurrentBranch: (cwd: string) =>
-    ipcRenderer.invoke("agent:get-current-branch", cwd) as Promise<
-      string | null
-    >,
-
-  getRemoteOriginUrl: (cwd: string) =>
-    ipcRenderer.invoke("agent:get-remote-origin-url", cwd) as Promise<
-      string | null
-    >,
-
-  getGitHubRepoInfo: (cwd: string) =>
-    ipcRenderer.invoke("agent:get-github-repo-info", cwd) as Promise<{
-      owner: string;
-      name: string;
-      branch: string;
-      branchExistsOnRemote: boolean;
-      defaultBranch: string;
-    } | null>,
-
-  hasUncommittedChanges: (cwd: string) =>
-    ipcRenderer.invoke(
-      "agent:has-uncommitted-changes",
-      cwd,
-    ) as Promise<boolean>,
-
-  hasUnpushedCommits: (cwd: string) =>
-    ipcRenderer.invoke("agent:has-unpushed-commits", cwd) as Promise<boolean>,
-
-  createDiffPatch: (cwd: string) =>
-    ipcRenderer.invoke("agent:create-diff-patch", cwd) as Promise<{
-      stagedPatch: Buffer | null;
-      unstagedPatch: Buffer | null;
-      untrackedPatch: Buffer | null;
-    } | null>,
-
-  applyDiffPatch: (cwd: string, patchData: Buffer) =>
-    ipcRenderer.invoke(
-      "agent:apply-diff-patch",
-      cwd,
-      patchData,
-    ) as Promise<boolean>,
 
   gitPull: (cwd: string, rebase = false) =>
     ipcRenderer.invoke("agent:git-pull", cwd, rebase) as Promise<{

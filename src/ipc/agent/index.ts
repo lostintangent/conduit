@@ -12,13 +12,8 @@ import type {
   AgentSessionSpawnRequest,
 } from "../../shared/types";
 import {
-  applyDiffPatch,
-  createDiffPatch,
   fileExists,
   findRepoRoot,
-  getCurrentBranch,
-  getGitHubRepoInfo,
-  getRemoteOriginUrl,
   gitCommit,
   gitPull,
   gitPush,
@@ -26,10 +21,7 @@ import {
   gitStage,
   gitUnstage,
   hasGitRepository,
-  hasUncommittedChanges,
-  hasUnpushedCommits,
   hasUpstreamBranch,
-  parseGitHubRepo,
   runGit,
   safeGitCommand,
 } from "./git";
@@ -468,40 +460,6 @@ export async function initializeAgentHandlers() {
     return await hasGitRepository(cwd);
   });
 
-  ipcMain.handle("agent:get-current-branch", async (_event, cwd: string) => {
-    return await getCurrentBranch(cwd);
-  });
-
-  ipcMain.handle("agent:get-remote-origin-url", async (_event, cwd: string) => {
-    return await getRemoteOriginUrl(cwd);
-  });
-
-  ipcMain.handle("agent:get-github-repo-info", async (_event, cwd: string) => {
-    return await getGitHubRepoInfo(cwd);
-  });
-
-  ipcMain.handle(
-    "agent:has-uncommitted-changes",
-    async (_event, cwd: string) => {
-      return await hasUncommittedChanges(cwd);
-    },
-  );
-
-  ipcMain.handle("agent:has-unpushed-commits", async (_event, cwd: string) => {
-    return await hasUnpushedCommits(cwd);
-  });
-
-  ipcMain.handle("agent:create-diff-patch", async (_event, cwd: string) => {
-    return await createDiffPatch(cwd);
-  });
-
-  ipcMain.handle(
-    "agent:apply-diff-patch",
-    async (_event, cwd: string, patchData: Buffer) => {
-      return await applyDiffPatch(cwd, patchData);
-    },
-  );
-
   ipcMain.handle(
     "agent:git-pull",
     async (_event, cwd: string, rebase = false) => {
@@ -548,11 +506,3 @@ export async function initializeAgentHandlers() {
     },
   );
 }
-
-export {
-  getCurrentBranch,
-  getGitHubRepoInfo,
-  getRemoteOriginUrl,
-  hasGitRepository,
-  parseGitHubRepo,
-};
