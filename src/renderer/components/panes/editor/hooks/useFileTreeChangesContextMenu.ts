@@ -35,9 +35,7 @@ import {
 import {
   fileTreeChangesMode,
   fileTreeCwd,
-  fileTreeFocused,
   fileTreeItemFocused,
-  fileTreeItemIsDirectory,
   fileTreeItemIsFile,
   fileTreeItemIsStaged,
   fileTreeItemMapKey,
@@ -212,12 +210,10 @@ export function useFileTreeChangesContextMenu({
 
         // Set context keys for the right-clicked item
         // Common keys
-        contextKeyService.setGlobal(fileTreeFocused.key, true);
         contextKeyService.setGlobal(fileTreeItemFocused.key, true);
         contextKeyService.setGlobal(fileTreeTargetPath.key, path);
         contextKeyService.setGlobal(fileTreeCwd.key, cwd);
         contextKeyService.setGlobal(fileTreeItemIsFile.key, !isDirectory);
-        contextKeyService.setGlobal(fileTreeItemIsDirectory.key, isDirectory);
 
         // Changes mode specific keys
         contextKeyService.setGlobal(fileTreeChangesMode.key, true);

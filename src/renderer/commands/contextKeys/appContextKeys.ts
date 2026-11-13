@@ -108,15 +108,6 @@ export const tabHasWorktrees = new ContextKey<boolean>(
 // ============================================================================
 
 /**
- * Whether the file tree panel is focused
- * Used by: file tree commands (keybindings activation)
- */
-export const fileTreeFocused = new ContextKey<boolean>(
-  "fileTreeFocused",
-  false,
-);
-
-/**
  * Whether a file tree item is currently focused
  * Used by: file tree context menu commands
  */
@@ -131,15 +122,6 @@ export const fileTreeItemFocused = new ContextKey<boolean>(
  */
 export const fileTreeItemIsFile = new ContextKey<boolean>(
   "fileTreeItemIsFile",
-  false,
-);
-
-/**
- * Whether the focused file tree item is a directory
- * Used by: commands that behave differently for directories
- */
-export const fileTreeItemIsDirectory = new ContextKey<boolean>(
-  "fileTreeItemIsDirectory",
   false,
 );
 

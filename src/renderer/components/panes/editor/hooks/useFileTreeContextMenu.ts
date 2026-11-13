@@ -34,10 +34,8 @@ import {
 import {
   fileTreeChangesMode,
   fileTreeCwd,
-  fileTreeFocused,
   fileTreeItemFocused,
   fileTreeItemInHomeDirectory,
-  fileTreeItemIsDirectory,
   fileTreeItemIsFile,
   fileTreeItemIsSymlink,
   fileTreeTargetPath,
@@ -165,7 +163,6 @@ export function useFileTreeContextMenu({
       try {
         const contextKeyService = getContextKeyService();
 
-        contextKeyService.setGlobal(fileTreeFocused.key, isFocused);
         contextKeyService.setGlobal(
           fileTreeItemFocused.key,
           isFocused && focusedPath !== null,
@@ -174,10 +171,6 @@ export function useFileTreeContextMenu({
         contextKeyService.setGlobal(
           fileTreeItemIsFile.key,
           entryType === "file",
-        );
-        contextKeyService.setGlobal(
-          fileTreeItemIsDirectory.key,
-          entryType === "directory",
         );
       } catch {
         // Command system not initialized yet
@@ -215,7 +208,6 @@ export function useFileTreeContextMenu({
           : false;
 
         // Set context keys for the right-clicked item
-        contextKeyService.setGlobal(fileTreeFocused.key, true);
         // For empty space clicks, no specific item is focused
         contextKeyService.setGlobal(
           fileTreeItemFocused.key,
@@ -226,10 +218,6 @@ export function useFileTreeContextMenu({
         contextKeyService.setGlobal(
           fileTreeItemIsFile.key,
           isEmptySpaceClick ? false : isFile,
-        );
-        contextKeyService.setGlobal(
-          fileTreeItemIsDirectory.key,
-          isEmptySpaceClick ? true : !isFile,
         );
         contextKeyService.setGlobal(fileTreeItemIsSymlink.key, isSymlink);
         contextKeyService.setGlobal(
