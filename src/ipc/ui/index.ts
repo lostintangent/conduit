@@ -271,6 +271,8 @@ export function initializeUIHandlers(window: BrowserWindow) {
   });
 
   ipcMain.on("ui:write-clipboard", (_, text: string) => {
-    clipboard.writeText(text);
+    clipboard.writeText(text).catch((error) => {
+      console.error("[UI] Failed to write to the clipboard:", error);
+    });
   });
 }

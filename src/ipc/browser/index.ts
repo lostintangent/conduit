@@ -1,5 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import {
+  ClipboardItem,
   clipboard,
   ipcMain,
   type Rectangle,
@@ -29,7 +30,11 @@ export function initializeBrowserHandlers() {
     async (_, webContentsId: number) => {
       const contents = webContents.fromId(webContentsId);
       const image = await capturePage(contents);
-      clipboard.writeImage(image);
+      // Copy the bytes because TypeScript doesn't accept a Node Buffer as a BlobPart.
+      const png = new Blob([new Uint8Array(image.toPNG())], {
+        type: "image/png",
+      });
+      await clipboard.write([new ClipboardItem({ "image/png": png })]);
     },
   );
 
