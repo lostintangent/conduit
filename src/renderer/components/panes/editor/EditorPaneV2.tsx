@@ -1214,10 +1214,21 @@ export function EditorPaneV2({
   /**
    * Handle entering changes review mode.
    * Switches the view mode to show all changes with inline diffs.
+   * In single layout, review replaces the tree, and exiting goes back to it.
    */
   const handleReviewChanges = useCallback(() => {
     enterReviewMode(baseBranch ?? undefined);
-  }, [baseBranch, enterReviewMode]);
+    if (layout === "single") {
+      setPanelView("editor");
+    }
+  }, [baseBranch, enterReviewMode, layout]);
+
+  const handleExitReview = useCallback(() => {
+    exitReviewMode();
+    if (layout === "single") {
+      setPanelView("tree");
+    }
+  }, [exitReviewMode, layout]);
 
   /**
    * Handle file selection from commit graph.
@@ -1706,7 +1717,7 @@ export function EditorPaneV2({
             showDiffToggle={isCurrentFileGitModified}
             isDiffMode={viewMode.type === "diff"}
             onToggleDiffMode={handleToggleDiffMode}
-            onExitReview={exitReviewMode}
+            onExitReview={handleExitReview}
             onExitCommitMode={handleExitCommitMode}
             isFileDeleted={isCurrentFileDeleted}
             isFileStaged={isCurrentFileStaged}

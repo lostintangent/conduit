@@ -118,8 +118,12 @@ vi.mock(
       treeViewMode,
       onTreeViewModeChange,
       gitStatus,
+      onReviewChanges,
     }) => (
       <div data-testid="mock-file-tree-panel">
+        <button data-testid="review-changes-button" onClick={onReviewChanges}>
+          Review
+        </button>
         <span data-testid="tree-git-status">
           {[...(gitStatus?.keys() ?? [])].join(",")}
         </span>
@@ -173,8 +177,11 @@ vi.mock(
 vi.mock(
   "../../../src/renderer/components/panes/editor/components/EditorPane",
   () => ({
-    EditorPane: ({ selectedFile, viewMode }) => (
+    EditorPane: ({ selectedFile, viewMode, onExitReview }) => (
       <div data-testid="mock-editor-pane">
+        <button data-testid="exit-review-button" onClick={onExitReview}>
+          Exit Review
+        </button>
         <span data-testid="editor-file-path">
           {selectedFile?.path ?? "no-file"}
         </span>
@@ -448,6 +455,22 @@ describe("EditorPaneV2", () => {
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
 
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(editorContainer.classList.contains("hidden")).toBe(true);
+    });
+
+    it("should swap the tree for review in single mode and back on exit", () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      const treeContainer = screen.getByTestId("tree-container");
+      const editorContainer = screen.getByTestId("editor-container");
+
+      fireEvent.click(screen.getByTestId("review-changes-button"));
+      expect(treeContainer.classList.contains("hidden")).toBe(true);
+      expect(editorContainer.classList.contains("hidden")).toBe(false);
+
+      fireEvent.click(screen.getByTestId("exit-review-button"));
       expect(treeContainer.classList.contains("hidden")).toBe(false);
       expect(editorContainer.classList.contains("hidden")).toBe(true);
     });
