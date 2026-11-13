@@ -73,7 +73,6 @@ import {
   tabsAtom,
 } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
-import type { EditorPane } from "@/types";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { getDefaultStore, useAtom, useAtomValue } from "jotai";
@@ -83,7 +82,7 @@ const api = window.conduit;
 const store = getDefaultStore();
 
 export function App() {
-  const [tabs, setTabs] = useAtom(tabsAtom);
+  const tabs = useAtomValue(tabsAtom);
   const activeTab = useAtomValue(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const hyperTerminals = useAtomValue(hyperTerminalsAtom);
@@ -99,20 +98,15 @@ export function App() {
     launchGroups,
   } = userSettings;
 
-  // Apply theme on mount and when it changes
+  // Apply theme (and terminal colors) on change, and on system theme
+  // changes when in "system" mode
   useEffect(() => {
-    applyTheme(theme, themeOverrides);
-    // Update terminal colors for all active terminals
-    updateTerminalThemes();
-  }, [theme, themeOverrides]);
-
-  // Watch for system theme changes when in "system" mode
-  useEffect(() => {
-    return watchSystemTheme(theme, () => {
+    const apply = () => {
       applyTheme(theme, themeOverrides);
-      // Update terminal colors for all active terminals
       updateTerminalThemes();
-    });
+    };
+    apply();
+    return watchSystemTheme(theme, apply);
   }, [theme, themeOverrides]);
 
   const { resizingNode, handleResizeStart, hasCustomLayout } =
@@ -356,80 +350,6 @@ export function App() {
     [titleModalState, updateTabProperty],
   );
 
-  const handleBrowserUpdate = useCallback(
-    (
-      tabId: string,
-      paneId: string,
-      updates: {
-        url?: string;
-        title?: string;
-      },
-    ) => {
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
-          }
-
-          const pane = tab.panes[paneId];
-          if (!pane || pane.type !== "browser") {
-            return tab;
-          }
-
-          const nextPane = {
-            ...pane,
-            url: updates.url ?? pane.url,
-            title: updates.title ?? pane.title,
-          };
-
-          if (nextPane.url === pane.url && nextPane.title === pane.title) {
-            return tab;
-          }
-
-          return {
-            ...tab,
-            panes: {
-              ...tab.panes,
-              [paneId]: nextPane,
-            },
-          };
-        }),
-      );
-    },
-    [setTabs],
-  );
-
-  const handleEditorUpdate = useCallback(
-    (tabId: string, paneId: string, updates: Partial<EditorPane>) => {
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
-          }
-
-          const pane = tab.panes[paneId];
-          if (!pane || pane.type !== "editor") {
-            return tab;
-          }
-
-          const nextPane = {
-            ...pane,
-            ...updates,
-          };
-
-          return {
-            ...tab,
-            panes: {
-              ...tab.panes,
-              [paneId]: nextPane,
-            },
-          };
-        }),
-      );
-    },
-    [setTabs],
-  );
-
   const handleContextMenu = useContextMenu({
     canChangeTitle: (_tabId: string) => {
       if (tabs.length > 1) {
@@ -469,8 +389,7 @@ export function App() {
 
   const handleAgentSessionCleanup = useCallback(
     async (sessionIds: string[]) => {
-      const api = window.conduit;
-      if (!api || !cleanupDialogSessions || sessionIds.length === 0) {
+      if (!cleanupDialogSessions || sessionIds.length === 0) {
         setCleanupDialogSessions(null);
         return;
       }
@@ -623,10 +542,7 @@ export function App() {
       current.onClose?.();
 
       if (current.type === "terminal") {
-        const api = window.conduit;
-        if (api) {
-          api.closeTerminal(current.sessionId);
-        }
+        api.closeTerminal(current.sessionId);
         disposeSession(current.sessionId);
       }
 
@@ -722,8 +638,8 @@ export function App() {
                 handleContextMenu={handleContextMenu}
                 handleResizeStart={handleResizeStart}
                 resizingNode={resizingNode}
-                handleBrowserUpdate={handleBrowserUpdate}
-                handleEditorUpdate={handleEditorUpdate}
+                handleBrowserUpdate={updatePaneProperty}
+                handleEditorUpdate={updatePaneProperty}
                 onOpenPaneActions={() => setSettingsTab("paneActions")}
               />
             </div>
