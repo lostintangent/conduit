@@ -7,7 +7,7 @@
  * Configurations:
  * - Monaco Environment: worker configuration (prevents console errors)
  * - Markdown language: surrounding pairs and auto-closing for markdown syntax
- * - Zig language: registration for .zig and .zon files
+ * - Zig, TOML, Makefile and diff: Monarch tokenizers Monaco doesn't ship
  * - TypeScript/JavaScript/JSON: diagnostics disabled (custom URI schemes not supported)
  */
 
@@ -15,6 +15,7 @@ import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
+import { MONARCH_LANGUAGES } from "./monarchLanguages";
 
 let isConfigured = false;
 
@@ -55,8 +56,13 @@ export function configureMonaco(): void {
 
   isConfigured = true;
 
-  // Register Zig language with Monaco
-  monaco.languages.register({ id: "zig", extensions: [".zig", ".zon"] });
+  for (const { id, tokenizer, configuration } of MONARCH_LANGUAGES) {
+    monaco.languages.register({ id });
+    monaco.languages.setMonarchTokensProvider(id, tokenizer);
+    if (configuration) {
+      monaco.languages.setLanguageConfiguration(id, configuration);
+    }
+  }
 
   // Configure markdown language for better editing experience
   monaco.languages.setLanguageConfiguration("markdown", {
