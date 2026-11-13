@@ -12,6 +12,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { enqueueNotification } from "@/store/actions/notifications";
 import { ApplicationCommands } from "@shared/commands";
 import { BrowserPage } from "@shared/types";
 import {
@@ -34,7 +35,7 @@ type BrowserMenuProps = {
   isDevToolsOpen: boolean;
   onToggleDevTools: () => void;
   onHideToolbar: () => void;
-  onCaptureScreenshot: () => void;
+  onCaptureScreenshot: () => Promise<void>;
   tabId?: string; // Optional - undefined when in sidebar mode
 };
 
@@ -68,9 +69,17 @@ export function BrowserMenu({
     }, 2000);
   }, []);
 
-  const handleCaptureScreenshot = useCallback(() => {
-    onCaptureScreenshot();
-    showCheckmarkWithTimer();
+  const handleCaptureScreenshot = useCallback(async () => {
+    try {
+      await onCaptureScreenshot();
+      showCheckmarkWithTimer();
+    } catch (error) {
+      enqueueNotification({
+        kind: "error",
+        message: "Failed to copy screenshot",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }, [onCaptureScreenshot, showCheckmarkWithTimer]);
 
   const handleCopyUrl = useCallback(() => {

@@ -41,7 +41,7 @@ type BrowserToolbarProps = {
   isDevToolsOpen: boolean;
   onToggleDevTools: () => void;
   onHideToolbar: () => void;
-  onCaptureScreenshot: () => void;
+  onCaptureScreenshot: () => Promise<void>;
   tabId?: string;
 };
 

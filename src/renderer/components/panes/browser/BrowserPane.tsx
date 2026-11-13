@@ -467,9 +467,9 @@ export function BrowserPane({
           isDevToolsOpen={isDevToolsOpen}
           onToggleDevTools={onToggleDevTools}
           onHideToolbar={onHideToolbar}
-          onCaptureScreenshot={() => {
+          onCaptureScreenshot={async () => {
             const webContentsId = webviewRef.current?.getWebContentsId();
-            browser.captureScreenshot(webContentsId);
+            await browser.captureScreenshot(webContentsId);
           }}
           tabId={tabId}
         />
