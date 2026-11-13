@@ -60,9 +60,7 @@ describe("ParcelFileWatcher", () => {
       return mockSubscription;
     });
 
-    (
-      fs.realpathSync as MockedFunction<typeof fs.realpathSync>
-    ).mockImplementation((p) => p as string);
+    vi.mocked(fs.realpathSync).mockImplementation((p) => p as string);
 
     (fs.statSync as MockedFunction<typeof fs.statSync>).mockImplementation(
       () =>
@@ -84,9 +82,7 @@ describe("ParcelFileWatcher", () => {
 
   describe("constructor", () => {
     it("should resolve real path for symlinks", () => {
-      (
-        fs.realpathSync as MockedFunction<typeof fs.realpathSync>
-      ).mockReturnValueOnce("/real/path");
+      vi.mocked(fs.realpathSync).mockReturnValueOnce("/real/path");
 
       new ParcelFileWatcher("/symlink/path");
 
@@ -94,9 +90,7 @@ describe("ParcelFileWatcher", () => {
     });
 
     it("should fallback to resolved path on realpath error", () => {
-      (
-        fs.realpathSync as MockedFunction<typeof fs.realpathSync>
-      ).mockImplementationOnce(() => {
+      vi.mocked(fs.realpathSync).mockImplementationOnce(() => {
         throw new Error("Realpath error");
       });
 
