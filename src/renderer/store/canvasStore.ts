@@ -8,7 +8,7 @@ import type { CanvasCommand } from "@/components/panes/canvas/history/canvasHist
 import { clearImageCache } from "@/components/panes/canvas/render/elements";
 import type { CanvasElement } from "@shared/types/canvas";
 import { atom, getDefaultStore } from "jotai";
-import { atomFamily } from "jotai/utils";
+import { atomFamily } from "jotai-family";
 
 // =============================================================================
 // Types
