@@ -42,6 +42,7 @@ import {
 } from "@/commands/contextKeys/appContextKeys";
 import { MenuId } from "@/commands/menus/types";
 import { MonacoModelRegistry } from "@/components/panes/editor/registry/MonacoModelRegistry";
+import { getRelativePath } from "@/components/panes/editor/utils/gitStatusHelpers";
 
 /**
  * File tree command IDs
@@ -194,17 +195,6 @@ function getParentPathForCreate(): string {
   }
   // Directory right-click - use the directory
   return path;
-}
-
-/**
- * Compute relative path from cwd.
- */
-function getRelativePath(fullPath: string, cwd: string): string {
-  if (fullPath.startsWith(cwd)) {
-    const relative = fullPath.slice(cwd.length);
-    return relative.startsWith("/") ? relative.slice(1) : relative;
-  }
-  return fullPath;
 }
 
 /**
