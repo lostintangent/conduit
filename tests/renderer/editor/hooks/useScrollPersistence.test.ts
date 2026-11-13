@@ -42,7 +42,6 @@ describe("useScrollPersistence", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     EditorPaneRegistry.resetInstance();
-    vi.clearAllTimers();
   });
 
   // ==========================================================================
