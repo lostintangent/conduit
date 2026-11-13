@@ -1,11 +1,13 @@
 import { enterFocusMode } from "@/store/actions/focusMode";
-import { detachPane, insertPaneAtTabRoot } from "@/store/actions/pane";
-import { applicationModeAtom, tabsAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, SplitDirection } from "@/types";
+import {
+  detachPane,
+  insertPaneAtTabRoot,
+  insertPaneNextTo,
+} from "@/store/actions/pane";
+import { applicationModeAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import { type EdgeZone, getDirectionFromZone } from "@/utils/dragDrop";
-import { generateId } from "@shared/utils";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtomValue } from "jotai";
 import React, { useCallback, useState } from "react";
 
 const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
@@ -73,7 +75,6 @@ export function usePaneDragDrop({
 
   const applicationMode = useAtomValue(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
-  const setTabs = useSetAtom(tabsAtom);
 
   // Helper to check if a drag event is a focus mode drag
   const isFocusModeDragEvent = (e: React.DragEvent): boolean => {
@@ -120,139 +121,6 @@ export function usePaneDragDrop({
       return null;
     },
     [],
-  );
-
-  // Helper to split an existing pane with a dragged pane
-  const splitPaneWithExisting = useCallback(
-    (
-      tabId: string,
-      targetPaneId: string,
-      draggedPane: Pane,
-      direction: SplitDirection,
-      insertBefore: boolean,
-    ) => {
-      const newLayoutNode: LayoutNode = {
-        id: generateId(),
-        type: "pane",
-        paneId: draggedPane.id,
-      };
-
-      setTabs((current) =>
-        current.map((tab) => {
-          if (tab.id !== tabId) {
-            return tab;
-          }
-
-          if (tab.locked) {
-            return tab;
-          }
-
-          // Function to insert new pane into layout
-          const insertPaneIntoLayout = (
-            node: LayoutNode,
-          ): { node: LayoutNode; modified: boolean } => {
-            if (node.type === "pane") {
-              if (node.paneId === targetPaneId) {
-                return {
-                  node: {
-                    id: generateId(),
-                    type: "split",
-                    direction,
-                    children: insertBefore
-                      ? [newLayoutNode, node]
-                      : [node, newLayoutNode],
-                  },
-                  modified: true,
-                };
-              }
-              return { node, modified: false };
-            }
-
-            const childIndex = node.children.findIndex((child) => {
-              if (child.type === "pane") {
-                return child.paneId === targetPaneId;
-              }
-              // Check if target pane is in this subtree
-              let found = false;
-              const checkNode = (n: LayoutNode): void => {
-                if (n.type === "pane" && n.paneId === targetPaneId) {
-                  found = true;
-                  return;
-                }
-                if (n.type === "split") {
-                  n.children.forEach(checkNode);
-                }
-              };
-              checkNode(child);
-              return found;
-            });
-
-            if (childIndex === -1) {
-              return { node, modified: false };
-            }
-
-            const targetChild = node.children[childIndex];
-
-            // If same direction and target is a pane, insert as sibling
-            if (
-              node.direction === direction &&
-              targetChild.type === "pane" &&
-              targetChild.paneId === targetPaneId
-            ) {
-              const newChildren = [...node.children];
-              newChildren.splice(
-                insertBefore ? childIndex : childIndex + 1,
-                0,
-                newLayoutNode,
-              );
-              return {
-                node: {
-                  ...node,
-                  children: newChildren,
-                },
-                modified: true,
-              };
-            }
-
-            // Recurse into child
-            const { node: updatedChild, modified } =
-              insertPaneIntoLayout(targetChild);
-            if (modified) {
-              const newChildren = [...node.children];
-              newChildren[childIndex] = updatedChild;
-              return {
-                node: {
-                  ...node,
-                  children: newChildren,
-                },
-                modified: true,
-              };
-            }
-
-            return { node, modified: false };
-          };
-
-          const { node: newLayout, modified } = insertPaneIntoLayout(
-            tab.layout,
-          );
-
-          if (!modified) {
-            return tab;
-          }
-
-          return {
-            ...tab,
-            panes: {
-              ...tab.panes,
-              [draggedPane.id]: draggedPane,
-            },
-            layout: newLayout,
-            activePaneId: draggedPane.id,
-          };
-        }),
-      );
-    },
-    [setTabs],
   );
 
   // Create drag handlers for a specific pane
@@ -417,7 +285,7 @@ export function usePaneDragDrop({
           if (!detachResult) return;
 
           // Split the target pane with the dragged pane
-          splitPaneWithExisting(
+          insertPaneNextTo(
             tabId,
             paneId,
             detachResult.pane,
@@ -442,7 +310,6 @@ export function usePaneDragDrop({
       isInDesignMode,
       dropZone,
       getDropZone,
-      splitPaneWithExisting,
       onDropComplete,
     ],
   );

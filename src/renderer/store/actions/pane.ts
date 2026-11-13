@@ -756,6 +756,54 @@ export function insertPaneAtTabRoot(
   );
 }
 
+/**
+ * Insert a pane next to a target pane (splitting it in the given direction)
+ * and make it the active pane.
+ */
+export function insertPaneNextTo(
+  tabId: string,
+  targetPaneId: string,
+  pane: Pane,
+  direction: SplitDirection,
+  insertBefore = false,
+) {
+  const newLayoutNode: LayoutNode = {
+    id: generateId(),
+    type: "pane",
+    paneId: pane.id,
+  };
+
+  store.set(tabsAtom, (current) =>
+    current.map((tab) => {
+      if (tab.id !== tabId) {
+        return tab;
+      }
+
+      const { node: newLayout, modified } = splitLayoutNode(
+        tab.layout,
+        targetPaneId,
+        direction,
+        newLayoutNode,
+        insertBefore,
+      );
+
+      if (!modified) {
+        return tab;
+      }
+
+      return {
+        ...tab,
+        panes: {
+          ...tab.panes,
+          [pane.id]: pane,
+        },
+        layout: newLayout,
+        activePaneId: pane.id,
+      };
+    }),
+  );
+}
+
 export async function splitPaneWithAgentSession(
   tabId: string,
   paneId: string,
