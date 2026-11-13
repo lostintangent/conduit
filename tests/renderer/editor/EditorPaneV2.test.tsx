@@ -18,6 +18,7 @@ import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor/Edit
 
 // Mock the hooks barrel (useResponsiveLayout, useEditorTheme, useReviewModeState)
 const mockLayout = vi.fn();
+const mockMarkSeen = vi.fn();
 
 // Stateful mock for useReviewModeState
 let mockViewMode = { type: "editor" as const };
@@ -45,7 +46,7 @@ vi.mock("../../../src/renderer/components/panes/editor/hooks", () => ({
   useUnseenTracking: () => ({
     isUnseen: () => false,
     getTimestamp: () => null,
-    markSeen: vi.fn(),
+    markSeen: mockMarkSeen,
     markAllSeen: vi.fn(),
     getUnseenCount: () => 0,
     unseenCount: 0,
@@ -339,7 +340,7 @@ describe("EditorPaneV2", () => {
   // ===========================================================================
 
   describe("file selection", () => {
-    it("should update selected file when file is selected from tree", () => {
+    it("should select the file and mark it seen when file is selected from tree", () => {
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
       fireEvent.click(screen.getByTestId("select-file-button"));
@@ -347,6 +348,7 @@ describe("EditorPaneV2", () => {
       expect(screen.getByTestId("editor-file-path").textContent).toBe(
         "/project/test.ts",
       );
+      expect(mockMarkSeen).toHaveBeenCalledWith("test.ts");
     });
   });
 

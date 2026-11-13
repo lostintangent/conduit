@@ -524,7 +524,8 @@ describe("FileTreeChanges", () => {
       expect(stageButton).toBeDefined();
     });
 
-    it("should call stage when stage button is clicked", async () => {
+    it("should call stage and mark the file seen when stage button is clicked", async () => {
+      const markSeen = vi.fn();
       render(
         <FileTreeChanges
           viewMode="flat"
@@ -533,6 +534,7 @@ describe("FileTreeChanges", () => {
           git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
+          markSeen={markSeen}
         />,
       );
 
@@ -551,6 +553,7 @@ describe("FileTreeChanges", () => {
       await waitFor(() => {
         expect(mockStage).toHaveBeenCalledWith(["src/index.ts"]);
       });
+      expect(markSeen).toHaveBeenCalledWith("src/index.ts");
     });
 
     it("should not propagate click event to parent when stage button clicked", async () => {
@@ -615,7 +618,8 @@ describe("FileTreeChanges", () => {
       expect(unstageButton).toBeDefined();
     });
 
-    it("should call unstage when unstage button is clicked", async () => {
+    it("should call unstage and mark the file seen when unstage button is clicked", async () => {
+      const markSeen = vi.fn();
       render(
         <FileTreeChanges
           viewMode="flat"
@@ -624,6 +628,7 @@ describe("FileTreeChanges", () => {
           git={mockGitAPI as any}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
+          markSeen={markSeen}
         />,
       );
 
@@ -642,6 +647,7 @@ describe("FileTreeChanges", () => {
       await waitFor(() => {
         expect(mockUnstage).toHaveBeenCalledWith(["src/utils.ts"]);
       });
+      expect(markSeen).toHaveBeenCalledWith("src/utils.ts");
     });
   });
 
