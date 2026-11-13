@@ -64,7 +64,7 @@ import {
   expandFoldersToFiles,
 } from "./utils";
 import type { SelectableItem, FolderNode } from "./utils";
-import { FlatChangeItem, NestedFileItem, NestedFolderItem } from "./components";
+import { ChangeFileItem, NestedFolderItem } from "./components";
 import { SectionDiffStats } from "../FileDiffStats";
 
 // ============================================================================
@@ -1225,7 +1225,7 @@ export function FileTreeChanges({
     isStaged: boolean,
   ) => {
     return files.map(([mapKey, status]) => (
-      <FlatChangeItem
+      <ChangeFileItem
         key={mapKey}
         path={status.path}
         status={status}
@@ -1298,9 +1298,11 @@ export function FileTreeChanges({
         {rootFiles
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((file) => (
-            <NestedFileItem
+            <ChangeFileItem
               key={file.mapKey}
-              file={file}
+              path={file.path}
+              status={file.status}
+              nested
               cwd={cwd}
               isSelected={isFileSelected(file.mapKey)}
               isMultiSelected={multiSelectedPaths.has(file.mapKey)}

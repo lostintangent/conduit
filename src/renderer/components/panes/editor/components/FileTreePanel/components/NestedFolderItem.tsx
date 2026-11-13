@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/utils";
 import { ActionButtons } from "./ActionButtons";
-import { NestedFileItem } from "./NestedFileItem";
+import { ChangeFileItem } from "./ChangeFileItem";
 import { FileTreeItemRename } from "../FileTreeItemRename";
 import type { FolderNode } from "../utils/types";
 
@@ -69,7 +69,7 @@ export interface NestedFolderItemProps {
     event: React.MouseEvent,
   ) => void;
   // ---------------------------------------------------------------------------
-  // Inline Rename Props (passed through to child NestedFileItem)
+  // Inline Rename Props (passed through to child ChangeFileItem)
   // ---------------------------------------------------------------------------
   /** Path currently being renamed (relative to cwd), or null if not renaming */
   renamingPath?: string | null;
@@ -283,9 +283,11 @@ export function NestedFolderItem({
 
           {/* Then files */}
           {sortedFiles.map((file) => (
-            <NestedFileItem
+            <ChangeFileItem
               key={file.mapKey}
-              file={file}
+              path={file.path}
+              status={file.status}
+              nested
               cwd={cwd}
               isSelected={isFileSelected(file.mapKey)}
               isMultiSelected={multiSelectedPaths.has(file.mapKey)}

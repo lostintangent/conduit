@@ -1,10 +1,12 @@
 /**
- * File item for nested view mode.
- * Shows just the file name (folder context provided by parent).
+ * Changed-file row for the changes tree.
+ * Flat mode shows the folder path as subtext. Nested mode indents to align
+ * with folder chevrons, since the parent folder provides that context.
  */
 
 import path from "path-browserify";
 import { FileText } from "lucide-react";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { cn } from "@/utils";
 import {
   Tooltip,
@@ -16,14 +18,17 @@ import { GitBadge, getStatusConfig } from "../../shared";
 import { FileDiffStats } from "../../FileDiffStats";
 import { ActionButtons } from "./ActionButtons";
 import { FileTreeItemRename } from "../FileTreeItemRename";
-import type { FileEntry } from "../utils/types";
 
-export interface NestedFileItemProps {
-  /** File entry with path, name, and status */
-  file: FileEntry;
+export interface ChangeFileItemProps {
+  /** File path (relative to cwd) */
+  path: string;
+  /** Git status for this file */
+  status: GitFileStatus;
+  /** Nested view: indent and omit the folder path */
+  nested?: boolean;
   /** Working directory (for building absolute path in tooltip) */
   cwd: string;
-  /** Whether this item is the primary selected file */
+  /** Whether this item is the primary selected file (for opening in editor) */
   isSelected: boolean;
   /** Whether this item is part of multi-selection */
   isMultiSelected: boolean;
@@ -54,8 +59,19 @@ export interface NestedFileItemProps {
   onCancelRename?: () => void;
 }
 
-export function NestedFileItem({
-  file,
+/**
+ * Get the directory path from a file path.
+ * Returns empty string for root-level files.
+ */
+function getDirectoryPath(filePath: string): string {
+  const lastSlash = filePath.lastIndexOf("/");
+  return lastSlash === -1 ? "" : filePath.slice(0, lastSlash);
+}
+
+export function ChangeFileItem({
+  path: filePath,
+  status,
+  nested = false,
   cwd,
   isSelected,
   isMultiSelected,
@@ -70,15 +86,20 @@ export function NestedFileItem({
   isRenaming = false,
   onCommitRename,
   onCancelRename,
-}: NestedFileItemProps) {
+}: ChangeFileItemProps) {
+  const fileName = filePath.split("/").pop() ?? filePath;
+  const folderPath = nested ? "" : getDirectoryPath(filePath);
+  const testId = `${nested ? "nested-file" : "change-item"}-${fileName}`;
+  const indent = nested && <div style={{ width: 12 }} />;
+
   // Get text color class from git status
-  const statusConfig = getStatusConfig(file.status);
+  const statusConfig = getStatusConfig(status);
   const textColorClass = statusConfig?.textColorClass ?? "text-foreground";
   const iconColorClass = statusConfig?.textColorClass ?? "text-foreground";
 
   // Build tooltip: absolute path • git status label
-  const absolutePath = path.join(cwd, file.path);
-  const statusLabel = statusConfig?.label ?? file.status.status;
+  const absolutePath = path.join(cwd, filePath);
+  const statusLabel = statusConfig?.label ?? status.status;
   const tooltip = `${absolutePath} • ${statusLabel}`;
 
   // Determine background styling based on selection state
@@ -93,27 +114,22 @@ export function NestedFileItem({
             "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px]",
             "ring-1 ring-accent/60",
           )}
-          data-testid={`nested-file-${file.name}-renaming`}
+          data-testid={`${testId}-renaming`}
         >
-          {/* Spacer to align with folder chevrons */}
-          <div style={{ width: 12 }} />
-
+          {indent}
           {/* File icon */}
           <FileText className={cn("flex-shrink-0", iconColorClass)} size={12} />
 
           {/* Inline rename input */}
           <FileTreeItemRename
-            initialName={file.name}
+            initialName={fileName}
             isDirectory={false}
             onCommit={onCommitRename}
             onCancel={onCancelRename}
           />
 
           {/* Git status badge (keep visible during rename) */}
-          <GitBadge
-            status={file.status}
-            showUnseenIndicator={showUnseenIndicator}
-          />
+          <GitBadge status={status} showUnseenIndicator={showUnseenIndicator} />
         </div>
       </li>
     );
@@ -135,28 +151,41 @@ export function NestedFileItem({
               )}
               onClick={onSelect}
               onContextMenu={onContextMenu}
-              data-testid={`nested-file-${file.name}`}
-              data-path={file.path}
+              data-testid={testId}
+              data-path={filePath}
             >
-              {/* Spacer to align with folder chevrons */}
-              <div style={{ width: 12 }} />
-
+              {indent}
               {/* File icon - colored based on git status */}
               <FileText
                 className={cn("flex-shrink-0", iconColorClass)}
                 size={12}
               />
 
-              {/* File name */}
-              <span className={cn("min-w-0 flex-1 truncate", textColorClass)}>
-                {file.name}
-              </span>
+              {/* File name and folder path - path truncates first, then filename */}
+              <div
+                className="min-w-0 flex-1 items-baseline gap-1.5"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: folderPath
+                    ? "minmax(0, auto) minmax(0, 1fr)"
+                    : "minmax(0, 1fr)",
+                }}
+              >
+                <span className={cn("truncate", textColorClass)}>
+                  {fileName}
+                </span>
+                {folderPath && (
+                  <span className="truncate text-foreground/40 text-[11px]">
+                    {folderPath}
+                  </span>
+                )}
+              </div>
 
               {/* Diff stats / Action buttons - mutually exclusive via display:none/block */}
               {/* Stats: shown by default, hidden on hover */}
               <div className="flex-shrink-0 block group-hover:hidden">
                 <FileDiffStats
-                  filePath={file.path}
+                  filePath={filePath}
                   staged={isStaged}
                   isUnseen={showUnseenIndicator}
                 />
@@ -174,7 +203,7 @@ export function NestedFileItem({
 
               {/* Git status badge */}
               <GitBadge
-                status={file.status}
+                status={status}
                 showUnseenIndicator={showUnseenIndicator}
               />
             </button>
