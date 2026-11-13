@@ -110,26 +110,3 @@ export async function writePaneActionsFile(
   const contentBytes = new TextEncoder().encode(content);
   await api.fs.writeFile(cwd, filePath, contentBytes);
 }
-
-/**
- * Read pane actions file or return null if it doesn't exist
- *
- * Convenience wrapper that swallows ENOENT errors.
- *
- * @param filePath - Path to the pane actions file
- * @returns Parsed actions or null
- * @throws ValidationError if file content is invalid
- * @throws Error for other file system errors
- */
-export async function readPaneActionsFileOrNull(
-  filePath: string,
-): Promise<Action[] | null> {
-  try {
-    return await readPaneActionsFile(filePath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return null;
-    }
-    throw error;
-  }
-}

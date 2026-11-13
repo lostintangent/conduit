@@ -7,7 +7,6 @@ import {
   getUserPaneActionsPath,
   parsePaneActionsContent,
   readPaneActionsFile,
-  readPaneActionsFileOrNull,
   writePaneActionsFile,
 } from "@/commands/paneActions/io/fileOperations";
 import { ValidationError } from "@/commands/paneActions/io/validation";
@@ -249,38 +248,6 @@ describe("fileOperations", () => {
 
       // File should not have been created
       await expect(readFile(testFilePath, "utf-8")).rejects.toThrow();
-    });
-  });
-
-  describe("readPaneActionsFileOrNull", () => {
-    it("should return null for non-existent file", async () => {
-      const result = await readPaneActionsFileOrNull(testFilePath);
-      expect(result).toBeNull();
-    });
-
-    it("should read valid file", async () => {
-      const actions: Action[] = [
-        {
-          name: "Test",
-          icon: "test",
-          enabled: true,
-          paneType: "terminal",
-          config: { command: "test" },
-        },
-      ];
-
-      await writeFile(testFilePath, JSON.stringify(actions), "utf-8");
-
-      const result = await readPaneActionsFileOrNull(testFilePath);
-      expect(result).toHaveLength(1);
-    });
-
-    it("should throw ValidationError for invalid file", async () => {
-      await writeFile(testFilePath, "invalid json", "utf-8");
-
-      await expect(readPaneActionsFileOrNull(testFilePath)).rejects.toThrow(
-        ValidationError,
-      );
     });
   });
 
