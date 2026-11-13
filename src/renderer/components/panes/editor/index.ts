@@ -34,7 +34,6 @@ export { contentSourceToGitRef, isGitSource } from "./types";
 // Re-export hooks
 export {
   useDiffContent,
-  useEditorVisibility,
   useGitContent,
   useModelState,
   useMonacoModel,
@@ -46,13 +45,11 @@ export type {
   GitContentError,
   GitContentResult,
   LayoutMode,
-  UseEditorVisibilityOptions,
 } from "./hooks";
 
 // Re-export registries
 export {
   EditorPaneRegistry,
-  EditorRegistry,
   MonacoModelRegistry,
   ViewStateRegistry,
 } from "./registry";

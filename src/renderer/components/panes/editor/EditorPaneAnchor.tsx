@@ -5,7 +5,6 @@
  * - Renders a container div that marks where an editor should appear
  * - On mount: registers with EditorPaneRegistry and attaches the editor DOM
  * - On unmount: detaches the editor (moves off-screen, not destroyed)
- * - Tracks visibility changes to trigger Monaco layout updates
  *
  * This enables editors to be kept alive across tab switches without
  * React component remounting, preventing visual flashing and state loss.
@@ -23,9 +22,8 @@
 
 import type { EditorPane } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
-import { useEditorVisibility } from "./hooks/useEditorVisibility";
 import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
 import type { FileNode } from "./types";
 
@@ -220,23 +218,6 @@ export function EditorPaneAnchor({
       registry.detach(paneId);
     };
   }, [paneId, registry, isInPreview]);
-
-  // Handle visibility changes for Monaco layout
-  const handleVisible = useCallback(() => {
-    registry.notifyVisible(paneId);
-  }, [paneId, registry]);
-
-  const handleHidden = useCallback(() => {
-    registry.notifyHidden(paneId);
-  }, [paneId, registry]);
-
-  // Track visibility
-  useEditorVisibility(containerRef, {
-    onVisible: handleVisible,
-    onHidden: handleHidden,
-    // Disable visibility tracking in preview mode (editor is scaled/transformed)
-    enabled: !isInPreview,
-  });
 
   return (
     <div

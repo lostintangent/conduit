@@ -119,18 +119,6 @@ interface EditorPaneEntry {
   /** Whether React has rendered content into the wrapper */
   isReady: boolean;
 
-  /** Whether the editor is currently visible (attached and container visible) */
-  isVisible: boolean;
-
-  /** Timestamp when pane was created */
-  createdAt: number;
-
-  /** Timestamp when pane was last used */
-  lastUsed: number;
-
-  /** Callback to trigger Monaco layout recalculation */
-  triggerLayout?: () => void;
-
   /**
    * Registered scroll containers for this pane.
    * Key is a unique scrollId (e.g., "fileTree", "changesTree").
@@ -145,10 +133,7 @@ interface EditorPaneEntry {
 export type EditorPaneRegistryEvent =
   | { type: "paneAdded"; paneId: string; config: EditorPaneConfig }
   | { type: "paneRemoved"; paneId: string }
-  | { type: "paneUpdated"; paneId: string; config: EditorPaneConfig }
-  | { type: "paneAttached"; paneId: string }
-  | { type: "paneDetached"; paneId: string }
-  | { type: "visibilityChanged"; paneId: string; isVisible: boolean };
+  | { type: "paneUpdated"; paneId: string; config: EditorPaneConfig };
 
 // ============================================================================
 // EditorPaneRegistry
@@ -160,8 +145,6 @@ export type EditorPaneRegistryEvent =
  * Manages the lifecycle of editor panes, including:
  * - Creation and disposal
  * - Attaching/detaching from containers
- * - Visibility state tracking
- * - Layout notifications
  */
 export class EditorPaneRegistry {
   // ---------------------------------------------------------------------------
@@ -272,7 +255,6 @@ export class EditorPaneRegistry {
         entry.config.pane.file !== config.pane.file;
 
       entry.config = config;
-      entry.lastUsed = Date.now();
 
       if (configChanged) {
         this._onEvent.fire({ type: "paneUpdated", paneId, config });
@@ -299,9 +281,6 @@ export class EditorPaneRegistry {
       currentContainer: null,
       pendingContainer: null,
       isReady: false,
-      isVisible: false,
-      createdAt: Date.now(),
-      lastUsed: Date.now(),
       scrollContainers: new Map(),
     };
 
@@ -366,17 +345,9 @@ export class EditorPaneRegistry {
       // Complete the attachment
       container.appendChild(entry.wrapperElement);
       entry.currentContainer = container;
-      entry.lastUsed = Date.now();
-
-      this._onEvent.fire({ type: "paneAttached", paneId });
 
       // Restore scroll positions after DOM move
       this.restoreScrollPositions(paneId);
-
-      // Trigger layout after a frame to let DOM settle
-      requestAnimationFrame(() => {
-        this.notifyVisible(paneId);
-      });
     }
   }
 
@@ -388,7 +359,6 @@ export class EditorPaneRegistry {
     if (!entry) return;
 
     entry.config = { ...entry.config, ...config };
-    entry.lastUsed = Date.now();
     this._onEvent.fire({
       type: "paneUpdated",
       paneId,
@@ -436,21 +406,6 @@ export class EditorPaneRegistry {
       );
       this.offscreenContainer = null;
     }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Public Methods - DOM Management
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Set the layout trigger callback for a pane.
-   * Called by the EditorPaneV2 component to register its layout function.
-   */
-  setLayoutTrigger(paneId: string, trigger: (() => void) | undefined): void {
-    const entry = this.panes.get(paneId);
-    if (!entry) return;
-
-    entry.triggerLayout = trigger;
   }
 
   // ---------------------------------------------------------------------------
@@ -628,17 +583,9 @@ export class EditorPaneRegistry {
     // Move wrapper to new container
     container.appendChild(entry.wrapperElement);
     entry.currentContainer = container;
-    entry.lastUsed = Date.now();
-
-    this._onEvent.fire({ type: "paneAttached", paneId });
 
     // Restore scroll positions after DOM move
     this.restoreScrollPositions(paneId);
-
-    // Trigger layout after a frame to let DOM settle
-    requestAnimationFrame(() => {
-      this.notifyVisible(paneId);
-    });
   }
 
   /**
@@ -660,94 +607,5 @@ export class EditorPaneRegistry {
     // Move wrapper to off-screen container
     this.getOffscreenContainer().appendChild(entry.wrapperElement);
     entry.currentContainer = null;
-    entry.isVisible = false;
-
-    this._onEvent.fire({ type: "paneDetached", paneId });
-    this._onEvent.fire({ type: "visibilityChanged", paneId, isVisible: false });
-  }
-
-  // ---------------------------------------------------------------------------
-  // Public Methods - Visibility
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Notify that a pane has become visible.
-   * Triggers Monaco layout recalculation.
-   */
-  notifyVisible(paneId: string): void {
-    const entry = this.panes.get(paneId);
-    if (!entry) return;
-
-    const wasVisible = entry.isVisible;
-    entry.isVisible = true;
-    entry.lastUsed = Date.now();
-
-    // Trigger layout
-    entry.triggerLayout?.();
-
-    if (!wasVisible) {
-      this._onEvent.fire({
-        type: "visibilityChanged",
-        paneId,
-        isVisible: true,
-      });
-    }
-  }
-
-  /**
-   * Notify that a pane has become hidden.
-   * Can be used to pause expensive operations.
-   */
-  notifyHidden(paneId: string): void {
-    const entry = this.panes.get(paneId);
-    if (!entry) return;
-
-    const wasVisible = entry.isVisible;
-    entry.isVisible = false;
-
-    if (wasVisible) {
-      this._onEvent.fire({
-        type: "visibilityChanged",
-        paneId,
-        isVisible: false,
-      });
-    }
-  }
-
-  /**
-   * Check if a pane is currently visible.
-   */
-  isVisible(paneId: string): boolean {
-    return this.panes.get(paneId)?.isVisible ?? false;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Debug / Stats
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Get the current pane count.
-   */
-  get paneCount(): number {
-    return this.panes.size;
-  }
-
-  /**
-   * Get debug info about all panes.
-   */
-  getDebugInfo(): Array<{
-    paneId: string;
-    isAttached: boolean;
-    isVisible: boolean;
-    cwd: string;
-    filePath?: string;
-  }> {
-    return Array.from(this.panes.values()).map((entry) => ({
-      paneId: entry.paneId,
-      isAttached: entry.currentContainer !== null,
-      isVisible: entry.isVisible,
-      cwd: entry.config.pane.cwd,
-      file: entry.config.pane.file,
-    }));
   }
 }

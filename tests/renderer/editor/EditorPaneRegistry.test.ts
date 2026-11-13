@@ -68,7 +68,6 @@ describe("EditorPaneRegistry", () => {
       expect(entry.config).toBe(config);
       expect(entry.wrapperElement).toBeDefined();
       expect(entry.currentContainer).toBeNull();
-      expect(entry.isVisible).toBe(false);
     });
 
     it("should return existing entry on subsequent getOrCreate() calls", () => {
@@ -220,46 +219,6 @@ describe("EditorPaneRegistry", () => {
         "editor-pane-offscreen-container",
       );
       expect(offscreenContainer?.contains(entry.wrapperElement)).toBe(true);
-    });
-
-    it("should fire paneAttached event on attach", () => {
-      const listener = vi.fn();
-      registry.onEvent(listener);
-
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      registry.markReady("pane-1");
-
-      listener.mockClear();
-      registry.attach("pane-1", mockContainer);
-
-      expect(listener).toHaveBeenCalledWith({
-        type: "paneAttached",
-        paneId: "pane-1",
-      });
-    });
-
-    it("should fire paneDetached event on detach", () => {
-      const listener = vi.fn();
-      registry.onEvent(listener);
-
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      registry.markReady("pane-1");
-      registry.attach("pane-1", mockContainer);
-
-      listener.mockClear();
-      registry.detach("pane-1");
-
-      expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "paneDetached", paneId: "pane-1" }),
-      );
     });
   });
 
@@ -469,90 +428,6 @@ describe("EditorPaneRegistry", () => {
       expect(scrollEntry).toBeDefined();
       expect(scrollEntry.savedScrollTop).toBe(250);
       expect(scrollEntry.element).toBeNull();
-    });
-  });
-
-  // ==========================================================================
-  // Visibility Tracking
-  // ==========================================================================
-
-  describe("Visibility Tracking", () => {
-    it("should mark pane as visible when notifyVisible() is called", () => {
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      expect(registry.isVisible("pane-1")).toBe(false);
-
-      registry.notifyVisible("pane-1");
-      expect(registry.isVisible("pane-1")).toBe(true);
-    });
-
-    it("should mark pane as hidden when notifyHidden() is called", () => {
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      registry.notifyVisible("pane-1");
-      expect(registry.isVisible("pane-1")).toBe(true);
-
-      registry.notifyHidden("pane-1");
-      expect(registry.isVisible("pane-1")).toBe(false);
-    });
-
-    it("should fire visibilityChanged event when visibility changes", () => {
-      const listener = vi.fn();
-      registry.onEvent(listener);
-
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      listener.mockClear();
-
-      registry.notifyVisible("pane-1");
-
-      expect(listener).toHaveBeenCalledWith({
-        type: "visibilityChanged",
-        paneId: "pane-1",
-        isVisible: true,
-      });
-    });
-
-    it("should trigger layout callback when notifyVisible() is called", () => {
-      const layoutTrigger = vi.fn();
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      registry.setLayoutTrigger("pane-1", layoutTrigger);
-
-      registry.notifyVisible("pane-1");
-
-      expect(layoutTrigger).toHaveBeenCalled();
-    });
-
-    it("should not fire visibilityChanged event if visibility unchanged", () => {
-      const listener = vi.fn();
-      registry.onEvent(listener);
-
-      const config = {
-        pane: { id: "pane-1", type: "editor", cwd: "/test", file: undefined },
-      };
-
-      registry.getOrCreate("pane-1", config);
-      registry.notifyVisible("pane-1");
-
-      listener.mockClear();
-      registry.notifyVisible("pane-1"); // Call again
-
-      expect(listener).not.toHaveBeenCalledWith(
-        expect.objectContaining({ type: "visibilityChanged" }),
-      );
     });
   });
 

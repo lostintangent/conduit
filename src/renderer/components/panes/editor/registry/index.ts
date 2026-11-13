@@ -2,7 +2,6 @@
  * Editor Registries
  *
  * Global singleton registries that manage expensive resources:
- * - EditorRegistry: Monaco editor instances
  * - MonacoModelRegistry: Monaco text models (one per file)
  * - ViewStateRegistry: Monaco ViewState per (editor, file) pair
  * - EditorPaneRegistry: EditorPane component instances (global container pattern)
@@ -13,7 +12,6 @@ export {
   type EditorPaneConfig,
   type EditorPaneRegistryEvent,
 } from "./EditorPaneRegistry";
-export { EditorRegistry } from "./EditorRegistry";
 export {
   MonacoModelRegistry,
   createModelKey,

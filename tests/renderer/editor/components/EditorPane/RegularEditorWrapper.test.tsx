@@ -61,7 +61,6 @@ const mockViewStateRegistry = {
 vi.mock("../../../../../src/renderer/components/panes/editor/hooks", () => ({
   useMonacoModel: vi.fn(() => mockModel),
   useResponsiveLayout: vi.fn(() => ({ layoutMode: "normal", showTree: true })),
-  useEditorVisibility: vi.fn(),
   useDiffContent: vi.fn(() => ({
     original: "original",
     modified: "modified",
@@ -107,13 +106,6 @@ vi.mock("monaco-editor", () => ({
 
 // Mock registries
 vi.mock("../../../../../src/renderer/components/panes/editor/registry", () => ({
-  EditorRegistry: {
-    getInstance: () => ({
-      getOrCreateEditor: vi.fn(() => mockEditor),
-      releaseEditor: vi.fn(),
-    }),
-    resetInstance: vi.fn(),
-  },
   ViewStateRegistry: {
     getInstance: () => mockViewStateRegistry,
     resetInstance: vi.fn(),

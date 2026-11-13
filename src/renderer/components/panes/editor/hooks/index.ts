@@ -20,8 +20,6 @@ export type { EditorActions } from "./useEditorActions";
 export { useEditorSaveKeybinding } from "./useEditorSaveKeybinding";
 export type { UseEditorSaveKeybindingResult } from "./useEditorSaveKeybinding";
 export { useEditorTheme } from "./useEditorTheme";
-export { useEditorVisibility } from "./useEditorVisibility";
-export type { UseEditorVisibilityOptions } from "./useEditorVisibility";
 export { useExpandedPaths } from "./useExpandedPaths";
 export type {
   UseExpandedPathsOptions,

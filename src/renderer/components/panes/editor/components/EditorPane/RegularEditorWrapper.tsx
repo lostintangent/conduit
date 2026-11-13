@@ -16,9 +16,9 @@
  * - `'workingDirectory'` (default): Editable file from disk via MonacoModelRegistry
  * - `'head'`, `'index'`, or any git ref: Read-only content from git
  *
- * Note: Unlike the portal pattern in EditorRegistry, this creates fresh
- * editors each time to avoid layout issues when switching between
- * editor and diff modes (similar to how @monaco-editor/react works in v1).
+ * Note: This creates fresh editors each time to avoid layout issues when
+ * switching between editor and diff modes (similar to how
+ * @monaco-editor/react works in v1).
  *
  * @example
  * ```tsx
@@ -224,8 +224,7 @@ export function RegularEditorWrapper({
   );
 
   // Get model from registry for working directory source
-  // IMPORTANT: Pass editorId to ensure MonacoModelRegistry uses the same ID
-  // as EditorRegistry for proper lifecycle coordination
+  // Pass editorId so MonacoModelRegistry can reference-count this editor
   const registryModel = useMonacoModel(
     editorId,
     isGitSourceMode ? null : filePath,
@@ -309,8 +308,6 @@ export function RegularEditorWrapper({
     const viewStateRegistry = ViewStateRegistry.getInstance();
 
     // Create a fresh Monaco editor (like @monaco-editor/react does in v1).
-    // We don't use EditorRegistry here because the portal pattern causes
-    // layout issues when moving editors between containers during mode switches.
     const editor = monaco.editor.create(container, {
       ...DEFAULT_EDITOR_OPTIONS,
       theme,
@@ -356,7 +353,7 @@ export function RegularEditorWrapper({
         standaloneModelRef.current = null;
       }
 
-      // Dispose the editor (unlike EditorRegistry which keeps it alive)
+      // Dispose the editor
       editor.dispose();
       editorRef.current = null;
     };

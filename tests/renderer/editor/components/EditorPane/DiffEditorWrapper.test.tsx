@@ -95,7 +95,6 @@ vi.mock("../../../../../src/renderer/components/panes/editor/hooks", () => ({
   useDiffContent: vi.fn(() => mockState.diffContent),
   useMonacoModel: vi.fn(() => mockModifiedModel),
   useResponsiveLayout: vi.fn(() => ({ layoutMode: "normal", showTree: true })),
-  useEditorVisibility: vi.fn(),
   useModelState: vi.fn(() => ({
     content: "content",
     isDirty: false,
@@ -130,13 +129,6 @@ vi.mock("../../../../../src/renderer/components/panes/editor/registry", () => ({
       disposeAll: vi.fn(),
       attach: vi.fn(),
       detach: vi.fn(),
-    }),
-    resetInstance: vi.fn(),
-  },
-  EditorRegistry: {
-    getInstance: () => ({
-      getOrCreateEditor: vi.fn(),
-      releaseEditor: vi.fn(),
     }),
     resetInstance: vi.fn(),
   },

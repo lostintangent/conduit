@@ -102,21 +102,6 @@ export class FileTooLargeError extends Error {
 }
 
 // ============================================================================
-// Editor Registry Types
-// ============================================================================
-
-/**
- * Metadata tracked for each editor instance in EditorRegistry.
- */
-export interface EditorMetadata {
-  /** Timestamp when editor was created */
-  createdAt: number;
-
-  /** Timestamp when editor was last used (for LRU eviction) */
-  lastUsed: number;
-}
-
-// ============================================================================
 // Model Registry Types
 // ============================================================================
 

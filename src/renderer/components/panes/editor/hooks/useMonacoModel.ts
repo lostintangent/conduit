@@ -41,10 +41,7 @@ import { MonacoModelRegistry, createModelKey } from "../registry";
  * during render when cached. This eliminates the ~150ms extra render cycle
  * that occurs with useState + useEffect patterns.
  *
- * IMPORTANT: The editorId MUST be the same ID used for EditorRegistry
- * to ensure proper coordination between model and editor lifecycles.
- *
- * @param editorId - Unique editor ID (must match EditorRegistry ID)
+ * @param editorId - Unique editor ID, used to reference-count the model
  * @param filePath - Absolute path to the file, or null for no model
  * @param cwd - Working directory for file operations
  * @returns The Monaco text model, or null if filePath is null or loading

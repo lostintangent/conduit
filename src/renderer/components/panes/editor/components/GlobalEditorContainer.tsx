@@ -24,7 +24,10 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { EditorPaneV2 } from "../EditorPaneV2";
 import { EditorPaneRegistry, type EditorPaneConfig } from "../registry";
-import { EditorRegistry } from "../registry/EditorRegistry";
+import { configureMonaco } from "../utils/monacoSetup";
+
+// Global Monaco settings (diagnostics off, markdown pairs, Zig). Must run before any editor is created.
+configureMonaco();
 
 interface EditorPaneEntry {
   paneId: string;
@@ -37,7 +40,6 @@ interface EditorPaneEntry {
  * Responsibilities:
  * - Renders EditorPaneV2 into the registry-owned wrapper element via portal
  * - Calls markReady() to signal that React has rendered
- * - Sets up layout trigger for Monaco using EditorRegistry's triggerLayout
  *
  * The key insight: React renders INTO the wrapper element (via portal),
  * but doesn't own the wrapper itself. The registry owns and moves the wrapper.
@@ -50,7 +52,6 @@ function EditorPaneWrapper({
   config: EditorPaneConfig;
 }) {
   const paneRegistry = EditorPaneRegistry.getInstance();
-  const editorRegistry = EditorRegistry.getInstance();
 
   // Get the registry-owned wrapper element to render into
   const wrapperElement = paneRegistry.getWrapperElement(paneId);
@@ -59,25 +60,6 @@ function EditorPaneWrapper({
   useEffect(() => {
     paneRegistry.markReady(paneId);
   }, [paneId, paneRegistry]);
-
-  // Set up layout trigger using EditorRegistry's debounced triggerLayout
-  useEffect(() => {
-    const triggerLayout = () => {
-      // Trigger layout on the editor for this pane
-      // The editorId follows the convention: editor-{paneId}
-      const editorId = `editor-${paneId}`;
-
-      // Use EditorRegistry's triggerLayout for proper debouncing
-      // and requestAnimationFrame coordination
-      editorRegistry.triggerLayout(editorId, false);
-    };
-
-    paneRegistry.setLayoutTrigger(paneId, triggerLayout);
-
-    return () => {
-      paneRegistry.setLayoutTrigger(paneId, undefined);
-    };
-  }, [paneId, paneRegistry, editorRegistry]);
 
   // If wrapper doesn't exist (disposed), don't render
   if (!wrapperElement) {
@@ -155,11 +137,6 @@ export function GlobalEditorContainer() {
                 : p,
             ),
           );
-          break;
-
-        // Attach/detach/visibility events don't require re-render
-        // DOM manipulation is handled by the registry
-        default:
           break;
       }
     });
