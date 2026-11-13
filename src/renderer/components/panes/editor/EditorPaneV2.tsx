@@ -419,10 +419,18 @@ export function EditorPaneV2({
     null,
   );
 
-  // Git status state - tracks which files have changes
-  const [gitChangedFiles, setGitChangedFiles] = useState<Set<string>>(
-    () => new Set(),
+  // Derived from gitStatus: changed paths and staged count (branch status entries are never staged)
+  const gitChangedFiles = useMemo(
+    () => new Set<string>(gitStatus?.keys()),
+    [gitStatus],
   );
+  const stagedCount = useMemo(() => {
+    let staged = 0;
+    for (const fileStatus of gitStatus?.values() ?? []) {
+      if (fileStatus.staged) staged++;
+    }
+    return staged;
+  }, [gitStatus]);
 
   // Unseen file change tracking (consolidated hook)
   // Handles state, subscriptions, and read triggers
@@ -443,9 +451,6 @@ export function EditorPaneV2({
 
   // Current branch name
   const [currentBranch, setCurrentBranch] = useState<string | null>(null);
-
-  // Staged count and change detection for git toolbar
-  const [stagedCount, setStagedCount] = useState(0);
 
   // Commit message state
   const [commitMessage, setCommitMessage] = useState("");
@@ -472,31 +477,13 @@ export function EditorPaneV2({
   // Helper to update git status state
   const updateGitStatusState = useCallback(
     (status: { files: Map<string, GitFileStatus>; branch?: string } | null) => {
-      if (!status?.files) {
-        setGitStatus(null);
-        setGitChangedFiles(new Set());
-        setStagedCount(0);
-        return;
-      }
-
-      // Store full status map for GitBranchToolbar
-      setGitStatus(status.files);
-      setGitChangedFiles(new Set(status.files.keys()));
+      setGitStatus(status?.files ?? null);
 
       // Update current branch from status (if available)
       // This is more reliable than a separate async call since it comes with the status
-      if (status.branch) {
+      if (status?.branch) {
         setCurrentBranch(status.branch);
       }
-
-      // Count staged files
-      let staged = 0;
-      for (const fileStatus of status.files.values()) {
-        if (fileStatus.staged) {
-          staged++;
-        }
-      }
-      setStagedCount(staged);
     },
     [],
   );
@@ -609,9 +596,6 @@ export function EditorPaneV2({
           const branchStatus = await git.getStatusFromBranch(baseBranch);
           if (!cancelled) {
             setGitStatus(branchStatus);
-            setGitChangedFiles(new Set(branchStatus.keys()));
-            // In branch comparison mode, staging is not applicable
-            setStagedCount(0);
           }
         } else {
           // HEAD mode: refresh normal status
@@ -1282,20 +1266,6 @@ export function EditorPaneV2({
   );
 
   /**
-   * Determine if the current file can show a diff view.
-   * A file is diffable if its status is "modified" or "renamed".
-   */
-  const isCurrentFileGitModified = useMemo(() => {
-    if (!selectedFile) return false;
-    // In changes mode, use selectedGitStatus directly.
-    // In files mode, look up by relative path.
-    const fileStatus =
-      selectedGitStatus ??
-      gitStatus?.get(getRelativePath(selectedFile.path, currentCwd));
-    return isDiffableStatus(fileStatus);
-  }, [selectedFile, selectedGitStatus, currentCwd, gitStatus]);
-
-  /**
    * Determine if the current file is deleted (needs special viewer).
    */
   const isCurrentFileDeleted = useMemo(() => {
@@ -1371,6 +1341,12 @@ export function EditorPaneV2({
     const relativePath = getRelativePath(selectedFile.path, currentCwd);
     return gitStatus?.get(relativePath) ?? undefined;
   }, [selectedFile, selectedGitStatus, currentCwd, gitStatus]);
+
+  /**
+   * Determine if the current file can show a diff view.
+   * A file is diffable if its status is "modified" or "renamed".
+   */
+  const isCurrentFileGitModified = isDiffableStatus(currentFileGitStatus);
 
   /**
    * Determine if the current file supports preview mode (e.g., markdown files, images).
