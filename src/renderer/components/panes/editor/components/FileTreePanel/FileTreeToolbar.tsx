@@ -33,9 +33,6 @@ export interface FileTreeToolbarProps {
   /** Callback when navigate up is clicked */
   onNavigateUp: () => void;
 
-  /** Whether the tree panel is currently collapsed */
-  isCollapsed?: boolean;
-
   /** Callback when collapse toggle is clicked */
   onToggleCollapse?: () => void;
 
@@ -58,7 +55,6 @@ export function FileTreeToolbar({
   cwd,
   canNavigateUp,
   onNavigateUp,
-  isCollapsed = false,
   onToggleCollapse,
   showCollapseButton = false,
 }: FileTreeToolbarProps) {
@@ -67,9 +63,6 @@ export function FileTreeToolbar({
   const isRoot = isAtRoot(cwd);
   const canGoUp = canNavigateUp && !isRoot;
   const [copied, setCopied] = useState(false);
-
-  // Suppress unused variable warning
-  void isCollapsed;
 
   const handleCopyPath = useCallback(() => {
     if (cwd) {

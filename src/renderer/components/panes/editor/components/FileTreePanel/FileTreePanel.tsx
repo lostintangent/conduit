@@ -158,9 +158,6 @@ export interface FileTreePanelProps {
   /** Callback when navigate up button is clicked */
   onNavigateUp?: () => void;
 
-  /** Whether the tree panel is collapsed (for collapse toggle button state) */
-  isTreeCollapsed?: boolean;
-
   /** Callback when collapse toggle is clicked */
   onToggleCollapse?: () => void;
 
@@ -253,7 +250,6 @@ export const FileTreePanel = memo(
       // Navigation Props
       canNavigateUp = false,
       onNavigateUp,
-      isTreeCollapsed = false,
       onToggleCollapse,
       showCollapseButton = false,
       onDirectoryChange,
@@ -317,7 +313,6 @@ export const FileTreePanel = memo(
             cwd={cwd}
             canNavigateUp={canNavigateUp}
             onNavigateUp={handleNavigateUp}
-            isCollapsed={isTreeCollapsed}
             onToggleCollapse={onToggleCollapse}
             showCollapseButton={showCollapseButton}
           />

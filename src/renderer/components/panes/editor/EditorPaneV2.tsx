@@ -1626,7 +1626,6 @@ export function EditorPaneV2({
             // Navigation Props
             canNavigateUp={canNavigateUp}
             onNavigateUp={handleNavigateUp}
-            isTreeCollapsed={isTreeCollapsed}
             onToggleCollapse={handleToggleTree}
             showCollapseButton={layout === "split"}
             onDirectoryChange={handleDirectoryChange}
