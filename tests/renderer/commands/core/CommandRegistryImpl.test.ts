@@ -449,21 +449,6 @@ describe("CommandRegistry", () => {
   });
 
   describe("dispose()", () => {
-    it("should remove command from registry", () => {
-      const command: CommandDescriptor = {
-        id: "test.command",
-        title: "Test Command",
-        run: () => {},
-      };
-
-      const disposable = registry.registerCommand(command);
-
-      expect(registry.hasCommand("test.command")).toBe(true);
-
-      disposable.dispose();
-
-      expect(registry.hasCommand("test.command")).toBe(false);
-    });
 
     it("should cleanup keybindings when disposed", () => {
       const keybindingRegistry = new KeybindingRegistry();

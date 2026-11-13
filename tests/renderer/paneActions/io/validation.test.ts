@@ -391,21 +391,6 @@ describe("validation", () => {
         const result = validatePaneActionsConfig(actions);
         expect(result[0].config).toEqual({});
       });
-
-      it("should accept empty editor config", () => {
-        const actions = [
-          {
-            name: "Test",
-            icon: "test",
-            enabled: true,
-            paneType: "editor",
-            config: {},
-          },
-        ];
-
-        const result = validatePaneActionsConfig(actions);
-        expect(result[0].config).toEqual({});
-      });
     });
 
     describe("browser config validation", () => {

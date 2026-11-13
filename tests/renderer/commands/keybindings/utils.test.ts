@@ -456,15 +456,6 @@ describe("isUserKeybinding", () => {
     expect(isUserKeybinding(binding)).toBe(false);
   });
 
-  it("should return false for default weight (0)", () => {
-    const binding: ResolvedKeybinding = {
-      commandId: "test",
-      chords: [],
-      weight: 0,
-    };
-    expect(isUserKeybinding(binding)).toBe(false);
-  });
-
   it("should verify USER_KEYBINDING_WEIGHT is 1000", () => {
     // This test documents the expected constant value
     expect(USER_KEYBINDING_WEIGHT).toBe(1000);

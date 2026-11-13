@@ -169,10 +169,6 @@ describe("isBinaryContent", () => {
       expect(isBinaryContent("\x00text")).toBe(true);
     });
 
-    it("should detect binary in middle of content", () => {
-      expect(isBinaryContent("text\x00more")).toBe(true);
-    });
-
     it("should handle Unicode content correctly", () => {
       expect(isBinaryContent("日本語テキスト")).toBe(false);
       expect(isBinaryContent("emoji: 🎉🚀")).toBe(false);

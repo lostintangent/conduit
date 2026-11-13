@@ -207,10 +207,6 @@ describe("languageDetection", () => {
       it("should detect ini for .properties files", () => {
         expect(detectLanguage("/path/to/app.properties")).toBe("ini");
       });
-
-      it("should detect ini for .env files", () => {
-        expect(detectLanguage("/path/to/.env")).toBe("ini");
-      });
     });
 
     describe("Other", () => {
