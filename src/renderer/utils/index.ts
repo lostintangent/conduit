@@ -18,8 +18,4 @@ export function capitalize(value: string) {
 }
 
 // Path utilities for cross-platform path handling
-export {
-  isCaseInsensitiveFs,
-  normalizePathForKey,
-  pathsEqual,
-} from "./pathUtils";
+export { normalizePathForKey, pathsEqual } from "./pathUtils";

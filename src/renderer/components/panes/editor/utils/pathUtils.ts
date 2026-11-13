@@ -7,11 +7,7 @@
 import { pathsEqual } from "@/utils/pathUtils";
 
 // Re-export shared path utilities
-export {
-  isCaseInsensitiveFs,
-  normalizePathForKey,
-  pathsEqual,
-} from "@/utils/pathUtils";
+export { normalizePathForKey, pathsEqual } from "@/utils/pathUtils";
 
 /**
  * Join a working directory with a relative path to create an absolute path.

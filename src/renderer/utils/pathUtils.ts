@@ -1,24 +1,11 @@
 /**
- * Path utilities for cross-platform path handling.
- *
- * Provides case-insensitive path operations for macOS and Windows,
- * where the filesystem is case-insensitive but JavaScript string
- * comparisons are case-sensitive.
+ * Path utilities for macOS's case-insensitive filesystem, where
+ * JavaScript string comparisons are case-sensitive.
  */
 
 /**
- * Whether the current platform uses case-insensitive file paths.
- * macOS and Windows are case-insensitive by default.
- */
-export const isCaseInsensitiveFs = (() => {
-  const platform = navigator.platform.toLowerCase();
-  return platform.includes("mac") || platform.includes("win");
-})();
-
-/**
- * Normalize a path for use as a Map/Set/Object key.
- * On case-insensitive filesystems (macOS/Windows), lowercases the path
- * to ensure consistent lookups regardless of the original casing.
+ * Normalize a path for use as a Map/Set/Object key by lowercasing it,
+ * so lookups are consistent regardless of the original casing.
  *
  * Use this when storing or looking up paths in:
  * - Map keys
@@ -33,18 +20,16 @@ export const isCaseInsensitiveFs = (() => {
  * ```
  */
 export function normalizePathForKey(path: string): string {
-  return isCaseInsensitiveFs ? path.toLowerCase() : path;
+  return path.toLowerCase();
 }
 
 /**
- * Compare two file paths, respecting platform case sensitivity.
- * On macOS/Windows, paths are compared case-insensitively.
- * On Linux, paths are compared case-sensitively.
+ * Compare two file paths case-insensitively.
  *
  * @example
  * ```typescript
  * if (pathsEqual(selectedFile, currentFile)) {
- *   // Same file (case-insensitive on macOS/Windows)
+ *   // Same file
  * }
  * ```
  */
@@ -55,8 +40,5 @@ export function pathsEqual(
   if (path1 == null || path2 == null) {
     return path1 === path2;
   }
-  if (isCaseInsensitiveFs) {
-    return path1.toLowerCase() === path2.toLowerCase();
-  }
-  return path1 === path2;
+  return path1.toLowerCase() === path2.toLowerCase();
 }

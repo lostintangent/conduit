@@ -29,7 +29,6 @@ export {
 } from "./gitStatusHelpers";
 export {
   pathsEqual,
-  isCaseInsensitiveFs,
   getFileName,
   getParentPath,
   getDirectoryPath,

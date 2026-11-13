@@ -18,7 +18,6 @@ import { renderHook, act } from "@testing-library/react";
 // Mock the pathUtils to ensure case-insensitive behavior for testing
 // This simulates macOS/Windows behavior
 vi.mock("@/utils/pathUtils", () => ({
-  isCaseInsensitiveFs: true,
   normalizePathForKey: (path: string) => path.toLowerCase(),
   pathsEqual: (
     path1: string | null | undefined,
