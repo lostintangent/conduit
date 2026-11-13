@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
+import { formatHomePath } from "@/utils/pathUtils";
 import { useAtomValue } from "jotai";
 import { FolderUp, PanelLeftClose } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -40,35 +41,6 @@ export interface FileTreeToolbarProps {
 
   /** Whether to show the collapse button (only in split layout mode) */
   showCollapseButton?: boolean;
-}
-
-/**
- * Format directory path for display.
- * Replaces home directory with ~ prefix, otherwise shows full path.
- * Matches v1 behavior.
- */
-function formatDisplayPath(cwd: string, homeDirectory?: string): string {
-  if (!homeDirectory) {
-    return cwd;
-  }
-
-  const normalizedPath = cwd.replace(/\\/g, "/");
-  const normalizedHome = homeDirectory.replace(/\\/g, "/");
-
-  if (normalizedPath === normalizedHome) {
-    return "~";
-  }
-
-  const homeWithSlash = normalizedHome.endsWith("/")
-    ? normalizedHome
-    : `${normalizedHome}/`;
-
-  if (normalizedPath.startsWith(homeWithSlash)) {
-    const suffix = normalizedPath.slice(homeWithSlash.length);
-    return suffix ? `~/${suffix}` : "~";
-  }
-
-  return cwd;
 }
 
 /**
@@ -101,7 +73,7 @@ export function FileTreeToolbar({
   showCollapseButton = false,
 }: FileTreeToolbarProps) {
   const { homeDirectory } = useAtomValue(userSettingsAtom);
-  const displayPath = formatDisplayPath(cwd, homeDirectory);
+  const displayPath = formatHomePath(cwd, homeDirectory);
   const isRoot = isAtRoot(cwd);
   const canGoUp = canNavigateUp && !isRoot;
   const [copied, setCopied] = useState(false);

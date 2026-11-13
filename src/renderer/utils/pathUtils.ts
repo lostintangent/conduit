@@ -42,3 +42,30 @@ export function pathsEqual(
   }
   return path1.toLowerCase() === path2.toLowerCase();
 }
+
+/**
+ * Format a path for display, replacing the home directory with "~".
+ */
+export function formatHomePath(path: string, homeDirectory?: string): string {
+  if (!homeDirectory) {
+    return path;
+  }
+
+  const normalizedPath = path.replace(/\\/g, "/");
+  const normalizedHome = homeDirectory.replace(/\\/g, "/");
+
+  if (normalizedPath === normalizedHome) {
+    return "~";
+  }
+
+  const homeWithSlash = normalizedHome.endsWith("/")
+    ? normalizedHome
+    : `${normalizedHome}/`;
+
+  if (normalizedPath.startsWith(homeWithSlash)) {
+    const suffix = normalizedPath.slice(homeWithSlash.length);
+    return suffix ? `~/${suffix}` : "~";
+  }
+
+  return path;
+}

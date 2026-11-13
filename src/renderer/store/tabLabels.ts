@@ -8,6 +8,7 @@ import {
   type TabState,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
+import { formatHomePath } from "@/utils/pathUtils";
 import { atom } from "jotai";
 
 export type TabDescriptor = {
@@ -32,9 +33,6 @@ function resolveActivePane(tab: Tab): Pane | undefined {
   return firstPane;
 }
 
-const normalizePath = (value: string | null | undefined) =>
-  value ? value.replace(/\\/g, "/") : null;
-
 export const tabLabelsAtom = atom((get): TabDescriptor[] => {
   const tabs = get(tabsAtom);
   const activeTabId = get(activeTabIdAtom);
@@ -42,37 +40,8 @@ export const tabLabelsAtom = atom((get): TabDescriptor[] => {
   const tabProgress = get(tabProgressAtom);
   const { homeDirectory } = get(userSettingsAtom);
 
-  const formatPathForLabel = (pathValue: string | null | undefined) => {
-    if (!pathValue) {
-      return null;
-    }
-
-    if (!homeDirectory) {
-      return pathValue;
-    }
-
-    const normalizedPath = normalizePath(pathValue);
-    const normalizedHome = normalizePath(homeDirectory);
-
-    if (!normalizedPath || !normalizedHome) {
-      return pathValue;
-    }
-
-    if (normalizedPath === normalizedHome) {
-      return "~";
-    }
-
-    const homeWithSlash = normalizedHome.endsWith("/")
-      ? normalizedHome
-      : `${normalizedHome}/`;
-
-    if (normalizedPath.startsWith(homeWithSlash)) {
-      const suffix = normalizedPath.slice(homeWithSlash.length);
-      return suffix ? `~/${suffix}` : "~";
-    }
-
-    return pathValue;
-  };
+  const formatPathForLabel = (pathValue: string | null | undefined) =>
+    pathValue ? formatHomePath(pathValue, homeDirectory) : null;
 
   return tabs.map((tab) => {
     const activePane = resolveActivePane(tab);
