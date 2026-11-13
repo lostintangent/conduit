@@ -122,23 +122,6 @@ function splitLayoutNode(
     };
   }
 
-  if (targetChild.type === "pane" && targetChild.paneId === targetPaneId) {
-    const newChildren = [...node.children];
-    newChildren[childIndex] = {
-      id: generateId(),
-      type: "split",
-      direction,
-      children: insertBefore ? [newNode, targetChild] : [targetChild, newNode],
-    };
-    return {
-      node: {
-        ...node,
-        children: newChildren,
-      },
-      modified: true,
-    };
-  }
-
   return { node, modified: false };
 }
 
@@ -668,41 +651,7 @@ export async function splitPane(
     agentWorktreePath,
   };
 
-  const newLayoutNode: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId: newPaneId,
-  };
-
-  store.set(tabsAtom, (current) =>
-    current.map((currentTab) => {
-      if (currentTab.id !== tabId) {
-        return currentTab;
-      }
-
-      const { node: newLayout, modified } = splitLayoutNode(
-        currentTab.layout,
-        paneId,
-        direction,
-        newLayoutNode,
-        insertBefore,
-      );
-
-      if (!modified) {
-        return currentTab;
-      }
-
-      return {
-        ...currentTab,
-        panes: {
-          ...currentTab.panes,
-          [newPaneId]: newPaneState,
-        },
-        layout: newLayout,
-        activePaneId: newPaneId,
-      };
-    }),
-  );
+  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
 
   return newPaneState;
 }
@@ -881,41 +830,7 @@ export function openBrowserPane(
     ...(devTools && { devToolsFor: paneId }),
   };
 
-  const newLayoutNode: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId: newPaneId,
-  };
-
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
-
-      const { node: newLayout, modified } = splitLayoutNode(
-        tab.layout,
-        paneId,
-        direction,
-        newLayoutNode,
-        insertBefore,
-      );
-
-      if (!modified) {
-        return tab;
-      }
-
-      return {
-        ...tab,
-        panes: {
-          ...tab.panes,
-          [newPaneId]: newPaneState,
-        },
-        layout: newLayout,
-        activePaneId: newPaneId,
-      };
-    }),
-  );
+  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
 }
 
 type OpenEditorPaneOptions = {
@@ -940,41 +855,7 @@ export function openEditorPane(
     preview: options.preview,
   };
 
-  const newLayoutNode: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId: newPaneId,
-  };
-
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
-
-      const { node: newLayout, modified } = splitLayoutNode(
-        tab.layout,
-        paneId,
-        direction,
-        newLayoutNode,
-        insertBefore,
-      );
-
-      if (!modified) {
-        return tab;
-      }
-
-      return {
-        ...tab,
-        panes: {
-          ...tab.panes,
-          [newPaneId]: newPaneState,
-        },
-        layout: newLayout,
-        activePaneId: newPaneId,
-      };
-    }),
-  );
+  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
 
   return newPaneId;
 }
@@ -991,41 +872,7 @@ export function openCanvasPane(
     type: "canvas",
   };
 
-  const newLayoutNode: LayoutNode = {
-    id: generateId(),
-    type: "pane",
-    paneId: newPaneId,
-  };
-
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
-
-      const { node: newLayout, modified } = splitLayoutNode(
-        tab.layout,
-        paneId,
-        direction,
-        newLayoutNode,
-        insertBefore,
-      );
-
-      if (!modified) {
-        return tab;
-      }
-
-      return {
-        ...tab,
-        panes: {
-          ...tab.panes,
-          [newPaneId]: newPaneState,
-        },
-        layout: newLayout,
-        activePaneId: newPaneId,
-      };
-    }),
-  );
+  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
 
   return newPaneId;
 }
