@@ -20,8 +20,15 @@ import {
   tabStateAtom,
   type TabState,
 } from "@/store/atoms";
+import {
+  deleteCanvasState,
+  EMPTY_HISTORY,
+  getCanvasState,
+  setCanvasState,
+} from "@/store/canvasStore";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
+import { generateElementId } from "@shared/types/canvas";
 import { generateId } from "@shared/utils";
 import { getDefaultStore } from "jotai";
 import path from "path-browserify";
@@ -324,6 +331,7 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   const sessionsToClose: string[] = [];
   const terminalPanesToDispose: string[] = [];
   const editorPaneIdsToDispose: string[] = [];
+  const canvasPaneIdsToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
   const previousActiveTabId = store.get(activeTabIdAtom);
@@ -342,6 +350,8 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
         sessionsToClose.push(pane.sessionId);
       } else if (pane.type === "editor") {
         editorPaneIdsToDispose.push(pane.id);
+      } else if (pane.type === "canvas") {
+        canvasPaneIdsToDispose.push(pane.id);
       }
     });
 
@@ -381,6 +391,8 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   // Dispose editor panes from EditorPaneRegistry
   // This fully removes editors (vs detach which just moves them off-screen)
   editorPaneIdsToDispose.forEach((paneId) => disposeEditorPane(paneId));
+
+  canvasPaneIdsToDispose.forEach((paneId) => deleteCanvasState(paneId));
 
   // Clean up tab state tracking for the closed tab
   store.set(tabStateAtom, (draft) => {
@@ -549,6 +561,23 @@ export async function duplicateTab(
         url: sourcePane.url,
         title: sourcePane.title,
       };
+    } else if (sourcePane.type === "canvas") {
+      newPanes[newPaneId] = {
+        id: newPaneId,
+        type: "canvas",
+        title: sourcePane.title,
+      };
+      // Fresh element IDs keep the copy's image cache entries independent
+      const sourceCanvas = getCanvasState(oldPaneId);
+      setCanvasState(newPaneId, {
+        ...sourceCanvas,
+        elements: sourceCanvas.elements.map((element) => ({
+          ...element,
+          id: generateElementId(),
+        })),
+        selectedIds: [],
+        history: EMPTY_HISTORY,
+      });
     }
   }
 
