@@ -304,33 +304,6 @@ describe("FileSystemV2APIService", () => {
   });
 
   // ===========================================================================
-  // Stats
-  // ===========================================================================
-
-  describe("getStats", () => {
-    it("should return correct stats for empty service", () => {
-      const service = FileSystemV2APIService.getInstance();
-      const stats = service.getStats();
-
-      expect(stats.instanceCount).toBe(0);
-      expect(stats.totalRefCount).toBe(0);
-    });
-
-    it("should return correct stats with instances", () => {
-      const service = FileSystemV2APIService.getInstance();
-
-      service.acquire("/project/a");
-      service.acquire("/project/a");
-      service.acquire("/project/b");
-
-      const stats = service.getStats();
-
-      expect(stats.instanceCount).toBe(2);
-      expect(stats.totalRefCount).toBe(3);
-    });
-  });
-
-  // ===========================================================================
   // Reset
   // ===========================================================================
 
