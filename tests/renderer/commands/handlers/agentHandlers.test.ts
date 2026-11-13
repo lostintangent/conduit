@@ -44,14 +44,22 @@ describe("agentHandlers", () => {
       const mockSessions: AgentSessionInfo[] = [
         {
           id: "session-1",
+          repoRoot: "/Users/me/repo",
+          worktreePath: "/Users/me/.conduit/worktrees/repo/feature-1",
           branchName: "feature-1",
-          path: "/path1",
-        } as AgentSessionInfo,
+          baseRef: "main",
+          baseBranch: "main",
+          createdAt: 1,
+        },
         {
           id: "session-2",
+          repoRoot: "/Users/me/repo",
+          worktreePath: "/Users/me/.conduit/worktrees/repo/feature-2",
           branchName: "feature-2",
-          path: "/path2",
-        } as AgentSessionInfo,
+          baseRef: "main",
+          baseBranch: "main",
+          createdAt: 2,
+        },
       ];
       const mockShowDialog = vi.fn();
       const mockContext = {
@@ -146,7 +154,7 @@ describe("agentHandlers", () => {
 
       vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-1");
       vi.mocked(paneActions.completeAgentSession).mockResolvedValue({
-        status: "success",
+        status: "merged",
         message: "Merged successfully",
       });
 
@@ -186,7 +194,7 @@ describe("agentHandlers", () => {
 
       vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-2");
       vi.mocked(paneActions.completeAgentSession).mockResolvedValue({
-        status: "success",
+        status: "merged",
         message: "Merged",
       });
 
@@ -369,7 +377,7 @@ describe("agentHandlers", () => {
 
       vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-1");
       vi.mocked(paneActions.deleteAgentSession).mockResolvedValue({
-        status: "success",
+        status: "removed",
         message: "Terminated successfully",
       });
 
@@ -408,7 +416,7 @@ describe("agentHandlers", () => {
 
       vi.mocked(notifications.enqueueNotification).mockReturnValue("notif-2");
       vi.mocked(paneActions.deleteAgentSession).mockResolvedValue({
-        status: "success",
+        status: "removed",
         message: "Cleaned up",
       });
 
