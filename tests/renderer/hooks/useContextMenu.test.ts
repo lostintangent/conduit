@@ -1,6 +1,6 @@
 import { MenuId } from "@/commands/menus/types";
 import { ApplicationCommands } from "@shared/commands";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use vi.hoisted to define mocks that can be used in vi.mock
@@ -396,11 +396,9 @@ describe("useContextMenu", () => {
 
   describe("git repository caching", () => {
     it("should cache git repository checks", async () => {
-      // Clear all previous calls
-      mockApi.hasGitRepository.mockClear();
       mockApi.hasGitRepository.mockResolvedValue(true);
 
-      const mockContextBuilder = vi.fn(async (_ctx, params, checkGitRepo) => {
+      const mockContextBuilder = vi.fn(async (_ctx, _params, checkGitRepo) => {
         await checkGitRepo("/repo");
       });
 
@@ -415,23 +413,13 @@ describe("useContextMenu", () => {
         stopPropagation: vi.fn(),
       } as any;
 
-      // First call
-      await result.current(mockEvent, "tab-1", "pane-1");
+      // act() flushes the cache update and refreshes result.current, so the
+      // second call sees the cache instead of racing a timer for it.
+      await act(() => result.current(mockEvent, "tab-1", "pane-1"));
+      await act(() => result.current(mockEvent, "tab-1", "pane-1"));
 
-      // Wait for context builder to complete
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      const firstCallCount = mockApi.hasGitRepository.mock.calls.length;
-      expect(firstCallCount).toBeGreaterThan(0);
-
-      // Second call with same cwd - should use cache
-      await result.current(mockEvent, "tab-1", "pane-1");
-
-      // Wait for any async operations
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Should still be the same count - cache working
-      expect(mockApi.hasGitRepository.mock.calls.length).toBe(firstCallCount);
+      expect(mockContextBuilder).toHaveBeenCalledTimes(2);
+      expect(mockApi.hasGitRepository).toHaveBeenCalledTimes(1);
     });
   });
 });
