@@ -623,10 +623,14 @@ export async function splitPane(
     return;
   }
 
-  const sourceTerminalPane =
-    sourcePane.type === "terminal" ? sourcePane : undefined;
+  // Terminals and editors both have a folder and may belong to an agent
+  // session, so a split from either starts there and stays in that session.
+  const sourceFolderPane =
+    sourcePane.type === "terminal" || sourcePane.type === "editor"
+      ? sourcePane
+      : undefined;
 
-  const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
+  const defaultCwd = sourceFolderPane?.cwd ?? undefined;
 
   // A split in the visible tab from a pane that can't be measured, like an
   // editor or a pane that hasn't fit yet, starts its shell once it has fit.
@@ -648,7 +652,7 @@ export async function splitPane(
     sessionId: result.sessionId,
     cwd: result.cwd ?? null,
     title: result.title,
-    ...inheritAgentSession(options.agentSession, sourceTerminalPane),
+    ...inheritAgentSession(options.agentSession, sourceFolderPane),
   };
 
   insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);

@@ -240,6 +240,37 @@ describe("splitPane", () => {
 
     expect(createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
   });
+
+  it("starts a split from an editor in the editor's folder and agent session", async () => {
+    const agent = {
+      agentSessionId: "agent-1",
+      agentBranchName: "agent/one",
+      agentBaseBranch: "main",
+      agentRepoRoot: "/repo",
+      agentWorktreePath: "/worktrees/agent-1",
+    };
+    tabsAtom.set([
+      {
+        id: "tab-1",
+        name: "tab-1",
+        panes: {
+          a: { id: "a", type: "editor", cwd: "/worktrees/agent-1", ...agent },
+        },
+        layout: leaf("a"),
+        activePaneId: "a",
+      },
+    ]);
+    activeTabIdAtom.set("tab-1");
+    getTerminalSize.mockReturnValue(undefined);
+
+    const pane = await splitPane("tab-1", "a", "row");
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/worktrees/agent-1",
+      waitForSize: true,
+    });
+    expect(pane).toMatchObject({ type: "terminal", ...agent });
+  });
 });
 
 describe("splitPaneWithAgentSession", () => {
