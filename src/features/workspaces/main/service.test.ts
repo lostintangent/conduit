@@ -59,7 +59,7 @@ describe("workspaces.saveWorkspace", () => {
       pty: { pid: -1, cols: 132, rows: 41 },
       lastProcessName: "zsh",
       isRendererReady: true,
-      bufferedOutput: [],
+      bufferedOutput: "",
       cwd: "/tmp",
     } as unknown as TerminalInstance);
 

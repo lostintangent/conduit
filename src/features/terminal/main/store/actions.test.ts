@@ -10,6 +10,7 @@ vi.mock("../pty", () => ({
 }));
 vi.mock("../events", () => ({ emit: vi.fn() }));
 
+import { emit } from "../events";
 import { getAllTerminals } from ".";
 import {
   createTerminal,
@@ -105,5 +106,50 @@ describe("a terminal that waits for its size", () => {
     resizeTerminal(id, 69, 24);
 
     expect(spawnTerminalProcess).not.toHaveBeenCalled();
+  });
+});
+
+describe("a restored terminal in a tab that hasn't shown", () => {
+  let pty: ReturnType<typeof fakePty>;
+  const output = (data: string) => pty.onData.mock.calls[0][0](data);
+
+  beforeEach(() => {
+    pty = fakePty();
+    spawnTerminalProcess.mockReset();
+    spawnTerminalProcess.mockReturnValue(pty);
+    vi.mocked(emit).mockReset();
+  });
+
+  afterEach(() => {
+    getAllTerminals().clear();
+  });
+
+  it("runs its command at the shell's first prompt", async () => {
+    const { id } = await createTerminal({ command: "npm run dev" });
+
+    output("Last login: today\r\n");
+    expect(pty.write).not.toHaveBeenCalled();
+
+    output("\x1b]2;zsh\x07\x1b]7;file://host/work\x07~ % ");
+    expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
+
+    markTerminalReady(id);
+    expect(pty.write).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps only its latest output until it shows", async () => {
+    const { id } = await createTerminal({ command: "npm run dev" });
+
+    const line = `${"x".repeat(99)}\n`;
+    for (let i = 0; i < 30_000; i++) output(line);
+    output("last\n");
+    markTerminalReady(id);
+
+    expect(emit).toHaveBeenCalledTimes(1);
+    const { data } = vi.mocked(emit).mock.calls[0][1] as { data: string };
+    expect(data.length).toBeGreaterThan(500_000);
+    expect(data.length).toBeLessThanOrEqual(1_000_000);
+    expect(data.startsWith("x")).toBe(true);
+    expect(data.endsWith(`${line}last\n`)).toBe(true);
   });
 });

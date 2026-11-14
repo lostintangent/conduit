@@ -35,7 +35,7 @@ describe("captureTerminalCommand", () => {
         cwd: "/home/user",
         lastProcessName: "bash",
         isRendererReady: true,
-        bufferedOutput: [],
+        bufferedOutput: "",
       };
 
       const result = await captureTerminalCommand(mockTerminal);
@@ -49,7 +49,7 @@ describe("captureTerminalCommand", () => {
         cwd: "/home/user",
         lastProcessName: "bash",
         isRendererReady: true,
-        bufferedOutput: [],
+        bufferedOutput: "",
       };
 
       const result = await captureTerminalCommand(mockTerminal);
@@ -63,7 +63,7 @@ describe("captureTerminalCommand", () => {
         cwd: "/home/user",
         lastProcessName: "bash",
         isRendererReady: true,
-        bufferedOutput: [],
+        bufferedOutput: "",
       };
 
       const result = await captureTerminalCommand(mockTerminal);
@@ -82,7 +82,7 @@ describe("captureTerminalCommand", () => {
           cwd: "/home/user",
           lastProcessName: shell,
           isRendererReady: true,
-          bufferedOutput: [],
+          bufferedOutput: "",
         };
 
         const result = await captureTerminalCommand(mockTerminal);
@@ -97,7 +97,7 @@ describe("captureTerminalCommand", () => {
         cwd: "/home/user",
         lastProcessName: "",
         isRendererReady: true,
-        bufferedOutput: [],
+        bufferedOutput: "",
       };
 
       const result = await captureTerminalCommand(mockTerminal);
@@ -111,7 +111,7 @@ describe("captureTerminalCommand", () => {
         cwd: "/home/user",
         lastProcessName: "   ",
         isRendererReady: true,
-        bufferedOutput: [],
+        bufferedOutput: "",
       };
 
       const result = await captureTerminalCommand(mockTerminal);
@@ -125,7 +125,7 @@ describe("captureTerminalCommand", () => {
         cwd: "/home/user",
         lastProcessName: "vim",
         isRendererReady: true,
-        bufferedOutput: [],
+        bufferedOutput: "",
       };
 
       const result = await captureTerminalCommand(mockTerminal);
@@ -142,7 +142,7 @@ describe("captureTerminalCommand", () => {
           cwd: "/home/user",
           lastProcessName: program,
           isRendererReady: true,
-          bufferedOutput: [],
+          bufferedOutput: "",
         };
 
         const result = await captureTerminalCommand(mockTerminal);
@@ -158,7 +158,7 @@ describe("captureTerminalCommand", () => {
       cwd: "/home/user",
       lastProcessName,
       isRendererReady: true,
-      bufferedOutput: [],
+      bufferedOutput: "",
     });
 
     it("captures the shell's foreground command", async () => {

@@ -17,6 +17,14 @@ type UnsizedTerminal = {
 /** Terminals whose shell waits for their pane's first fit to start. */
 const unsizedTerminals = new Map<string, UnsizedTerminal>();
 
+/**
+ * Output for a pane that hasn't shown yet, like one in a background tab of a
+ * restored workspace, keeps only about what xterm's 1,000 lines of scrollback
+ * would. It's trimmed in batches, at a line break, so a flood doesn't copy it
+ * on every read.
+ */
+const MAX_BUFFERED_OUTPUT = 1_000_000;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
@@ -62,7 +70,7 @@ function spawnTerminal(
     pty,
     lastProcessName: pty.process,
     isRendererReady: false,
-    bufferedOutput: [],
+    bufferedOutput: "",
     pendingCommand,
     cwd,
   };
@@ -80,7 +88,13 @@ function setupTerminalListeners(terminal: TerminalInstance) {
     if (terminal.isRendererReady) {
       emit("data", { sessionId: id, data });
     } else {
-      terminal.bufferedOutput.push(data);
+      bufferOutput(terminal, data);
+    }
+
+    // Conduit's shell integration reports the cwd as each prompt draws, so a
+    // restored command runs at the first one, whether its tab is showing or not.
+    if (terminal.pendingCommand && data.includes("\x1b]7;")) {
+      runPendingCommand(terminal);
     }
 
     const processName = pty.process;
@@ -98,6 +112,27 @@ function setupTerminalListeners(terminal: TerminalInstance) {
       signal: signal ?? null,
     });
   });
+}
+
+function bufferOutput(terminal: TerminalInstance, data: string) {
+  const output = terminal.bufferedOutput + data;
+  if (output.length <= MAX_BUFFERED_OUTPUT) {
+    terminal.bufferedOutput = output;
+    return;
+  }
+  const lineStart = output.indexOf(
+    "\n",
+    output.length - MAX_BUFFERED_OUTPUT / 2,
+  );
+  terminal.bufferedOutput = output.slice(
+    lineStart === -1 ? -MAX_BUFFERED_OUTPUT / 2 : lineStart + 1,
+  );
+}
+
+function runPendingCommand(terminal: TerminalInstance) {
+  if (!terminal.pendingCommand) return;
+  terminal.pty.write(`${terminal.pendingCommand}\r`);
+  terminal.pendingCommand = undefined;
 }
 
 /** Input sent before a shell starts, like an agent's command, waits for it. */
@@ -159,15 +194,11 @@ export function markTerminalReady(terminalId: string) {
   terminal.isRendererReady = true;
 
   // Flush all buffered output as a single message to avoid race conditions
-  if (terminal.bufferedOutput.length > 0) {
-    const data = terminal.bufferedOutput.join("");
-    emit("data", { sessionId: terminal.id, data });
-    terminal.bufferedOutput = [];
+  if (terminal.bufferedOutput) {
+    emit("data", { sessionId: terminal.id, data: terminal.bufferedOutput });
+    terminal.bufferedOutput = "";
   }
 
-  // Execute any pending command (from workspace restore)
-  if (terminal.pendingCommand) {
-    terminal.pty.write(`${terminal.pendingCommand}\r`);
-    terminal.pendingCommand = undefined;
-  }
+  // A shell without Conduit's integration, like fish, never reports a prompt.
+  runPendingCommand(terminal);
 }
