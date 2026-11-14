@@ -6,7 +6,7 @@ import type {
   TerminalPane as SharedTerminalPane,
   Workspace,
 } from "@shared/types";
-import { closeTab } from "./tab";
+import { closeTab } from "@/store/actions/tab";
 
 const api = window.conduit;
 

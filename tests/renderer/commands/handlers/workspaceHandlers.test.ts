@@ -18,7 +18,7 @@ global.window = {
 } as any;
 
 // Mock workspace actions
-vi.mock("@/store/actions/workspace", () => ({
+vi.mock("@features/workspaces/client/actions", () => ({
   closeWorkspace: vi.fn(),
   openWorkspace: vi.fn(),
 }));
@@ -194,7 +194,8 @@ describe("workspaceHandlers", () => {
       await handleCloseWorkspace();
 
       // The handler dynamically imports the action, so we need to get a reference to it
-      const { closeWorkspace } = await import("@/store/actions/workspace");
+      const { closeWorkspace } =
+        await import("@features/workspaces/client/actions");
       expect(closeWorkspace).toHaveBeenCalled();
     });
   });
@@ -235,7 +236,8 @@ describe("workspaceHandlers", () => {
       await handleOpenLastWorkspace();
 
       expect(mockWorkspaceApi.getState).toHaveBeenCalled();
-      const { openWorkspace } = await import("@/store/actions/workspace");
+      const { openWorkspace } =
+        await import("@features/workspaces/client/actions");
       expect(openWorkspace).toHaveBeenCalledWith(mockWorkspace);
     });
 
@@ -248,7 +250,8 @@ describe("workspaceHandlers", () => {
       await handleOpenLastWorkspace();
 
       expect(mockWorkspaceApi.getState).toHaveBeenCalled();
-      const { openWorkspace } = await import("@/store/actions/workspace");
+      const { openWorkspace } =
+        await import("@features/workspaces/client/actions");
       expect(openWorkspace).not.toHaveBeenCalled();
     });
   });

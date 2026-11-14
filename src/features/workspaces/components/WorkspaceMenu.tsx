@@ -19,7 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { openWorkspace } from "@/store/actions/workspace";
+import { openWorkspace } from "@features/workspaces/client/actions";
 import {
   userSettingsAtom,
   workspaceHasChangesAtom,

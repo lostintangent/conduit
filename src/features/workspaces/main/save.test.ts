@@ -9,12 +9,10 @@ vi.mock("electron", () => ({
   ipcMain: { handle: vi.fn() },
 }));
 
-import { removeTerminal, storeTerminal } from "../../../src/ipc/terminal/store";
-import type { TerminalInstance } from "../../../src/ipc/terminal/types";
-import initializeWorkspaceHandlers, {
-  saveWorkspace,
-} from "../../../src/ipc/workspace";
-import type { Tab } from "../../../src/renderer/types";
+import { removeTerminal, storeTerminal } from "../../../ipc/terminal/store";
+import type { TerminalInstance } from "../../../ipc/terminal/types";
+import initializeWorkspaceHandlers, { saveWorkspace } from "./service";
+import type { Tab } from "@/types";
 
 describe("saveWorkspace", () => {
   it("records each terminal's PTY size", async () => {

@@ -1,7 +1,7 @@
 import {
   closeWorkspace as closeWorkspaceAction,
   openWorkspace,
-} from "@/store/actions/workspace";
+} from "@features/workspaces/client/actions";
 import {
   activeTabIdAtom,
   previousTabsSnapshotAtom,

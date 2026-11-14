@@ -15,7 +15,7 @@ const { workspaceApi } = vi.hoisted(() => {
   return { workspaceApi };
 });
 
-import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
+import { WorkspacePicker } from "@features/workspaces/components/WorkspacePicker";
 import { workspaceStateAtom } from "@/store/atoms";
 
 const workspace = (name: string): Workspace => ({

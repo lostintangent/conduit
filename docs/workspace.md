@@ -177,7 +177,7 @@ type WorkspaceTab = TabMetadata & {
 
 Templates are the YAML format designed for human authoring and sharing. They use a minimal syntax with smart defaults and type inference.
 
-**Source:** `src/ipc/workspace/template/types.ts`
+**Source:** `src/features/workspaces/main/template/types.ts`
 
 ```typescript
 type WorkspaceTemplate = {
@@ -461,12 +461,16 @@ const serializedTabs = await serializeTabs(tabs);
 ### Source Files
 
 ```
-src/ipc/workspace/
-├── index.ts              # IPC handlers, serialization
-└── template/
-    ├── index.ts          # Re-exports
-    ├── types.ts          # Template type definitions
-    └── converter.ts      # Bidirectional conversion
+src/features/workspaces/
+├── main/
+│   ├── service.ts        # IPC handlers, serialization
+│   └── template/
+│       ├── types.ts      # Template type definitions
+│       ├── import.ts     # Template to workspace
+│       ├── export.ts     # Workspace to template
+│       └── utils.ts      # Shared conversion helpers
+├── client/actions.ts     # Open, close and restore workspaces
+└── components/           # WorkspaceMenu, WorkspacePicker, useWorkspaces
 
 src/shared/types/
 ├── panes.ts              # PaneType, Pane types, TabMetadata

@@ -15,7 +15,7 @@ const { getState } = vi.hoisted(() => {
   return { getState };
 });
 
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
 import { workspaceStateAtom } from "@/store/atoms";
 
 const lastWorkspace: Workspace = {

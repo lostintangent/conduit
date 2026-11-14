@@ -1,5 +1,5 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
-import { openWorkspace } from "@/store/actions/workspace";
+import { openWorkspace } from "@features/workspaces/client/actions";
 import { workspaceStateAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import { formatRelativeTime } from "@/utils/time";
@@ -7,13 +7,13 @@ import type { Workspace } from "@shared/types";
 import { useAtom } from "@tanstack/react-store";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "../../ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "../../ui/dialog";
+} from "@/components/ui/dialog";
 
 type WorkspacePickerDialog = {
   isOpen: boolean;

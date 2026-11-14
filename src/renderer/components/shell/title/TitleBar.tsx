@@ -5,7 +5,7 @@ import { workspaceNameAtom } from "@/store/atoms";
 
 import { Separator } from "@/components/ui/separator";
 import { SettingsMenu } from "./SettingsMenu";
-import { WorkspaceMenu } from "./WorkspaceMenu";
+import { WorkspaceMenu } from "@features/workspaces/components/WorkspaceMenu";
 
 export const TitleBar = () => {
   const workspaceName = useSelector(workspaceNameAtom);

@@ -20,7 +20,7 @@ import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
-import { WorkspacePicker } from "@/components/shell/palette/WorkspacePicker";
+import { WorkspacePicker } from "@features/workspaces/components/WorkspacePicker";
 import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
 import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
@@ -33,7 +33,7 @@ import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useUserSettings } from "@/hooks/useUserSettings";
-import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
 import {
   closeHyperTerminal,
   handleHyperTerminalExit,

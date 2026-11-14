@@ -4,7 +4,7 @@ vi.hoisted(() => {
   (window as any).conduit = {};
 });
 
-import { openWorkspace } from "@/store/actions/workspace";
+import { openWorkspace } from "./actions";
 import {
   activeTabAtom,
   activeTabIdAtom,

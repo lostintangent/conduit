@@ -23,7 +23,7 @@ import {
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
-import initializeWorkspaceHandlers from "./workspace";
+import initializeWorkspaceHandlers from "@features/workspaces/main/service";
 
 async function ensureConduitDirectory(): Promise<string> {
   const homeDir = app.getPath("home");

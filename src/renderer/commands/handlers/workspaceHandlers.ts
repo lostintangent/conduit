@@ -74,7 +74,8 @@ export function handleDuplicateWorkspace(
  * Close the current workspace
  */
 export async function handleCloseWorkspace(): Promise<void> {
-  const { closeWorkspace } = await import("@/store/actions/workspace");
+  const { closeWorkspace } =
+    await import("@features/workspaces/client/actions");
   closeWorkspace();
 }
 
@@ -95,7 +96,8 @@ export function handleOpenWorkspace(
 export async function handleOpenLastWorkspace(): Promise<void> {
   const state = await window.conduit.workspace.getState();
   if (state.lastWorkspace) {
-    const { openWorkspace } = await import("@/store/actions/workspace");
+    const { openWorkspace } =
+      await import("@features/workspaces/client/actions");
     await openWorkspace(state.lastWorkspace);
   }
 }

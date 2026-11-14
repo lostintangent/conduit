@@ -21,7 +21,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-import initializeWorkspaceHandlers from "../../../src/ipc/workspace";
+import initializeWorkspaceHandlers from "./service";
 
 describe("workspace:import", () => {
   let dir: string;

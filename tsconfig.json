@@ -21,7 +21,8 @@
 
     "paths": {
       "@/*": ["./src/renderer/*"],
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      "@features/*": ["./src/features/*"]
     }
   },
   // Files that run under Bun are checked by build/tsconfig.json with Bun types.
