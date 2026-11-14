@@ -25,7 +25,14 @@ describe("DiskGitProvider.getCommitFiles", () => {
       },
     ).trim();
 
-  beforeAll(warmUpSpawn);
+  beforeAll(() => {
+    // Under a git hook or `git rebase --exec`, these point git at the repo the
+    // tests run in, and the fixture would be committed there.
+    for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) {
+      delete process.env[key];
+    }
+    return warmUpSpawn();
+  });
 
   beforeEach(() => {
     repo = fs.mkdtempSync(path.join(os.tmpdir(), "conduit-commit-files-"));
