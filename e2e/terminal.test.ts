@@ -102,13 +102,13 @@ describe("terminal and CLI", () => {
 
       // 93,000 characters stay under the 100,000 that pause a shell, even with
       // the few thousand the page hasn't acknowledged yet. The next 7,500 go
-      // over, and are read before the pause since they're one burst. So the
-      // last line waits in the pty when the shell exits.
+      // over. A paused pty is read once more, which takes the blank line, so
+      // the last line waits in the pty when the shell exits.
       await shell.type(
-        `sleep 1; head -c 93000 /dev/zero | tr '\\0' x; sleep 0.2; head -c 7500 /dev/zero | tr '\\0' y; sleep 0.3; printf 'E2E-%s\\n' TAIL-${where}; exit\n`,
+        `sleep 1; head -c 93000 /dev/zero | tr '\\0' x; sleep 0.2; head -c 7500 /dev/zero | tr '\\0' y; sleep 0.3; echo; sleep 0.2; printf 'E2E-%s\\n' TAIL-${where}; exit\n`,
       );
       if (where === "hidden") await app.page.getByRole("tab").first().click();
-      // node-pty closes a pty 200 ms after its shell exits, read or not.
+      // Longer than the 600 ms macOS keeps an exited shell's unread output.
       await app.page.evaluate(() => {
         const end = Date.now() + 3_000;
         while (Date.now() < end) continue;

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { spawn } = vi.hoisted(() => ({ spawn: vi.fn() }));
+const { spawn } = vi.hoisted(() => ({
+  spawn: vi.fn().mockReturnValue({ ptsName: "/dev/null", onExit: vi.fn() }),
+}));
 
 vi.mock("node-pty", () => ({ spawn }));
 vi.mock("electron", () => ({ app: { isPackaged: false } }));

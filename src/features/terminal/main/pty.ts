@@ -1,5 +1,6 @@
 import { app } from "electron";
-import { spawn } from "node-pty";
+import { type IPty, spawn } from "node-pty";
+import fs from "node:fs";
 import path from "node:path";
 import { getCliState } from "../../../ipc/cli";
 import { settings } from "@features/settings/main/settings";
@@ -62,13 +63,29 @@ export function spawnTerminalProcess(
     args = ["-NoExit", "-Command", `. "${scriptPath}"`];
   }
 
-  return spawn(shell, args, {
+  const pty = spawn(shell, args, {
     name: "xterm-256color",
     cols,
     rows,
     cwd,
     env,
   });
+  holdPty(pty);
+  return pty;
+}
+
+/**
+ * macOS drops a pty's unread output 600 ms after the last process with the
+ * shell's side open closes it, which the shell does as it exits. So main keeps
+ * that side open too, and a shell that exits while its output is paused waits
+ * for it to be read.
+ */
+function holdPty(pty: IPty) {
+  const fd = fs.openSync(
+    pty.ptsName,
+    fs.constants.O_RDWR | fs.constants.O_NOCTTY,
+  );
+  pty.onExit(() => fs.closeSync(fd));
 }
 
 export function resolveShell() {
@@ -122,4 +139,11 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   env.CONDUIT_SESSION_ID = sessionId;
 
   return env;
+}
+
+declare module "node-pty" {
+  interface IPty {
+    /** The shell's side of the pty, like /dev/ttys004. */
+    readonly ptsName: string;
+  }
 }

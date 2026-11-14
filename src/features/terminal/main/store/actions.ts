@@ -44,9 +44,10 @@ const HIGH_WATERMARK = 100_000;
 const LOW_WATERMARK = 5_000;
 
 /**
- * A paused shell can exit with its last line still in the pty, which node-pty
- * closes 200 ms after the exit, read or not. So a paused shell is checked on
- * this often, and once it's gone, its pty is read to the end.
+ * A paused pty is read once more, and node-pty drops that read if the shell
+ * exits and the pty isn't resumed within 200 ms. So a paused shell is checked
+ * on this often, and once it's gone, its pty is read to the end. What it
+ * printed after that read waits in the pty (see `holdPty`).
  */
 const EXIT_CHECK_MS = 50;
 
