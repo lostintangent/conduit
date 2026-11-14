@@ -24,8 +24,12 @@ describe("MarkdownPreview", () => {
   it("loads Shiki when the first code block renders", async () => {
     expect(shikiLoadsOnImport).toBe(0);
 
+    // JSON, not TypeScript: Bun takes about 400ms to compile the TypeScript
+    // grammar's regexes, five times Node's, which left this test little room
+    // under load. Most of what's left is React's 300ms hold on revealing
+    // Streamdown's lazy code block.
     const { container } = render(
-      <MarkdownPreview content={"```ts\nconst x = 1;\n```"} />,
+      <MarkdownPreview content={'```json\n{ "x": 1 }\n```'} />,
     );
 
     await waitFor(() => {
