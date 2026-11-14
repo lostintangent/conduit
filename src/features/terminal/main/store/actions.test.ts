@@ -224,15 +224,56 @@ describe("a restored terminal", () => {
 describe("a terminal's output", () => {
   let pty: ReturnType<typeof fakePty>;
   const output = (data: string) => pty.onData.mock.calls[0][0](data);
+  const sent = () =>
+    vi
+      .mocked(emit)
+      .mock.calls.filter(([event]) => event === "data")
+      .map(([, payload]) => (payload as { data: string }).data);
 
   beforeEach(() => {
+    vi.useFakeTimers();
     pty = fakePty();
     spawnTerminalProcess.mockReset();
     spawnTerminalProcess.mockReturnValue(pty);
+    vi.mocked(emit).mockReset();
   });
 
   afterEach(() => {
     getAllTerminals().clear();
+    vi.useRealTimers();
+  });
+
+  it("sends a burst's first read right away and the rest every 5 ms as one message", async () => {
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+
+    output("a");
+    output("b");
+    output("c");
+    expect(sent()).toEqual(["a"]);
+
+    vi.advanceTimersByTime(5);
+    expect(sent()).toEqual(["a", "bc"]);
+
+    vi.advanceTimersByTime(5);
+    output("d");
+    expect(sent()).toEqual(["a", "bc", "d"]);
+  });
+
+  it("sends what it holds before its shell's exit", async () => {
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+
+    output("a");
+    output("b");
+    pty.onExit.mock.calls[0][0]({ exitCode: 0 });
+
+    expect(vi.mocked(emit).mock.calls.map(([event]) => event)).toEqual([
+      "data",
+      "data",
+      "exit",
+    ]);
+    expect(sent()).toEqual(["a", "b"]);
   });
 
   it("pauses its shell 100,000 characters ahead of the renderer until the renderer catches up", async () => {
@@ -241,8 +282,10 @@ describe("a terminal's output", () => {
 
     const chunk = "x".repeat(1_000);
     for (let i = 0; i < 100; i++) output(chunk);
+    vi.advanceTimersByTime(5);
     expect(pty.pause).not.toHaveBeenCalled();
     output(chunk);
+    vi.advanceTimersByTime(5);
     expect(pty.pause).toHaveBeenCalled();
 
     acknowledgeTerminalOutput(id, 96_000);

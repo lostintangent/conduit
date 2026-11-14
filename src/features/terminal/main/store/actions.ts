@@ -44,6 +44,8 @@ const LINE_EDITOR_TIMEOUT_MS = 3_000;
 const HIGH_WATERMARK = 100_000;
 const LOW_WATERMARK = 5_000;
 
+const COALESCE_MS = 5;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
@@ -109,11 +111,29 @@ function spawnTerminal(
 function setupTerminalListeners(terminal: TerminalInstance) {
   const { id, pty } = terminal;
 
+  // A pty reads at most 1 KB at a time, so a burst of output is thousands of
+  // reads. The first read goes out right away, like a keystroke's echo, and
+  // the rest of a burst goes out every few milliseconds as one message.
+  let pending = "";
+  let coalescing: NodeJS.Timeout | undefined;
+  const flush = () => {
+    if (!pending) {
+      coalescing = undefined;
+      return;
+    }
+    emitOutput(terminal, pending);
+    pending = "";
+    coalescing = setTimeout(flush, COALESCE_MS);
+  };
+
   pty.onData((data) => {
-    if (terminal.isRendererReady) {
-      emitOutput(terminal, data);
-    } else {
+    if (!terminal.isRendererReady) {
       bufferOutput(terminal, data);
+    } else if (coalescing) {
+      pending += data;
+    } else {
+      emitOutput(terminal, data);
+      coalescing = setTimeout(flush, COALESCE_MS);
     }
 
     if (terminal.pendingCommand && data.includes(LINE_EDITOR_READY)) {
@@ -122,6 +142,8 @@ function setupTerminalListeners(terminal: TerminalInstance) {
   });
 
   pty.onExit(({ exitCode, signal }) => {
+    clearTimeout(coalescing);
+    if (pending) emit("data", { sessionId: id, data: pending });
     removeTerminal(id);
 
     emit("exit", {
