@@ -144,6 +144,14 @@ export const FileTreeNormal = memo(
 
     // Callback ref for scroll persistence across DOM moves
     const scrollContainerRef = useScrollPersistence(paneId, "fileTree");
+    const treeRef = useRef<HTMLElement | null>(null);
+    const setTreeElement = useCallback(
+      (element: HTMLElement | null) => {
+        treeRef.current = element;
+        scrollContainerRef(element);
+      },
+      [scrollContainerRef],
+    );
 
     // Expanded paths state (shared hook)
     const {
@@ -1182,9 +1190,10 @@ export const FileTreeNormal = memo(
       if (focusedPath) {
         // Use requestAnimationFrame to ensure DOM has updated
         requestAnimationFrame(() => {
-          const element = document.querySelector(
+          // Look only in this tree, since another pane can show the same folder
+          const element = treeRef.current?.querySelector<HTMLElement>(
             `[data-path="${CSS.escape(focusedPath)}"]`,
-          ) as HTMLElement | null;
+          );
 
           if (element) {
             // Focus the element for keyboard navigation
@@ -1380,7 +1389,7 @@ export const FileTreeNormal = memo(
     return (
       <>
         <nav
-          ref={scrollContainerRef}
+          ref={setTreeElement}
           role="tree"
           aria-label="File tree"
           tabIndex={focusedPath ? -1 : 0}

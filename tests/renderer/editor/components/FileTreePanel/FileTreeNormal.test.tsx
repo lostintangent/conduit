@@ -1,5 +1,12 @@
 // @ts-nocheck
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
@@ -460,5 +467,64 @@ describe("FileTreeNormal", () => {
       const readmeItem = screen.getByTestId("tree-item-README.md");
       expect(readmeItem.getAttribute("data-path")).toBe("/project/README.md");
     });
+  });
+
+  // ===========================================================================
+  // Keyboard Focus
+  // ===========================================================================
+
+  describe("keyboard focus", () => {
+    it.each([
+      [
+        "an arrow key",
+        (tree: HTMLElement) => fireEvent.keyDown(tree, { key: "ArrowDown" }),
+        "/project/src",
+      ],
+      [
+        "reveal",
+        (_tree: HTMLElement, handle: { revealActiveFile: () => void }) =>
+          act(() => handle.revealActiveFile()),
+        "/project/README.md",
+      ],
+    ])(
+      "focuses its own row after %s when another tree shows the same folder",
+      async (_trigger, focusRow, expectedPath) => {
+        const handle = createRef<{ revealActiveFile: () => void }>();
+        const selectedFile = {
+          path: "/project/README.md",
+          name: "README.md",
+          type: "file" as const,
+        };
+        render(
+          <>
+            {["left", "right"].map((paneId) => (
+              <FileTreeNormal
+                key={paneId}
+                ref={paneId === "right" ? handle : undefined}
+                paneId={paneId}
+                cwd={TEST_CWD}
+                fs={mockFsAPI as any}
+                gitStatus={MOCK_GIT_STATUS}
+                selectedFile={selectedFile}
+                onFileSelect={mockOnFileSelect}
+              />
+            ))}
+          </>,
+        );
+        await waitFor(() => {
+          expect(screen.getAllByTestId("file-tree-normal")).toHaveLength(2);
+        });
+        const rightTree = screen.getAllByTestId("file-tree-normal")[1];
+
+        focusRow(rightTree, handle.current);
+
+        await waitFor(() => {
+          expect(document.activeElement?.getAttribute("data-path")).toBe(
+            expectedPath,
+          );
+        });
+        expect(rightTree.contains(document.activeElement)).toBe(true);
+      },
+    );
   });
 });
