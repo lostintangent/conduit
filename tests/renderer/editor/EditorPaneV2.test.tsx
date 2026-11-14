@@ -127,10 +127,32 @@ vi.mock(
       onTreeViewModeChange,
       gitStatus,
       onReviewChanges,
+      onViewCommit,
+      onCommitFileSelect,
     }) => (
       <div data-testid="mock-file-tree-panel">
         <button data-testid="review-changes-button" onClick={onReviewChanges}>
           Review
+        </button>
+        <button
+          data-testid="view-commit-button"
+          onClick={() =>
+            onViewCommit({ commitId: "abc1234", parentCommitId: "def5678" })
+          }
+        >
+          View Commit
+        </button>
+        <button
+          data-testid="select-commit-file-button"
+          onClick={() =>
+            onCommitFileSelect({
+              commitId: "abc1234",
+              parentCommitId: "def5678",
+              file: { path: "test.ts", status: "M" },
+            })
+          }
+        >
+          Select Commit File
         </button>
         <span data-testid="tree-git-status">
           {[...(gitStatus?.keys() ?? [])].join(",")}
@@ -185,10 +207,18 @@ vi.mock(
 vi.mock(
   "../../../src/renderer/components/panes/editor/components/EditorPane",
   () => ({
-    EditorPane: ({ selectedFile, viewMode, onExitReview }) => (
+    EditorPane: ({
+      selectedFile,
+      viewMode,
+      onExitReview,
+      onExitCommitMode,
+    }) => (
       <div data-testid="mock-editor-pane">
         <button data-testid="exit-review-button" onClick={onExitReview}>
           Exit Review
+        </button>
+        <button data-testid="exit-commit-button" onClick={onExitCommitMode}>
+          Exit Commit
         </button>
         <span data-testid="editor-file-path">
           {selectedFile?.path ?? "no-file"}
@@ -482,6 +512,25 @@ describe("EditorPaneV2", () => {
       expect(treeContainer.classList.contains("hidden")).toBe(false);
       expect(editorContainer.classList.contains("hidden")).toBe(true);
     });
+
+    it.each(["view-commit-button", "select-commit-file-button"])(
+      "should swap the tree for a commit in single mode and back on exit (%s)",
+      (openCommit) => {
+        mockLayout.mockReturnValue("single");
+
+        render(<EditorPaneV2 pane={TEST_PANE} />);
+        const treeContainer = screen.getByTestId("tree-container");
+        const editorContainer = screen.getByTestId("editor-container");
+
+        fireEvent.click(screen.getByTestId(openCommit));
+        expect(treeContainer.classList.contains("hidden")).toBe(true);
+        expect(editorContainer.classList.contains("hidden")).toBe(false);
+
+        fireEvent.click(screen.getByTestId("exit-commit-button"));
+        expect(treeContainer.classList.contains("hidden")).toBe(false);
+        expect(editorContainer.classList.contains("hidden")).toBe(true);
+      },
+    );
   });
 
   // ===========================================================================

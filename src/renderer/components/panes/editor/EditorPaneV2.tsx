@@ -673,6 +673,7 @@ export function EditorPaneV2({
 
   /**
    * Exit any commit mode (diff or review) and return to previous view.
+   * In single layout, the commit replaced the tree, and exiting goes back to it.
    */
   const handleExitCommitMode = useCallback(() => {
     // Return to previous view mode (or editor mode as fallback)
@@ -682,7 +683,10 @@ export function EditorPaneV2({
     } else {
       setViewMode({ type: "editor" });
     }
-  }, [setViewMode]);
+    if (layout === "single") {
+      setPanelView("tree");
+    }
+  }, [layout, setViewMode]);
 
   /**
    * Handle tree view mode changes.
