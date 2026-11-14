@@ -38,7 +38,7 @@ vi.mock("../../src/features/agents/main/startup", () => ({
   default: () => {},
 }));
 
-import { featuresArgument, startFeatures } from "../../src/ipc/features";
+import { featuresArgument, startFeatures } from "../../src/main/features";
 
 const manifest: Record<string, string[]> = JSON.parse(
   featuresArgument.slice("--features=".length),

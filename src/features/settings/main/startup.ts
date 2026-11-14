@@ -1,4 +1,4 @@
-import { emitter } from "../../../ipc/events";
+import { emitter } from "../../../main/events";
 import { settings } from "./settings";
 
 const emit = emitter("settings");

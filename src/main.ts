@@ -1,13 +1,14 @@
 import { app, BrowserWindow } from "electron";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+// "./main" on its own would resolve to this file, not the folder.
 import {
   featuresArgument,
   initializeIpcHandlers,
   shutdownIpcHandlers,
-} from "./ipc";
-import { reloadAfterCrashes } from "./ipc/crashRecovery";
-import { closeContextMenu } from "./ipc/ui/contextMenu";
+} from "./main/index";
+import { reloadAfterCrashes } from "./main/crashRecovery";
+import { closeContextMenu } from "./main/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
 declare const RENDERER_DEV_SERVER_URL: string | undefined;

@@ -16,7 +16,7 @@ import { app } from "electron";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
-import { emitter } from "../../../ipc/events";
+import { emitter } from "../../../main/events";
 import { createGit } from "@features/git/main/createGit";
 import type { DotfilesStatus } from "../model";
 import {

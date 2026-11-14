@@ -75,7 +75,7 @@ import { FileSystemProviderService } from "./FileSystemProviderService";
 
 describe("FileSystemProviderService", () => {
   // Ref-counting, the grace period and path keys are ProviderPool's, tested in
-  // tests/ipc/ProviderPool.test.ts. These cover what the service adds.
+  // tests/main/ProviderPool.test.ts. These cover what the service adds.
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();

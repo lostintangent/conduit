@@ -4,7 +4,7 @@ import type { ContextMenuItemData } from "@shared/commands";
 import {
   closeContextMenu,
   showContextMenu,
-} from "../../../src/ipc/ui/contextMenu";
+} from "../../../src/main/ui/contextMenu";
 
 // Mock Electron modules
 vi.mock("electron", () => ({

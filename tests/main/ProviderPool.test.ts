@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ProviderPool } from "../../src/ipc/ProviderPool";
+import { ProviderPool } from "../../src/main/ProviderPool";
 
 // The ref-counted pool behind FileSystemProviderService and GitProviderService.
 // The service tests cover only what each service adds on top.

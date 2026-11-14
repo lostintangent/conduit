@@ -8,7 +8,7 @@ const electron = vi.hoisted(() => ({
 }));
 vi.mock("electron", () => electron);
 
-import { reloadAfterCrashes } from "../../src/ipc/crashRecovery";
+import { reloadAfterCrashes } from "../../src/main/crashRecovery";
 
 function createWindow() {
   const webContents = Object.assign(new EventEmitter(), { reload: vi.fn() });

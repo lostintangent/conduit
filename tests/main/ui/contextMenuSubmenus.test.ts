@@ -1,7 +1,7 @@
 import { Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ContextMenuItemData } from "@shared/commands";
-import { showContextMenu } from "../../../src/ipc/ui/contextMenu";
+import { showContextMenu } from "../../../src/main/ui/contextMenu";
 
 // Mock Electron modules
 vi.mock("electron", () => ({

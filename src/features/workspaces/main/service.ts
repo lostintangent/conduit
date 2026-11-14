@@ -7,7 +7,7 @@ import type { Workspace, WorkspaceState } from "../model";
 import { captureTerminalCommand } from "@features/terminal/main/command";
 import { getAllTerminals } from "@features/terminal/main/store";
 import type { TerminalInstance } from "@features/terminal/main/types";
-import { refreshApplicationMenu } from "../../../ipc/ui";
+import { refreshApplicationMenu } from "../../../main/ui";
 import { convertWorkspaceToTemplate } from "./template/export";
 import { convertTemplateToWorkspace } from "./template/import";
 import type { WorkspaceTemplate } from "./template/types";

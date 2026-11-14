@@ -24,7 +24,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ProviderPool } from "../../../ipc/ProviderPool";
+import { ProviderPool } from "../../../main/ProviderPool";
 import { createGit } from "./createGit";
 import { DiskGitProvider } from "./DiskGitProvider";
 

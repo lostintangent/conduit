@@ -9,7 +9,7 @@ const REMOTE_ERROR_PREFIX =
 
 /**
  * Builds each feature's `window.conduit.<name>` API from the method names
- * main passes as `--features=` (see `src/ipc/features.ts`). Every method
+ * main passes as `--features=` (see `src/main/features.ts`). Every method
  * invokes `<name>:<method>`, and `on(event)` listens to `<name>:<event>`.
  */
 export function createFeatureApis(): FeatureApis {

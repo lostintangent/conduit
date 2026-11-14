@@ -49,7 +49,7 @@ const isShellProcess = (command: string): boolean => {
 
 /**
  * Checks if a command is the `conduit` CLI, which runs as this app's own
- * binary (see ipc/cli/launchers.ts). Replaying it outside the CLI's launcher
+ * binary (see src/main/cli/launchers.ts). Replaying it outside the CLI's launcher
  * starts a second Conduit, so it's never a command to capture.
  */
 const isConduitCli = (command: string): boolean =>

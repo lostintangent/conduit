@@ -98,7 +98,7 @@ Key environment variables:
 - `CONDUIT_SOCKET_PATH` - Path to the Unix domain socket for IPC communication
 - `CONDUIT_SESSION_ID` - ID of the terminal session making the CLI call
 
-### 4. Main Process IPC Server (`src/ipc/cli/server.ts`)
+### 4. Main Process IPC Server (`src/main/cli/server.ts`)
 
 The main process hosts a Unix domain socket server that:
 
@@ -115,7 +115,7 @@ graph LR
     B -->|Unix Socket| A
 ```
 
-### 5. CLI Initialization (`src/ipc/cli/index.ts`)
+### 5. CLI Initialization (`src/main/cli/index.ts`)
 
 During application startup, the main process:
 
@@ -124,7 +124,7 @@ During application startup, the main process:
 3. Starts the IPC server
 4. Registers Electron IPC handlers for responses
 
-### 6. Launcher Scripts (`src/ipc/cli/launchers.ts`)
+### 6. Launcher Scripts (`src/main/cli/launchers.ts`)
 
 Platform-specific launcher scripts are generated to make the CLI easily accessible:
 

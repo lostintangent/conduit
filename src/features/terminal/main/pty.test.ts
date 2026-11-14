@@ -6,7 +6,7 @@ const { spawn } = vi.hoisted(() => ({
 
 vi.mock("node-pty", () => ({ spawn }));
 vi.mock("electron", () => ({ app: { isPackaged: false } }));
-vi.mock("../../../ipc/cli", () => ({
+vi.mock("../../../main/cli", () => ({
   getCliState: () => ({
     commandName: "conduit",
     cliDirectory: "/conduit/bin",

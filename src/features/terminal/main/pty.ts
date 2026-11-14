@@ -2,7 +2,7 @@ import { app } from "electron";
 import { type IPty, spawn } from "node-pty";
 import fs from "node:fs";
 import path from "node:path";
-import { getCliState } from "../../../ipc/cli";
+import { getCliState } from "../../../main/cli";
 import { settings } from "@features/settings/main/settings";
 
 /**

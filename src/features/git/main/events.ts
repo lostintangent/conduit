@@ -1,3 +1,3 @@
-import { emitter } from "../../../ipc/events";
+import { emitter } from "../../../main/events";
 
 export const emit = emitter("git");
