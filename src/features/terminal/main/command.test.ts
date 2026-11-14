@@ -22,7 +22,7 @@ function fakePs(processes: string) {
  *
  * What's tested:
  * - Invalid terminal states (bad PIDs)
- * - lastProcessName fallback behavior
+ * - Process name fallback behavior
  * - Shell name filtering
  * - The foreground command in the shell's process tree, from a fake `ps`
  */
@@ -31,9 +31,8 @@ describe("captureTerminalCommand", () => {
     it("should return null if shell PID is invalid (negative)", async () => {
       const mockTerminal: TerminalInstance = {
         id: "terminal-1",
-        pty: { pid: -1 } as IPty,
+        pty: { pid: -1, process: "bash" } as IPty,
         cwd: "/home/user",
-        lastProcessName: "bash",
         isRendererReady: true,
         bufferedOutput: "",
         unacknowledged: 0,
@@ -46,9 +45,8 @@ describe("captureTerminalCommand", () => {
     it("should return null if shell PID is zero", async () => {
       const mockTerminal: TerminalInstance = {
         id: "terminal-1",
-        pty: { pid: 0 } as IPty,
+        pty: { pid: 0, process: "bash" } as IPty,
         cwd: "/home/user",
-        lastProcessName: "bash",
         isRendererReady: true,
         bufferedOutput: "",
         unacknowledged: 0,
@@ -61,9 +59,8 @@ describe("captureTerminalCommand", () => {
     it("should return null if shell PID is not an integer", async () => {
       const mockTerminal: TerminalInstance = {
         id: "terminal-1",
-        pty: { pid: 1234.5 } as IPty,
+        pty: { pid: 1234.5, process: "bash" } as IPty,
         cwd: "/home/user",
-        lastProcessName: "bash",
         isRendererReady: true,
         bufferedOutput: "",
         unacknowledged: 0,
@@ -74,16 +71,15 @@ describe("captureTerminalCommand", () => {
     });
   });
 
-  describe("lastProcessName fallback", () => {
-    it("should ignore shell names in lastProcessName", async () => {
+  describe("process name fallback", () => {
+    it("should ignore shell names in the process name", async () => {
       const shells = ["bash", "zsh", "fish", "sh", "ksh", "tcsh", "csh"];
 
       for (const shell of shells) {
         const mockTerminal: TerminalInstance = {
           id: "terminal-1",
-          pty: { pid: -1 } as IPty, // Invalid PID to force fallback
+          pty: { pid: -1, process: shell } as IPty, // Invalid PID to force fallback
           cwd: "/home/user",
-          lastProcessName: shell,
           isRendererReady: true,
           bufferedOutput: "",
           unacknowledged: 0,
@@ -94,12 +90,11 @@ describe("captureTerminalCommand", () => {
       }
     });
 
-    it("should ignore empty lastProcessName", async () => {
+    it("should ignore empty process name", async () => {
       const mockTerminal: TerminalInstance = {
         id: "terminal-1",
-        pty: { pid: -1 } as IPty,
+        pty: { pid: -1, process: "" } as IPty,
         cwd: "/home/user",
-        lastProcessName: "",
         isRendererReady: true,
         bufferedOutput: "",
         unacknowledged: 0,
@@ -109,12 +104,11 @@ describe("captureTerminalCommand", () => {
       expect(result).toBeNull();
     });
 
-    it("should ignore whitespace-only lastProcessName", async () => {
+    it("should ignore whitespace-only process name", async () => {
       const mockTerminal: TerminalInstance = {
         id: "terminal-1",
-        pty: { pid: -1 } as IPty,
+        pty: { pid: -1, process: "   " } as IPty,
         cwd: "/home/user",
-        lastProcessName: "   ",
         isRendererReady: true,
         bufferedOutput: "",
         unacknowledged: 0,
@@ -124,12 +118,11 @@ describe("captureTerminalCommand", () => {
       expect(result).toBeNull();
     });
 
-    it("should use non-shell lastProcessName when process detection fails", async () => {
+    it("should use non-shell process name when process detection fails", async () => {
       const mockTerminal: TerminalInstance = {
         id: "terminal-1",
-        pty: { pid: -1 } as IPty, // Invalid PID - forces fallback
+        pty: { pid: -1, process: "vim" } as IPty, // Invalid PID - forces fallback
         cwd: "/home/user",
-        lastProcessName: "vim",
         isRendererReady: true,
         bufferedOutput: "",
         unacknowledged: 0,
@@ -139,15 +132,14 @@ describe("captureTerminalCommand", () => {
       expect(result).toBe("vim");
     });
 
-    it("should use non-shell lastProcessName for common programs", async () => {
+    it("should use non-shell process name for common programs", async () => {
       const programs = ["npm", "node", "python", "vim", "nano", "htop", "top"];
 
       for (const program of programs) {
         const mockTerminal: TerminalInstance = {
           id: "terminal-1",
-          pty: { pid: -1 } as IPty,
+          pty: { pid: -1, process: program } as IPty,
           cwd: "/home/user",
-          lastProcessName: program,
           isRendererReady: true,
           bufferedOutput: "",
           unacknowledged: 0,
@@ -160,11 +152,10 @@ describe("captureTerminalCommand", () => {
   });
 
   describe("process introspection", () => {
-    const shell = (lastProcessName = "zsh"): TerminalInstance => ({
+    const shell = (processName = "zsh"): TerminalInstance => ({
       id: "terminal-1",
-      pty: { pid: 100 } as IPty,
+      pty: { pid: 100, process: processName } as IPty,
       cwd: "/home/user",
-      lastProcessName,
       isRendererReady: true,
       bufferedOutput: "",
       unacknowledged: 0,

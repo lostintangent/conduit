@@ -4,8 +4,6 @@ export type TerminalInstance = {
   id: string;
   pty: IPty;
 
-  lastProcessName: string;
-
   isRendererReady: boolean;
   bufferedOutput: string;
   /** Characters sent to the renderer that it hasn't parsed yet. */

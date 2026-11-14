@@ -258,20 +258,20 @@ const detectActiveCommand = async (
 };
 
 /**
- * Attempts to get a command from the terminal's last known process title.
+ * Attempts to get a command from the terminal's foreground process name.
  * This is a fallback when process introspection fails.
  *
- * @param lastProcessName - The last known process name from the terminal
+ * @param processName - The terminal's foreground process name
  * @returns The process name if it's not a shell, null otherwise
  */
 const commandFromProcessTitle = (
-  lastProcessName: string | undefined,
+  processName: string | undefined,
 ): string | null => {
-  if (!lastProcessName) {
+  if (!processName) {
     return null;
   }
 
-  const trimmed = lastProcessName.trim();
+  const trimmed = processName.trim();
   if (!trimmed) {
     return null;
   }
@@ -293,7 +293,7 @@ const commandFromProcessTitle = (
  * @remarks
  * This function tries two methods in order:
  * 1. Process introspection via `detectActiveCommand()` (most accurate)
- * 2. Fallback to last known process title (less accurate but works when introspection fails)
+ * 2. Fallback to the foreground process name (less accurate but works when introspection fails)
  *
  * @example
  * // Capture command from a running terminal
@@ -314,6 +314,6 @@ export async function captureTerminalCommand(
     return activeCommand;
   }
 
-  // Fallback to last known process title
-  return commandFromProcessTitle(session.lastProcessName);
+  // Fallback to the foreground process name, which node-pty asks the kernel for
+  return commandFromProcessTitle(session.pty.process);
 }

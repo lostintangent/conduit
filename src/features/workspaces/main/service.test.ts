@@ -56,8 +56,7 @@ describe("workspaces.saveWorkspace", () => {
   it("records each terminal's PTY size", async () => {
     storeTerminal({
       id: "session-1",
-      pty: { pid: -1, cols: 132, rows: 41 },
-      lastProcessName: "zsh",
+      pty: { pid: -1, cols: 132, rows: 41, process: "zsh" },
       isRendererReady: true,
       bufferedOutput: "",
       cwd: "/tmp",

@@ -62,7 +62,7 @@ export async function createTerminal(options?: TerminalCreateOptions) {
   }
 
   const terminal = spawnTerminal(id, cwd, options);
-  return { id, cwd, title: terminal.lastProcessName };
+  return { id, cwd, title: terminal.pty.process };
 }
 
 function spawnTerminal(
@@ -87,7 +87,6 @@ function spawnTerminal(
   const terminal: TerminalInstance = {
     id,
     pty,
-    lastProcessName: pty.process,
     isRendererReady: false,
     bufferedOutput: "",
     unacknowledged: 0,
@@ -119,11 +118,6 @@ function setupTerminalListeners(terminal: TerminalInstance) {
 
     if (terminal.pendingCommand && data.includes(LINE_EDITOR_READY)) {
       runPendingCommand(terminal);
-    }
-
-    const processName = pty.process;
-    if (processName && processName !== terminal.lastProcessName) {
-      terminal.lastProcessName = processName;
     }
   });
 

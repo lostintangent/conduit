@@ -251,6 +251,18 @@ describe("a terminal's output", () => {
     expect(pty.resume).toHaveBeenCalled();
   });
 
+  // node-pty's `process` asks the kernel, which cost most of main's CPU in a flood.
+  it("doesn't look up the shell's foreground process for each read", async () => {
+    const foreground = vi.fn(() => "zsh");
+    Object.defineProperty(pty, "process", { get: foreground });
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+    foreground.mockClear();
+
+    for (let i = 0; i < 10; i++) output("x");
+    expect(foreground).not.toHaveBeenCalled();
+  });
+
   it("counts what it kept before its pane showed once it sends it", async () => {
     const { id } = await createTerminal();
     output("x".repeat(100_001));
