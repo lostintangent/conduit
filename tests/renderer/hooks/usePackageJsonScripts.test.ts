@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock window.conduit BEFORE importing the hook - must be at module level
 const mockReadFile = vi.fn();
 (window as any).conduit = {
-  fs: {
+  files: {
     readFile: mockReadFile,
   },
 };
@@ -34,8 +34,7 @@ describe("usePackageJsonScripts", () => {
       },
     };
 
-    // New API: readFile(cwd, filePath, sandboxId)
-    mockReadFile.mockImplementation((cwd, filePath) => {
+    mockReadFile.mockImplementation((filePath) => {
       if (filePath === "/path/to/project/package.json") {
         return Promise.resolve(
           new TextEncoder().encode(JSON.stringify(mockPackageJson)),
@@ -62,8 +61,8 @@ describe("usePackageJsonScripts", () => {
       },
     };
 
-    // New API: readFile(cwd, filePath, sandboxId) - throw for subdir, succeed for parent
-    mockReadFile.mockImplementation((cwd, filePath) => {
+    // Throw for subdir, succeed for parent
+    mockReadFile.mockImplementation((filePath) => {
       if (filePath === "/path/to/project/package.json") {
         return Promise.resolve(
           new TextEncoder().encode(JSON.stringify(mockPackageJson)),

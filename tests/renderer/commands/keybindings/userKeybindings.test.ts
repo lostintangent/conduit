@@ -14,7 +14,7 @@ import * as updateKeybindingsAtomModule from "@/commands/keybindings/updateKeybi
 // Helper to create a minimal mock of window.conduit
 function createMockConduit(
   overrides: {
-    fs?: {
+    files?: {
       readTextFile?: ReturnType<typeof vi.fn>;
       writeFile?: ReturnType<typeof vi.fn>;
     };
@@ -54,9 +54,9 @@ function createMockConduit(
     hasGitRepository: vi.fn(),
     finalizeAgentSession: vi.fn(),
     cleanupAgentSession: vi.fn(),
-    fs: {
-      readTextFile: overrides.fs?.readTextFile ?? vi.fn(),
-      writeFile: overrides.fs?.writeFile ?? vi.fn(),
+    files: {
+      readTextFile: overrides.files?.readTextFile ?? vi.fn(),
+      writeFile: overrides.files?.writeFile ?? vi.fn(),
       readDirectory: vi.fn(),
       readFile: vi.fn(),
       stat: vi.fn(),
@@ -66,12 +66,9 @@ function createMockConduit(
       createDirectory: vi.fn(),
       subscribe: vi.fn(),
       unsubscribe: vi.fn(),
-      onDirectoryListingChanged: vi.fn(),
-      onFileContentChanged: vi.fn(),
-      onFileDeleted: vi.fn(),
-      onFileRenamed: vi.fn(),
-      warmFileCache: vi.fn(),
-      getPreWarmedCache: vi.fn(),
+      writeTempFile: vi.fn(),
+      quickOpenFiles: vi.fn(),
+      on: vi.fn(),
     },
   } as unknown as typeof window.conduit;
 }
@@ -103,15 +100,12 @@ describe("loadUserKeybindings", () => {
     );
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
 
-    expect(mockReadTextFile).toHaveBeenCalledWith(
-      "/path/to",
-      "/path/to/keybindings.json",
-    );
+    expect(mockReadTextFile).toHaveBeenCalledWith("/path/to/keybindings.json");
     expect(registry.getKeybindingsForCommand("test.command")).toHaveLength(1);
     expect(registry.getKeybindingsForCommand("palette.open")).toHaveLength(1);
   });
@@ -124,7 +118,7 @@ describe("loadUserKeybindings", () => {
       );
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
@@ -145,7 +139,7 @@ describe("loadUserKeybindings", () => {
       );
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
@@ -160,7 +154,7 @@ describe("loadUserKeybindings", () => {
       .mockRejectedValue(new Error("File not found"));
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
@@ -172,7 +166,7 @@ describe("loadUserKeybindings", () => {
     const mockReadTextFile = vi.fn().mockResolvedValue(null);
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
@@ -190,8 +184,8 @@ describe("loadUserKeybindings", () => {
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
-  it("should return early when fs.readTextFile is undefined", async () => {
-    window.conduit = { fs: {} } as unknown as typeof window.conduit;
+  it("should return early when files.readTextFile is undefined", async () => {
+    window.conduit = { files: {} } as unknown as typeof window.conduit;
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
 
@@ -203,7 +197,7 @@ describe("loadUserKeybindings", () => {
     const mockReadTextFile = vi.fn().mockResolvedValue("invalid json {]");
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
@@ -227,7 +221,7 @@ describe("loadUserKeybindings", () => {
     );
 
     window.conduit = createMockConduit({
-      fs: { readTextFile: mockReadTextFile },
+      files: { readTextFile: mockReadTextFile },
     });
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
@@ -285,7 +279,7 @@ describe("saveUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -298,10 +292,7 @@ describe("saveUserKeybinding", () => {
       registry,
     );
 
-    expect(mockReadTextFile).toHaveBeenCalledWith(
-      "/test",
-      "/test/keybindings.json",
-    );
+    expect(mockReadTextFile).toHaveBeenCalledWith("/test/keybindings.json");
     expect(mockWriteFile).toHaveBeenCalled();
     // v2 API passes Uint8Array, decode to check content
     const writtenData = mockWriteFile.mock.calls[0][2];
@@ -322,7 +313,7 @@ describe("saveUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -355,7 +346,7 @@ describe("saveUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -378,7 +369,7 @@ describe("saveUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -403,7 +394,7 @@ describe("saveUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -420,13 +411,13 @@ describe("saveUserKeybinding", () => {
     expect(mockWriteFile).toHaveBeenCalled();
   });
 
-  it("should handle missing window.conduit.fs.writeFile", async () => {
+  it("should handle missing window.conduit.files.writeFile", async () => {
     const mockReadTextFile = vi.fn().mockResolvedValue("[]");
 
     // Create a mock without writeFile to test error handling
     window.conduit = {
-      ...createMockConduit({ fs: { readTextFile: mockReadTextFile } }),
-      fs: {
+      ...createMockConduit({ files: { readTextFile: mockReadTextFile } }),
+      files: {
         readTextFile: mockReadTextFile,
         // writeFile is intentionally missing
       },
@@ -439,7 +430,7 @@ describe("saveUserKeybinding", () => {
         "/test/keybindings.json",
         registry,
       ),
-    ).rejects.toThrow("window.conduit.fs.writeFile is not available");
+    ).rejects.toThrow("window.conduit.files.writeFile is not available");
   });
 });
 
@@ -476,7 +467,7 @@ describe("removeUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -508,7 +499,7 @@ describe("removeUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -540,7 +531,7 @@ describe("removeUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -565,7 +556,7 @@ describe("removeUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },
@@ -591,7 +582,7 @@ describe("removeUserKeybinding", () => {
     const mockWriteFile = vi.fn().mockResolvedValue(undefined);
 
     window.conduit = createMockConduit({
-      fs: {
+      files: {
         readTextFile: mockReadTextFile,
         writeFile: mockWriteFile,
       },

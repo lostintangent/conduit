@@ -451,14 +451,14 @@ describe("useCommandSystem", () => {
       const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const originalConduit = window.conduit;
 
-      // Mock window.conduit.fs.subscribe
+      // Mock window.conduit.files.subscribe
       window.conduit = {
         ...window.conduit,
-        fs: {
-          ...window.conduit?.fs,
+        files: {
+          ...window.conduit?.files,
           subscribe: mockSubscribe,
           unsubscribe: vi.fn(),
-          onFileContentChanged: vi.fn(() => () => {}),
+          on: vi.fn(() => () => {}),
           readTextFile: vi.fn().mockResolvedValue("[]"),
         },
       } as unknown as typeof window.conduit;
@@ -480,14 +480,14 @@ describe("useCommandSystem", () => {
       const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const originalConduit = window.conduit;
 
-      // Mock window.conduit.fs
+      // Mock window.conduit.files
       window.conduit = {
         ...window.conduit,
-        fs: {
-          ...window.conduit?.fs,
+        files: {
+          ...window.conduit?.files,
           subscribe: mockSubscribe,
           unsubscribe: mockUnsubscribe,
-          onFileContentChanged: vi.fn(() => () => {}),
+          on: vi.fn(() => () => {}),
           readTextFile: vi.fn().mockResolvedValue("[]"),
         },
       } as unknown as typeof window.conduit;
@@ -497,7 +497,6 @@ describe("useCommandSystem", () => {
       await waitFor(() => {
         expect(mockSubscribe).toHaveBeenCalledWith(
           "/test/home/.conduit",
-          "file",
           "/test/home/.conduit/keybindings.json",
         );
       });
@@ -517,25 +516,26 @@ describe("useCommandSystem", () => {
         ((payload: { subscriptionId: string; path: string }) => void) | null;
       const mockUnsubscribe = vi.fn();
       const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
-      const mockOnFileContentChanged = vi.fn(
+      const mockOn = vi.fn(
         (
+          event: string,
           callback: (payload: { subscriptionId: string; path: string }) => void,
         ) => {
-          fileChangedListener = callback;
+          if (event === "fileContentChanged") fileChangedListener = callback;
           return () => {};
         },
       );
       const originalConduit = window.conduit;
       const mockReadTextFile = vi.fn().mockResolvedValue("[]");
 
-      // Mock window.conduit.fs
+      // Mock window.conduit.files
       window.conduit = {
         ...window.conduit,
-        fs: {
-          ...window.conduit?.fs,
+        files: {
+          ...window.conduit?.files,
           subscribe: mockSubscribe,
           unsubscribe: mockUnsubscribe,
-          onFileContentChanged: mockOnFileContentChanged,
+          on: mockOn,
           readTextFile: mockReadTextFile,
         },
       } as unknown as typeof window.conduit;
@@ -562,7 +562,6 @@ describe("useCommandSystem", () => {
       // Should have attempted to read the file
       await waitFor(() => {
         expect(mockReadTextFile).toHaveBeenCalledWith(
-          "/test/home/.conduit",
           "/test/home/.conduit/keybindings.json",
         );
       });

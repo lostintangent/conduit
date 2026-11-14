@@ -26,8 +26,8 @@ describe("fileOperations", () => {
     // Mock window.conduit API with v2 file system API
     (global as any).window = {
       conduit: {
-        fs: {
-          readTextFile: async (_cwd: string, path: string) => {
+        files: {
+          readTextFile: async (path: string) => {
             return await readFile(path, "utf-8");
           },
           writeFile: async (

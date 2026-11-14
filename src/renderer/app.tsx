@@ -474,7 +474,7 @@ export function App() {
 
       // Validate that the directory exists
       try {
-        await api.fs.readDirectory(trimmedCwd, trimmedCwd);
+        await api.files.readDirectory(trimmedCwd, trimmedCwd);
       } catch {
         enqueueNotification({
           kind: "error",

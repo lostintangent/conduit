@@ -5,29 +5,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ============================================================================
 
 const { MockFileSystemV2API } = vi.hoisted(() => {
-  // Mock window.conduit.fs
-  const fs = {
-    readDirectory: vi.fn(),
-    readFile: vi.fn(),
-    stat: vi.fn(),
-    exists: vi.fn(),
-    writeFile: vi.fn(),
-    delete: vi.fn(),
-    rename: vi.fn(),
-    createDirectory: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    release: vi.fn(),
-    onDirectoryChanged: vi.fn(() => vi.fn()),
-    onFileChanged: vi.fn(() => vi.fn()),
-    onFileDeleted: vi.fn(() => vi.fn()),
-    onFileRenamed: vi.fn(() => vi.fn()),
-  };
-
-  // Set up window.conduit
-  (globalThis as any).window = (globalThis as any).window || {};
-  (globalThis as any).window.conduit = { fs };
-
   // Create a mock class that tracks instances
   class MockAPI {
     readonly cwd: string;

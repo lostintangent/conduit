@@ -1,14 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
 // Mocks
 // ============================================================================
 
-type Subscribe = (listener: (payload: unknown) => void) => () => void;
-
-// Use vi.hoisted to define mocks before imports
-const { mockFs } = vi.hoisted(() => {
-  const fs = {
+const { files, listening, deliver } = vi.hoisted(() => {
+  const handlers = new Map<string, Set<(payload: unknown) => void>>();
+  const files = {
     readDirectory: vi.fn(),
     readFile: vi.fn(),
     readTextFile: vi.fn(),
@@ -20,23 +18,40 @@ const { mockFs } = vi.hoisted(() => {
     createDirectory: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
-    onDirectoryListingChanged: vi.fn<Subscribe>(() => vi.fn()),
-    onFileContentChanged: vi.fn<Subscribe>(() => vi.fn()),
-    onFileDeleted: vi.fn<Subscribe>(() => vi.fn()),
-    onFileRenamed: vi.fn<Subscribe>(() => vi.fn()),
+    // Not a mock, so clearing mocks keeps the listeners the client adds once
+    on(event: string, handler: (payload: unknown) => void) {
+      const eventHandlers = handlers.get(event) ?? new Set();
+      handlers.set(event, eventHandlers);
+      eventHandlers.add(handler);
+      return () => eventHandlers.delete(handler);
+    },
   };
 
-  // Set up window.conduit before any modules load
   (globalThis as any).window = (globalThis as any).window || {};
-  (globalThis as any).window.conduit = {
-    fs,
-  };
+  (globalThis as any).window.conduit = { files };
 
-  return { mockFs: fs };
+  return {
+    files,
+    /** How many IPC listeners each event has */
+    listening: () =>
+      Object.fromEntries(
+        [...handlers].map(([event, eventHandlers]) => [
+          event,
+          eventHandlers.size,
+        ]),
+      ),
+    /** Send an event from the main process */
+    deliver: (event: string, payload: object) => {
+      for (const handler of handlers.get(event) ?? []) handler(payload);
+    },
+  };
 });
 
 // Import after mocks are set up
 import { FileSystemV2API } from "./FileSystemV2API";
+
+/** Lets subscriptions the mocks resolve land. */
+const settle = () => new Promise((resolve) => setTimeout(resolve));
 
 // ============================================================================
 // Tests
@@ -45,17 +60,9 @@ import { FileSystemV2API } from "./FileSystemV2API";
 describe("FileSystemV2API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Ensure window.conduit is available
-    (globalThis as any).window.conduit = { fs: mockFs };
-
-    // Reset mock implementations
-    mockFs.subscribe.mockResolvedValue("test-sub-id");
-    mockFs.unsubscribe.mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
+    (globalThis as any).window.conduit = { files };
+    files.subscribe.mockResolvedValue("test-sub-id");
+    files.unsubscribe.mockResolvedValue(undefined);
   });
 
   // ===========================================================================
@@ -86,12 +93,12 @@ describe("FileSystemV2API", () => {
         { name: "file.txt", type: "file" as const },
         { name: "folder", type: "directory" as const },
       ];
-      mockFs.readDirectory.mockResolvedValue(entries);
+      files.readDirectory.mockResolvedValue(entries);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readDirectory("/test/project/src");
 
-      expect(mockFs.readDirectory).toHaveBeenCalledWith(
+      expect(files.readDirectory).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/src",
       );
@@ -113,15 +120,12 @@ describe("FileSystemV2API", () => {
   describe("readFile", () => {
     it("should return binary data", async () => {
       const content = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
-      mockFs.readFile.mockResolvedValue(content);
+      files.readFile.mockResolvedValue(content);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readFile("/test/project/file.txt");
 
-      expect(mockFs.readFile).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/file.txt",
-      );
+      expect(files.readFile).toHaveBeenCalledWith("/test/project/file.txt");
       expect(result).toEqual(content);
 
       api.release();
@@ -130,7 +134,7 @@ describe("FileSystemV2API", () => {
 
   describe("readTextFile", () => {
     it("should return text content directly", async () => {
-      mockFs.readTextFile.mockResolvedValue("Hello, World!");
+      files.readTextFile.mockResolvedValue("Hello, World!");
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.readTextFile("/test/project/file.txt");
@@ -149,7 +153,7 @@ describe("FileSystemV2API", () => {
         mtime: Date.now(),
         ctime: Date.now(),
       };
-      mockFs.stat.mockResolvedValue(stats);
+      files.stat.mockResolvedValue(stats);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.stat("/test/project/file.txt");
@@ -162,7 +166,7 @@ describe("FileSystemV2API", () => {
 
   describe("exists", () => {
     it("should return true for existing path", async () => {
-      mockFs.exists.mockResolvedValue(true);
+      files.exists.mockResolvedValue(true);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.exists("/test/project/file.txt");
@@ -173,7 +177,7 @@ describe("FileSystemV2API", () => {
     });
 
     it("should return false for non-existing path", async () => {
-      mockFs.exists.mockResolvedValue(false);
+      files.exists.mockResolvedValue(false);
 
       const api = new FileSystemV2API("/test/project");
       const result = await api.exists("/test/project/missing.txt");
@@ -190,13 +194,13 @@ describe("FileSystemV2API", () => {
 
   describe("writeFile", () => {
     it("should call IPC with correct params", async () => {
-      mockFs.writeFile.mockResolvedValue(undefined);
+      files.writeFile.mockResolvedValue(undefined);
       const content = new Uint8Array([1, 2, 3]);
 
       const api = new FileSystemV2API("/test/project");
       await api.writeFile("/test/project/file.txt", content);
 
-      expect(mockFs.writeFile).toHaveBeenCalledWith(
+      expect(files.writeFile).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/file.txt",
         content,
@@ -208,13 +212,13 @@ describe("FileSystemV2API", () => {
 
   describe("writeTextFile", () => {
     it("should encode string as UTF-8", async () => {
-      mockFs.writeFile.mockResolvedValue(undefined);
+      files.writeFile.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.writeTextFile("/test/project/file.txt", "Hello");
 
-      expect(mockFs.writeFile).toHaveBeenCalled();
-      const [, , content] = mockFs.writeFile.mock.calls[0];
+      expect(files.writeFile).toHaveBeenCalled();
+      const [, , content] = files.writeFile.mock.calls[0];
       expect(new TextDecoder().decode(content)).toBe("Hello");
 
       api.release();
@@ -223,12 +227,12 @@ describe("FileSystemV2API", () => {
 
   describe("delete", () => {
     it("should call IPC with path", async () => {
-      mockFs.delete.mockResolvedValue(undefined);
+      files.delete.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.delete("/test/project/file.txt");
 
-      expect(mockFs.delete).toHaveBeenCalledWith(
+      expect(files.delete).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/file.txt",
         undefined,
@@ -238,12 +242,12 @@ describe("FileSystemV2API", () => {
     });
 
     it("should pass recursive option", async () => {
-      mockFs.delete.mockResolvedValue(undefined);
+      files.delete.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.delete("/test/project/folder", { recursive: true });
 
-      expect(mockFs.delete).toHaveBeenCalledWith(
+      expect(files.delete).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/folder",
         {
@@ -257,12 +261,12 @@ describe("FileSystemV2API", () => {
 
   describe("rename", () => {
     it("should call IPC with old and new paths", async () => {
-      mockFs.rename.mockResolvedValue(undefined);
+      files.rename.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.rename("/test/project/old.txt", "/test/project/new.txt");
 
-      expect(mockFs.rename).toHaveBeenCalledWith(
+      expect(files.rename).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/old.txt",
         "/test/project/new.txt",
@@ -274,12 +278,12 @@ describe("FileSystemV2API", () => {
 
   describe("createDirectory", () => {
     it("should call IPC with path", async () => {
-      mockFs.createDirectory.mockResolvedValue(undefined);
+      files.createDirectory.mockResolvedValue(undefined);
 
       const api = new FileSystemV2API("/test/project");
       await api.createDirectory("/test/project/new-folder");
 
-      expect(mockFs.createDirectory).toHaveBeenCalledWith(
+      expect(files.createDirectory).toHaveBeenCalledWith(
         "/test/project",
         "/test/project/new-folder",
       );
@@ -293,54 +297,25 @@ describe("FileSystemV2API", () => {
   // ===========================================================================
 
   describe("onDirectoryListingChanged", () => {
-    it("should subscribe to events", async () => {
+    it("calls back when its directory changes", async () => {
       const api = new FileSystemV2API("/test/project");
-      const callback = vi.fn();
-
-      const cleanup = api.onDirectoryListingChanged(
-        "/test/project/src",
-        callback,
-      );
-
-      // Should trigger IPC subscription
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(mockFs.subscribe).toHaveBeenCalledWith("/test/project", "all");
-
-      // Cleanup should work
-      expect(typeof cleanup).toBe("function");
-      cleanup();
-
-      api.release();
-    });
-
-    it("should call callback when directory changes", async () => {
-      // Capture the listener function
-      let directoryListener = null as ((payload: unknown) => void) | null;
-      mockFs.onDirectoryListingChanged.mockImplementation(
-        (listener: (payload: unknown) => void) => {
-          directoryListener = listener;
-          return vi.fn();
-        },
-      );
-
-      const api = new FileSystemV2API("/test/project");
-
-      // Re-setup to capture listener
       const callback = vi.fn();
       api.onDirectoryListingChanged("/test/project/src", callback);
+      await settle();
 
-      // Wait for subscription
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      deliver("directoryListingChanged", {
+        subscriptionId: "test-sub-id",
+        path: "/test/project/src",
+        entries: [{ name: "file.txt", type: "file" }],
+      });
+      deliver("directoryListingChanged", {
+        subscriptionId: "test-sub-id",
+        path: "/test/project/other",
+        entries: [],
+      });
 
-      // Simulate event from main process
-      if (directoryListener) {
-        directoryListener({
-          subscriptionId: "test-sub-id",
-          path: "/test/project/src",
-          entries: [{ name: "file.txt", type: "file" }],
-        });
-      }
-
+      expect(files.subscribe).toHaveBeenCalledWith("/test/project");
+      expect(callback).toHaveBeenCalledTimes(1);
       expect(callback).toHaveBeenCalledWith([
         { name: "file.txt", type: "file" },
       ]);
@@ -349,14 +324,6 @@ describe("FileSystemV2API", () => {
     });
 
     it("stops calling a callback after its cleanup, and keeps the path's other callbacks", async () => {
-      let directoryListener = null as ((payload: unknown) => void) | null;
-      mockFs.onDirectoryListingChanged.mockImplementation(
-        (listener: (payload: unknown) => void) => {
-          directoryListener = listener;
-          return vi.fn();
-        },
-      );
-
       const api = new FileSystemV2API("/test/project");
       const removed = vi.fn();
       const kept = vi.fn();
@@ -365,10 +332,10 @@ describe("FileSystemV2API", () => {
         removed,
       );
       api.onDirectoryListingChanged("/test/project/src", kept);
+      await settle();
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
       cleanup();
-      directoryListener?.({
+      deliver("directoryListingChanged", {
         subscriptionId: "test-sub-id",
         path: "/test/project/src",
         entries: [],
@@ -379,66 +346,52 @@ describe("FileSystemV2API", () => {
 
       api.release();
     });
-
-    it("should filter events by subscription ID", async () => {
-      let directoryListener = null as ((payload: unknown) => void) | null;
-      mockFs.onDirectoryListingChanged.mockImplementation(
-        (listener: (payload: unknown) => void) => {
-          directoryListener = listener;
-          return vi.fn();
-        },
-      );
-
-      const api = new FileSystemV2API("/test/project");
-      const callback = vi.fn();
-      api.onDirectoryListingChanged("/test/project/src", callback);
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Event with different subscription ID should be ignored
-      if (directoryListener) {
-        directoryListener({
-          subscriptionId: "different-sub-id",
-          path: "/test/project/src",
-          entries: [],
-        });
-      }
-
-      expect(callback).not.toHaveBeenCalled();
-
-      api.release();
-    });
   });
 
-  describe("onAnyDirectoryListingChanged", () => {
-    it("should receive events for any path", async () => {
-      let directoryListener = null as ((payload: unknown) => void) | null;
-      mockFs.onDirectoryListingChanged.mockImplementation(
-        (listener: (payload: unknown) => void) => {
-          directoryListener = listener;
-          return vi.fn();
-        },
-      );
+  describe("routing", () => {
+    it("listens once per event however many folders are open, and hears only its own", async () => {
+      let lastId = 0;
+      files.subscribe.mockImplementation(async () => `sub-${++lastId}`);
+      const callbacks = Array.from({ length: 20 }, () => ({
+        content: vi.fn(),
+        deleted: vi.fn(),
+        renamed: vi.fn(),
+      }));
+      const apis = callbacks.map((callback, index) => {
+        const api = new FileSystemV2API(`/project-${index}`);
+        api.onAnyFileContentChanged(callback.content);
+        api.onAnyFileDeleted(callback.deleted);
+        api.onAnyFileRenamed(callback.renamed);
+        return api;
+      });
+      await settle();
 
-      const api = new FileSystemV2API("/test/project");
-      const callback = vi.fn();
-      api.onAnyDirectoryListingChanged(callback);
+      deliver("fileContentChanged", { subscriptionId: "sub-3", path: "/a" });
+      deliver("fileDeleted", { subscriptionId: "sub-3", path: "/b" });
+      deliver("fileRenamed", {
+        subscriptionId: "sub-3",
+        oldPath: "/c",
+        newPath: "/d",
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      if (directoryListener) {
-        directoryListener({
-          subscriptionId: "test-sub-id",
-          path: "/test/project/any/path",
-          entries: [{ name: "test.txt", type: "file" }],
-        });
+      expect(listening()).toEqual({
+        directoryListingChanged: 1,
+        fileContentChanged: 1,
+        fileDeleted: 1,
+        fileRenamed: 1,
+      });
+      expect(callbacks[2].content).toHaveBeenCalledWith("/a");
+      expect(callbacks[2].deleted).toHaveBeenCalledWith("/b");
+      expect(callbacks[2].renamed).toHaveBeenCalledWith("/c", "/d");
+      for (const callback of callbacks.filter((_, index) => index !== 2)) {
+        expect(callback.content).not.toHaveBeenCalled();
+        expect(callback.deleted).not.toHaveBeenCalled();
+        expect(callback.renamed).not.toHaveBeenCalled();
       }
 
-      expect(callback).toHaveBeenCalledWith("/test/project/any/path", [
-        { name: "test.txt", type: "file" },
-      ]);
-
-      api.release();
+      for (const api of apis) api.release();
+      deliver("fileContentChanged", { subscriptionId: "sub-3", path: "/a" });
+      expect(callbacks[2].content).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -459,34 +412,24 @@ describe("FileSystemV2API", () => {
     it("should unsubscribe from main process", async () => {
       const api = new FileSystemV2API("/test/project");
 
-      // Trigger subscription
-      api.onDirectoryListingChanged("/test", vi.fn());
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await settle();
 
       api.release();
 
-      // Wait for async cleanup
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      expect(mockFs.unsubscribe).toHaveBeenCalledWith("test-sub-id");
+      expect(files.unsubscribe).toHaveBeenCalledWith("test-sub-id");
     });
 
     it("should be idempotent", async () => {
       const api = new FileSystemV2API("/test/project");
 
-      // Trigger subscription
-      api.onDirectoryListingChanged("/test", vi.fn());
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await settle();
 
       api.release();
       api.release();
       api.release();
-
-      // Wait for async cleanup
-      await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should only call unsubscribe once
-      expect(mockFs.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(files.unsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it("should prevent further operations", async () => {
@@ -522,7 +465,7 @@ describe("FileSystemV2API", () => {
     it("should unsubscribe if released while subscription is pending (race condition)", async () => {
       // Set up a delayed subscription that we can control
       let resolveSubscription: ((value: string) => void) | null = null;
-      mockFs.subscribe.mockImplementation(
+      files.subscribe.mockImplementation(
         () =>
           new Promise((resolve) => {
             resolveSubscription = resolve;
@@ -536,84 +479,53 @@ describe("FileSystemV2API", () => {
 
       expect(api.isReleased).toBe(true);
       // At this point, subscriptionId is still null because promise hasn't resolved
-      expect(mockFs.unsubscribe).not.toHaveBeenCalled();
+      expect(files.unsubscribe).not.toHaveBeenCalled();
 
       // Now complete the subscription (simulates IPC finally returning)
       resolveSubscription!("late-subscription-id");
 
-      // Wait for the promise chain to complete
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await settle();
 
       // The fix should have detected that we're already released
       // and immediately unsubscribed
-      expect(mockFs.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
+      expect(files.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
     });
   });
 
   describe("suspend", () => {
     it("unsubscribes until it resumes, and keeps its listeners", async () => {
-      let fileListener = null as ((payload: unknown) => void) | null;
-      mockFs.onFileContentChanged.mockImplementation((listener) => {
-        fileListener = listener;
-        return vi.fn();
-      });
       const api = new FileSystemV2API("/test/project");
       const callback = vi.fn();
-      api.onFileContentChanged("/test/project/a.ts", callback);
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      api.onAnyFileContentChanged(callback);
+      await settle();
 
       api.suspend();
-      expect(mockFs.unsubscribe).toHaveBeenCalledWith("test-sub-id");
+      deliver("fileContentChanged", {
+        subscriptionId: "test-sub-id",
+        path: "/test/project/a.ts",
+      });
+      expect(files.unsubscribe).toHaveBeenCalledWith("test-sub-id");
       expect(() => api.onAnyFileContentChanged(vi.fn())).not.toThrow();
-      expect(mockFs.subscribe).toHaveBeenCalledTimes(1);
+      expect(files.subscribe).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
 
-      mockFs.subscribe.mockResolvedValue("resumed-sub-id");
+      files.subscribe.mockResolvedValue("resumed-sub-id");
       api.resume();
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      fileListener!({
+      await settle();
+      deliver("fileContentChanged", {
         subscriptionId: "resumed-sub-id",
         path: "/test/project/a.ts",
       });
 
-      expect(mockFs.subscribe).toHaveBeenCalledTimes(2);
+      expect(files.subscribe).toHaveBeenCalledTimes(2);
       expect(callback).toHaveBeenCalledTimes(1);
 
       api.release();
     });
 
-    it("holds no IPC handlers while suspended", () => {
-      const handlers = new Set<unknown>();
-      const channels = [
-        mockFs.onDirectoryListingChanged,
-        mockFs.onFileContentChanged,
-        mockFs.onFileDeleted,
-        mockFs.onFileRenamed,
-      ];
-      for (const channel of channels) {
-        channel.mockImplementation((handler) => {
-          handlers.add(handler);
-          return () => handlers.delete(handler);
-        });
-      }
-      const api = new FileSystemV2API("/test/project");
-      expect(handlers.size).toBe(4);
-
-      api.suspend();
-      expect(handlers.size).toBe(0);
-
-      api.resume();
-      expect(handlers.size).toBe(4);
-
-      api.release();
-      expect(handlers.size).toBe(0);
-      for (const channel of channels) {
-        channel.mockImplementation(() => vi.fn());
-      }
-    });
-
     it("unsubscribes a subscription that arrives after it suspends", async () => {
       let resolveSubscription: ((value: string) => void) | null = null;
-      mockFs.subscribe.mockImplementation(
+      files.subscribe.mockImplementation(
         () =>
           new Promise((resolve) => {
             resolveSubscription = resolve;
@@ -623,9 +535,9 @@ describe("FileSystemV2API", () => {
       const api = new FileSystemV2API("/test/project");
       api.suspend();
       resolveSubscription!("late-subscription-id");
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await settle();
 
-      expect(mockFs.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
+      expect(files.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
 
       api.release();
     });
@@ -637,7 +549,7 @@ describe("FileSystemV2API", () => {
 
   describe("error handling", () => {
     it("should propagate IPC errors", async () => {
-      mockFs.readFile.mockRejectedValue(new Error("File not found"));
+      files.readFile.mockRejectedValue(new Error("File not found"));
 
       const api = new FileSystemV2API("/test/project");
 
@@ -649,38 +561,29 @@ describe("FileSystemV2API", () => {
     });
 
     it("should isolate listener errors", async () => {
-      let directoryListener = null as ((payload: unknown) => void) | null;
-      mockFs.onDirectoryListingChanged.mockImplementation(
-        (listener: (payload: unknown) => void) => {
-          directoryListener = listener;
-          return vi.fn();
-        },
-      );
-
       const api = new FileSystemV2API("/test/project");
-
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
       const badCallback = vi.fn(() => {
         throw new Error("Listener error");
       });
       const goodCallback = vi.fn();
-
       api.onDirectoryListingChanged("/test/project/src", badCallback);
       api.onDirectoryListingChanged("/test/project/src", goodCallback);
+      await settle();
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      // Should not throw when listener errors
-      expect(() => {
-        directoryListener!({
+      expect(() =>
+        deliver("directoryListingChanged", {
           subscriptionId: "test-sub-id",
           path: "/test/project/src",
           entries: [],
-        });
-      }).not.toThrow();
+        }),
+      ).not.toThrow();
 
-      // Good callback should still be called
       expect(goodCallback).toHaveBeenCalled();
 
+      consoleError.mockRestore();
       api.release();
     });
   });

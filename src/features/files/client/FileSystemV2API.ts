@@ -1,45 +1,18 @@
 /**
- * FileSystem v2 Renderer API
+ * A cwd's file system subscription, for the renderer. Each instance subscribes
+ * as it's created, which keeps the cwd's watcher running and its events
+ * flowing until it's suspended or released.
  *
- * High-level API for filesystem operations in the renderer process.
- * Provides CWD-scoped operations with automatic subscription management.
- *
- * This class wraps the low-level IPC methods exposed by the preload script,
- * adding:
- * - Automatic subscription tracking and cleanup
- * - Type-safe event handlers
- * - Reference lifecycle management
- *
- * @example
- * ```typescript
- * // Create an instance for a project directory
- * const fs = new FileSystemV2API('/path/to/project');
- *
- * // Read directory contents
- * const entries = await fs.readDirectory('/path/to/project/src');
- *
- * // Subscribe to changes
- * const cleanup = fs.onDirectoryListingChanged('/path/to/project/src', (entries) => {
- *   console.log('Directory listing changed:', entries.length, 'entries');
- * });
- *
- * // When done, release resources
- * fs.release();
- * ```
+ * Instances for the same cwd are shared through `FileSystemV2APIService`.
  */
 
+import type { Events } from "@shared/rpc";
 import type {
   Cleanup,
   DeleteOptions,
   DirectoryEntry,
   FileStat,
 } from "../model";
-import type {
-  DirectoryListingChangedPayload,
-  FileContentChangedPayload,
-  FileDeletedPayload,
-  FileRenamedPayload,
-} from "../../../preload/window/modules/fs";
 import { normalizePathForKey } from "@/utils/pathUtils";
 
 // ============================================================================
@@ -89,16 +62,77 @@ function addKeyedListener<T>(
   };
 }
 
-// ============================================================================
-// FileSystemV2API Class
-// ============================================================================
+/** Calls each listener, so one that throws can't keep the rest from hearing. */
+function notify<Args extends unknown[]>(
+  listeners: Iterable<(...args: Args) => void> | undefined,
+  ...args: Args
+): void {
+  for (const listener of listeners ?? []) {
+    try {
+      listener(...args);
+    } catch (error) {
+      console.error("[FileSystemV2API] Error in listener:", error);
+    }
+  }
+}
+
+/** One instance's listeners, which hear its subscription's events. */
+class Listeners {
+  /** Directory listing listeners, by normalized path */
+  readonly directory = new Map<string, Set<DirectoryListingChangedCallback>>();
+  readonly content = new Set<FileContentChangedCallback>();
+  readonly deleted = new Set<FileDeletedCallback>();
+  readonly renamed = new Set<FileRenamedCallback>();
+
+  clear(): void {
+    this.directory.clear();
+    this.content.clear();
+    this.deleted.clear();
+    this.renamed.clear();
+  }
+}
+
+/** Each live subscription's listeners, by id */
+const routes = new Map<string, Listeners>();
+
+let routing = false;
 
 /**
- * High-level filesystem API for the renderer process.
- *
- * All operations are scoped to the CWD provided at construction.
- * Manages subscriptions automatically and cleans up on release.
+ * Listen once per event for every instance, and route each event to its
+ * subscription's listeners, so the number of folders open doesn't add IPC
+ * listeners.
  */
+function routeEvents(): void {
+  if (routing) {
+    return;
+  }
+  routing = true;
+
+  const route = <Event extends keyof Events["files"] & string>(
+    event: Event,
+    deliver: (listeners: Listeners, payload: Events["files"][Event]) => void,
+  ) =>
+    window.conduit.files.on(event, (payload) => {
+      const listeners = routes.get(payload.subscriptionId);
+      if (listeners) {
+        deliver(listeners, payload);
+      }
+    });
+
+  route("directoryListingChanged", (listeners, { path, entries }) =>
+    notify(listeners.directory.get(normalizePathForKey(path)), entries),
+  );
+  route("fileContentChanged", (listeners, { path }) =>
+    notify(listeners.content, path),
+  );
+  route("fileDeleted", (listeners, { path }) =>
+    notify(listeners.deleted, path),
+  );
+  route("fileRenamed", (listeners, { oldPath, newPath }) =>
+    notify(listeners.renamed, oldPath, newPath),
+  );
+}
+
 export class FileSystemV2API {
   /** The working directory this API is scoped to */
   readonly cwd: string;
@@ -109,32 +143,7 @@ export class FileSystemV2API {
   /** Pending subscription promise (to prevent duplicate subscription requests) */
   private subscriptionPromise: Promise<void> | null = null;
 
-  /** Listeners registered for directory listing changes */
-  private directoryListeners: Map<
-    string,
-    Set<DirectoryListingChangedCallback>
-  > = new Map();
-
-  /** Listeners registered for file content changes */
-  private fileListeners: Map<string, Set<FileContentChangedCallback>> =
-    new Map();
-
-  /** Listeners registered for file deletions */
-  private deleteListeners: Map<string, Set<FileDeletedCallback>> = new Map();
-
-  /** Listeners registered for file renames (keyed by oldPath) */
-  private renameListeners: Map<string, Set<FileRenamedCallback>> = new Map();
-
-  /** Global listeners (not filtered by path) */
-  private globalDirectoryListeners: Set<
-    (path: string, entries: DirectoryEntry[]) => void
-  > = new Set();
-  private globalFileListeners: Set<FileContentChangedCallback> = new Set();
-  private globalDeleteListeners: Set<FileDeletedCallback> = new Set();
-  private globalRenameListeners: Set<FileRenamedCallback> = new Set();
-
-  /** Cleanup functions for IPC event listeners */
-  private ipcCleanups: Cleanup[] = [];
+  private readonly listeners = new Listeners();
 
   /** Whether the subscription is stopped until `resume()` */
   private suspended = false;
@@ -143,17 +152,11 @@ export class FileSystemV2API {
   private released = false;
 
   /**
-   * Create a new FileSystemV2API instance.
-   *
-   * Eagerly subscribes to file system events to minimize the window
-   * for missed events between construction and first listener registration.
-   *
-   * @param cwd - Working directory to scope operations to
+   * Subscribes eagerly, so events between construction and the first
+   * listener aren't missed.
    */
   constructor(cwd: string) {
     this.cwd = cwd;
-    this.setupEventListeners();
-    // Eagerly subscribe to reduce race condition window
     this.ensureSubscribed();
   }
 
@@ -171,7 +174,7 @@ export class FileSystemV2API {
    */
   async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
     this.ensureNotReleased();
-    return window.conduit.fs.readDirectory(this.cwd, dirPath);
+    return window.conduit.files.readDirectory(this.cwd, dirPath);
   }
 
   /**
@@ -184,7 +187,7 @@ export class FileSystemV2API {
    */
   async readFile(filePath: string): Promise<Uint8Array> {
     this.ensureNotReleased();
-    return window.conduit.fs.readFile(this.cwd, filePath);
+    return window.conduit.files.readFile(filePath);
   }
 
   /**
@@ -204,7 +207,7 @@ export class FileSystemV2API {
    */
   async readTextFile(filePath: string): Promise<string> {
     this.ensureNotReleased();
-    return window.conduit.fs.readTextFile(this.cwd, filePath);
+    return window.conduit.files.readTextFile(filePath);
   }
 
   /**
@@ -217,7 +220,7 @@ export class FileSystemV2API {
    */
   async stat(path: string): Promise<FileStat> {
     this.ensureNotReleased();
-    return window.conduit.fs.stat(this.cwd, path);
+    return window.conduit.files.stat(path);
   }
 
   /**
@@ -229,7 +232,7 @@ export class FileSystemV2API {
    */
   async exists(path: string): Promise<boolean> {
     this.ensureNotReleased();
-    return window.conduit.fs.exists(this.cwd, path);
+    return window.conduit.files.exists(path);
   }
 
   // ---------------------------------------------------------------------------
@@ -249,7 +252,7 @@ export class FileSystemV2API {
    */
   async writeFile(filePath: string, content: Uint8Array): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.writeFile(this.cwd, filePath, content);
+    return window.conduit.files.writeFile(this.cwd, filePath, content);
   }
 
   /**
@@ -277,7 +280,7 @@ export class FileSystemV2API {
    */
   async delete(path: string, options?: DeleteOptions): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.delete(this.cwd, path, options);
+    return window.conduit.files.delete(this.cwd, path, options);
   }
 
   /**
@@ -290,7 +293,7 @@ export class FileSystemV2API {
    */
   async rename(oldPath: string, newPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.rename(this.cwd, oldPath, newPath);
+    return window.conduit.files.rename(this.cwd, oldPath, newPath);
   }
 
   /**
@@ -304,166 +307,40 @@ export class FileSystemV2API {
    */
   async createDirectory(dirPath: string): Promise<void> {
     this.ensureNotReleased();
-    return window.conduit.fs.createDirectory(this.cwd, dirPath);
+    return window.conduit.files.createDirectory(this.cwd, dirPath);
   }
 
   // ---------------------------------------------------------------------------
   // Event Subscriptions
   // ---------------------------------------------------------------------------
 
-  /**
-   * Subscribe to directory listing changes.
-   *
-   * @param path - Directory path to watch
-   * @param callback - Function called when directory listing changes
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
+  /** Calls back with a directory's entries each time its listing changes. */
   onDirectoryListingChanged(
     path: string,
     callback: DirectoryListingChangedCallback,
   ): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
-
     return addKeyedListener(
-      this.directoryListeners,
+      this.listeners.directory,
       normalizePathForKey(path),
       callback,
     );
   }
 
-  /**
-   * Subscribe to all directory listing changes (not filtered by path).
-   *
-   * @param callback - Function called when any directory listing changes
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
-  onAnyDirectoryListingChanged(
-    callback: (path: string, entries: DirectoryEntry[]) => void,
-  ): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-
-    this.globalDirectoryListeners.add(callback);
-
-    return () => {
-      this.globalDirectoryListeners.delete(callback);
-    };
-  }
-
-  /**
-   * Subscribe to file content changes.
-   *
-   * @param path - File path to watch
-   * @param callback - Function called when file content changes
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
-  onFileContentChanged(
-    path: string,
-    callback: FileContentChangedCallback,
-  ): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-
-    return addKeyedListener(
-      this.fileListeners,
-      normalizePathForKey(path),
-      callback,
-    );
-  }
-
-  /**
-   * Subscribe to all file content changes (not filtered by path).
-   *
-   * @param callback - Function called when any file content changes
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
+  /** Calls back with each file whose content changes. */
   onAnyFileContentChanged(callback: FileContentChangedCallback): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-
-    this.globalFileListeners.add(callback);
-
-    return () => {
-      this.globalFileListeners.delete(callback);
-    };
+    return this.listen(this.listeners.content, callback);
   }
 
-  /**
-   * Subscribe to file deletion events.
-   *
-   * @param path - File path to watch
-   * @param callback - Function called when file is deleted
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
-  onFileDeleted(path: string, callback: FileDeletedCallback): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-
-    return addKeyedListener(
-      this.deleteListeners,
-      normalizePathForKey(path),
-      callback,
-    );
-  }
-
-  /**
-   * Subscribe to all file deletion events (not filtered by path).
-   *
-   * @param callback - Function called when any file is deleted
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
+  /** Calls back with each file or directory that's deleted. */
   onAnyFileDeleted(callback: FileDeletedCallback): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-
-    this.globalDeleteListeners.add(callback);
-
-    return () => {
-      this.globalDeleteListeners.delete(callback);
-    };
+    return this.listen(this.listeners.deleted, callback);
   }
 
-  /**
-   * Subscribe to file rename events.
-   *
-   * @param path - Original file path to watch
-   * @param callback - Function called when file is renamed
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
-  onFileRenamed(path: string, callback: FileRenamedCallback): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-    return addKeyedListener(
-      this.renameListeners,
-      normalizePathForKey(path),
-      callback,
-    );
-  }
-
-  /**
-   * Subscribe to all file rename events (not filtered by path).
-   *
-   * @param callback - Function called when any file is renamed
-   * @returns Cleanup function to unsubscribe
-   * @throws {Error} If the API has been released
-   */
+  /** Calls back with each file or directory that's renamed or moved. */
   onAnyFileRenamed(callback: FileRenamedCallback): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-
-    this.globalRenameListeners.add(callback);
-
-    return () => {
-      this.globalRenameListeners.delete(callback);
-    };
+    return this.listen(this.listeners.renamed, callback);
   }
 
   // ---------------------------------------------------------------------------
@@ -471,16 +348,13 @@ export class FileSystemV2API {
   // ---------------------------------------------------------------------------
 
   /**
-   * Unsubscribe from the main process and drop the IPC handlers until
-   * `resume()`, so suspended folders don't pile up handlers. Listeners stay,
-   * and hear nothing until then.
+   * Unsubscribe until `resume()`. Listeners stay, and hear nothing until then.
    */
   suspend(): void {
     if (this.released || this.suspended) {
       return;
     }
     this.suspended = true;
-    this.removeEventListeners();
     this.unsubscribe();
   }
 
@@ -489,34 +363,17 @@ export class FileSystemV2API {
       return;
     }
     this.suspended = false;
-    this.setupEventListeners();
     this.ensureSubscribed();
   }
 
-  /**
-   * Release all resources held by this API instance.
-   *
-   * After calling this, the instance cannot be used.
-   * All event subscriptions are automatically cleaned up.
-   */
+  /** Unsubscribe and drop every listener, after which it can't be used. */
   release(): void {
     if (this.released) {
       return;
     }
-
     this.released = true;
-    this.removeEventListeners();
     this.unsubscribe();
-
-    // Clear all listeners
-    this.directoryListeners.clear();
-    this.fileListeners.clear();
-    this.deleteListeners.clear();
-    this.renameListeners.clear();
-    this.globalDirectoryListeners.clear();
-    this.globalFileListeners.clear();
-    this.globalDeleteListeners.clear();
-    this.globalRenameListeners.clear();
+    this.listeners.clear();
   }
 
   /**
@@ -530,220 +387,58 @@ export class FileSystemV2API {
   // Private Methods
   // ---------------------------------------------------------------------------
 
+  private listen<T>(listeners: Set<T>, callback: T): Cleanup {
+    this.ensureNotReleased();
+    this.ensureSubscribed();
+    listeners.add(callback);
+    return () => {
+      listeners.delete(callback);
+    };
+  }
+
   /** Unsubscribe from the main process, which also releases its provider. */
   private unsubscribe(): void {
     if (this.subscriptionId) {
-      window.conduit.fs.unsubscribe(this.subscriptionId).catch(() => {
+      routes.delete(this.subscriptionId);
+      window.conduit.files.unsubscribe(this.subscriptionId).catch(() => {
         // Ignore errors during cleanup
       });
       this.subscriptionId = null;
     }
   }
 
-  private removeEventListeners(): void {
-    for (const cleanup of this.ipcCleanups) {
-      cleanup();
-    }
-    this.ipcCleanups = [];
-  }
-
   /**
-   * Set up IPC event listeners.
-   */
-  private setupEventListeners(): void {
-    // Directory listing changes
-    this.ipcCleanups.push(
-      window.conduit.fs.onDirectoryListingChanged(
-        (payload: DirectoryListingChangedPayload) => {
-          if (payload.subscriptionId !== this.subscriptionId) {
-            return;
-          }
-
-          // Notify path-specific listeners (use normalized key for lookup)
-          const key = normalizePathForKey(payload.path);
-          const listeners = this.directoryListeners.get(key);
-          if (listeners) {
-            for (const callback of listeners) {
-              try {
-                callback(payload.entries);
-              } catch (error) {
-                console.error(
-                  "[FileSystemV2API] Error in directory listener:",
-                  error,
-                );
-              }
-            }
-          }
-
-          // Notify global listeners
-          for (const callback of this.globalDirectoryListeners) {
-            try {
-              callback(payload.path, payload.entries);
-            } catch (error) {
-              console.error(
-                "[FileSystemV2API] Error in global directory listener:",
-                error,
-              );
-            }
-          }
-        },
-      ),
-    );
-
-    // File content changes
-    this.ipcCleanups.push(
-      window.conduit.fs.onFileContentChanged(
-        (payload: FileContentChangedPayload) => {
-          if (payload.subscriptionId !== this.subscriptionId) {
-            return;
-          }
-
-          // Notify path-specific listeners (use normalized key for lookup)
-          const fileKey = normalizePathForKey(payload.path);
-          const listeners = this.fileListeners.get(fileKey);
-          if (listeners) {
-            for (const callback of listeners) {
-              try {
-                callback(payload.path);
-              } catch (error) {
-                console.error(
-                  "[FileSystemV2API] Error in file listener:",
-                  error,
-                );
-              }
-            }
-          }
-
-          // Notify global listeners
-          for (const callback of this.globalFileListeners) {
-            try {
-              callback(payload.path);
-            } catch (error) {
-              console.error(
-                "[FileSystemV2API] Error in global file listener:",
-                error,
-              );
-            }
-          }
-        },
-      ),
-    );
-
-    // File deletions
-    this.ipcCleanups.push(
-      window.conduit.fs.onFileDeleted((payload: FileDeletedPayload) => {
-        if (payload.subscriptionId !== this.subscriptionId) {
-          return;
-        }
-
-        // Notify path-specific listeners (use normalized key for lookup)
-        const deleteKey = normalizePathForKey(payload.path);
-        const listeners = this.deleteListeners.get(deleteKey);
-        if (listeners) {
-          for (const callback of listeners) {
-            try {
-              callback(payload.path);
-            } catch (error) {
-              console.error(
-                "[FileSystemV2API] Error in delete listener:",
-                error,
-              );
-            }
-          }
-        }
-
-        // Notify global listeners
-        for (const callback of this.globalDeleteListeners) {
-          try {
-            callback(payload.path);
-          } catch (error) {
-            console.error(
-              "[FileSystemV2API] Error in global delete listener:",
-              error,
-            );
-          }
-        }
-      }),
-    );
-
-    // File renames
-    this.ipcCleanups.push(
-      window.conduit.fs.onFileRenamed((payload: FileRenamedPayload) => {
-        if (payload.subscriptionId !== this.subscriptionId) {
-          return;
-        }
-
-        // Notify path-specific listeners (use normalized key for lookup)
-        const renameKey = normalizePathForKey(payload.oldPath);
-        const listeners = this.renameListeners.get(renameKey);
-        if (listeners) {
-          for (const callback of listeners) {
-            try {
-              callback(payload.oldPath, payload.newPath);
-            } catch (error) {
-              console.error(
-                "[FileSystemV2API] Error in rename listener:",
-                error,
-              );
-            }
-          }
-        }
-
-        // Notify global listeners
-        for (const callback of this.globalRenameListeners) {
-          try {
-            callback(payload.oldPath, payload.newPath);
-          } catch (error) {
-            console.error(
-              "[FileSystemV2API] Error in global rename listener:",
-              error,
-            );
-          }
-        }
-      }),
-    );
-  }
-
-  /**
-   * Ensure we have an active subscription to the main process.
-   *
-   * Uses a promise to prevent multiple concurrent subscription requests.
-   * If a subscription is already in progress, returns the existing promise.
-   * Also handles the race condition where suspend() or release() is called
-   * while the subscription IPC is in flight - in that case, immediately
-   * unsubscribes.
+   * Subscribe unless subscribed, subscribing, suspended or released. A
+   * suspension or release that lands while the subscription is in flight
+   * unsubscribes it as soon as it arrives.
    */
   private ensureSubscribed(): void {
-    // Already subscribed, or not meant to be
-    if (this.subscriptionId || this.suspended || this.released) {
+    if (
+      this.subscriptionId ||
+      this.subscriptionPromise ||
+      this.suspended ||
+      this.released
+    ) {
       return;
     }
 
-    // Subscription already in progress - don't start another
-    if (this.subscriptionPromise) {
-      return;
-    }
-
-    // Start subscription
-    this.subscriptionPromise = window.conduit.fs
-      .subscribe(this.cwd, "all")
-      .then((id: string) => {
-        // Check if we were suspended or released while waiting for the
-        // subscription. This handles the race condition where suspend() or
-        // release() is called before the IPC completes
+    routeEvents();
+    this.subscriptionPromise = window.conduit.files
+      .subscribe(this.cwd)
+      .then((id) => {
         if (this.suspended || this.released) {
-          // Immediately unsubscribe since we're no longer meant to listen
-          window.conduit.fs.unsubscribe(id).catch(() => {
+          window.conduit.files.unsubscribe(id).catch(() => {
             // Ignore errors during cleanup
           });
-          this.subscriptionPromise = null;
           return;
         }
         this.subscriptionId = id;
-        this.subscriptionPromise = null;
+        routes.set(id, this.listeners);
       })
       .catch((error: unknown) => {
         console.error("[FileSystemV2API] Failed to subscribe:", error);
+      })
+      .finally(() => {
         this.subscriptionPromise = null;
       });
   }

@@ -24,7 +24,7 @@ export const canvasHandlers: Partial<HandlerMap> = {
 
     // Export the canvas to a temporary PNG file
     const buffer = await canvasToBuffer(canvas);
-    const filePath = await api.writeTempFile(buffer, "png");
+    const filePath = await api.files.writeTempFile(buffer, "png");
 
     return filePath;
   },

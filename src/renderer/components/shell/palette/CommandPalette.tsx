@@ -22,7 +22,6 @@
  * ```
  */
 
-import { QuickOpenAPI } from "@features/files/client/QuickOpenAPI";
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import {
   Dialog,
@@ -102,7 +101,6 @@ export function CommandPalette({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const apiRef = useRef<QuickOpenAPI | null>(null);
   const initialMousePositionRef = useRef({ x: 0, y: 0 });
 
   // Recent files tracking
@@ -126,27 +124,14 @@ export function CommandPalette({
       return;
     }
 
-    // Initialize API for this cwd
-    const api = new QuickOpenAPI(cwd);
-    apiRef.current = api;
-
-    // Load pre-warmed cache
     setIsLoading(true);
-    api
-      .getPreWarmedCache()
-      .then((files) => {
-        if (files.length === 0) {
-          // No cache found, warm it now
-          return api.warmCache().then(() => api.getPreWarmedCache());
-        }
-        return files;
-      })
-      .then((files) => {
-        setFileList(files);
-      })
+    window.conduit.files
+      .quickOpenFiles(cwd)
       .catch((error) => {
-        console.error("[CommandPalette] Failed to load cache:", error);
+        console.error("[CommandPalette] Failed to load files:", error);
+        return [];
       })
+      .then(setFileList)
       .finally(() => {
         setIsLoading(false);
       });

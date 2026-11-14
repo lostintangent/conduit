@@ -134,13 +134,13 @@ export function watchPaneActionsFile(
   const cwd = getParentDirectory(filePath);
 
   // Subscribe to file content changes for this specific file
-  window.conduit.fs
-    .subscribe(cwd, "file", filePath)
+  window.conduit.files
+    .subscribe(cwd, filePath)
     .then((subId) => {
       subscriptionId = subId;
 
       // Listen for file content changes
-      ipcCleanup = window.conduit.fs.onFileContentChanged((payload) => {
+      ipcCleanup = window.conduit.files.on("fileContentChanged", (payload) => {
         // Only handle events for our subscription
         if (payload.subscriptionId !== subscriptionId) {
           return;
@@ -170,7 +170,7 @@ export function watchPaneActionsFile(
 
       // Unsubscribe from file changes
       if (subscriptionId) {
-        window.conduit.fs.unsubscribe(subscriptionId).catch((error) => {
+        window.conduit.files.unsubscribe(subscriptionId).catch((error) => {
           console.error("Failed to unsubscribe from file changes:", error);
         });
         subscriptionId = null;

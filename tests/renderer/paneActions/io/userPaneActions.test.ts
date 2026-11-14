@@ -16,12 +16,12 @@ describe("userPaneActions", () => {
   beforeEach(async () => {
     homeDirectory = await mkdtemp(join(tmpdir(), "pane-actions-home-"));
     (globalThis as any).window.conduit = {
-      fs: {
+      files: {
         writeFile: async (_cwd: string, path: string, content: Uint8Array) => {
           await mkdir(dirname(path), { recursive: true });
           await writeFile(path, content);
         },
-        exists: async (_cwd: string, path: string) =>
+        exists: async (path: string) =>
           access(path).then(
             () => true,
             () => false,

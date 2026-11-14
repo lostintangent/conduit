@@ -11,7 +11,6 @@ import type {
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";
-import fsModule from "./modules/fs";
 import { createFeatureApis } from "./features";
 import { createEventListener } from "./utils";
 
@@ -96,16 +95,7 @@ const conduitAPI = {
       payload,
     ) as Promise<AgentSessionCleanupResult>,
 
-  /* Temporary file operations */
-
-  writeTempFile: (content: Uint8Array, extension?: string) =>
-    ipcRenderer.invoke("fs:write-temp-file", {
-      content,
-      extension,
-    }) as Promise<string>,
-
   cli: configureCliModule,
-  fs: fsModule,
 };
 
 export type ConduitAPI = typeof conduitAPI & FeatureApis;

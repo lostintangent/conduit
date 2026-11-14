@@ -6,31 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
-  vi.hoisted(() => {
-    // Mock window.conduit.fs
-    const fs = {
-      readDirectory: vi.fn(),
-      readFile: vi.fn(),
-      stat: vi.fn(),
-      exists: vi.fn(),
-      writeFile: vi.fn(),
-      delete: vi.fn(),
-      rename: vi.fn(),
-      createDirectory: vi.fn(),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-      release: vi.fn(),
-      onDirectoryChanged: vi.fn(() => vi.fn()),
-      onFileChanged: vi.fn(() => vi.fn()),
-      onFileDeleted: vi.fn(() => vi.fn()),
-      onFileRenamed: vi.fn(() => vi.fn()),
-    };
-
-    // Set up window.conduit
-    (globalThis as any).window = (globalThis as any).window || {};
-    (globalThis as any).window.conduit = { fs };
-
+const { MockFileSystemV2API, mockService, mockServiceInstance } = vi.hoisted(
+  () => {
     // Track API instances for verification
     const instances = new Map<
       string,
@@ -107,7 +84,6 @@ const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
     };
 
     return {
-      mockFs: fs,
       MockFileSystemV2API: MockAPI,
       mockService: service,
       mockServiceInstance: serviceInstance,
@@ -116,7 +92,8 @@ const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
         instances.clear();
       },
     };
-  });
+  },
+);
 
 // Mock the FileSystemV2API class
 vi.mock("../client/FileSystemV2API", () => ({
@@ -139,8 +116,6 @@ describe("useFileSystemV2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockService.resetInstance();
-    // Reset window.conduit
-    (globalThis as any).window.conduit = { fs: mockFs };
   });
 
   afterEach(() => {

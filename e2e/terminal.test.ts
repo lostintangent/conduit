@@ -6,9 +6,12 @@ import { type Conduit, git, launch, type Terminal, until } from "./app";
 
 /** The part of the window's API that watches files and repos. */
 interface Watching {
-  fs: {
-    subscribe(cwd: string, type: "file"): Promise<string>;
-    onFileContentChanged(listener: (event: SubscriptionEvent) => void): void;
+  files: {
+    subscribe(cwd: string): Promise<string>;
+    on(
+      event: "fileContentChanged",
+      listener: (event: SubscriptionEvent) => void,
+    ): void;
   };
   git: {
     subscribe(cwd: string): Promise<string | null>;
@@ -336,7 +339,7 @@ describe("terminal and CLI", () => {
       app.page.evaluate(async (cwd) => {
         const { conduit } = window as unknown as { conduit: Watching };
         return [
-          await conduit.fs.subscribe(cwd, "file"),
+          await conduit.files.subscribe(cwd),
           await conduit.git.subscribe(cwd),
         ];
       }, repo);
@@ -352,7 +355,7 @@ describe("terminal and CLI", () => {
       scope.notified = [];
       const record = ({ subscriptionId }: SubscriptionEvent) =>
         scope.notified.push(subscriptionId);
-      scope.conduit.fs.onFileContentChanged(record);
+      scope.conduit.files.on("fileContentChanged", record);
       scope.conduit.git.on("statusChanged", record);
     });
     const after = await subscribe();

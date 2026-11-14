@@ -38,13 +38,12 @@ export async function readPaneActionsFile(
   filePath: string,
 ): Promise<Action[] | null> {
   const api = window.conduit;
-  if (!api?.fs?.readTextFile) {
-    throw new Error("Conduit fs API not available");
+  if (!api?.files?.readTextFile) {
+    throw new Error("Conduit files API not available");
   }
 
   try {
-    const cwd = getParentDirectory(filePath);
-    const content = await api.fs.readTextFile(cwd, filePath);
+    const content = await api.files.readTextFile(filePath);
     return parsePaneActionsContent(content);
   } catch (error) {
     // File doesn't exist - this is expected on first run
@@ -97,8 +96,8 @@ export async function writePaneActionsFile(
   actions: Action[],
 ): Promise<void> {
   const api = window.conduit;
-  if (!api?.fs?.writeFile) {
-    throw new Error("Conduit fs API not available");
+  if (!api?.files?.writeFile) {
+    throw new Error("Conduit files API not available");
   }
 
   // Validate before writing
@@ -108,7 +107,7 @@ export async function writePaneActionsFile(
   const content = JSON.stringify(actions, null, 2);
   const cwd = getParentDirectory(filePath);
   const contentBytes = new TextEncoder().encode(content);
-  await api.fs.writeFile(cwd, filePath, contentBytes);
+  await api.files.writeFile(cwd, filePath, contentBytes);
 }
 
 /**
@@ -119,7 +118,7 @@ export async function writePaneActionsFile(
 export async function paneActionsFileExists(
   filePath: string,
 ): Promise<boolean> {
-  return window.conduit.fs.exists(getParentDirectory(filePath), filePath);
+  return window.conduit.files.exists(filePath);
 }
 
 /**
@@ -128,5 +127,5 @@ export async function paneActionsFileExists(
  * @param filePath - Path to the pane actions file
  */
 export async function deletePaneActionsFile(filePath: string): Promise<void> {
-  await window.conduit.fs.delete(getParentDirectory(filePath), filePath);
+  await window.conduit.files.delete(getParentDirectory(filePath), filePath);
 }

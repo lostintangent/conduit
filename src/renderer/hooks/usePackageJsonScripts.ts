@@ -42,10 +42,8 @@ export function usePackageJsonScripts(cwd: string | null | undefined) {
             const packageJsonPath = path.join(currentDir, "package.json");
 
             // Try to read the file
-            const content = await window.conduit.fs.readFile(
-              currentDir,
-              packageJsonPath,
-            );
+            const content =
+              await window.conduit.files.readFile(packageJsonPath);
             const text = new TextDecoder().decode(content);
             const packageJson: PackageJson = JSON.parse(text);
 

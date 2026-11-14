@@ -14,8 +14,8 @@ export function watchKeybindingsFile(
   filePath: string,
   onChanged: () => void,
 ): () => void {
-  if (!window.conduit?.fs?.subscribe) {
-    console.warn("window.conduit.fs.subscribe is not available");
+  if (!window.conduit?.files?.subscribe) {
+    console.warn("window.conduit.files.subscribe is not available");
     return () => {};
   }
 
@@ -24,11 +24,11 @@ export function watchKeybindingsFile(
 
   const cwd = getParentDirectory(filePath);
 
-  window.conduit.fs
-    .subscribe(cwd, "file", filePath)
+  window.conduit.files
+    .subscribe(cwd, filePath)
     .then((subId) => {
       subscriptionId = subId;
-      ipcCleanup = window.conduit.fs.onFileContentChanged((payload) => {
+      ipcCleanup = window.conduit.files.on("fileContentChanged", (payload) => {
         if (payload.subscriptionId !== subscriptionId) return;
         console.log("Keybindings file changed, reloading...");
         onChanged();
@@ -41,7 +41,7 @@ export function watchKeybindingsFile(
   return () => {
     ipcCleanup?.();
     if (subscriptionId) {
-      window.conduit?.fs?.unsubscribe?.(subscriptionId);
+      window.conduit?.files?.unsubscribe?.(subscriptionId);
     }
   };
 }

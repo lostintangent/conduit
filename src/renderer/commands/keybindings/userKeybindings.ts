@@ -31,14 +31,13 @@ function getParentDirectory(filePath: string): string {
 async function readUserKeybindingsFile(
   filePath: string,
 ): Promise<UserKeybinding[]> {
-  if (!window.conduit?.fs?.readTextFile) {
-    console.warn("window.conduit.fs.readTextFile is not available");
+  if (!window.conduit?.files?.readTextFile) {
+    console.warn("window.conduit.files.readTextFile is not available");
     return [];
   }
 
   try {
-    const cwd = getParentDirectory(filePath);
-    const content = await window.conduit.fs.readTextFile(cwd, filePath);
+    const content = await window.conduit.files.readTextFile(filePath);
     if (!content) return [];
     return parseKeybindingsFile(content);
   } catch (error: any) {
@@ -57,14 +56,14 @@ async function writeUserKeybindingsFile(
   filePath: string,
   bindings: UserKeybinding[],
 ): Promise<void> {
-  if (!window.conduit?.fs?.writeFile) {
-    throw new Error("window.conduit.fs.writeFile is not available");
+  if (!window.conduit?.files?.writeFile) {
+    throw new Error("window.conduit.files.writeFile is not available");
   }
 
   const json = JSON.stringify(bindings, null, 2);
   const cwd = getParentDirectory(filePath);
   const encoder = new TextEncoder();
-  await window.conduit.fs.writeFile(cwd, filePath, encoder.encode(json));
+  await window.conduit.files.writeFile(cwd, filePath, encoder.encode(json));
 }
 
 /**
@@ -78,8 +77,7 @@ export async function loadUserKeybindings(
 ): Promise<void> {
   try {
     // Read file using fs API
-    const cwd = getParentDirectory(filePath);
-    const content = await window.conduit?.fs?.readTextFile?.(cwd, filePath);
+    const content = await window.conduit?.files?.readTextFile?.(filePath);
     if (!content) return;
 
     const userBindings = parseKeybindingsFile(content);

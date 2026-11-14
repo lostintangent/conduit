@@ -278,3 +278,17 @@ export interface FileSystemProvider {
    */
   dispose(): void;
 }
+
+/** An event from a `files.subscribe` watcher, which carries its id. */
+type Subscribed<Event> = Event & { subscriptionId: string };
+
+declare module "@shared/rpc" {
+  interface Events {
+    files: {
+      directoryListingChanged: Subscribed<DirectoryListingChangedEvent>;
+      fileContentChanged: Subscribed<FileContentChangedEvent>;
+      fileDeleted: Subscribed<FileDeletedEvent>;
+      fileRenamed: Subscribed<FileRenamedEvent>;
+    };
+  }
+}

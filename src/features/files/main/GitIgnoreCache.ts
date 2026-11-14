@@ -7,8 +7,7 @@
  * - Support for nested .gitignore files (discovered during traversal)
  * - Automatic invalidation when .gitignore changes
  *
- * This is a singleton used by both handlers.ts (direct reads) and
- * DiskFileSystemProvider (subscription-based reads).
+ * This is a singleton shared by every DiskFileSystemProvider.
  */
 
 import ignore, { type Ignore } from "ignore";
