@@ -73,7 +73,7 @@ import { sidebarStateAtom } from "@/store/sidebarStore";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useSelector } from "@tanstack/react-store";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -148,33 +148,16 @@ export function App() {
   // When the active pane is a terminal or editor, use its CWD and remember it.
   // When the active pane is a browser or other type, keep the last known CWD.
   // This is used by components that need to know the "current" directory context.
-  const lastKnownCwdRef = useRef<string | null>(null);
-
-  const activeCwd = useMemo(() => {
-    if (!activeTab) {
-      return lastKnownCwdRef.current ?? homeDirectory ?? "/";
-    }
-
-    const activePane = activeTab.panes[activeTab.activePaneId];
-
-    // Terminal and editor panes have a CWD - use it
-    if (activePane?.type === "terminal" || activePane?.type === "editor") {
-      return activePane.cwd ?? homeDirectory ?? "/";
-    }
-
-    // Browser or other pane types: keep previous CWD (sticky)
-    return lastKnownCwdRef.current ?? homeDirectory ?? "/";
-  }, [activeTab, homeDirectory]);
-
-  // Update the sticky CWD ref as a proper side effect (not inside useMemo)
-  useEffect(() => {
-    if (!activeTab) return;
-
-    const activePane = activeTab.panes[activeTab.activePaneId];
-    if (activePane?.type === "terminal" || activePane?.type === "editor") {
-      lastKnownCwdRef.current = activePane.cwd ?? homeDirectory ?? "/";
-    }
-  }, [activeTab, homeDirectory]);
+  const currentPane = activeTab?.panes[activeTab.activePaneId];
+  const currentPaneCwd =
+    currentPane?.type === "terminal" || currentPane?.type === "editor"
+      ? (currentPane.cwd ?? homeDirectory ?? "/")
+      : null;
+  const [lastKnownCwd, setLastKnownCwd] = useState(currentPaneCwd);
+  if (currentPaneCwd !== null && currentPaneCwd !== lastKnownCwd) {
+    setLastKnownCwd(currentPaneCwd);
+  }
+  const activeCwd = currentPaneCwd ?? lastKnownCwd ?? homeDirectory ?? "/";
 
   useCliClient(activeCwd);
 
@@ -336,7 +319,7 @@ export function App() {
 
       setTitleModalState(null);
     },
-    [titleModalState, updateTabProperty],
+    [titleModalState],
   );
 
   const handleContextMenu = useContextMenu({
@@ -439,12 +422,7 @@ export function App() {
 
       setCleanupDialogSessions(null);
     },
-    [
-      cleanupDialogSessions,
-      closeAgentSessionPanes,
-      enqueueNotification,
-      updateNotification,
-    ],
+    [cleanupDialogSessions, closeAgentSessionPanes],
   );
 
   const handleOpenWebPage = useCallback(
@@ -533,7 +511,7 @@ export function App() {
 
       return null;
     });
-  }, []);
+  }, [setQuickPaneState]);
 
   const handleOpenQuickPaneAsTab = useCallback(
     async (descriptor: PaneDescriptor) => {
@@ -547,7 +525,7 @@ export function App() {
       });
       await openTabFromPaneDescriptor(descriptor);
     },
-    [],
+    [setQuickPaneState],
   );
 
   const handleOpenQuickPaneAsFloating = useCallback(
@@ -567,7 +545,7 @@ export function App() {
         return null;
       });
     },
-    [openHyperTerminal],
+    [setQuickPaneState],
   );
 
   const handleMaximizeHyperTerminal = useCallback(
@@ -576,7 +554,7 @@ export function App() {
       const quickPaneDescriptor = maximizeHyperTerminal(terminalId, cwd);
       setQuickPaneState(quickPaneDescriptor);
     },
-    [maximizeHyperTerminal, setQuickPaneState],
+    [setQuickPaneState],
   );
 
   const shouldUseDrawer = !alwaysShowTabs;
@@ -790,7 +768,7 @@ export function App() {
         isOpen={showCreateWorkspaceDialog}
         initialValue=""
         onClose={() => setShowCreateWorkspaceDialog(false)}
-        onSave={(name) => saveWorkspace(name, tabs, activeTab.id)}
+        onSave={(name) => saveWorkspace(name, tabs, activeTab?.id)}
         title="Save workspace"
         placeholder="e.g., Frontend Dev, API Testing..."
       />

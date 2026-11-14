@@ -73,6 +73,26 @@ describe("browser automation from the CLI", () => {
     expect(output.map((element) => element.text)).toEqual(["Hello, Ada"]);
   });
 
+  it("keeps quick open in the terminal's directory while the browser is focused", async () => {
+    // Outside home, so falling back to the home directory finds nothing.
+    const project = fs.mkdtempSync("/tmp/conduit-e2e-project-");
+    try {
+      fs.writeFileSync(path.join(project, "notes.txt"), "");
+      await terminal.locator.click();
+      expect(await terminal.run(`cd ${project}`)).toBe(0);
+      const address = app.page.getByPlaceholder("Enter URL...");
+      await address.click();
+      await address.blur();
+
+      await app.page.keyboard.press("Meta+p");
+      await app.page.getByPlaceholder(/Search files by name/).fill("notes");
+      await app.page.getByText("notes.txt").waitFor();
+      await app.page.keyboard.press("Escape");
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);
