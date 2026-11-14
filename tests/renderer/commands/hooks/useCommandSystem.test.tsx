@@ -4,12 +4,13 @@ import { describe, it, expect, beforeEach, type Mock, vi } from "vitest";
 // @ts-ignore
 window.conduit = {};
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import {
   type UseCommandSystemOptions,
   useCommandSystem,
 } from "@/commands/hooks/useCommandSystem";
-import { keybindingsAtom } from "@/store/atoms";
+import { activeTabIdAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
+import type { Tab } from "@/types";
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import type { ApplicationMode } from "@/store/atoms";
 
@@ -18,18 +19,33 @@ describe("useCommandSystem", () => {
 
   beforeEach(() => {
     keybindingsAtom.set(new Map());
+    tabsAtom.set([]);
+    activeTabIdAtom.set(null);
     setApplicationModeMock = vi.fn();
   });
+
+  function terminalTab(id: string): Tab {
+    return {
+      id,
+      panes: {
+        [`${id}-pane`]: {
+          id: `${id}-pane`,
+          type: "terminal",
+          sessionId: `${id}-session`,
+          cwd: "/repo",
+        },
+      },
+      layout: { id: `${id}-node`, type: "pane", paneId: `${id}-pane` },
+      activePaneId: `${id}-pane`,
+    };
+  }
 
   function options(
     overrides: Partial<UseCommandSystemOptions> = {},
   ): UseCommandSystemOptions {
     return {
-      activeTab: null,
-      tabs: [],
       applicationMode: "normal",
       setApplicationMode: setApplicationModeMock,
-      hasCustomLayout: () => false,
       hasLastWorkspace: false,
       setShowGeneralSettings: vi.fn(),
       setShowKeybindingsEditor: vi.fn(),
@@ -206,13 +222,11 @@ describe("useCommandSystem", () => {
     });
 
     it("should provide activeTab in context", async () => {
-      const mockTab = {
-        id: "tab-1",
-        activePaneId: "pane-1",
-        panes: {},
-      };
+      const mockTab = terminalTab("tab-1");
+      tabsAtom.set([mockTab]);
+      activeTabIdAtom.set("tab-1");
 
-      const { result } = renderCommandSystem({ activeTab: mockTab });
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -234,7 +248,8 @@ describe("useCommandSystem", () => {
 
       expect(capturedContext).toBeDefined();
       expect(capturedContext.activeTab).toEqual(mockTab);
-      expect(capturedContext.activePaneId).toBe("pane-1");
+      expect(capturedContext.activePaneId).toBe("tab-1-pane");
+      expect(capturedContext.allTabs).toEqual([mockTab]);
     });
 
     it("should update context when applicationMode changes", async () => {
@@ -260,16 +275,13 @@ describe("useCommandSystem", () => {
       expect(setApplicationModeMock).toHaveBeenCalledWith("normal");
     });
 
-    it("should update context when activeTab changes", async () => {
-      const mockTab1 = { id: "tab-1", activePaneId: "pane-1", panes: {} };
-      const mockTab2 = { id: "tab-2", activePaneId: "pane-2", panes: {} };
+    it("should give commands the active tab as it is when they run", async () => {
+      const mockTab1 = terminalTab("tab-1");
+      const mockTab2 = terminalTab("tab-2");
+      tabsAtom.set([mockTab1, mockTab2]);
+      activeTabIdAtom.set("tab-1");
 
-      const { result, rerender } = renderHook(
-        ({ tab }) => useCommandSystem(options({ activeTab: tab })),
-        {
-          initialProps: { tab: mockTab1 },
-        },
-      );
+      const { result } = renderCommandSystem();
 
       await waitFor(() => {
         expect(result.current).not.toBeNull();
@@ -291,12 +303,106 @@ describe("useCommandSystem", () => {
       await commandRegistry.executeCommand("test.captureTab");
       expect(capturedTab).toEqual(mockTab1);
 
-      // Change tab
-      rerender({ tab: mockTab2 });
-
-      // Execute again with second tab
+      // Switch tabs, and run before anything re-renders
+      activeTabIdAtom.set("tab-2");
       await commandRegistry.executeCommand("test.captureTab");
       expect(capturedTab).toEqual(mockTab2);
+    });
+  });
+
+  describe("context keys", () => {
+    it("follow the active pane and its tab's layout", async () => {
+      const tab = terminalTab("tab-1");
+      tabsAtom.set([tab]);
+      activeTabIdAtom.set("tab-1");
+      const { result } = renderCommandSystem();
+      await waitFor(() => expect(result.current).not.toBeNull());
+      const keys = () => result.current!.contextKeyService.getAll();
+
+      expect(keys()).toMatchObject({
+        tabCount: 1,
+        hasActivePane: true,
+        activePaneType: "terminal",
+        hasCwd: true,
+        hasCustomLayout: false,
+        paneCanBeCollapsed: false,
+      });
+
+      act(() =>
+        tabsAtom.set([
+          {
+            ...tab,
+            panes: {
+              ...tab.panes,
+              editor: { id: "editor", type: "editor", cwd: "/repo" },
+            },
+            layout: {
+              id: "split",
+              type: "split",
+              direction: "row",
+              children: [
+                { ...tab.layout, size: 30 },
+                { id: "editor-node", type: "pane", paneId: "editor" },
+              ],
+            },
+            activePaneId: "editor",
+          },
+          terminalTab("tab-2"),
+        ]),
+      );
+
+      expect(keys()).toMatchObject({
+        tabCount: 2,
+        activePaneType: "editor",
+        hasCwd: false,
+        hasCustomLayout: true,
+        paneCanBeCollapsed: true,
+      });
+
+      act(() => activeTabIdAtom.set(null));
+
+      expect(keys()).toMatchObject({
+        hasActivePane: false,
+        activePaneType: "",
+        hasCustomLayout: false,
+      });
+    });
+
+    it("go back to the active pane's after a context menu sets them for another", async () => {
+      const tab = terminalTab("tab-1");
+      const twoPanes = (collapsed: boolean, activePaneId: string): Tab => ({
+        ...tab,
+        panes: {
+          ...tab.panes,
+          other: { ...tab.panes["tab-1-pane"], id: "other" },
+        },
+        layout: {
+          id: "split",
+          type: "split",
+          direction: "row",
+          children: [
+            tab.layout,
+            { id: "other-node", type: "pane", paneId: "other", collapsed },
+          ],
+        },
+        activePaneId,
+      });
+      tabsAtom.set([twoPanes(true, "tab-1-pane")]);
+      activeTabIdAtom.set("tab-1");
+      const { result } = renderCommandSystem();
+      await waitFor(() => expect(result.current).not.toBeNull());
+      const service = result.current!.contextKeyService;
+
+      // What the pane menu sets on right-clicking the collapsed pane
+      service.setGlobal("paneIsCollapsed", true);
+      service.setGlobal("tabIsLocked", true);
+      // Expanding it makes it active, a pane like the one before
+      act(() => tabsAtom.set([twoPanes(false, "other")]));
+
+      expect(service.getAll()).toMatchObject({
+        paneIsCollapsed: false,
+        tabIsLocked: false,
+      });
     });
   });
 

@@ -17,6 +17,7 @@ import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import { ContextKey } from "@/commands/contextKeys/ContextKey";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
+import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { commandContext } from "../fixtures";
 
@@ -44,6 +45,7 @@ describe("useKeybindingDispatch", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    tabsAtom.set([]);
   });
 
   describe("basic keyboard dispatch", () => {
@@ -680,7 +682,6 @@ describe("useKeybindingDispatch", () => {
         const options: KeybindingDispatchOptions = {
           applicationMode: "focus",
           setApplicationMode,
-          tabs: [],
           isQuickOpenOpen: false,
         };
 
@@ -703,7 +704,6 @@ describe("useKeybindingDispatch", () => {
         const options: KeybindingDispatchOptions = {
           applicationMode: "design",
           setApplicationMode,
-          tabs: [],
           isQuickOpenOpen: false,
         };
 
@@ -726,7 +726,6 @@ describe("useKeybindingDispatch", () => {
         const options: KeybindingDispatchOptions = {
           applicationMode: "overview",
           setApplicationMode,
-          tabs: [],
           isQuickOpenOpen: false,
         };
 
@@ -749,7 +748,6 @@ describe("useKeybindingDispatch", () => {
         const options: KeybindingDispatchOptions = {
           applicationMode: "normal",
           setApplicationMode,
-          tabs: [],
           isQuickOpenOpen: false,
         };
 
@@ -772,7 +770,6 @@ describe("useKeybindingDispatch", () => {
         const options: KeybindingDispatchOptions = {
           applicationMode: "focus",
           setApplicationMode,
-          tabs: [],
           isQuickOpenOpen: false,
         };
 
@@ -815,13 +812,14 @@ describe("useKeybindingDispatch", () => {
       it("should focus first tab on Cmd+1 (Mac)", async () => {
         // Mock the focusTab action
         const focusTabModule = await import("@/store/actions/tab");
-        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+        const focusTabSpy = vi
+          .spyOn(focusTabModule, "focusTab")
+          .mockImplementation(() => {});
 
-        const tabs = createMockTabs(3);
+        tabsAtom.set(createMockTabs(3));
         const options: KeybindingDispatchOptions = {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
-          tabs,
           isQuickOpenOpen: false,
         };
 
@@ -844,13 +842,14 @@ describe("useKeybindingDispatch", () => {
 
       it("should focus third tab on Cmd+3 (Mac)", async () => {
         const focusTabModule = await import("@/store/actions/tab");
-        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+        const focusTabSpy = vi
+          .spyOn(focusTabModule, "focusTab")
+          .mockImplementation(() => {});
 
-        const tabs = createMockTabs(5);
+        tabsAtom.set(createMockTabs(5));
         const options: KeybindingDispatchOptions = {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
-          tabs,
           isQuickOpenOpen: false,
         };
 
@@ -873,13 +872,14 @@ describe("useKeybindingDispatch", () => {
 
       it("should focus last tab when number exceeds tab count", async () => {
         const focusTabModule = await import("@/store/actions/tab");
-        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+        const focusTabSpy = vi
+          .spyOn(focusTabModule, "focusTab")
+          .mockImplementation(() => {});
 
-        const tabs = createMockTabs(3);
+        tabsAtom.set(createMockTabs(3));
         const options: KeybindingDispatchOptions = {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
-          tabs,
           isQuickOpenOpen: false,
         };
 
@@ -904,13 +904,14 @@ describe("useKeybindingDispatch", () => {
 
       it("should not switch tabs when command palette is open", async () => {
         const focusTabModule = await import("@/store/actions/tab");
-        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+        const focusTabSpy = vi
+          .spyOn(focusTabModule, "focusTab")
+          .mockImplementation(() => {});
 
-        const tabs = createMockTabs(3);
+        tabsAtom.set(createMockTabs(3));
         const options: KeybindingDispatchOptions = {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
-          tabs,
           isQuickOpenOpen: true, // Palette is open
         };
 
@@ -933,13 +934,14 @@ describe("useKeybindingDispatch", () => {
 
       it("should not switch tabs with Shift held", async () => {
         const focusTabModule = await import("@/store/actions/tab");
-        const focusTabSpy = vi.spyOn(focusTabModule, "focusTab");
+        const focusTabSpy = vi
+          .spyOn(focusTabModule, "focusTab")
+          .mockImplementation(() => {});
 
-        const tabs = createMockTabs(3);
+        tabsAtom.set(createMockTabs(3));
         const options: KeybindingDispatchOptions = {
           applicationMode: "normal",
           setApplicationMode: vi.fn(),
-          tabs,
           isQuickOpenOpen: false,
         };
 

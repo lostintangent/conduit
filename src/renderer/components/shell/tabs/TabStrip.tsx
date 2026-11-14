@@ -72,17 +72,28 @@ export const TabStrip = ({
   position = "top",
 }: TabStripProps) => {
   const tabLabels = useSelector(tabLabelsAtom);
-  const tabs = useSelector(tabsAtom);
+  const hasMultipleTabs = useSelector(tabsAtom, (tabs) => tabs.length > 1);
   const activeTabId = useSelector(activeTabIdAtom);
-  const activeTab = useSelector(activeTabAtom);
+  // Pane titles change constantly, so select only the active pane's facts
+  const hasActiveTab = useSelector(activeTabAtom, (tab) => tab !== null);
+  const activePaneType = useSelector(
+    activeTabAtom,
+    (tab) => tab?.panes[tab.activePaneId]?.type,
+  );
+  const activeTerminalCwd = useSelector(activeTabAtom, (tab) => {
+    const pane = tab?.panes[tab.activePaneId];
+    return pane?.type === "terminal" ? (pane.cwd ?? null) : null;
+  });
+  // A shell retitles itself as commands run, which is the cue to check
+  // again for a repo created or removed without changing directory
+  const activeTerminalTitle = useSelector(activeTabAtom, (tab) => {
+    const pane = tab?.panes[tab.activePaneId];
+    return pane?.type === "terminal" ? pane.title : undefined;
+  });
   const hyperTerminals = useSelector(hyperTerminalsAtom);
   const hasMinimizedTerminals = hyperTerminals.some(
     (t) => t.state === "minimized",
   );
-  const activePane =
-    activeTab?.activePaneId !== undefined
-      ? activeTab?.panes[activeTab.activePaneId]
-      : null;
   const { homeDirectory, alwaysShowTabs, showLaunchButton } = useSettings(
     (s) => ({
       homeDirectory: s.homeDirectory,
@@ -93,7 +104,6 @@ export const TabStrip = ({
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
-  const hasMultipleTabs = tabs.length > 1;
 
   // Interactive tab preview state
   // The preview shows a scaled-down version of a tab when hovering over its button.
@@ -127,7 +137,7 @@ export const TabStrip = ({
   // Track if active pane is in a git repo
   const [isInGitRepo, setIsInGitRepo] = useState(false);
 
-  const canLaunchAgents = activePane?.type === "terminal" && isInGitRepo;
+  const canLaunchAgents = activePaneType === "terminal" && isInGitRepo;
 
   const isInOverviewMode = applicationMode === "overview";
 
@@ -186,20 +196,14 @@ export const TabStrip = ({
   // Check if current terminal pane is in a git repository
   useEffect(() => {
     const checkGitRepo = async () => {
-      if (activePane?.type !== "terminal") {
-        setIsInGitRepo(false);
-        return;
-      }
-
-      const cwd = activePane.cwd;
-      if (!cwd) {
+      if (!activeTerminalCwd) {
         setIsInGitRepo(false);
         return;
       }
 
       try {
         const api = window.conduit;
-        const gitRoot = await api.git.findRoot(cwd);
+        const gitRoot = await api.git.findRoot(activeTerminalCwd);
         setIsInGitRepo(gitRoot !== null);
       } catch (error) {
         console.error("Failed to check git repo:", error);
@@ -208,7 +212,7 @@ export const TabStrip = ({
     };
 
     void checkGitRepo();
-  }, [activePane]);
+  }, [activeTerminalCwd, activeTerminalTitle]);
 
   // Track pane drag hover for tab switching
   const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -574,17 +578,23 @@ export const TabStrip = ({
       return;
     }
 
-    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
-  }, [activeTab, homeDirectory, hasMinimizedTerminals]);
+    await createHyperTerminal(
+      getActiveTabCwd(activeTabAtom.get(), homeDirectory),
+    );
+  }, [homeDirectory, hasMinimizedTerminals]);
 
   // Always opens a new hyper terminal (used in dropdown menu)
   const handleNewHyperTerminal = useCallback(async () => {
-    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
-  }, [activeTab, homeDirectory]);
+    await createHyperTerminal(
+      getActiveTabCwd(activeTabAtom.get(), homeDirectory),
+    );
+  }, [homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
-    await openQuickTerminal(getActiveTabCwd(activeTab, homeDirectory));
-  }, [activeTab, homeDirectory]);
+    await openQuickTerminal(
+      getActiveTabCwd(activeTabAtom.get(), homeDirectory),
+    );
+  }, [homeDirectory]);
 
   // Use margins to create gaps that reveal the overlay underneath
   // On Windows, no rounded corners (Windows 11 handles rounding)
@@ -777,10 +787,10 @@ export const TabStrip = ({
                 className="rounded-lg w-8 h-8 inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-foreground/10 disabled:opacity-30 disabled:cursor-not-allowed"
                 aria-label={toggleFocusModeCmd.title}
                 onClick={toggleFocusModeCmd.execute}
-                disabled={!activeTab}
-                draggable={!!activeTab}
+                disabled={!hasActiveTab}
+                draggable={hasActiveTab}
                 onDragStart={(e) => {
-                  if (!activeTab) return;
+                  if (!hasActiveTab) return;
                   e.dataTransfer.effectAllowed = "move";
                   e.dataTransfer.setData(
                     "application/x-conduit-focus-mode",
@@ -852,7 +862,7 @@ export const TabStrip = ({
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                {!canLaunchAgents && activePane?.type !== "terminal"
+                {!canLaunchAgents && activePaneType !== "terminal"
                   ? "Focus a terminal pane to launch agents"
                   : !canLaunchAgents && !isInGitRepo
                     ? "Navigate to a git repository to launch agents"

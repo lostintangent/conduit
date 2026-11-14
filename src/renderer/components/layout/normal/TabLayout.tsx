@@ -33,7 +33,7 @@ import { hasNeighborPane } from "@/store/actions/paneNavigation";
 import { focusTab } from "@/store/actions/tab";
 import {
   activePaneIdAtom,
-  activeTabAtom,
+  activeTabIdAtom,
   applicationModeAtom,
   tabsAtom,
 } from "@/store/atoms";
@@ -49,7 +49,7 @@ import type {
 import { cn } from "@/utils";
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
-import { useSelector } from "@tanstack/react-store";
+import { shallow, useSelector } from "@tanstack/react-store";
 import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -329,10 +329,11 @@ export function TabLayout({
   handleEditorUpdate,
   onOpenPaneActions,
 }: TabLayoutProps) {
-  const tabs = useSelector(tabsAtom);
-  const activeTab = useSelector(activeTabAtom);
+  const tabIds = useSelector(tabsAtom, (tabs) => tabs.map((tab) => tab.id), {
+    compare: shallow,
+  });
+  const activeTabId = useSelector(activeTabIdAtom);
   const activePaneId = useSelector(activePaneIdAtom);
-  const activeTabId = activeTab?.id ?? null;
 
   const applicationMode = useSelector(applicationModeAtom);
   const setApplicationMode = applicationModeAtom.set;
@@ -962,7 +963,7 @@ export function TabLayout({
             .filter((p) => p.type === "browser" && p.devToolsFor)
             .map((p) => (p as { devToolsFor: string }).devToolsFor),
         ),
-        isOnlyTab: tabs.length === 1,
+        isOnlyTab: tabIds.length === 1,
       };
 
       const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
@@ -1042,18 +1043,20 @@ export function TabLayout({
       isInDesignMode,
       draggedPaneId,
       tabEdgeDropZone,
-      tabs.length,
+      tabIds.length,
     ],
   );
 
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">
-      {tabs.map((tab) => renderTab(tab))}
+      {tabIds.map((tabId) => (
+        <TabSlot key={tabId} tabId={tabId} renderTab={renderTab} />
+      ))}
 
       {isFocusModeActive && <FocusModeIndicator />}
 
       {/* Centered "Preparing..." message when there are no tabs */}
-      {tabs.length === 0 && (
+      {tabIds.length === 0 && (
         <div className="flex-1 flex items-center justify-center">
           <div className="flex items-center justify-center bg-elevated p-4 rounded-md border border-elevated-border text-sm">
             Preparing terminal...
@@ -1062,4 +1065,21 @@ export function TabLayout({
       )}
     </div>
   );
+}
+
+/**
+ * Renders one tab from its own subscription, so a change inside a tab, like a
+ * terminal retitling itself, re-renders only that tab.
+ */
+function TabSlot({
+  tabId,
+  renderTab,
+}: {
+  tabId: string;
+  renderTab: (tab: Tab) => React.ReactNode;
+}) {
+  const tab = useSelector(tabsAtom, (tabs) =>
+    tabs.find((candidate) => candidate.id === tabId),
+  );
+  return tab ? renderTab(tab) : null;
 }

@@ -7,19 +7,6 @@
 import { tabsAtom, type ApplicationMode } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { LayoutNode, LayoutPaneNode, LayoutSplitNode } from "@/types";
-import { walkLayout } from "@/utils/layout";
-
-const _layoutHasCustomSizes = (node: LayoutNode): boolean => {
-  let hasCustomSize = false;
-  walkLayout(node, ({ node: current }) => {
-    if (current.size !== undefined) {
-      hasCustomSize = true;
-      return false;
-    }
-    return true;
-  });
-  return hasCustomSize;
-};
 
 const stripLayoutSizes = (node: LayoutNode): LayoutNode => {
   if (node.type === "split") {

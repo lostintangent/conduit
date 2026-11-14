@@ -18,7 +18,6 @@ import {
 import { tabsAtom } from "@/store/atoms";
 import { getSettings } from "@features/settings/client/queries";
 import type { SplitDirection } from "@/types";
-import { useSelector } from "@tanstack/react-store";
 import { Settings } from "lucide-react";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
@@ -46,8 +45,6 @@ export function PaneControlFanButtons({
   onVisibilityChange,
   onOpenPaneActions,
 }: PaneControlFanButtonsProps) {
-  const tabs = useSelector(tabsAtom);
-
   // Get pane actions
   const paneActions = useEnabledPaneActions();
 
@@ -56,9 +53,6 @@ export function PaneControlFanButtons({
     ...paneActions,
     ...Array(Math.max(0, MAX_ACTIONS - paneActions.length)).fill(null),
   ];
-
-  // Get the current pane to determine its cwd
-  const currentPane = tabs.find((tab) => tab.id === tabId)?.panes[paneId];
 
   const handleMouseEnter = () => {
     // Only maintain visibility if fan is already visible
@@ -75,6 +69,9 @@ export function PaneControlFanButtons({
 
   const handleActionClick = async (action: Action) => {
     // Get cwd from current pane if available
+    const currentPane = tabsAtom.get().find((tab) => tab.id === tabId)?.panes[
+      paneId
+    ];
     let cwd: string | undefined;
     if (currentPane) {
       if (currentPane.type === "terminal") {

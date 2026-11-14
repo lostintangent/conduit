@@ -1,6 +1,5 @@
 import { focusTab } from "@/store/actions/tab";
-import type { ApplicationMode } from "@/store/atoms";
-import type { Tab } from "@/types";
+import { tabsAtom, type ApplicationMode } from "@/store/atoms";
 import { useEffect, useRef } from "react";
 import type { CommandRegistry } from "../core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";
@@ -23,8 +22,6 @@ export interface KeybindingDispatchOptions {
   applicationMode: ApplicationMode;
   /** Setter for application mode - used for Escape to exit modes */
   setApplicationMode: (mode: ApplicationMode) => void;
-  /** List of tabs - used for Cmd+1-9 tab switching */
-  tabs: Tab[];
   /** Whether the quick open dialog is open - prevents Cmd+1-9 when open */
   isQuickOpenOpen: boolean;
 }
@@ -96,8 +93,9 @@ export function useKeybindingDispatch(
           const tabNumber = Number.parseInt(key, 10);
 
           if (!Number.isNaN(tabNumber) && tabNumber >= 1) {
-            const targetIndex = Math.min(tabNumber, opts.tabs.length) - 1;
-            const targetTab = opts.tabs[targetIndex];
+            const tabs = tabsAtom.get();
+            const targetIndex = Math.min(tabNumber, tabs.length) - 1;
+            const targetTab = tabs[targetIndex];
             if (targetTab) {
               event.preventDefault();
               clearPressedKeys();

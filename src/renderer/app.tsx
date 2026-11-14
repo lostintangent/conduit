@@ -80,8 +80,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const api = window.conduit;
 
 export function App() {
-  const tabs = useSelector(tabsAtom);
-  const activeTab = useSelector(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const hyperTerminals = useSelector(hyperTerminalsAtom);
 
@@ -116,8 +114,7 @@ export function App() {
     return watchSystemTheme(theme, apply);
   }, [theme, themeOverrides]);
 
-  const { resizingNode, handleResizeStart, hasCustomLayout } =
-    useLayoutResizing();
+  const { resizingNode, handleResizeStart } = useLayoutResizing();
 
   const [titleModalState, setTitleModalState] = useState<{
     tabId: string;
@@ -153,17 +150,22 @@ export function App() {
   const [showDuplicateWorkspaceDialog, setShowDuplicateWorkspaceDialog] =
     useState(false);
   const [duplicateTabWithCwdDialogState, setDuplicateTabWithCwdDialogState] =
-    useState<{ tabId: string } | null>(null);
+    useState<{
+      tabId: string;
+      initialCwd: string;
+      initialTitle: string;
+    } | null>(null);
 
   // Active CWD - tracks the active pane's CWD with "sticky" behavior.
   // When the active pane is a terminal or editor, use its CWD and remember it.
   // When the active pane is a browser or other type, keep the last known CWD.
   // This is used by components that need to know the "current" directory context.
-  const currentPane = activeTab?.panes[activeTab.activePaneId];
-  const currentPaneCwd =
-    currentPane?.type === "terminal" || currentPane?.type === "editor"
-      ? (currentPane.cwd ?? homeDirectory)
+  const currentPaneCwd = useSelector(activeTabAtom, (tab) => {
+    const pane = tab?.panes[tab.activePaneId];
+    return pane?.type === "terminal" || pane?.type === "editor"
+      ? (pane.cwd ?? homeDirectory)
       : null;
+  });
   const [lastKnownCwd, setLastKnownCwd] = useState(currentPaneCwd);
   if (currentPaneCwd !== null && currentPaneCwd !== lastKnownCwd) {
     setLastKnownCwd(currentPaneCwd);
@@ -178,15 +180,12 @@ export function App() {
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({
-    activeTab,
-    tabs,
     applicationMode,
     setApplicationMode,
     homeDirectory,
     dotfilesRepo,
     workspaceName,
     // Context key data
-    hasCustomLayout,
     hasLastWorkspace,
     // UI state setters
     setShowGeneralSettings: (show: boolean) =>
@@ -204,8 +203,15 @@ export function App() {
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
-    setShowDuplicateTabWithCwdDialog: (tabId: string) =>
-      setDuplicateTabWithCwdDialogState({ tabId }),
+    setShowDuplicateTabWithCwdDialog: (tabId: string) => {
+      const tabs = tabsAtom.get();
+      const tab = tabs.find((t) => t.id === tabId);
+      setDuplicateTabWithCwdDialogState({
+        tabId,
+        initialCwd: getActiveTabCwd(tab, homeDirectory),
+        initialTitle: generateIncrementedTabTitle(tab?.name, tabs) ?? "",
+      });
+    },
     setTitleModal: (tabId: string, value: string) =>
       setTitleModalState({ tabId, initialValue: value }),
     setIsQuickOpenOpen,
@@ -223,7 +229,6 @@ export function App() {
     {
       applicationMode,
       setApplicationMode,
-      tabs,
       isQuickOpenOpen,
     },
   );
@@ -268,19 +273,10 @@ export function App() {
 
     hasInitializedTabsRef.current = true;
 
-    if (tabs.length === 0) {
+    if (tabsAtom.get().length === 0) {
       void openTab();
     }
-  }, [tabs, openTab]);
-
-  // Keep refs to tabs/activeTab for the beforeClose handler so the effect
-  // doesn't need to re-run when tabs change (avoiding IPC listener churn)
-  const tabsRef = useRef(tabs);
-  const activeTabRef = useRef(activeTab);
-  useEffect(() => {
-    tabsRef.current = tabs;
-    activeTabRef.current = activeTab;
-  }, [tabs, activeTab]);
+  }, []);
 
   useEffect(() => {
     const unsubscribeExit = api.terminal.on("exit", ({ sessionId }) => {
@@ -304,10 +300,11 @@ export function App() {
 
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
-      if (tabsRef.current.length > 0) {
+      const tabs = tabsAtom.get();
+      if (tabs.length > 0) {
         void runMutation(workspaceMutations.saveLast(), {
-          tabs: tabsRef.current,
-          activeTabId: activeTabRef.current?.id,
+          tabs,
+          activeTabId: activeTabAtom.get()?.id,
         });
       }
     });
@@ -335,11 +332,12 @@ export function App() {
 
   const handleContextMenu = useContextMenu({
     canChangeTitle: (_tabId: string) => {
-      if (tabs.length > 1) {
+      const tabCount = tabsAtom.get().length;
+      if (tabCount > 1) {
         return true;
       }
 
-      if (tabs.length === 1) {
+      if (tabCount === 1) {
         return alwaysShowTabs;
       }
 
@@ -347,18 +345,15 @@ export function App() {
     },
   });
 
-  const closeAgentSessionPanes = useCallback(
-    (sessionId: string) => {
-      tabs.forEach((tab) => {
-        Object.entries(tab.panes).forEach(([paneId, pane]) => {
-          if (pane.type === "terminal" && pane.agentSessionId === sessionId) {
-            removePane(tab.id, paneId);
-          }
-        });
+  const closeAgentSessionPanes = useCallback((sessionId: string) => {
+    tabsAtom.get().forEach((tab) => {
+      Object.entries(tab.panes).forEach(([paneId, pane]) => {
+        if (pane.type === "terminal" && pane.agentSessionId === sessionId) {
+          removePane(tab.id, paneId);
+        }
       });
-    },
-    [tabs],
-  );
+    });
+  }, []);
 
   const handleAgentSessionOpen = useCallback(
     async (session: AgentSessionInfo) => {
@@ -436,28 +431,26 @@ export function App() {
     [cleanupDialogSessions, closeAgentSessionPanes],
   );
 
-  const handleOpenWebPage = useCallback(
-    (url: string) => {
-      if (!activeTab || !activeTab.activePaneId) {
-        return;
-      }
+  const handleOpenWebPage = useCallback((url: string) => {
+    const activeTab = activeTabAtom.get();
+    if (!activeTab || !activeTab.activePaneId) {
+      return;
+    }
 
-      openBrowserPane(activeTab.id, activeTab.activePaneId, url);
-      setIsUrlDialogOpen(false);
-    },
-    [activeTab],
-  );
+    openBrowserPane(activeTab.id, activeTab.activePaneId, url);
+    setIsUrlDialogOpen(false);
+  }, []);
 
   const handleDuplicateWorkspace = useCallback(
     (name: string) => {
-      if (!workspaceName || !activeTab) {
+      if (!workspaceName || !activeTabAtom.get()) {
         return;
       }
 
       // Save the current tabs as a new workspace with the provided name
       saveWorkspace(name, () => setShowDuplicateWorkspaceDialog(false));
     },
-    [workspaceName, activeTab, saveWorkspace],
+    [workspaceName, saveWorkspace],
   );
 
   const handleDuplicateTabWithCwd = useCallback(
@@ -466,9 +459,9 @@ export function App() {
         return;
       }
 
-      const targetTab = tabs.find(
-        (t) => t.id === duplicateTabWithCwdDialogState.tabId,
-      );
+      const targetTab = tabsAtom
+        .get()
+        .find((t) => t.id === duplicateTabWithCwdDialogState.tabId);
       if (!targetTab) {
         return;
       }
@@ -497,7 +490,7 @@ export function App() {
       });
       setDuplicateTabWithCwdDialogState(null);
     },
-    [duplicateTabWithCwdDialogState, tabs],
+    [duplicateTabWithCwdDialogState],
   );
 
   // Get commands from registry (or empty array if command system not ready)
@@ -691,6 +684,7 @@ export function App() {
           initialValue={quickOpenInitialValue}
           commands={commandItems}
           onSelectFile={(filePath) => {
+            const activeTab = activeTabAtom.get();
             if (!activeTab || !activeTab.activePaneId) {
               return;
             }
@@ -803,23 +797,8 @@ export function App() {
 
       <DuplicateTabDialog
         isOpen={duplicateTabWithCwdDialogState !== null}
-        initialCwd={
-          duplicateTabWithCwdDialogState
-            ? getActiveTabCwd(
-                tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId),
-                homeDirectory,
-              )
-            : ""
-        }
-        initialTitle={
-          duplicateTabWithCwdDialogState
-            ? (generateIncrementedTabTitle(
-                tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId)
-                  ?.name,
-                tabs,
-              ) ?? "")
-            : ""
-        }
+        initialCwd={duplicateTabWithCwdDialogState?.initialCwd ?? ""}
+        initialTitle={duplicateTabWithCwdDialogState?.initialTitle ?? ""}
         onClose={() => setDuplicateTabWithCwdDialogState(null)}
         onSave={handleDuplicateTabWithCwd}
       />
@@ -869,7 +848,7 @@ export function App() {
         defaultAgentId={agents.find((agent) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
         onLaunch={async (payload) => {
-          const cwd = getActiveTabCwd(activeTab);
+          const cwd = getActiveTabCwd(activeTabAtom.get());
           if (!cwd) {
             enqueueNotification({
               kind: "error",

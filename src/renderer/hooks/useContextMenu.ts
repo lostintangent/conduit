@@ -11,7 +11,6 @@ import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
 import { MenuId } from "@/commands/menus/types";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
-import { useSelector } from "@tanstack/react-store";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -31,7 +30,6 @@ export interface ContextMenuItemData {
 }
 
 export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
-  const tabs = useSelector(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
     Record<string, boolean>
   >({});
@@ -61,7 +59,7 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
       event.preventDefault();
       event.stopPropagation();
 
-      const tab = tabs.find((t) => t.id === tabId);
+      const tab = tabsAtom.get().find((t) => t.id === tabId);
       if (!tab) {
         return;
       }
@@ -155,13 +153,13 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
         menuItems: menuItemsWithKeybindings,
       });
     },
-    [api, tabs, canChangeTitle, checkGitRepo],
+    [api, canChangeTitle, checkGitRepo],
   );
 
   useEffect(() => {
     const unsubscribeContextMenu = api.onContextMenuCommand(
       ({ commandId, tabId, paneId }) => {
-        const tab = tabs.find((t) => t.id === tabId);
+        const tab = tabsAtom.get().find((t) => t.id === tabId);
         if (!tab) {
           return;
         }
@@ -184,7 +182,7 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
     return () => {
       unsubscribeContextMenu();
     };
-  }, [api, tabs]);
+  }, [api]);
 
   return handleContextMenu;
 }

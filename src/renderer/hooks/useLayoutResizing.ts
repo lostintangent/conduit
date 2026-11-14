@@ -1,7 +1,6 @@
 import { tabsAtom } from "@/store/atoms";
-import type { LayoutNode, SplitDirection } from "@/types";
+import type { SplitDirection } from "@/types";
 import { walkLayout } from "@/utils/layout";
-import { useAtom } from "@tanstack/react-store";
 import { produce } from "immer";
 import { useCallback, useState } from "react";
 
@@ -28,30 +27,7 @@ type LayoutResizeUpdate = {
 const MIN_PANE_SIZE_PX = 200;
 const COLLAPSE_THRESHOLD_PX = 100;
 
-const layoutHasCustomSizes = (node: LayoutNode): boolean => {
-  let hasCustomSize = false;
-  walkLayout(node, ({ node: current }) => {
-    if (current.size !== undefined) {
-      hasCustomSize = true;
-      return false;
-    }
-    return true;
-  });
-  return hasCustomSize;
-};
-
-const stripLayoutSizes = (node: LayoutNode): void => {
-  if (node.size !== undefined) {
-    delete node.size;
-  }
-
-  if (node.type === "split") {
-    node.children.forEach(stripLayoutSizes);
-  }
-};
-
 export const useLayoutResizing = () => {
-  const [tabs, setTabs] = useAtom(tabsAtom);
   const [resizingNode, setResizingNode] = useState<string | null>(null);
 
   const applySizeUpdates = useCallback(
@@ -62,7 +38,7 @@ export const useLayoutResizing = () => {
 
       let didCollapse = false;
 
-      setTabs(
+      tabsAtom.set(
         produce((tabs) => {
           const tab = tabs.find(({ id }) => id === tabId);
           if (!tab) {
@@ -101,7 +77,7 @@ export const useLayoutResizing = () => {
 
       return didCollapse;
     },
-    [setTabs],
+    [],
   );
 
   const handleResizeStart = useCallback(
@@ -237,38 +213,8 @@ export const useLayoutResizing = () => {
     [applySizeUpdates],
   );
 
-  const hasCustomLayout = useCallback(
-    (tabId: string) => {
-      const tab = tabs.find((candidate) => candidate.id === tabId);
-      if (!tab) {
-        return false;
-      }
-
-      return layoutHasCustomSizes(tab.layout);
-    },
-    [tabs],
-  );
-
-  const resetLayoutSizes = useCallback(
-    (tabId: string) => {
-      setTabs(
-        produce((tabs) => {
-          const tab = tabs.find(({ id }) => id === tabId);
-          if (!tab) {
-            return;
-          }
-
-          stripLayoutSizes(tab.layout);
-        }),
-      );
-    },
-    [setTabs],
-  );
-
   return {
     resizingNode,
     handleResizeStart,
-    hasCustomLayout,
-    resetLayoutSizes,
   };
 };

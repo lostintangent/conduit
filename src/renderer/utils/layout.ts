@@ -55,6 +55,10 @@ export const walkLayout = (
   return true;
 };
 
+/** Whether any node in a layout tree has a size from a resize */
+export const layoutHasCustomSizes = (root: LayoutNode): boolean =>
+  !walkLayout(root, ({ node }) => node.size === undefined);
+
 /**
  * Count the number of panes in a layout tree
  */

@@ -69,6 +69,8 @@ export const workspaceMutations = {
         client.setQueryData(workspaceKeys.all, saved.state);
         workspaceNameAtom.set(saved.name);
         previousTabsSnapshotAtom.set(JSON.stringify(saved.tabs));
+        // Last, since change tracking then compares the new baseline with the
+        // tabs as they are now, which may have changed while the save ran
         workspaceHasChangesAtom.set(false);
       },
     }),

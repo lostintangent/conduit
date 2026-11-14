@@ -8,21 +8,22 @@ import {
 import { activeTabAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
-import { useSelector } from "@tanstack/react-store";
 import { useEffect, useEffectEvent } from "react";
 import { handlerMap, type HandlerContext } from "./handlers";
 
 const { cli } = window.conduit;
 
 export function useCliClient(activeCwd: string) {
-  const tabs = useSelector(tabsAtom);
-  const activeTab = useSelector(activeTabAtom);
-  const sidebarState = useSelector(sidebarStateAtom);
   const setQuickPane = quickPaneAtom.set;
 
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
       let isResponseSuppressed = false;
+      // Read when the request arrives, so the window doesn't re-render for
+      // every tab change just to keep these current.
+      const tabs = tabsAtom.get();
+      const activeTab = activeTabAtom.get();
+      const sidebarState = sidebarStateAtom.get();
 
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) => {
         cli.respondToRequest<T>({

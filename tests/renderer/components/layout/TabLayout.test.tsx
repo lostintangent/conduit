@@ -13,6 +13,8 @@ const crashingPanes = new Set<string>();
 // The tab of each terminal pane that mounted, recorded when its state is
 // created, so a remount shows up as a repeat.
 const terminalMounts: string[] = [];
+// The tab of each terminal pane render
+const terminalRenders: string[] = [];
 vi.mock("@features/terminal/components/TerminalPane", async () => {
   const { useState } = await import("react");
   return {
@@ -25,6 +27,7 @@ vi.mock("@features/terminal/components/TerminalPane", async () => {
         throw new Error("Terminal broke");
       }
       terminalProps = props;
+      terminalRenders.push(props.tabId);
       useState(() => terminalMounts.push(props.tabId));
       return (
         <div
@@ -158,6 +161,29 @@ describe("TabLayout tab switching", () => {
     act(() => activeTabIdAtom.set("tab-2"));
 
     expect(terminalMounts.sort()).toEqual(["tab-1", "tab-2"]);
+  });
+
+  it("re-renders only the tab whose terminal retitles itself", () => {
+    tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
+    activeTabIdAtom.set("tab-1");
+    renderTabLayout();
+    terminalRenders.length = 0;
+
+    act(() =>
+      tabsAtom.set(
+        tabsAtom.get().map((candidate) =>
+          candidate.id === "tab-2"
+            ? {
+                ...candidate,
+                panes: { term: { ...tab.panes.term, title: "vim" } },
+              }
+            : candidate,
+        ),
+      ),
+    );
+
+    expect(terminalRenders).toContain("tab-2");
+    expect(terminalRenders).not.toContain("tab-1");
   });
 
   it("shows a tab's panes in its preview without remounting them", () => {

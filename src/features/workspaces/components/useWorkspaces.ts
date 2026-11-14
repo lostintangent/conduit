@@ -12,7 +12,7 @@ import {
 } from "@/store/atoms";
 import { useSettings } from "@features/settings/client/queries";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useAtom, useSelector } from "@tanstack/react-store";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useWorkspaces() {
@@ -27,14 +27,7 @@ export function useWorkspaces() {
   const { mutate: save } = useMutation(workspaceMutations.save());
   const { mutate: rename } = useMutation(workspaceMutations.rename());
 
-  const tabs = useSelector(tabsAtom);
-  const activeTabId = useSelector(activeTabIdAtom);
   const autoSaveWorkspaces = useSettings((s) => s.autoSaveWorkspaces);
-
-  const setWorkspaceHasChanges = workspaceHasChangesAtom.set;
-  const [previousTabsSnapshot, setPreviousTabsSnapshot] = useAtom(
-    previousTabsSnapshotAtom,
-  );
 
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
@@ -59,57 +52,66 @@ export function useWorkspaces() {
     };
   }, []);
 
+  // Reset change tracking when workspace changes. It comes before the
+  // tracking below, so a newly opened workspace's tabs become its baseline.
   useEffect(() => {
-    if (!workspaceName) {
-      setWorkspaceHasChanges(false);
-      return;
-    }
-
-    // Deep serialize tabs to detect any changes
-    const currentTabsSnapshot = JSON.stringify(tabs);
-
-    if (previousTabsSnapshot === "") {
-      // First time tracking this workspace
-      setPreviousTabsSnapshot(currentTabsSnapshot);
-      setWorkspaceHasChanges(false);
-    } else if (previousTabsSnapshot !== currentTabsSnapshot) {
-      // Tabs have changed
-      setWorkspaceHasChanges(true);
-
-      // If auto-save is enabled, schedule a save
-      if (workspaceName && autoSaveWorkspaces) {
-        // Clear any existing timer
-        if (autoSaveTimerRef.current) {
-          clearTimeout(autoSaveTimerRef.current);
-        }
-
-        // Schedule auto-save after 2 seconds
-        autoSaveTimerRef.current = setTimeout(() => {
-          if (activeTabId) autosave();
-        }, 2000);
-      }
-    }
-  }, [
-    tabs,
-    workspaceName,
-    activeTabId,
-    autoSaveWorkspaces,
-    autosave,
-    setWorkspaceHasChanges,
-    previousTabsSnapshot,
-    setPreviousTabsSnapshot,
-  ]);
-
-  // Reset change tracking when workspace changes
-  useEffect(() => {
-    setPreviousTabsSnapshot("");
+    previousTabsSnapshotAtom.set("");
 
     // Clear auto-save timer when workspace changes
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
       autoSaveTimerRef.current = null;
     }
-  }, [workspaceName, setPreviousTabsSnapshot]);
+  }, [workspaceName]);
+
+  // Subscribed rather than selected, so tab updates don't re-render the app
+  useEffect(() => {
+    if (!workspaceName) {
+      workspaceHasChangesAtom.set(false);
+      return;
+    }
+
+    const trackChanges = () => {
+      // Deep serialize tabs to detect any changes
+      const currentTabsSnapshot = JSON.stringify(tabsAtom.get());
+      const previousTabsSnapshot = previousTabsSnapshotAtom.get();
+
+      if (previousTabsSnapshot === "") {
+        // First time tracking this workspace
+        previousTabsSnapshotAtom.set(currentTabsSnapshot);
+        workspaceHasChangesAtom.set(false);
+      } else if (previousTabsSnapshot !== currentTabsSnapshot) {
+        // Tabs have changed
+        workspaceHasChangesAtom.set(true);
+
+        // If auto-save is enabled, schedule a save
+        if (autoSaveWorkspaces) {
+          // Clear any existing timer
+          if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+          }
+
+          // Schedule auto-save after 2 seconds
+          autoSaveTimerRef.current = setTimeout(() => {
+            if (activeTabIdAtom.get()) autosave();
+          }, 2000);
+        }
+      }
+    };
+
+    trackChanges();
+    const tabsSubscription = tabsAtom.subscribe(trackChanges);
+    // A save moves the baseline and clears the flag, so check again for
+    // changes made while it ran. The baseline alone may not notify, since a
+    // save can match the one before it.
+    const savedSubscription = workspaceHasChangesAtom.subscribe(() => {
+      if (!workspaceHasChangesAtom.get()) trackChanges();
+    });
+    return () => {
+      tabsSubscription.unsubscribe();
+      savedSubscription.unsubscribe();
+    };
+  }, [workspaceName, autoSaveWorkspaces, autosave]);
 
   /** Saves the window's tabs as a new workspace and opens it. */
   const saveWorkspace = useCallback(

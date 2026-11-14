@@ -8,25 +8,33 @@ import { activatePane } from "@/store/actions/pane";
 import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
-import { useSelector } from "@tanstack/react-store";
+import { shallow, useSelector } from "@tanstack/react-store";
 import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FocusModeMiniMap } from "./FocusModeMiniMap";
 
 export function FocusModeIndicator() {
   const [isVisible, setIsVisible] = useState(false);
-  const tabs = useSelector(tabsAtom);
   const activeTabId = useSelector(activeTabIdAtom);
-  const activeTab = useSelector(activeTabAtom);
-
-  const totalTabs = tabs.length;
-  const tabLabels = useSelector(tabLabelsAtom);
-  const activeTabIndex = useMemo(() => {
-    if (!activeTabId) {
-      return -1;
-    }
-    return tabs.findIndex((tab) => tab.id === activeTabId);
-  }, [tabs, activeTabId]);
+  const totalTabs = useSelector(tabsAtom, (tabs) => tabs.length);
+  const activeTabIndex = useSelector(tabsAtom, (tabs) =>
+    tabs.findIndex((tab) => tab.id === activeTabId),
+  );
+  // Pane titles change constantly, so select only what the indicator shows
+  const activeTab = useSelector(
+    activeTabAtom,
+    (tab) =>
+      tab && {
+        layout: tab.layout,
+        activePaneId: tab.activePaneId,
+        paneCount: Object.keys(tab.panes).length,
+      },
+    { compare: shallow },
+  );
+  const activeTabLabel = useSelector(
+    tabLabelsAtom,
+    (labels) => labels.find((tab) => tab.id === activeTabId)?.name ?? "",
+  );
 
   const hasMultipleTabs = totalTabs > 1;
   const canGoPrev = hasMultipleTabs && activeTabIndex > 0;
@@ -48,7 +56,7 @@ export function FocusModeIndicator() {
         if (!canGoPrev) {
           return;
         }
-        focusTab(tabs[activeTabIndex - 1].id);
+        focusTab(tabsAtom.get()[activeTabIndex - 1].id);
         return;
       }
 
@@ -56,25 +64,23 @@ export function FocusModeIndicator() {
         return;
       }
 
-      focusTab(tabs[activeTabIndex + 1].id);
+      focusTab(tabsAtom.get()[activeTabIndex + 1].id);
     },
-    [activeTabIndex, canGoNext, canGoPrev, tabs],
+    [activeTabIndex, canGoNext, canGoPrev],
   );
 
   const handleSelectPane = useCallback(
     (paneId: string) => {
-      if (!activeTab) {
+      if (!activeTabId) {
         return;
       }
 
-      activatePane(activeTab.id, paneId);
+      activatePane(activeTabId, paneId);
     },
-    [activeTab],
+    [activeTabId],
   );
 
-  const hasMultiplePanes = activeTab
-    ? Object.keys(activeTab.panes).length > 1
-    : false;
+  const hasMultiplePanes = (activeTab?.paneCount ?? 0) > 1;
 
   const miniMap = useMemo(() => {
     if (!activeTab || !hasMultiplePanes) {
@@ -94,8 +100,6 @@ export function FocusModeIndicator() {
     return null;
   }
 
-  const activeTabLabel =
-    tabLabels.find((tab) => tab.id === activeTab.id)?.name ?? "";
   let tabInfo = activeTabLabel;
   if (hasMultipleTabs) {
     tabInfo = `${activeTabIndex + 1}/${totalTabs}`;

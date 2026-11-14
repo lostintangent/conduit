@@ -16,8 +16,14 @@ import {
   loadUserKeybindings,
 } from "@/commands/keybindings/userKeybindings";
 import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
-import type { ApplicationMode } from "@/store/atoms";
-import { keybindingsAtom } from "@/store/atoms";
+import {
+  activeTabAtom,
+  activeTabIdAtom,
+  type ApplicationMode,
+  keybindingsAtom,
+  tabsAtom,
+} from "@/store/atoms";
+import { layoutHasCustomSizes } from "@/utils/layout";
 import { useEffect, useState } from "react";
 
 export interface CommandSystemState {
@@ -28,15 +34,12 @@ export interface CommandSystemState {
 }
 
 export interface UseCommandSystemOptions {
-  activeTab: any;
-  tabs: any[];
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
   homeDirectory?: string | null;
   dotfilesRepo?: string;
   workspaceName?: string | null;
   // Context key data
-  hasCustomLayout: (tabId: string) => boolean;
   hasLastWorkspace: boolean;
   // UI state setters
   setShowGeneralSettings: (show: boolean) => void;
@@ -71,14 +74,11 @@ export function useCommandSystem(
   options: UseCommandSystemOptions,
 ): CommandSystemState | null {
   const {
-    activeTab,
-    tabs,
     applicationMode,
     setApplicationMode,
     homeDirectory,
     dotfilesRepo,
     workspaceName,
-    hasCustomLayout,
     hasLastWorkspace,
     setShowGeneralSettings,
     setShowKeybindingsEditor,
@@ -232,11 +232,12 @@ export function useCommandSystem(
         showManageSessionsDialog: setCleanupDialogSessions,
       },
 
-      // State accessors - fresh data on each command execution
-      activeTab,
-      activePaneId: activeTab?.activePaneId ?? null,
+      // Read when a command runs, so the builder needn't change with every
+      // tab update
+      activeTab: activeTabAtom.get(),
+      activePaneId: activeTabAtom.get()?.activePaneId ?? null,
       workspaceName: workspaceName ?? null,
-      allTabs: tabs,
+      allTabs: tabsAtom.get(),
 
       // Application mode
       applicationMode,
@@ -261,8 +262,6 @@ export function useCommandSystem(
     }));
   }, [
     commandSystem,
-    activeTab,
-    tabs,
     applicationMode,
     setApplicationMode,
     workspaceName,
@@ -290,53 +289,62 @@ export function useCommandSystem(
     }
 
     const contextKeyService = commandSystem.contextKeyService;
-
-    // Update global context keys
     contextKeyService.setGlobal("hasWorkspace", !!workspaceName);
     contextKeyService.setGlobal("hasLastWorkspace", hasLastWorkspace ?? false);
-    contextKeyService.setGlobal("tabCount", tabs?.length ?? 0);
-    contextKeyService.setGlobal(
-      "hasActivePane",
-      !!(activeTab && activeTab.activePaneId),
-    );
-    contextKeyService.setGlobal("tabIsLocked", Boolean(activeTab?.locked));
     contextKeyService.setGlobal("dotfilesEnabled", !!dotfilesRepo);
+  }, [commandSystem, workspaceName, hasLastWorkspace, dotfilesRepo]);
 
-    contextKeyService.setGlobal(
-      "hasCustomLayout",
-      activeTab && hasCustomLayout ? hasCustomLayout(activeTab.id) : false,
-    );
+  // Tab and pane keys follow every tab update, through subscriptions so pane
+  // title changes don't re-render the app. Re-applying them also puts back the
+  // keys a context menu set for the tab or pane it opened on.
+  useEffect(() => {
+    const contextKeyService = commandSystem?.contextKeyService;
+    if (!contextKeyService) {
+      return;
+    }
 
-    // Pane-level context keys for the active pane (cleared when there is none)
-    const panes = activeTab?.panes;
-    const activePane = activeTab?.activePaneId
-      ? panes?.[activeTab.activePaneId]
-      : undefined;
-    contextKeyService.setGlobal("activePaneType", activePane?.type || "");
-    contextKeyService.setGlobal(
-      "isInAgentSession",
-      !!activePane?.agentSessionId,
-    );
-    contextKeyService.setGlobal(
-      "hasCwd",
-      !!(activePane?.type === "terminal" && activePane.cwd),
-    );
-    // Active pane is never collapsed (you can't interact with collapsed panes)
-    contextKeyService.setGlobal("paneIsCollapsed", false);
-    // For command palette, assume pane can be collapsed if there are multiple panes
-    contextKeyService.setGlobal(
-      "paneCanBeCollapsed",
-      !!activePane && Object.keys(panes || {}).length > 1,
-    );
-  }, [
-    commandSystem,
-    workspaceName,
-    hasLastWorkspace,
-    tabs,
-    activeTab,
-    hasCustomLayout,
-    dotfilesRepo,
-  ]);
+    const applyTabKeys = () => {
+      const tab = activeTabAtom.get();
+      const activePane = tab?.activePaneId
+        ? tab.panes[tab.activePaneId]
+        : undefined;
+      contextKeyService.setGlobal("tabCount", tabsAtom.get().length);
+      contextKeyService.setGlobal("hasActivePane", !!tab?.activePaneId);
+      contextKeyService.setGlobal("tabIsLocked", Boolean(tab?.locked));
+      contextKeyService.setGlobal(
+        "hasCustomLayout",
+        tab ? layoutHasCustomSizes(tab.layout) : false,
+      );
+      // Pane-level keys describe the active pane, and clear when there is none
+      contextKeyService.setGlobal("activePaneType", activePane?.type ?? "");
+      contextKeyService.setGlobal(
+        "isInAgentSession",
+        activePane?.type === "terminal" || activePane?.type === "editor"
+          ? !!activePane.agentSessionId
+          : false,
+      );
+      contextKeyService.setGlobal(
+        "hasCwd",
+        activePane?.type === "terminal" && !!activePane.cwd,
+      );
+      // Active pane is never collapsed (you can't interact with collapsed panes)
+      contextKeyService.setGlobal("paneIsCollapsed", false);
+      // For command palette, assume pane can be collapsed if there are multiple panes
+      contextKeyService.setGlobal(
+        "paneCanBeCollapsed",
+        !!activePane && Object.keys(tab?.panes ?? {}).length > 1,
+      );
+    };
+
+    applyTabKeys();
+    const subscriptions = [
+      tabsAtom.subscribe(applyTabKeys),
+      activeTabIdAtom.subscribe(applyTabKeys),
+    ];
+    return () => {
+      for (const subscription of subscriptions) subscription.unsubscribe();
+    };
+  }, [commandSystem]);
 
   // Watch keybindings file for external changes
   useEffect(() => {
