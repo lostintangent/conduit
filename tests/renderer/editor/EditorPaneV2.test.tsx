@@ -1354,6 +1354,14 @@ describe("EditorPaneV2 in a tab", () => {
     expect(editorPills()).toBe(1);
   });
 
+  it("activates the editor's pane when the editor is clicked", () => {
+    renderTab([terminal("term"), editor], row("term", "editor"));
+
+    fireEvent.mouseDown(screen.getByTestId("editor-pane-v2"));
+
+    expect(tabsAtom.get()[0].activePaneId).toBe("editor");
+  });
+
   it("merges from the editor's pill and closes the session's panes in its tab", async () => {
     const finalize = vi.fn().mockResolvedValue({ status: "merged" });
     window.conduit.finalizeAgentSession = finalize;

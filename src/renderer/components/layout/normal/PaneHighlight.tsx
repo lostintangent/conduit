@@ -60,10 +60,13 @@ function usePaneHighlight() {
     [clearExistingTimeout, alwaysHighlightActivePane],
   );
 
-  // Cleanup timeout on unmount
+  // Runs on unmount and when the tab hides, since a hidden tab keeps its state.
+  // Forgetting the active pane here makes it flash again when the tab shows.
   useEffect(() => {
     return () => {
       clearExistingTimeout();
+      previousActivePaneIdRef.current = null;
+      setHighlightedPaneId(null);
     };
   }, [clearExistingTimeout]);
 

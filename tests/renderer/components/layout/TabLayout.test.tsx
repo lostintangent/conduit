@@ -8,15 +8,32 @@ const openExternal = vi.hoisted(() => {
 });
 
 let terminalProps: { onLinkClick: (url: string) => void } | undefined;
-vi.mock("@features/terminal/components/TerminalPane", () => ({
-  TerminalPane: (props: { onLinkClick: (url: string) => void }): null => {
-    terminalProps = props;
-    return null;
-  },
-}));
+// The tab of each terminal pane that mounted, recorded when its state is
+// created, so a remount shows up as a repeat.
+const terminalMounts: string[] = [];
+vi.mock("@features/terminal/components/TerminalPane", async () => {
+  const { useState } = await import("react");
+  return {
+    TerminalPane: (props: {
+      tabId: string;
+      pane: { id: string };
+      onLinkClick: (url: string) => void;
+    }) => {
+      terminalProps = props;
+      useState(() => terminalMounts.push(props.tabId));
+      return (
+        <div
+          data-testid={`terminal-${props.tabId}`}
+          data-pane={props.pane.id}
+        />
+      );
+    },
+  };
+});
 
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
+import { TabPreviewItem } from "@/components/layout/overview/TabPreviewItem";
 import { createQueryClient } from "@/query";
 import { activeTabIdAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
@@ -48,8 +65,8 @@ beforeEach(() => {
   queryClient = createQueryClient();
 });
 
-function renderTabLayout() {
-  render(
+function tabLayout(preview?: React.ReactNode) {
+  return (
     <TabContentPortalProvider>
       <TabLayout
         handleContextMenu={vi.fn()}
@@ -58,9 +75,13 @@ function renderTabLayout() {
         handleBrowserUpdate={vi.fn()}
         handleEditorUpdate={vi.fn()}
       />
-    </TabContentPortalProvider>,
-    { queryClient },
+      {preview}
+    </TabContentPortalProvider>
   );
+}
+
+function renderTabLayout() {
+  return render(tabLayout(), { queryClient });
 }
 
 describe("TabLayout terminal links", () => {
@@ -117,5 +138,87 @@ describe("TabLayout pane controls", () => {
     act(() => tabsAtom.set([tab]));
 
     expect(screen.queryByTitle("Close pane (Alt+W)")).toBeNull();
+  });
+});
+
+describe("TabLayout tab switching", () => {
+  it("keeps each tab's panes mounted while other tabs show", () => {
+    tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
+    activeTabIdAtom.set("tab-1");
+    terminalMounts.length = 0;
+    renderTabLayout();
+
+    act(() => activeTabIdAtom.set("tab-2"));
+    act(() => activeTabIdAtom.set("tab-1"));
+    act(() => activeTabIdAtom.set("tab-2"));
+
+    expect(terminalMounts.sort()).toEqual(["tab-1", "tab-2"]);
+  });
+
+  it("shows a tab's panes in its preview without remounting them", () => {
+    tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
+    activeTabIdAtom.set("tab-1");
+    terminalMounts.length = 0;
+    const { rerender } = renderTabLayout();
+    const preview = <TabPreviewItem tabId="tab-2" />;
+    const panelOf = (tabId: string) =>
+      screen.getByTestId(`terminal-${tabId}`).closest('[role="tabpanel"]');
+
+    rerender(tabLayout(preview));
+    expect(panelOf("tab-2")).toBeNull();
+
+    rerender(tabLayout());
+    rerender(tabLayout(preview));
+    rerender(tabLayout());
+
+    expect(panelOf("tab-2")).not.toBeNull();
+    expect(terminalMounts.sort()).toEqual(["tab-1", "tab-2"]);
+  });
+
+  it("flashes a tab's active pane each time the tab shows", async () => {
+    const splitTab = (id: string, paneIds: string[]): Tab => ({
+      id,
+      name: "Tab",
+      panes: Object.fromEntries(
+        paneIds.map((paneId) => [paneId, { ...tab.panes.term, id: paneId }]),
+      ),
+      layout: {
+        id: `row-${id}`,
+        type: "split",
+        direction: "row",
+        children: paneIds.map((paneId) => ({
+          id: `node-${paneId}`,
+          type: "pane",
+          paneId,
+        })),
+      },
+      activePaneId: paneIds[0],
+    });
+    tabsAtom.set([
+      splitTab("tab-1", ["a1", "a2"]),
+      splitTab("tab-2", ["b1", "b2"]),
+    ]);
+    activeTabIdAtom.set("tab-1");
+    const { container } = renderTabLayout();
+    const highlightedPanes = () =>
+      [...container.querySelectorAll('[class*="pane-highlight"]')].map(
+        (highlight) =>
+          highlight.parentElement!.querySelector<HTMLElement>("[data-pane]")!
+            .dataset.pane,
+      );
+    const nextFrame = () =>
+      act(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+
+    await nextFrame();
+    expect(highlightedPanes()).toEqual(["a1"]);
+
+    act(() => activeTabIdAtom.set("tab-2"));
+    await nextFrame();
+    expect(highlightedPanes()).toEqual(["b1"]);
+
+    act(() => activeTabIdAtom.set("tab-1"));
+    expect(highlightedPanes()).toEqual([]);
+    await nextFrame();
+    expect(highlightedPanes()).toEqual(["a1"]);
   });
 });

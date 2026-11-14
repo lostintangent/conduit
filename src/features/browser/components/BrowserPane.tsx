@@ -99,7 +99,8 @@ export function BrowserPane({
   const [isDomReady, setIsDomReady] = useState<boolean>(false);
 
   // After the component is mounted, we need to create or attach
-  // to the <wevbview> element for this pane
+  // to the <wevbview> element for this pane. A tab's panes stay mounted as it
+  // moves in and out of a preview, so this runs again when that changes.
   useEffect(() => {
     if (!webviewAnchorRef.current) return;
 
@@ -158,11 +159,14 @@ export function BrowserPane({
     // Sidebar and preview modes need continuous RAF-based position tracking
     // to follow animations. Tab panes only need event-driven updates.
     const needsRAFLoop = isInPreview || !tabId;
+    // Ends this run's RAF loop, which would otherwise outlive it when the
+    // effect runs again for the same webview
+    let isDisposed = false;
 
     const updatePosition = () => {
       const anchor = webviewAnchorRef.current;
       const currentWebview = webviewRef.current;
-      if (!anchor || !currentWebview) {
+      if (isDisposed || !anchor || !currentWebview) {
         return;
       }
 
@@ -241,6 +245,7 @@ export function BrowserPane({
     window.addEventListener("resize", updatePosition);
 
     return () => {
+      isDisposed = true;
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
 
@@ -260,7 +265,7 @@ export function BrowserPane({
         webviewRef.current = null;
       }
     };
-  }, [webviewAnchorRef]);
+  }, [webviewAnchorRef, isInPreview, tabId]);
 
   // Once we have a new or existing webview, we need to hook
   // up the event listeners to it (e.g. navigation, title change, etc)
