@@ -40,4 +40,39 @@ describe("openWorkspace", () => {
     expect(activeTabAtom.get()).toBeNull();
     expect(workspaceNameAtom.get()).toBeNull();
   });
+
+  it("starts each restored terminal at the size it was saved at", async () => {
+    tabsAtom.set([]);
+    const createTerminal = vi.fn(async () => ({
+      sessionId: "session-1",
+      title: "zsh",
+      cwd: "/tmp",
+    }));
+    (window as any).conduit.createTerminal = createTerminal;
+    const workspace = {
+      name: "Work",
+      lastModified: 0,
+      activeTabId: "tab-1",
+      tabs: [
+        {
+          id: "tab-1",
+          name: "Shell",
+          panes: [
+            { id: "a", type: "terminal", cwd: "/tmp", cols: 132, rows: 41 },
+          ],
+          layout: { id: "node-a", type: "pane", paneId: "a" },
+          activePaneId: "a",
+        },
+      ],
+    } as unknown as Workspace;
+
+    await openWorkspace(workspace);
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/tmp",
+      command: undefined,
+      cols: 132,
+      rows: 41,
+    });
+  });
 });

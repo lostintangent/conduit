@@ -38,6 +38,8 @@ export async function openWorkspace(workspace: Workspace) {
         session = await api.createTerminal({
           cwd: pane.cwd ?? undefined,
           command,
+          cols: pane.cols,
+          rows: pane.rows,
         });
 
         if (!session) {

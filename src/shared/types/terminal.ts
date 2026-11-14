@@ -12,6 +12,8 @@ export type TerminalCaptureCommandResponse = string | null;
 export type TerminalCreateOptions = {
   cwd?: string;
   command?: string; // Command to execute when the terminal is ready
+  cols?: number;
+  rows?: number;
 };
 
 export type TerminalDataPayload = TerminalPayload & {

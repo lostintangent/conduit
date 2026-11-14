@@ -16,7 +16,17 @@ function getShellIntegrationPath(): string {
   return path.join(__dirname, "../../src/ipc/terminal/shell");
 }
 
-export function spawnTerminalProcess(sessionId: string, cwd?: string) {
+/**
+ * Starts the user's shell in a PTY. Restored panes pass the size they were
+ * saved at, so the shell draws its first prompt at the width the pane will fit
+ * to instead of at 80 columns followed by a resize.
+ */
+export function spawnTerminalProcess(
+  sessionId: string,
+  cwd?: string,
+  cols = 80,
+  rows = 24,
+) {
   const shell = resolveShell();
   const env = buildTerminalEnv(sessionId);
 
@@ -54,8 +64,8 @@ export function spawnTerminalProcess(sessionId: string, cwd?: string) {
 
   return spawn(shell, args, {
     name: "xterm-256color",
-    cols: 80,
-    rows: 24,
+    cols,
+    rows,
     cwd,
     env,
   });

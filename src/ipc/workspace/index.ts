@@ -116,6 +116,8 @@ async function serializePane(
     return {
       ...pane,
       command: capturedCommand,
+      cols: terminalSession?.pty.cols,
+      rows: terminalSession?.pty.rows,
     };
   }
 

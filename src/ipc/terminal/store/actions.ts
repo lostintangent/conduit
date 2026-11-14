@@ -15,7 +15,7 @@ export async function createTerminal(
   const cwd =
     options?.cwd ??
     path.resolve(process.env.HOME ?? process.env.USERPROFILE ?? process.cwd());
-  const pty = spawnTerminalProcess(id, cwd);
+  const pty = spawnTerminalProcess(id, cwd, options?.cols, options?.rows);
 
   let pendingCommand = options?.command;
   const shell = resolveShell();

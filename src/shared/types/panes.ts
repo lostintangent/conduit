@@ -10,6 +10,9 @@ export type TerminalPane = {
   cwd?: string | null;
   command?: string | null;
   cloneOf?: string;
+  // The PTY's size when the workspace was saved
+  cols?: number;
+  rows?: number;
 };
 
 export type BrowserPane = {
