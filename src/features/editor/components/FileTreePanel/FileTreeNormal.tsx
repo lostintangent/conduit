@@ -19,9 +19,9 @@
  * ```
  */
 
-import { filesQueries, updateListing } from "@features/files/client/queries";
+import { filesMutations, filesQueries } from "@features/files/client/queries";
 import { useSettings } from "@features/settings/client/queries";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/utils";
 import { FileText, Folder } from "lucide-react";
 import {
@@ -49,7 +49,6 @@ import { getRelativePath } from "../utils/gitStatusHelpers";
 import type { DirectoryEntry } from "@features/files/model";
 import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/ui/confirm-dialog";
-import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import type { FileNode } from "../../model";
 import { FileTreeItem } from "./FileTreeItem";
 import { FileTreeItemRename } from "./FileTreeItemRename";
@@ -174,6 +173,15 @@ export const FileTreeNormal = memo(
         return { directoryCache: cache, isLoading: results[0].isPending };
       },
     });
+    const { mutateAsync: createEntry } = useMutation(
+      filesMutations.create(cwd),
+    );
+    const { mutateAsync: renameEntry } = useMutation(
+      filesMutations.rename(cwd),
+    );
+    const { mutateAsync: deleteEntry } = useMutation(
+      filesMutations.delete(cwd),
+    );
 
     // ---------------------------------------------------------------------------
     // Keyboard Navigation State
@@ -499,31 +507,17 @@ export const FileTreeNormal = memo(
       async (newName: string) => {
         if (!renamingPath) return;
 
-        const parentDir = getParentPath(renamingPath);
-        if (!parentDir) {
-          console.error("Cannot rename: no parent directory found");
-          setRenamingPath(null);
-          return;
-        }
-
-        const newPath = joinPath(parentDir, newName);
-
         try {
-          await window.conduit.files.rename(cwd, renamingPath, newPath);
+          // Renaming updates the cached listing, before the watcher's event
+          const newPath = await renameEntry({
+            path: renamingPath,
+            name: newName,
+          });
 
           // Transfer seen status from old path to new path (handles folders and files)
           const oldRelative = getRelativePath(renamingPath, cwd);
           const newRelative = getRelativePath(newPath, cwd);
           onPathRename?.(oldRelative, newRelative);
-
-          // Optimistic update: update the listing immediately so the new name
-          // is visible before the file watcher triggers a refresh
-          const oldName = renamingPath.split("/").pop();
-          updateListing(queryClient, parentDir, (entries) =>
-            entries.map((entry) =>
-              entry.name === oldName ? { ...entry, name: newName } : entry,
-            ),
-          );
 
           // Now safe to hide the rename input - new name is already in cache
           setRenamingPath(null);
@@ -536,18 +530,12 @@ export const FileTreeNormal = memo(
           }, 250);
           // Set pending focus - will be applied once path appears in visiblePaths
           setPendingFocusPath(newPath);
-        } catch (error) {
-          console.error("Rename failed:", error);
-          const itemName = renamingPath.split("/").pop() ?? "item";
-          enqueueNotification({
-            kind: "error",
-            message: `Failed to rename "${itemName}"`,
-            details: error instanceof Error ? error.message : "Unknown error",
-          });
+        } catch {
+          // The mutation cache notifies
           setRenamingPath(null);
         }
       },
-      [renamingPath, cwd, onPathRename, queryClient],
+      [renamingPath, cwd, onPathRename, renameEntry],
     );
 
     /**
@@ -638,31 +626,13 @@ export const FileTreeNormal = memo(
       async (name: string) => {
         if (!creatingInPath || !creatingType) return;
 
-        const newPath = joinPath(creatingInPath, name);
-
         try {
-          if (creatingType === "file") {
-            // Create empty file
-            await window.conduit.files.writeFile(
-              cwd,
-              newPath,
-              new Uint8Array(0),
-            );
-          } else {
-            // Create directory
-            await window.conduit.files.createDirectory(cwd, newPath);
-          }
-
-          // Optimistic update: add new entry to the listing
-          const newEntry: DirectoryEntry = {
+          // Creating adds it to the cached listing
+          const newPath = await createEntry({
+            dir: creatingInPath,
             name,
-            type: creatingType === "file" ? "file" : "directory",
-            isSymlink: false,
-          };
-          updateListing(queryClient, creatingInPath, (entries) => [
-            ...entries,
-            newEntry,
-          ]);
+            type: creatingType,
+          });
 
           // Clear creation state
           setCreatingInPath(null);
@@ -675,19 +645,13 @@ export const FileTreeNormal = memo(
           if (creatingType === "file") {
             onFileSelect({ path: newPath, name, type: "file" }, null);
           }
-        } catch (error) {
-          console.error("Create failed:", error);
-          const itemType = creatingType === "file" ? "file" : "folder";
-          enqueueNotification({
-            kind: "error",
-            message: `Failed to create ${itemType}`,
-            details: error instanceof Error ? error.message : "Unknown error",
-          });
+        } catch {
+          // The mutation cache notifies
           setCreatingInPath(null);
           setCreatingType(null);
         }
       },
-      [creatingInPath, creatingType, cwd, onFileSelect, queryClient],
+      [creatingInPath, creatingType, createEntry, onFileSelect],
     );
 
     // ---------------------------------------------------------------------------
@@ -752,19 +716,9 @@ export const FileTreeNormal = memo(
       const nextFocus = getNextFocusAfterDelete(pathToDelete);
 
       try {
-        // Delete with recursive option for directories
-        await window.conduit.files.delete(cwd, pathToDelete, {
-          recursive: isDirectory,
-        });
-
-        // Optimistic update: remove it from the listing immediately
-        const parentDir = getParentPath(pathToDelete);
-        const fileName = pathToDelete.split("/").pop();
-        if (parentDir && fileName) {
-          updateListing(queryClient, parentDir, (entries) =>
-            entries.filter((entry) => entry.name !== fileName),
-          );
-        }
+        // Delete with recursive option for directories, which also removes it
+        // from the cached listing
+        await deleteEntry({ path: pathToDelete, recursive: isDirectory });
 
         // Clear deleting state
         setDeletingPath(null);
@@ -775,23 +729,11 @@ export const FileTreeNormal = memo(
         } else {
           setFocusedPath(null);
         }
-      } catch (error) {
-        console.error("Delete failed:", error);
-        const itemName = deletingPath?.split("/").pop() ?? "item";
-        enqueueNotification({
-          kind: "error",
-          message: `Failed to delete "${itemName}"`,
-          details: error instanceof Error ? error.message : "Unknown error",
-        });
+      } catch {
+        // The mutation cache notifies
         setDeletingPath(null);
       }
-    }, [
-      deletingPath,
-      getEntryForPath,
-      getNextFocusAfterDelete,
-      cwd,
-      queryClient,
-    ]);
+    }, [deletingPath, getEntryForPath, getNextFocusAfterDelete, deleteEntry]);
 
     // ---------------------------------------------------------------------------
     // Context Menu Command Handlers

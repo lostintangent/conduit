@@ -33,6 +33,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { filesMutations } from "@features/files/client/queries";
 import { gitMutations, gitQueries } from "@features/git/client/queries";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useScrollPersistence } from "../hooks/useScrollPersistence";
@@ -45,7 +46,6 @@ import { getParentPath, getParentPaths, joinCwdPath } from "../utils/pathUtils";
 import { getRelativePath, normalizeMapKey } from "../utils/gitStatusHelpers";
 import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/ui/confirm-dialog";
-import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import type { FileNode } from "../../model";
 
 // Local imports from extracted modules
@@ -323,6 +323,9 @@ export function FileTreeChanges({
   const { mutate: stage } = useMutation(gitMutations.stage(git.cwd));
   const { mutate: unstage } = useMutation(gitMutations.unstage(git.cwd));
   const { mutate: revert } = useMutation(gitMutations.revert(git.cwd));
+  const { mutateAsync: createEntry } = useMutation(filesMutations.create(cwd));
+  const { mutateAsync: renameEntry } = useMutation(filesMutations.rename(cwd));
+  const { mutateAsync: deleteEntry } = useMutation(filesMutations.delete(cwd));
 
   // View state (section/folder expansion)
   const {
@@ -706,32 +709,22 @@ export function FileTreeChanges({
 
       const parentDir = getParentPath(renamingPath);
       const newPath = parentDir ? `${parentDir}/${newName}` : newName;
-      const oldAbsolutePath = joinCwdPath(cwd, renamingPath);
-      const newAbsolutePath = joinCwdPath(cwd, newPath);
 
       try {
-        await window.conduit.files.rename(
-          cwd,
-          oldAbsolutePath,
-          newAbsolutePath,
-        );
+        await renameEntry({
+          path: joinCwdPath(cwd, renamingPath),
+          name: newName,
+        });
 
         // Transfer seen status from old path to new path
         // This works for both files and folders (handles nested files too)
         onPathRename?.(renamingPath, newPath);
-
-        setRenamingPath(null);
-      } catch (error) {
-        const itemName = renamingPath.split("/").pop() ?? "item";
-        enqueueNotification({
-          kind: "error",
-          message: `Failed to rename "${itemName}"`,
-          details: error instanceof Error ? error.message : "Unknown error",
-        });
-        setRenamingPath(null);
+      } catch {
+        // The mutation cache notifies
       }
+      setRenamingPath(null);
     },
-    [renamingPath, cwd, onPathRename],
+    [renamingPath, cwd, onPathRename, renameEntry],
   );
 
   /**
@@ -771,22 +764,17 @@ export function FileTreeChanges({
   const confirmDelete = useCallback(async () => {
     if (!deletingPath) return;
 
-    const absolutePath = joinCwdPath(cwd, deletingPath);
-    const itemName = deletingPath.split("/").pop() ?? "file";
-
     try {
       // Use recursive: true to handle both files and folders
-      await window.conduit.files.delete(cwd, absolutePath, { recursive: true });
-      setDeletingPath(null);
-    } catch (error) {
-      enqueueNotification({
-        kind: "error",
-        message: `Failed to delete "${itemName}"`,
-        details: error instanceof Error ? error.message : "Unknown error",
+      await deleteEntry({
+        path: joinCwdPath(cwd, deletingPath),
+        recursive: true,
       });
-      setDeletingPath(null);
+    } catch {
+      // The mutation cache notifies
     }
-  }, [deletingPath, cwd]);
+    setDeletingPath(null);
+  }, [deletingPath, cwd, deleteEntry]);
 
   /**
    * Cancel delete operation.
@@ -845,27 +833,23 @@ export function FileTreeChanges({
     async (name: string) => {
       if (!creatingInPath || !creatingType) return;
 
-      const newPath = `${creatingInPath}/${name}`;
-
       try {
+        const newPath = await createEntry({
+          dir: creatingInPath,
+          name,
+          type: creatingType,
+        });
         if (creatingType === "file") {
-          await window.conduit.files.writeFile(cwd, newPath, new Uint8Array(0));
           // Queue the file for selection once git detects it
           setPendingSelectPath(newPath);
-        } else {
-          await window.conduit.files.createDirectory(cwd, newPath);
         }
         setCreatingInPath(null);
         setCreatingType(null);
-      } catch (error) {
-        enqueueNotification({
-          kind: "error",
-          message: `Failed to create ${creatingType}`,
-          details: error instanceof Error ? error.message : "Unknown error",
-        });
+      } catch {
+        // The mutation cache notifies, and the input stays open to fix the name
       }
     },
-    [creatingInPath, creatingType, cwd],
+    [creatingInPath, creatingType, createEntry],
   );
 
   // ---------------------------------------------------------------------------

@@ -16,11 +16,15 @@ declare module "@tanstack/react-query" {
     mutationMeta: {
       /**
        * Notify when the mutation fails, with this message and the error as
-       * its details, or with what the error maps to. Leave it out when the
-       * component shows the error itself.
+       * its details, or with what the error and variables map to. Leave it
+       * out when the component shows the error itself.
        */
       errorMessage?:
-        string | ((error: Error) => { message: string; details?: string });
+        | string
+        | ((
+            error: Error,
+            variables: unknown,
+          ) => { message: string; details?: string });
     };
   }
 }
@@ -41,14 +45,14 @@ export function createQueryClient(): QueryClient {
       },
     }),
     mutationCache: new MutationCache({
-      onError: (error, _variables, _onMutateResult, mutation) => {
+      onError: (error, variables, _onMutateResult, mutation) => {
         console.error("[mutation] Failed", mutation.options.mutationKey, error);
         const errorMessage = mutation.meta?.errorMessage;
         if (errorMessage === undefined) return;
         const { message, details } =
           typeof errorMessage === "string"
             ? { message: errorMessage, details: error.message }
-            : errorMessage(error);
+            : errorMessage(error, variables);
         enqueueNotification({ kind: "error", message, details });
       },
     }),

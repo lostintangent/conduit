@@ -50,6 +50,8 @@ vi.mock("@/commands", () => ({
 vi.mock("@/commands/fileTreeCommands", () => ({
   registerFileTreeChangesCallbacks: vi.fn(() => () => {}),
   activateFileTreeChangesCallbacks: vi.fn(),
+  registerFileTreeCallbacks: vi.fn(() => () => {}),
+  activateFileTreeCallbacks: vi.fn(),
   FileTreeCommands: {
     NEW_FILE: "fileTree.newFile",
     NEW_FOLDER: "fileTree.newFolder",
@@ -72,6 +74,9 @@ vi.mock("@features/workbench/client/actions/notifications", () => ({
 // Import component after mocks
 import { useEffect, useState } from "react";
 import { FileTreeChanges as FileTreeChangesView } from "./FileTreeChanges";
+import { FileTreeNormal } from "./FileTreeNormal";
+import { registerFileTreeChangesCallbacks } from "@/commands/fileTreeCommands";
+import { mockFiles } from "../../../../../tests/renderer/files";
 
 // Supplies gitStatus from the mocked git API the way EditorPane does
 function FileTreeChanges(props) {
@@ -1629,6 +1634,122 @@ describe("FileTreeChanges", () => {
           "file2.ts",
         ]);
       });
+    });
+  });
+
+  // ===========================================================================
+  // Files Tree
+  // ===========================================================================
+
+  describe("writes shown in the Files tree", () => {
+    let files: ReturnType<typeof mockFiles>;
+
+    beforeEach(() => {
+      files = mockFiles();
+      files.readDirectory.mockImplementation(async (_cwd, dir) =>
+        dir === TEST_CWD
+          ? [{ name: "src", type: "directory" }]
+          : [{ name: "index.ts", type: "file" }],
+      );
+      mockGetStatus.mockResolvedValue({
+        branch: "main",
+        files: new Map([
+          [
+            "src/index.ts",
+            { status: "modified", staged: false, path: "src/index.ts" },
+          ],
+        ]),
+      });
+    });
+
+    /** The Changes tree beside a Files tree showing src, in one window. */
+    async function renderBothTrees() {
+      render(
+        <>
+          <FileTreeChanges
+            paneId="changes"
+            cwd={TEST_CWD}
+            git={mockGitAPI as any}
+            selectedFile={null}
+            onFileSelect={mockOnFileSelect}
+          />
+          <FileTreeNormal
+            paneId="files"
+            cwd={TEST_CWD}
+            gitStatus={null}
+            selectedFile={{
+              path: "/project/src/index.ts",
+              name: "index.ts",
+              type: "file",
+            }}
+            onFileSelect={mockOnFileSelect}
+          />
+        </>,
+      );
+      const changesTree = await screen.findByTestId("file-tree-changes");
+      const filesTree = screen.getByTestId("file-tree-normal");
+      await within(filesTree).findByTestId("tree-item-index.ts");
+      const commands = vi.mocked(registerFileTreeChangesCallbacks).mock
+        .calls[0][0];
+      return { changesTree, filesTree, commands };
+    }
+
+    /** Type a name into the tree's inline input, and commit it. */
+    function enterName(tree: HTMLElement, name: string) {
+      const input = within(tree).getByTestId("file-tree-rename-input");
+      fireEvent.change(input, { target: { value: name } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    }
+
+    it("shows a rename at once", async () => {
+      const { changesTree, filesTree, commands } = await renderBothTrees();
+
+      act(() => commands.onRename("/project/src/index.ts"));
+      enterName(changesTree, "main.ts");
+
+      expect(
+        await within(filesTree).findByTestId("tree-item-main.ts"),
+      ).toBeDefined();
+      expect(within(filesTree).queryByTestId("tree-item-index.ts")).toBeNull();
+      expect(files.rename).toHaveBeenCalledWith(
+        TEST_CWD,
+        "/project/src/index.ts",
+        "/project/src/main.ts",
+      );
+    });
+
+    it("shows a new file at once", async () => {
+      const { changesTree, filesTree, commands } = await renderBothTrees();
+
+      act(() => commands.onNewFile("/project/src"));
+      enterName(changesTree, "notes.ts");
+
+      expect(
+        await within(filesTree).findByTestId("tree-item-notes.ts"),
+      ).toBeDefined();
+      expect(files.writeFile).toHaveBeenCalledWith(
+        TEST_CWD,
+        "/project/src/notes.ts",
+        new Uint8Array(0),
+      );
+    });
+
+    it("shows a delete at once", async () => {
+      const { filesTree, commands } = await renderBothTrees();
+
+      act(() => commands.onDelete("/project/src/index.ts"));
+      fireEvent.click(await screen.findByRole("button", { name: "Confirm" }));
+
+      await waitFor(() => {
+        expect(
+          within(filesTree).queryByTestId("tree-item-index.ts"),
+        ).toBeNull();
+      });
+      expect(files.delete).toHaveBeenCalledWith(
+        TEST_CWD,
+        "/project/src/index.ts",
+        { recursive: true },
+      );
     });
   });
 });
