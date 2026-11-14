@@ -36,7 +36,7 @@ export interface WorktreeLaunchOptions {
       cwd: string;
       preferredName: string;
     }) => Promise<AgentSessionInfo | null>;
-    terminal: Pick<typeof window.conduit.terminal, "create" | "input">;
+    terminal: Pick<typeof window.conduit.terminal, "create">;
   };
   onClose?: () => void;
 }
@@ -115,10 +115,19 @@ export async function launchAgents(
       firstCwd = firstSession.worktreePath;
     }
 
+    const firstInstances = payload.agentInstances?.[firstAgentId]
+      ?.instances ?? [{ id: "1" }];
+    const firstCommand = buildAgentCommand(
+      firstAgent.interactiveCommand,
+      payload.prompt,
+      firstInstances[0]?.instructions,
+    );
+
     const { openTabFromExistingSession } = await import("@/store/actions/tab");
     // Its tab may be split for more instances, so no other pane's size fits.
     const firstTerminal = await api.terminal.create({
       cwd: firstCwd,
+      command: firstCommand,
       waitForSize: true,
     });
     if (!firstTerminal) {
@@ -144,21 +153,7 @@ export async function launchAgents(
       );
     }
 
-    // Send the interactive command for the first agent
-    const firstInstances = payload.agentInstances?.[firstAgentId]
-      ?.instances ?? [{ id: "1" }];
-    const firstCommand = buildAgentCommand(
-      firstAgent.interactiveCommand,
-      payload.prompt,
-      firstInstances[0]?.instructions,
-    );
-
-    setTimeout(() => {
-      api.terminal.input(firstTerminal.sessionId, firstCommand + "\r");
-    }, 100);
-
     let currentPaneId = paneId;
-    let instanceIndex = 1;
 
     // Generate layout plan for all instances
     const layoutPlan = generateAgentLayout(totalInstances);
@@ -206,6 +201,12 @@ export async function launchAgents(
         const splitDirection = layoutPlan[splitIndex]?.direction ?? "row";
         splitIndex++;
 
+        const command = buildAgentCommand(
+          agent.interactiveCommand,
+          payload.prompt,
+          instance.instructions,
+        );
+
         // Split the current pane and create a new terminal for the instance
         const newPane = await splitPane(
           tabId,
@@ -213,7 +214,7 @@ export async function launchAgents(
           splitDirection,
           false,
           {
-            terminalOptions: { cwd: session?.worktreePath ?? cwd },
+            terminalOptions: { cwd: session?.worktreePath ?? cwd, command },
             agentSession: session,
           },
         );
@@ -226,22 +227,6 @@ export async function launchAgents(
         }
 
         currentPaneId = newPane.id;
-
-        // Send the interactive command with custom instructions
-        const command = buildAgentCommand(
-          agent.interactiveCommand,
-          payload.prompt,
-          instance.instructions,
-        );
-
-        setTimeout(
-          () => {
-            api.terminal.input(newPane.sessionId, command + "\r");
-          },
-          100 * (instanceIndex + 1),
-        );
-
-        instanceIndex++;
       }
     }
 

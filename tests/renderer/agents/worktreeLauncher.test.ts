@@ -20,13 +20,11 @@ enableMapSet();
 
 describe("launchAgents", () => {
   afterEach(() => {
-    vi.useRealTimers();
     tabsAtom.set([]);
     activeTabIdAtom.set(null);
   });
 
   it("starts the first agent's terminal once its new tab has fit, since the tab is split for the others", async () => {
-    vi.useFakeTimers();
     // The terminal the launcher was opened from, which has fit.
     const launchedFrom: Tab = {
       id: "tab-1",
@@ -46,7 +44,6 @@ describe("launchAgents", () => {
         cwd: "/repo",
         title: "zsh",
       }),
-      input: vi.fn(),
     });
     const api = { spawnAgentSession: vi.fn(), terminal };
 
@@ -72,16 +69,16 @@ describe("launchAgents", () => {
         api,
       },
     );
-    await vi.advanceTimersByTimeAsync(300);
 
+    // Main types each agent's command once its shell is ready for it.
     expect(api.terminal.create).toHaveBeenNthCalledWith(1, {
       cwd: "/repo",
+      command: 'claude "fix the build"',
       waitForSize: true,
     });
-    // Main holds this until the shell starts.
-    expect(api.terminal.input).toHaveBeenCalledWith(
-      "session-1",
-      'claude "fix the build"\r',
+    expect(api.terminal.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ command: 'claude "fix the build"' }),
     );
   });
 });

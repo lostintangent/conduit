@@ -93,7 +93,10 @@ export function PaneControlFanButtons({
           const terminalCwd = terminalConfig.cwd || cwd;
 
           let paneOptions: any = {
-            terminalOptions: terminalCwd ? { cwd: terminalCwd } : {},
+            terminalOptions: {
+              ...(terminalCwd && { cwd: terminalCwd }),
+              command: terminalConfig.command,
+            },
           };
 
           // Execute pre-command if specified
@@ -127,24 +130,7 @@ export function PaneControlFanButtons({
             }
           }
 
-          // Create terminal pane with merged options
-          const newPane = await splitPane(
-            tabId,
-            paneId,
-            direction,
-            insertBefore,
-            paneOptions,
-          );
-
-          // If there's a command configured, send it
-          if (newPane?.sessionId && terminalConfig.command) {
-            setTimeout(() => {
-              api.terminal.input(
-                newPane.sessionId,
-                terminalConfig.command + "\r",
-              );
-            }, 100);
-          }
+          await splitPane(tabId, paneId, direction, insertBefore, paneOptions);
         }
         break;
       }
