@@ -6,7 +6,7 @@
 
 import type { GitSubscription } from "../client/GitSubscription";
 import { GitSubscriptionPool } from "../client/GitSubscriptionPool";
-import { usePooledSubscription } from "@/services/SubscriptionPool";
+import { usePooledSubscription } from "@/utils/SubscriptionPool";
 
 export function useGitSubscription(cwd: string): GitSubscription {
   return usePooledSubscription(GitSubscriptionPool.getInstance(), cwd);

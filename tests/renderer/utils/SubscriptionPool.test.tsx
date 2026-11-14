@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import {
   SubscriptionPool,
   usePooledSubscription,
-} from "@/services/SubscriptionPool";
+} from "@/utils/SubscriptionPool";
 
 class FakeSubscription {
   released = false;

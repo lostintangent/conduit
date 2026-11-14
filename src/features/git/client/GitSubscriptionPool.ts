@@ -1,5 +1,5 @@
 import { GitSubscription } from "./GitSubscription";
-import { createSubscriptionPool } from "@/services/SubscriptionPool";
+import { createSubscriptionPool } from "@/utils/SubscriptionPool";
 
 /**
  * Shared GitSubscription instances, one per cwd. Keyed by the cwd passed to

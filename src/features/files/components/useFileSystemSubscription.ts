@@ -12,7 +12,7 @@
 
 import { FileSystemSubscription } from "../client/FileSystemSubscription";
 import { FileSystemSubscriptionPool } from "../client/FileSystemSubscriptionPool";
-import { usePooledSubscription } from "@/services/SubscriptionPool";
+import { usePooledSubscription } from "@/utils/SubscriptionPool";
 
 export function useFileSystemSubscription(cwd: string): FileSystemSubscription {
   return usePooledSubscription(FileSystemSubscriptionPool.getInstance(), cwd);

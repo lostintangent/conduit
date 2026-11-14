@@ -1,6 +1,6 @@
 import { FileSystemSubscription } from "./FileSystemSubscription";
 import { normalizePathForKey } from "@/utils/pathUtils";
-import { createSubscriptionPool } from "@/services/SubscriptionPool";
+import { createSubscriptionPool } from "@/utils/SubscriptionPool";
 
 /**
  * Shared FileSystemSubscription instances, one per cwd (case-folded on
