@@ -11,6 +11,8 @@
 
 Run the tests with `bun run test`. Each test file needs a fresh global, so plain `bun test`, which shares one across files, stops and says so. `bun test --isolate` works too, just slower. `bun lint` lints, `bun fmt` formats, `bun check` typechecks the app, and `bun check -p build` typechecks the files that run under Bun. `bun install` sets up a pre-commit hook that fixes lint problems in your staged files and formats them.
 
+The end-to-end tests in `e2e/` drive the packaged app, so run `bun run package` and then `bun run e2e`. Each launch gets its own temporary home and user data directory, so it never touches your own Conduit's settings, workspaces or shell history. Set `CONDUIT_E2E_KEEP=1` to keep those homes for debugging, or `CONDUIT_E2E_APP` to test another build of `Conduit.app`.
+
 ## 🚀 Releasing
 
 1. `bun pm version patch && git push --follow-tags`

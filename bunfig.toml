@@ -10,3 +10,5 @@ preload = ["./tests/setup/bun-preload.ts"]
 # Run components compiled, as the production build does. The test runner
 # also compiles .ts hooks, which Bun.build leaves alone.
 reactCompiler = true
+# The end-to-end suite drives the packaged app. Run it with `bun run e2e`.
+pathIgnorePatterns = ["e2e/**"]

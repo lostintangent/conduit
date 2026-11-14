@@ -56,6 +56,21 @@
       }
     },
     {
+      "files": ["e2e/**/*.test.ts"],
+      "rules": {
+        "vitest/expect-expect": [
+          "error",
+          {
+            "assertFunctionNames": [
+              "expect",
+              "expectStartedAtPaneWidth",
+              "**.waitFor"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["forge.config.ts"],
       "rules": {
         "@typescript-eslint/no-var-requires": "off"

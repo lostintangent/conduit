@@ -11,6 +11,7 @@
     "make": "electron-forge make",
     "release": ": ${CONDUIT_APPLE_ID_PASSWORD:?is required to sign and notarize} && electron-forge release",
     "test": "bun test --parallel",
+    "e2e": "bun --cwd=e2e test --timeout=60000",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
@@ -29,6 +30,7 @@
     "bun-types": "canary",
     "electron": "^45.3.2",
     "happy-dom": "^21.0.4",
+    "playwright-core": "^1.65.1",
     "tailwindcss": "^4.3.5"
   },
   "dependencies": {
