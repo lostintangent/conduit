@@ -575,14 +575,20 @@ describe("EditorPaneV2", () => {
       },
     );
 
-    it("should return to the tree in single mode when the open file is committed away", async () => {
+    it("should return to the tree in single mode when the open file is committed away, and tell the parent", async () => {
       mockLayout.mockReturnValue("single");
       const modified = { path: "test.ts", status: "modified", staged: false };
       const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
       const clean = { files: new Map(), branch: "main" };
       mockGit.getStatus.mockResolvedValue(dirty);
+      const onClearFile = vi.fn();
 
-      render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
+      render(
+        <EditorPaneV2
+          pane={{ ...TEST_PANE, treeMode: "changes" }}
+          onClearFile={onClearFile}
+        />,
+      );
       await reportStatus(dirty);
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
@@ -603,6 +609,8 @@ describe("EditorPaneV2", () => {
       });
       expect(treeContainer.hidden).toBe(false);
       expect(editorContainer.hidden).toBe(true);
+      // So its tab stops naming the file
+      expect(onClearFile).toHaveBeenCalledTimes(1);
     });
     it("should show the tree in split mode when the open file goes away while it's collapsed", async () => {
       const modified = { path: "test.ts", status: "modified", staged: false };

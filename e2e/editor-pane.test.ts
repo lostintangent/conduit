@@ -101,6 +101,16 @@ describe("editor pane", () => {
     }, `"${text}" in the editor`);
   }
 
+  /** Waits for the tab's label, which names the pane's file or folder. */
+  async function waitForTabLabel(ending: string) {
+    const tab = app.page.getByRole("tab", { selected: true });
+    await until(async () => {
+      const label = await tab.locator(":scope > span").first().textContent();
+      if (!label?.endsWith(ending)) throw new Error(`the tab says "${label}"`);
+      return true;
+    }, `a tab label ending in "${ending}"`);
+  }
+
   /**
    * Gives the pane the window's width with focus mode, which puts it past the
    * split layout's 600px breakpoint, or puts it back beside the terminal. The
@@ -175,12 +185,15 @@ describe("editor pane", () => {
     await tree().waitFor({ state: "hidden" });
     await diffEditor().locator(".editor.modified").click();
     await waitForFocusIn("editor", "clicking the diff");
+    await waitForTabLabel("/proj/src/b.ts");
 
     commitAll("Change b");
     // It used to stay on "Select a file to edit", with no way back.
     await tree().waitFor();
     await waitForFocusIn("tree", "the file left");
     await commit("Change b").waitFor();
+    // The tab used to keep naming the file the pane no longer shows.
+    await waitForTabLabel("/proj");
   });
 
   it("switches a narrow pane to its tree and back with Cmd+B, and reveals its file with Cmd+Shift+T", async () => {

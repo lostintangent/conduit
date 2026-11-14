@@ -438,6 +438,27 @@ export function EditorPaneV2({
     // when the PROP changes, not when internal file selection changes selectedFile
   }, [initialFilePath, layout, setViewModePreservingReview]);
 
+  // The pane also picks files itself, like the next changed file once a
+  // commit takes the open one, or a renamed file's new path. The parent hears
+  // about those too, so the pane's tab names the file it shows.
+  const selectedFilePath = selectedFile?.path;
+  const prevSelectedFilePathRef = useRef(selectedFilePath);
+  useEffect(() => {
+    if (prevSelectedFilePathRef.current === selectedFilePath) return;
+    prevSelectedFilePathRef.current = selectedFilePath;
+    if (ownFilePathRef.current === selectedFilePath) return;
+    ownFilePathRef.current = selectedFilePath;
+
+    if (selectedFilePath) {
+      onFileChange?.({
+        file: selectedFilePath,
+        language: detectLanguage(selectedFilePath),
+      });
+    } else {
+      onClearFile?.();
+    }
+  }, [selectedFilePath, onFileChange, onClearFile]);
+
   // ---------------------------------------------------------------------------
   // Hooks
   // ---------------------------------------------------------------------------
@@ -639,12 +660,13 @@ export function EditorPaneV2({
       // Notify parent of file selection (skip for deleted files - they don't exist on disk)
       // Note: We no longer read file content here - Monaco model registry handles that.
       // This eliminates a duplicate file read that was causing ~300ms latency.
+      // The pane owns the selection either way, so it isn't reported later.
+      ownFilePathRef.current = file.path;
       if (
         onFileChange &&
         file.type === "file" &&
         fileStatus?.status !== "deleted"
       ) {
-        ownFilePathRef.current = file.path;
         onFileChange({
           file: file.path,
           language: detectLanguage(file.path),
