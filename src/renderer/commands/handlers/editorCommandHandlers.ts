@@ -14,9 +14,9 @@
  * useEffect(() => {
  *   return registerEditorHandlers(pane.id, {
  *     toggleSidebar: handleToggleTree,
- *     focusSidebar: handleFocusTree,
+ *     revealActiveFile: handleRevealActiveFile,
  *   });
- * }, [pane.id, handleToggleTree, handleFocusTree]);
+ * }, [pane.id, handleToggleTree, handleRevealActiveFile]);
  * ```
  */
 
@@ -35,8 +35,6 @@ export type EditorCommandHandler = () => void;
 export interface EditorCommandHandlers {
   /** Toggle the file tree sidebar visibility */
   toggleSidebar?: EditorCommandHandler;
-  /** Show and focus the file tree sidebar */
-  focusSidebar?: EditorCommandHandler;
   /** Reveal and select the currently active file in the file tree */
   revealActiveFile?: EditorCommandHandler;
 }

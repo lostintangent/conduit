@@ -1391,35 +1391,6 @@ export function EditorPaneV2({
   );
 
   /**
-   * Focus the tree panel and ensure it's visible.
-   * Expands the tree if collapsed, then focuses the first focusable element.
-   */
-  const handleFocusTree = useCallback(() => {
-    // Ensure tree is visible first
-    if (isTreeCollapsed) {
-      setIsTreeCollapsed(false);
-    }
-
-    // Focus the tree panel container (allows keyboard navigation)
-    // Use requestAnimationFrame to ensure DOM has updated after expansion
-    requestAnimationFrame(() => {
-      const treePanel = treePanelRef.current;
-      if (treePanel) {
-        // Try to focus the first focusable element within the tree
-        const focusable = treePanel.querySelector<HTMLElement>(
-          'button, [tabindex]:not([tabindex="-1"]), input',
-        );
-        if (focusable) {
-          focusable.focus();
-        } else {
-          // Fall back to focusing the panel itself
-          treePanel.focus();
-        }
-      }
-    });
-  }, [isTreeCollapsed]);
-
-  /**
    * Reveal and focus the currently selected file in the file tree.
    * Expands parent directories if needed and focuses the file item.
    */
@@ -1444,12 +1415,11 @@ export function EditorPaneV2({
   useEffect(() => {
     const cleanup = registerEditorHandlers(pane.id, {
       toggleSidebar: handleToggleTree,
-      focusSidebar: handleFocusTree,
       revealActiveFile: handleRevealActiveFile,
     });
 
     return cleanup;
-  }, [pane.id, handleToggleTree, handleFocusTree, handleRevealActiveFile]);
+  }, [pane.id, handleToggleTree, handleRevealActiveFile]);
 
   /**
    * Keyboard shortcuts for editor actions.
