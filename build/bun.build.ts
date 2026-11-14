@@ -9,7 +9,7 @@
  * dist/renderer/. main.ts, the CLI launcher and forge.config.ts depend on
  * this layout.
  */
-import type { BuildConfig } from "bun";
+import type { BuildArtifact, BuildConfig, BuildOutput } from "bun";
 import tailwind from "./bun.tailwind";
 import { cp, rm } from "node:fs/promises";
 import path from "node:path";
@@ -139,8 +139,8 @@ export async function copyKatex() {
   });
 }
 
-export function buildRenderer() {
-  return run("renderer", {
+export async function buildRenderer() {
+  const result = await run("renderer", {
     entrypoints: [path.join(root, "src/renderer/index.html")],
     outdir: rendererDir,
     target: "browser",
@@ -159,6 +159,26 @@ export function buildRenderer() {
     // compile yet, so dev runs the uncompiled components.
     reactCompiler: true,
   });
+  await pruneUnlinkedCss(result);
+  return result;
+}
+
+// Bun also writes a stylesheet beside each split chunk that imports CSS, but
+// it has no runtime CSS loading, so nothing links them and their rules are
+// already in the entry stylesheet. Delete every stylesheet no output names.
+async function pruneUnlinkedCss(result: BuildOutput) {
+  const texts = await Promise.all(
+    result.outputs
+      .filter((o) => /\.(html|js|css)$/.test(o.path))
+      .map((o) => o.text()),
+  );
+  const linked = (o: BuildArtifact) =>
+    !o.path.endsWith(".css") ||
+    texts.some((text) => text.includes(path.basename(o.path)));
+  await Promise.all(
+    result.outputs.filter((o) => !linked(o)).map((o) => rm(o.path)),
+  );
+  result.outputs = result.outputs.filter(linked);
 }
 
 if (import.meta.main) {
