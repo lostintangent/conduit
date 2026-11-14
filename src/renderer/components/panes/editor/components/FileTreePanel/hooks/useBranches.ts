@@ -1,7 +1,7 @@
 /**
  * useBranches - Hook for fetching and managing branch data.
  *
- * Provides a unified way to fetch branches from GitV2API with:
+ * Provides a unified way to fetch branches from GitSubscription with:
  * - Automatic filtering (local branches only by default)
  * - Sorting by last commit date (most recent first)
  * - Loading and error states
@@ -20,7 +20,7 @@
 import { useMemo } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { gitKeys, gitQueries } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import type { GitBranch } from "@features/git/model";
 
 export interface UseBranchesOptions {
@@ -54,10 +54,10 @@ export interface UseBranchesResult {
 const NO_BRANCHES: GitBranch[] = [];
 
 /**
- * Hook for fetching and managing branch data from GitV2API.
+ * Hook for fetching and managing branch data from GitSubscription.
  */
 export function useBranches(
-  git: GitV2API | null,
+  git: GitSubscription | null,
   options: UseBranchesOptions = {},
 ): UseBranchesResult {
   const {

@@ -27,7 +27,7 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import type { FileNode, ViewMode } from "../types";
 import { selectNextAvailableFile } from "../utils/fileSelectionHelpers";
 
@@ -45,7 +45,7 @@ export interface UseAutoOpenFileOptions {
   cwd: string;
 
   /** Git API for finding recently modified files */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Base branch for diff comparisons */
   baseBranch: string | null;

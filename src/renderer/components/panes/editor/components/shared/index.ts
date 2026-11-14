@@ -1,5 +1,5 @@
 /**
- * Shared components for Editor v2.
+ * Shared components for the editor.
  *
  * Components in this directory are used across multiple editor components
  * to avoid duplication.

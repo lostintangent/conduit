@@ -36,9 +36,9 @@
  * ```
  */
 
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { gitQueries } from "@features/git/client/queries";
-import { useGitV2 } from "@features/git/components/useGitV2";
+import { useGitSubscription } from "@features/git/components/useGitSubscription";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { MonacoModelRegistry, createModelKey } from "../registry";
@@ -108,7 +108,7 @@ export function useDiffContent(
   // Determine if modified side is editable (only workingDirectory is editable)
   const isModifiedEditable = modifiedSource === "workingDirectory";
 
-  const git = useGitV2(cwd);
+  const git = useGitSubscription(cwd);
   const originalRef = contentSourceToGitRef(originalSource);
   const modifiedRef = isModifiedEditable
     ? null
@@ -156,7 +156,7 @@ export function useDiffContent(
 
 /** A file's content at a git ref, or undefined while it loads. */
 function useFileAtRef(
-  git: GitV2API,
+  git: GitSubscription,
   filePath: string | null,
   ref: string,
 ): Read | undefined {

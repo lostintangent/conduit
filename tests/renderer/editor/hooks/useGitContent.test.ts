@@ -5,8 +5,8 @@ import { createQueryClient } from "@/query";
 import { renderHook } from "../../queryRender";
 import { mockGitReads } from "../../git";
 
-vi.mock("@features/git/components/useGitV2", () => ({
-  useGitV2: (cwd: string) => ({
+vi.mock("@features/git/components/useGitSubscription", () => ({
+  useGitSubscription: (cwd: string) => ({
     cwd,
     whenReady: () => Promise.resolve(),
     watchedSince: null,

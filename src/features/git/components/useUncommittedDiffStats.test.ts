@@ -57,9 +57,9 @@ function createMockFsAPI(cwd: string): MockFsAPI {
   };
 }
 
-// Mock useGitV2
-vi.mock("./useGitV2", () => ({
-  useGitV2: vi.fn((cwd: string) => {
+// Mock useGitSubscription
+vi.mock("./useGitSubscription", () => ({
+  useGitSubscription: vi.fn((cwd: string) => {
     let api = mockGitInstances.get(cwd);
     if (!api) {
       api = createMockGitAPI(cwd);
@@ -69,9 +69,9 @@ vi.mock("./useGitV2", () => ({
   }),
 }));
 
-// Mock useFileSystemV2
-vi.mock("@features/files/components/useFileSystemV2", () => ({
-  useFileSystemV2: vi.fn((cwd: string) => {
+// Mock useFileSystemSubscription
+vi.mock("@features/files/components/useFileSystemSubscription", () => ({
+  useFileSystemSubscription: vi.fn((cwd: string) => {
     let api = mockFsInstances.get(cwd);
     if (!api) {
       api = createMockFsAPI(cwd);

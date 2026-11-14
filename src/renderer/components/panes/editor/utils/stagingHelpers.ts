@@ -1,5 +1,5 @@
 /**
- * Staging helpers for editor v2.
+ * Staging helpers for the editor.
  *
  * Utilities for handling git staging operations, including
  * filtering out files with unsaved changes.

@@ -6,73 +6,77 @@ import { mockFiles } from "../files";
 // Mocks - Using vi.hoisted for proper module hoisting
 // ============================================================================
 
-const { mockFsApi, MockFileSystemV2API, mockFsService, mockFsServiceInstance } =
-  vi.hoisted(() => {
-    const mockFsApi = {
-      onAnyFileContentChanged: vi.fn(() => vi.fn()),
-      onAnyFileDeleted: vi.fn(() => vi.fn()),
-      onAnyFileRenamed: vi.fn(() => vi.fn()),
-      release: vi.fn(),
-    };
+const {
+  mockFsApi,
+  MockFileSystemSubscription,
+  mockFsService,
+  mockFsServiceInstance,
+} = vi.hoisted(() => {
+  const mockFsApi = {
+    onAnyFileContentChanged: vi.fn(() => vi.fn()),
+    onAnyFileDeleted: vi.fn(() => vi.fn()),
+    onAnyFileRenamed: vi.fn(() => vi.fn()),
+    release: vi.fn(),
+  };
 
-    // Track API instances by cwd
-    const instances = new Map<string, any>();
+  // Track API instances by cwd
+  const instances = new Map<string, any>();
 
-    // Mock FileSystemV2API class
-    class MockAPI {
-      cwd: string;
-      constructor(cwd: string) {
-        this.cwd = cwd;
-        // Copy all mock methods
-        Object.assign(this, mockFsApi);
-      }
+  // Mock FileSystemSubscription class
+  class MockAPI {
+    cwd: string;
+    constructor(cwd: string) {
+      this.cwd = cwd;
+      // Copy all mock methods
+      Object.assign(this, mockFsApi);
     }
+  }
 
-    // Mock service instance
-    const serviceInstance = {
-      acquire: vi.fn((cwd: string) => {
-        let api = instances.get(cwd);
-        if (!api) {
-          api = new MockAPI(cwd);
-          instances.set(cwd, api);
-        }
-        return api;
-      }),
-      release: vi.fn(),
-      getRefCount: vi.fn(() => 0),
-      hasInstance: vi.fn((cwd: string) => instances.has(cwd)),
-      getStats: vi.fn(() => ({
-        instanceCount: instances.size,
-        totalRefCount: 0,
-      })),
-    };
+  // Mock service instance
+  const serviceInstance = {
+    acquire: vi.fn((cwd: string) => {
+      let api = instances.get(cwd);
+      if (!api) {
+        api = new MockAPI(cwd);
+        instances.set(cwd, api);
+      }
+      return api;
+    }),
+    release: vi.fn(),
+    getRefCount: vi.fn(() => 0),
+    hasInstance: vi.fn((cwd: string) => instances.has(cwd)),
+    getStats: vi.fn(() => ({
+      instanceCount: instances.size,
+      totalRefCount: 0,
+    })),
+  };
 
-    // Mock service class
-    const service = {
-      getInstance: vi.fn(() => serviceInstance),
-      resetInstance: vi.fn(() => {
-        instances.clear();
-      }),
-    };
+  // Mock service class
+  const service = {
+    getInstance: vi.fn(() => serviceInstance),
+    resetInstance: vi.fn(() => {
+      instances.clear();
+    }),
+  };
 
-    return {
-      mockFsApi,
-      MockFileSystemV2API: MockAPI,
-      mockFsService: service,
-      mockFsServiceInstance: serviceInstance,
-      getInstances: () => instances,
-      clearInstances: () => instances.clear(),
-    };
-  });
+  return {
+    mockFsApi,
+    MockFileSystemSubscription: MockAPI,
+    mockFsService: service,
+    mockFsServiceInstance: serviceInstance,
+    getInstances: () => instances,
+    clearInstances: () => instances.clear(),
+  };
+});
 
-// Mock FileSystemV2API using the full source path
-vi.mock("@features/files/client/FileSystemV2API", () => ({
-  FileSystemV2API: MockFileSystemV2API,
+// Mock FileSystemSubscription using the full source path
+vi.mock("@features/files/client/FileSystemSubscription", () => ({
+  FileSystemSubscription: MockFileSystemSubscription,
 }));
 
-// Mock FileSystemV2APIService
-vi.mock("@features/files/client/FileSystemV2APIService", () => ({
-  FileSystemV2APIService: mockFsService,
+// Mock FileSystemSubscriptionPool
+vi.mock("@features/files/client/FileSystemSubscriptionPool", () => ({
+  FileSystemSubscriptionPool: mockFsService,
 }));
 
 // Access the mock helpers from our global monaco mock

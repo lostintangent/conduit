@@ -27,7 +27,7 @@ import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { GitBranch, ChevronDown, Check, Plus } from "lucide-react";
 import { gitMutations } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { cn } from "@/utils";
 import {
   DropdownMenu,
@@ -42,7 +42,7 @@ import { useCreateBranch } from "./hooks/useCreateBranch";
 
 export interface BranchSwitcherProps {
   /** Git API instance (shared from parent) */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Current branch name */
   currentBranch: string | null;

@@ -9,7 +9,7 @@ import {
   type GitStatus,
   UNSTAGED_KEY_SUFFIX,
 } from "../model";
-import { cwdForGitSubscription, type GitV2API } from "./GitV2API";
+import { cwdForGitSubscription, type GitSubscription } from "./GitSubscription";
 
 type ChangedFiles = Map<string, GitFileStatus>;
 
@@ -46,7 +46,7 @@ export const gitKeys = {
 };
 
 /** Wait for the watcher before reading, so no change lands in between unseen. */
-function read<T>(git: GitV2API, fetch: (cwd: string) => Promise<T>) {
+function read<T>(git: GitSubscription, fetch: (cwd: string) => Promise<T>) {
   return async () => {
     await git.whenReady();
     return fetch(git.cwd);
@@ -58,7 +58,7 @@ function read<T>(git: GitV2API, fetch: (cwd: string) => Promise<T>) {
  * written. Anything older is shown but re-read on mount, since changes made
  * while nothing was watching never reached it.
  */
-function whileWatched(git: GitV2API) {
+function whileWatched(git: GitSubscription) {
   return (query: { state: { dataUpdatedAt: number } }) => {
     const since = git.watchedSince;
     return since !== null && query.state.dataUpdatedAt >= since ? Infinity : 0;
@@ -74,14 +74,14 @@ export const gitQueries = {
   }),
 
   /** HEAD status, or null outside a repository. */
-  status: (git: GitV2API) =>
+  status: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.status(git.cwd),
       queryFn: read(git, (cwd) => window.conduit.git.getStatus(cwd)),
       staleTime: whileWatched(git),
     }),
 
-  currentBranch: (git: GitV2API) =>
+  currentBranch: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.currentBranch(git.cwd),
       queryFn: read(git, (cwd) => window.conduit.git.getCurrentBranch(cwd)),
@@ -92,7 +92,7 @@ export const gitQueries = {
    * Creating or deleting a branch doesn't fire an event, so this is re-read
    * whenever a picker mounts, showing the last list meanwhile.
    */
-  branches: (git: GitV2API) =>
+  branches: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.branches(git.cwd),
       queryFn: read(git, (cwd) => window.conduit.git.getBranches(cwd)),
@@ -102,7 +102,7 @@ export const gitQueries = {
    * Re-read on every mount when it's null, since findRoot can fail while the
    * git provider is still starting.
    */
-  root: (git: GitV2API) =>
+  root: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.root(git.cwd),
       queryFn: read(git, (cwd) => window.conduit.git.findRoot(cwd)),
@@ -110,7 +110,7 @@ export const gitQueries = {
     }),
 
   /** Aggregate lines added and removed. File edits invalidate it too. */
-  diffStats: (git: GitV2API) =>
+  diffStats: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.diffStats(git.cwd),
       queryFn: read(git, (cwd) =>
@@ -120,7 +120,7 @@ export const gitQueries = {
     }),
 
   /** Lines added and removed per file, split by staged and unstaged. */
-  perFileDiffStats: (git: GitV2API) =>
+  perFileDiffStats: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.perFileDiffStats(git.cwd),
       queryFn: read(git, (cwd) => window.conduit.git.getPerFileDiffStats(cwd)),
@@ -128,7 +128,7 @@ export const gitQueries = {
     }),
 
   /** Status relative to a base branch, overlaid with working tree changes. */
-  statusFromBranch: (git: GitV2API, baseBranch: string) =>
+  statusFromBranch: (git: GitSubscription, baseBranch: string) =>
     queryOptions({
       queryKey: gitKeys.statusFromBranch(git.cwd, baseBranch),
       queryFn: read(git, (cwd) =>
@@ -141,7 +141,7 @@ export const gitQueries = {
    * The changed files to list: HEAD's, or the comparison against baseBranch.
    * Reads the same cache entries as status and statusFromBranch.
    */
-  changedFiles: (git: GitV2API, baseBranch: string | null) =>
+  changedFiles: (git: GitSubscription, baseBranch: string | null) =>
     queryOptions<GitStatus | ChangedFiles | null, Error, ChangedFiles | null>({
       ...(baseBranch === null
         ? gitQueries.status(git)
@@ -154,7 +154,7 @@ export const gitQueries = {
    * changes invalidate it. Refs that move without any of those, like a base
    * branch fetched, fire nothing, so it's also re-read on mount.
    */
-  commitHistory: (git: GitV2API) =>
+  commitHistory: (git: GitSubscription) =>
     infiniteQueryOptions({
       queryKey: gitKeys.commitHistory(git.cwd),
       queryFn: ({ pageParam }) =>
@@ -172,21 +172,21 @@ export const gitQueries = {
     }),
 
   /** The refs the commit graph colors by. Invalidated with commitHistory. */
-  trackedBranches: (git: GitV2API) =>
+  trackedBranches: (git: GitSubscription) =>
     queryOptions({
       queryKey: gitKeys.trackedBranches(git.cwd),
       queryFn: read(git, (cwd) => window.conduit.git.getTrackedBranches(cwd)),
     }),
 
   /** A commit, re-read on mount since the refs pointing at it can move. */
-  commit: (git: GitV2API, commitId: string) =>
+  commit: (git: GitSubscription, commitId: string) =>
     queryOptions({
       queryKey: gitKeys.commit(git.cwd, commitId),
       queryFn: () => window.conduit.git.getCommit(git.cwd, commitId),
     }),
 
   /** The files a commit changed, which never change. */
-  commitFiles: (git: GitV2API, commitId: string) =>
+  commitFiles: (git: GitSubscription, commitId: string) =>
     queryOptions({
       queryKey: gitKeys.commitFiles(git.cwd, commitId),
       queryFn: () => window.conduit.git.getCommitFiles(git.cwd, commitId),
@@ -201,7 +201,7 @@ export const gitQueries = {
    * that isn't HEAD's, say), so it's also re-read on every mount and dropped
    * when unused.
    */
-  fileAtRef: (git: GitV2API, filePath: string, ref: string) =>
+  fileAtRef: (git: GitSubscription, filePath: string, ref: string) =>
     queryOptions({
       queryKey: gitKeys.fileAtRef(git.cwd, ref, filePath),
       queryFn: read(git, (cwd) =>
@@ -235,7 +235,7 @@ function write(cwd: string, name: string, scope = `git:${cwd}`) {
  * share a scope. Push only sends commits, so it has its own, and a slow remote
  * doesn't hold up staging.
  *
- * They call git by cwd rather than through a pane's GitV2API, which is
+ * They call git by cwd rather than through a pane's GitSubscription, which is
  * released after its pane closes, so a write queued behind a slow one still
  * lands. The watcher's next event updates the cache, so they don't on success.
  */
@@ -402,7 +402,7 @@ const mayBeFile = (filePath: string, file: string) =>
 /**
  * Write git watcher events into the cache. Call once at startup: a single
  * listener per event routes each one by its subscription id to the cwd
- * GitV2API subscribed with.
+ * GitSubscription subscribed with.
  */
 export function installGitQueryBridge(queryClient: QueryClient): () => void {
   // A push, pull or publish changes these, and the commit graph shows them.

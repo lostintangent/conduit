@@ -42,7 +42,7 @@
  * ```
  */
 
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { cn } from "@/utils";
 import { memo, useCallback, useState } from "react";
 import { CommitGraphHeader } from "./CommitGraphHeader";
@@ -61,7 +61,7 @@ import type {
 
 export interface CommitGraphPanelProps {
   /** Git API instance for fetching data */
-  git: GitV2API;
+  git: GitSubscription;
 
   /**
    * Current HEAD commit ID.

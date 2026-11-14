@@ -1,8 +1,7 @@
 /**
- * Editor v2 - Main entry point.
+ * Editor - Main entry point.
  *
- * This module provides the Editor v2 system, a complete rewrite of the
- * editor pane with improved architecture:
+ * This module provides the editor pane:
  *
  * - Global registries for editor/model management
  * - React hooks for state integration

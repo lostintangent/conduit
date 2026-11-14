@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { gitMutations, gitQueries } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import {
   useScrollPersistence,
   useFileTreeChangesContextMenu,
@@ -76,7 +76,7 @@ export interface FileTreeChangesProps {
   /** Working directory */
   cwd: string;
   /** Git API instance (shared from parent) */
-  git: GitV2API;
+  git: GitSubscription;
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
   /**

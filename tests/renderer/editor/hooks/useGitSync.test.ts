@@ -7,7 +7,7 @@ vi.mock("@/store/actions/notifications", () => ({
 }));
 
 import { gitMutations } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useGitSync } from "@/components/panes/editor/hooks/useGitSync";
 import { getFriendlyGitError } from "@/components/panes/editor/utils/gitErrorMessages";
 import { enqueueNotification } from "@/store/actions/notifications";
@@ -41,7 +41,7 @@ function hang() {
 
 // useGitSync, beside a commit and a stage made elsewhere in the same cwd
 function renderSync(git: ReturnType<typeof createGit>) {
-  const api = git as unknown as GitV2API;
+  const api = git as unknown as GitSubscription;
   return renderHook(() => ({
     sync: useGitSync(api),
     commit: useMutation(gitMutations.commit(git.cwd)).mutate,

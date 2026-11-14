@@ -4,7 +4,7 @@
  * Encapsulates the state and logic for creating a new branch from
  * within a dropdown or other UI component. Handles:
  * - Input state management
- * - Branch creation via GitV2API
+ * - Branch creation via GitSubscription
  * - Keyboard handling (Enter to create, Escape to cancel)
  * - Auto-focus and state reset
  *
@@ -32,7 +32,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { gitMutations } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 
 export interface UseCreateBranchOptions {
   /** Whether the parent container (e.g., dropdown) is open */
@@ -82,7 +82,7 @@ export interface UseCreateBranchResult {
  * Hook for managing branch creation state and logic.
  */
 export function useCreateBranch(
-  git: GitV2API,
+  git: GitSubscription,
   options: UseCreateBranchOptions,
 ): UseCreateBranchResult {
   const { isOpen, onBranchCreated } = options;

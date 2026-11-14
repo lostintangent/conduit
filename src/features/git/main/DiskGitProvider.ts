@@ -256,7 +256,8 @@ export class DiskGitProvider {
   /**
    * Trigger a status refresh.
    *
-   * This is called when working directory files change (detected by FileSystemV2).
+   * This is called when working directory files change (detected by the files
+   * feature's watcher).
    * Uses the same debouncing as internal .git directory changes.
    */
   triggerStatusRefresh(): void {

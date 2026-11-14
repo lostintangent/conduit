@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // Mocks
 // ============================================================================
 
-const { MockGitV2API } = vi.hoisted(() => {
+const { MockGitSubscription } = vi.hoisted(() => {
   // Create a mock class that tracks instances
   class MockAPI {
     readonly cwd: string;
@@ -37,35 +37,35 @@ const { MockGitV2API } = vi.hoisted(() => {
   }
 
   return {
-    MockGitV2API: MockAPI,
+    MockGitSubscription: MockAPI,
   };
 });
 
-// Mock the GitV2API class
-vi.mock("./GitV2API", () => ({
-  GitV2API: MockGitV2API,
+// Mock the GitSubscription class
+vi.mock("./GitSubscription", () => ({
+  GitSubscription: MockGitSubscription,
 }));
 
 // Import after mocks are set up
-import { GitV2APIService } from "./GitV2APIService";
+import { GitSubscriptionPool } from "./GitSubscriptionPool";
 
 const isReleased = (api: unknown) =>
-  (api as InstanceType<typeof MockGitV2API>).isReleased;
+  (api as InstanceType<typeof MockGitSubscription>).isReleased;
 const isSuspended = (api: unknown) =>
-  (api as InstanceType<typeof MockGitV2API>).isSuspended;
+  (api as InstanceType<typeof MockGitSubscription>).isSuspended;
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-describe("GitV2APIService", () => {
+describe("GitSubscriptionPool", () => {
   beforeEach(() => {
-    GitV2APIService.resetInstance();
+    GitSubscriptionPool.resetInstance();
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    GitV2APIService.resetInstance();
+    GitSubscriptionPool.resetInstance();
     vi.useRealTimers();
   });
 
@@ -75,16 +75,16 @@ describe("GitV2APIService", () => {
 
   describe("singleton", () => {
     it("should return the same instance on multiple calls", () => {
-      const instance1 = GitV2APIService.getInstance();
-      const instance2 = GitV2APIService.getInstance();
+      const instance1 = GitSubscriptionPool.getInstance();
+      const instance2 = GitSubscriptionPool.getInstance();
 
       expect(instance1).toBe(instance2);
     });
 
     it("should create new instance after reset", () => {
-      const instance1 = GitV2APIService.getInstance();
-      GitV2APIService.resetInstance();
-      const instance2 = GitV2APIService.getInstance();
+      const instance1 = GitSubscriptionPool.getInstance();
+      GitSubscriptionPool.resetInstance();
+      const instance2 = GitSubscriptionPool.getInstance();
 
       expect(instance1).not.toBe(instance2);
     });
@@ -96,7 +96,7 @@ describe("GitV2APIService", () => {
 
   describe("acquire", () => {
     it("should create a new API instance for a cwd", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       expect(api).toBeDefined();
@@ -104,7 +104,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should return the same instance for the same cwd", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
       const api1 = service.acquire("/test/project");
       const api2 = service.acquire("/test/project");
 
@@ -112,7 +112,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should return different instances for different cwds", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
       const api1 = service.acquire("/project/a");
       const api2 = service.acquire("/project/b");
 
@@ -122,7 +122,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should increment refCount on each acquire", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       service.acquire("/test/project");
       expect(service.getRefCount("/test/project")).toBe(1);
@@ -135,7 +135,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should cancel a pending suspension when re-acquired", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       // Release to start the suspension timer
@@ -156,7 +156,7 @@ describe("GitV2APIService", () => {
 
   describe("release", () => {
     it("should decrement refCount on release", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       service.acquire("/test/project");
       service.acquire("/test/project");
@@ -170,7 +170,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should handle release of non-existent cwd gracefully", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       // Should not throw
       expect(() => {
@@ -179,7 +179,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should suspend the instance once it's gone unheld for the grace period", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
@@ -197,7 +197,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should not suspend the instance if re-acquired during grace period", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
@@ -221,7 +221,7 @@ describe("GitV2APIService", () => {
 
   describe("path normalization", () => {
     it("should normalize paths with trailing slashes", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/test/project/");
       const api2 = service.acquire("/test/project");
@@ -230,7 +230,7 @@ describe("GitV2APIService", () => {
     });
 
     it("should normalize paths with multiple trailing slashes", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/test/project///");
       const api2 = service.acquire("/test/project");
@@ -245,25 +245,25 @@ describe("GitV2APIService", () => {
 
   describe("resetInstance", () => {
     it("should dispose all instances on reset", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/project/a");
       const api2 = service.acquire("/project/b");
 
-      GitV2APIService.resetInstance();
+      GitSubscriptionPool.resetInstance();
 
       expect(isReleased(api1)).toBe(true);
       expect(isReleased(api2)).toBe(true);
     });
 
     it("should clear all pending suspensions on reset", () => {
-      const service = GitV2APIService.getInstance();
+      const service = GitSubscriptionPool.getInstance();
 
       const api = service.acquire("/test/project");
       service.release("/test/project");
 
       // Reset before it suspends
-      GitV2APIService.resetInstance();
+      GitSubscriptionPool.resetInstance();
 
       // Fast forward past grace period
       vi.advanceTimersByTime(10000);

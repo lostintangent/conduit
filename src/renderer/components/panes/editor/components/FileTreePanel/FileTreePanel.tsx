@@ -24,8 +24,8 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { FileSystemSubscription } from "@features/files/client/FileSystemSubscription";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { cn } from "@/utils";
 import { forwardRef, memo } from "react";
 import { useGitSync, usePanelHeight } from "../../hooks";
@@ -55,10 +55,10 @@ export interface FileTreePanelProps {
   cwd: string;
 
   /** FileSystem API instance (shared from parent) */
-  fs: FileSystemV2API;
+  fs: FileSystemSubscription;
 
   /** Git API instance (shared from parent) */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;

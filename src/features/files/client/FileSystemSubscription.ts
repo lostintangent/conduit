@@ -3,7 +3,7 @@
  * as it's created, which keeps the cwd's watcher running and its events
  * flowing until it's suspended or released.
  *
- * Instances for the same cwd are shared through `FileSystemV2APIService`.
+ * Instances for the same cwd are shared through `FileSystemSubscriptionPool`.
  * Reads and writes don't need one, and go to `window.conduit.files`.
  */
 
@@ -67,7 +67,7 @@ function notify<Args extends unknown[]>(
     try {
       listener(...args);
     } catch (error) {
-      console.error("[FileSystemV2API] Error in listener:", error);
+      console.error("[FileSystemSubscription] Error in listener:", error);
     }
   }
 }
@@ -129,7 +129,7 @@ function routeEvents(): void {
   );
 }
 
-export class FileSystemV2API {
+export class FileSystemSubscription {
   /** The working directory this API is scoped to */
   readonly cwd: string;
 
@@ -275,7 +275,7 @@ export class FileSystemV2API {
         routes.set(id, this.listeners);
       })
       .catch((error: unknown) => {
-        console.error("[FileSystemV2API] Failed to subscribe:", error);
+        console.error("[FileSystemSubscription] Failed to subscribe:", error);
       })
       .finally(() => {
         this.subscriptionPromise = null;
@@ -287,7 +287,9 @@ export class FileSystemV2API {
    */
   private ensureNotReleased(): void {
     if (this.released) {
-      throw new Error("FileSystemV2API has been released and cannot be used");
+      throw new Error(
+        "FileSystemSubscription has been released and cannot be used",
+      );
     }
   }
 }

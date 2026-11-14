@@ -1,5 +1,5 @@
 /**
- * Git status helpers for editor v2.
+ * Git status helpers for the editor.
  *
  * These utilities handle the complexity of partially staged files,
  * where the same file can appear twice in the git status map:

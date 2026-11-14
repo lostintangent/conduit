@@ -68,8 +68,8 @@
     },
     {
       "files": [
-        "src/features/files/client/FileSystemV2API.test.ts",
-        "src/features/git/client/GitV2API.test.ts"
+        "src/features/files/client/FileSystemSubscription.test.ts",
+        "src/features/git/client/GitSubscription.test.ts"
       ],
       "rules": {
         "no-restricted-syntax": "off"

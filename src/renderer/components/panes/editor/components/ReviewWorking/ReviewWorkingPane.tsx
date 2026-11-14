@@ -29,7 +29,7 @@
 
 import { gitMutations, gitQueries } from "@features/git/client/queries";
 import type { GitFileStatus } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -53,7 +53,7 @@ export interface ReviewWorkingPaneProps {
   cwd: string;
 
   /** Git API instance (shared from parent) */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Git ref for original content comparison (default: 'HEAD') */
   baseBranch?: string;

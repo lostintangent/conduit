@@ -1,7 +1,7 @@
 import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { gitMutations, gitQueries } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { getFriendlyGitError } from "../utils/gitErrorMessages";
 
 const notifyOnError = { errorMessage: getFriendlyGitError };
@@ -11,7 +11,7 @@ const notifyOnError = { errorMessage: getFriendlyGitError };
  * The tree's toolbar and the review header both show these, so they come from
  * the cwd's writes, not from either component.
  */
-export function useGitSync(git: GitV2API) {
+export function useGitSync(git: GitSubscription) {
   const { data: status } = useQuery(gitQueries.status(git));
   // Until status loads, assume there's an upstream so Publish doesn't flash
   const hasUpstream = status ? !!status.upstream : true;

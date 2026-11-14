@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
 import type { TrackedBranchInfo } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import type { CommitGraphNode } from "../components/CommitGraph/types";
 import { computeSwimlanes } from "../components/CommitGraph/graph/swimlanes";
 
@@ -82,7 +82,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export function useCommitGraph(
-  git: GitV2API,
+  git: GitSubscription,
   { headCommitId: providedHeadCommitId }: UseCommitGraphOptions = {},
 ): UseCommitGraphResult {
   const history = useInfiniteQuery(gitQueries.commitHistory(git));

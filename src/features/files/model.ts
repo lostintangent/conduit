@@ -1,5 +1,5 @@
 /**
- * FileSystem Provider v2 - Core Type Definitions
+ * Files - Core Type Definitions
  *
  * This module defines the foundational types for the filesystem abstraction layer.
  * These types are used across the main process (providers), IPC layer, and renderer.

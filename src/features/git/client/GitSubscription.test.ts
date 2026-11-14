@@ -32,7 +32,7 @@ const { mockGit, emit } = vi.hoisted(() => {
   return { mockGit: git, emit };
 });
 
-import { cwdForGitSubscription, GitV2API } from "./GitV2API";
+import { cwdForGitSubscription, GitSubscription } from "./GitSubscription";
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -50,7 +50,7 @@ function statusEvent(subscriptionId: string) {
 // Tests
 // ============================================================================
 
-describe("GitV2API", () => {
+describe("GitSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (globalThis as any).window.conduit = { git: mockGit };
@@ -64,7 +64,7 @@ describe("GitV2API", () => {
 
   describe("subscription", () => {
     it("subscribes for its cwd as it's created", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       await api.whenReady();
 
       expect(mockGit.subscribe).toHaveBeenCalledWith("/test/project");
@@ -80,8 +80,8 @@ describe("GitV2API", () => {
       mockGit.subscribe
         .mockResolvedValueOnce("sub-a")
         .mockResolvedValueOnce("sub-b");
-      const a = new GitV2API("/project/a");
-      const b = new GitV2API("/project/b");
+      const a = new GitSubscription("/project/a");
+      const b = new GitSubscription("/project/b");
       await Promise.all([a.whenReady(), b.whenReady()]);
 
       const callback = vi.fn();
@@ -99,7 +99,7 @@ describe("GitV2API", () => {
     });
 
     it("stops calling back after cleanup or release", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       await api.whenReady();
 
       const cleanedUp = vi.fn();
@@ -116,7 +116,7 @@ describe("GitV2API", () => {
 
     it("isolates a throwing callback from the channel's other listeners", async () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       await api.whenReady();
 
       const goodCallback = vi.fn();
@@ -136,7 +136,7 @@ describe("GitV2API", () => {
     it("subscribes without throwing outside a repository", async () => {
       mockGit.subscribe.mockResolvedValue(null);
 
-      const api = new GitV2API("/not/a/repo");
+      const api = new GitSubscription("/not/a/repo");
       api.onStatusChanged(vi.fn());
       await api.whenReady();
 
@@ -149,7 +149,7 @@ describe("GitV2API", () => {
 
   describe("release", () => {
     it("unsubscribes once, however often it's called", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       await api.whenReady();
 
       api.release();
@@ -163,11 +163,11 @@ describe("GitV2API", () => {
     });
 
     it("prevents further use", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       api.release();
 
       expect(() => api.onStatusChanged(vi.fn())).toThrow(
-        "GitV2API has been released",
+        "GitSubscription has been released",
       );
     });
 
@@ -180,7 +180,7 @@ describe("GitV2API", () => {
           }),
       );
 
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       api.release();
       expect(mockGit.unsubscribe).not.toHaveBeenCalled();
 
@@ -194,7 +194,7 @@ describe("GitV2API", () => {
 
   describe("suspend", () => {
     it("unsubscribes until it resumes, and keeps its listeners", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       const listener = vi.fn();
       api.onStatusChanged(listener);
       await api.whenReady();
@@ -220,7 +220,7 @@ describe("GitV2API", () => {
     });
 
     it("makes reads wait until it resumes, or is released", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       await api.whenReady();
       api.suspend();
 
@@ -250,7 +250,7 @@ describe("GitV2API", () => {
           }),
       );
 
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       api.suspend();
       resolveSubscription!("late-subscription-id");
       await settle();
@@ -264,7 +264,7 @@ describe("GitV2API", () => {
 
   describe("whenReady", () => {
     it("resolves without subscribing again once subscribed", async () => {
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       await settle();
 
       await expect(api.whenReady()).resolves.toBeUndefined();
@@ -282,7 +282,7 @@ describe("GitV2API", () => {
           }),
       );
 
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
       let ready = false;
       const readyPromise = api.whenReady().then(() => {
         ready = true;
@@ -302,7 +302,7 @@ describe("GitV2API", () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
       mockGit.subscribe.mockRejectedValue(new Error("IPC down"));
 
-      const api = new GitV2API("/test/project");
+      const api = new GitSubscription("/test/project");
 
       await expect(api.whenReady()).resolves.toBeUndefined();
       expect(api.watchedSince).toBeNull();

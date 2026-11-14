@@ -1,5 +1,5 @@
 /**
- * Editor v2 components barrel export.
+ * Editor components barrel export.
  *
  * Phase 3 components:
  * - EditorPane: Main editor orchestrator

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // Mocks
 // ============================================================================
 
-const { MockFileSystemV2API } = vi.hoisted(() => {
+const { MockFileSystemSubscription } = vi.hoisted(() => {
   // Create a mock class that tracks instances
   class MockAPI {
     readonly cwd: string;
@@ -37,35 +37,35 @@ const { MockFileSystemV2API } = vi.hoisted(() => {
   }
 
   return {
-    MockFileSystemV2API: MockAPI,
+    MockFileSystemSubscription: MockAPI,
   };
 });
 
-// Mock the FileSystemV2API class
-vi.mock("./FileSystemV2API", () => ({
-  FileSystemV2API: MockFileSystemV2API,
+// Mock the FileSystemSubscription class
+vi.mock("./FileSystemSubscription", () => ({
+  FileSystemSubscription: MockFileSystemSubscription,
 }));
 
 // Import after mocks are set up
-import { FileSystemV2APIService } from "./FileSystemV2APIService";
+import { FileSystemSubscriptionPool } from "./FileSystemSubscriptionPool";
 
 const isReleased = (api: unknown) =>
-  (api as InstanceType<typeof MockFileSystemV2API>).isReleased;
+  (api as InstanceType<typeof MockFileSystemSubscription>).isReleased;
 const isSuspended = (api: unknown) =>
-  (api as InstanceType<typeof MockFileSystemV2API>).isSuspended;
+  (api as InstanceType<typeof MockFileSystemSubscription>).isSuspended;
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-describe("FileSystemV2APIService", () => {
+describe("FileSystemSubscriptionPool", () => {
   beforeEach(() => {
-    FileSystemV2APIService.resetInstance();
+    FileSystemSubscriptionPool.resetInstance();
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    FileSystemV2APIService.resetInstance();
+    FileSystemSubscriptionPool.resetInstance();
     vi.useRealTimers();
   });
 
@@ -75,16 +75,16 @@ describe("FileSystemV2APIService", () => {
 
   describe("singleton", () => {
     it("should return the same instance on multiple calls", () => {
-      const instance1 = FileSystemV2APIService.getInstance();
-      const instance2 = FileSystemV2APIService.getInstance();
+      const instance1 = FileSystemSubscriptionPool.getInstance();
+      const instance2 = FileSystemSubscriptionPool.getInstance();
 
       expect(instance1).toBe(instance2);
     });
 
     it("should create new instance after reset", () => {
-      const instance1 = FileSystemV2APIService.getInstance();
-      FileSystemV2APIService.resetInstance();
-      const instance2 = FileSystemV2APIService.getInstance();
+      const instance1 = FileSystemSubscriptionPool.getInstance();
+      FileSystemSubscriptionPool.resetInstance();
+      const instance2 = FileSystemSubscriptionPool.getInstance();
 
       expect(instance1).not.toBe(instance2);
     });
@@ -96,7 +96,7 @@ describe("FileSystemV2APIService", () => {
 
   describe("acquire", () => {
     it("should create a new API instance for a cwd", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       expect(api).toBeDefined();
@@ -104,7 +104,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should return the same instance for the same cwd", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api1 = service.acquire("/test/project");
       const api2 = service.acquire("/test/project");
 
@@ -112,7 +112,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should return different instances for different cwds", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api1 = service.acquire("/project/a");
       const api2 = service.acquire("/project/b");
 
@@ -122,7 +122,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should increment refCount on each acquire", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       service.acquire("/test/project");
       expect(service.getRefCount("/test/project")).toBe(1);
@@ -135,7 +135,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should cancel a pending suspension when re-acquired", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       // Release to start the suspension timer
@@ -156,7 +156,7 @@ describe("FileSystemV2APIService", () => {
 
   describe("release", () => {
     it("should decrement refCount on release", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       service.acquire("/test/project");
       service.acquire("/test/project");
@@ -170,7 +170,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should handle release of non-existent cwd gracefully", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       // Should not throw
       expect(() => {
@@ -179,7 +179,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should suspend the instance once it's gone unheld for the grace period", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
@@ -197,7 +197,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should not suspend the instance if re-acquired during grace period", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
@@ -216,7 +216,7 @@ describe("FileSystemV2APIService", () => {
 
     it("should ignore extra releases so a later acquire keeps the instance", () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
@@ -232,7 +232,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should resume the same instance when acquired after it suspends", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
@@ -246,7 +246,7 @@ describe("FileSystemV2APIService", () => {
 
   describe("get", () => {
     it("should return the instance without holding it", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 
       expect(service.get("/test/project/")).toBe(api);
@@ -254,7 +254,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should suspend an instance it creates unless something acquires it", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
       const unheld = service.get("/project/a");
       const held = service.get("/project/b");
       service.acquire("/project/b");
@@ -272,7 +272,7 @@ describe("FileSystemV2APIService", () => {
 
   describe("path normalization", () => {
     it("should normalize paths with trailing slashes", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/test/project/");
       const api2 = service.acquire("/test/project");
@@ -281,7 +281,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should normalize paths with multiple trailing slashes", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/test/project///");
       const api2 = service.acquire("/test/project");
@@ -296,7 +296,7 @@ describe("FileSystemV2APIService", () => {
 
   describe("case sensitivity", () => {
     it("should treat paths with different casing as the same instance", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/Test/Project");
       const api2 = service.acquire("/test/project");
@@ -305,7 +305,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should share refCount across case variations", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       service.acquire("/Test/Project");
       expect(service.getRefCount("/test/project")).toBe(1);
@@ -315,7 +315,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should release correctly with different case", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       service.acquire("/Test/Project");
       service.acquire("/TEST/PROJECT");
@@ -326,7 +326,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should report hasInstance correctly with different case", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       service.acquire("/Test/Project");
 
@@ -336,7 +336,7 @@ describe("FileSystemV2APIService", () => {
     });
 
     it("should combine trailing slash and case normalization", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/Test/Project/");
       const api2 = service.acquire("/test/project");
@@ -351,25 +351,25 @@ describe("FileSystemV2APIService", () => {
 
   describe("resetInstance", () => {
     it("should dispose all instances on reset", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       const api1 = service.acquire("/project/a");
       const api2 = service.acquire("/project/b");
 
-      FileSystemV2APIService.resetInstance();
+      FileSystemSubscriptionPool.resetInstance();
 
       expect(isReleased(api1)).toBe(true);
       expect(isReleased(api2)).toBe(true);
     });
 
     it("should clear all pending suspensions on reset", () => {
-      const service = FileSystemV2APIService.getInstance();
+      const service = FileSystemSubscriptionPool.getInstance();
 
       const api = service.acquire("/test/project");
       service.release("/test/project");
 
       // Reset before it suspends
-      FileSystemV2APIService.resetInstance();
+      FileSystemSubscriptionPool.resetInstance();
 
       // Fast forward past grace period
       vi.advanceTimersByTime(10000);

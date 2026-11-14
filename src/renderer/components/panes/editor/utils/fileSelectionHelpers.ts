@@ -1,5 +1,5 @@
 /**
- * File selection helpers for editor v2.
+ * File selection helpers for the editor.
  *
  * Provides utilities for selecting the next available file when the
  * current file is no longer available (deleted, reverted, etc.).

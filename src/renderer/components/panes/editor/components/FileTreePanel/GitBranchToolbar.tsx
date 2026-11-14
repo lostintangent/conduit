@@ -61,7 +61,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { GitFileStatus } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { GitStatusSummary } from "./GitStatusSummary";
 import { BranchSwitcher } from "./BranchSwitcher";
 
@@ -76,7 +76,7 @@ export interface GitBranchToolbarProps {
   baseBranch: string | null;
 
   /** Git API instance for branch switching */
-  git?: GitV2API;
+  git?: GitSubscription;
 
   /** Whether to show only changed files */
   showOnlyChangedFiles: boolean;

@@ -41,8 +41,8 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { gitKeys, gitQueries } from "@features/git/client/queries";
-import type { GitV2API } from "@features/git/client/GitV2API";
-import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
+import type { FileSystemSubscription } from "@features/files/client/FileSystemSubscription";
 import { useFileEditsSettled } from "@features/files/components/useFileEditsSettled";
 import type { FileDiffStat } from "@features/git/model";
 
@@ -88,9 +88,9 @@ const FileDiffStatsContext = createContext<FileDiffStatsContextValue | null>(
 
 export interface FileDiffStatsProviderProps {
   /** Git API instance for fetching diff stats */
-  git: GitV2API;
+  git: GitSubscription;
   /** FileSystem API instance for subscribing to file content changes */
-  fs: FileSystemV2API;
+  fs: FileSystemSubscription;
   /** Children to render */
   children: ReactNode;
 }

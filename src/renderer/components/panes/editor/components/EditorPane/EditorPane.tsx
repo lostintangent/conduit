@@ -28,7 +28,7 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import * as monaco from "monaco-editor";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -82,7 +82,7 @@ export interface EditorPaneProps {
   cwd: string;
 
   /** Git API instance (shared from parent) */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;

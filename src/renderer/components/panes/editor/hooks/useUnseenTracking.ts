@@ -40,8 +40,8 @@
  * ```
  */
 
-import type { GitV2API } from "@features/git/client/GitV2API";
-import { FileSystemV2APIService } from "@features/files/client/FileSystemV2APIService";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
+import { FileSystemSubscriptionPool } from "@features/files/client/FileSystemSubscriptionPool";
 import { normalizePathForKey } from "@/utils/pathUtils";
 import { useEffect, useRef } from "react";
 import {
@@ -52,7 +52,7 @@ import {
 
 export interface UseUnseenTrackingOptions {
   /** Git API instance */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Working directory (absolute path) */
   cwd: string;
@@ -210,12 +210,13 @@ export function useUnseenTracking({
   useEffect(() => {
     if (!enabled || !cwd) return;
 
-    let fsApi: ReturnType<typeof FileSystemV2APIService.getInstance> | null =
-      null;
+    let fsApi: ReturnType<
+      typeof FileSystemSubscriptionPool.getInstance
+    > | null = null;
     let cleanup: (() => void) | null = null;
 
     try {
-      fsApi = FileSystemV2APIService.getInstance();
+      fsApi = FileSystemSubscriptionPool.getInstance();
       const api = fsApi.acquire(cwd);
 
       // Subscribe to all file content changes in this cwd
@@ -257,7 +258,7 @@ export function useUnseenTracking({
         }
       });
     } catch {
-      // FileSystemV2API not available (e.g., in test environment)
+      // FileSystemSubscription not available (e.g., in test environment)
     }
 
     return () => {

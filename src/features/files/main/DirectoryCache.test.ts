@@ -62,13 +62,13 @@ describe("DirectoryCache", () => {
     it("should increment version on each set", async () => {
       const cache = await getCleanCache();
 
-      cache.set("/project", [fileEntry("v1")]);
+      cache.set("/project", [fileEntry("a")]);
       expect(cache.get("/project")?.version).toBe(1);
 
-      cache.set("/project", [fileEntry("v2")]);
+      cache.set("/project", [fileEntry("b")]);
       expect(cache.get("/project")?.version).toBe(2);
 
-      cache.set("/project", [fileEntry("v3")]);
+      cache.set("/project", [fileEntry("c")]);
       expect(cache.get("/project")?.version).toBe(3);
     });
 

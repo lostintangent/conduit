@@ -9,7 +9,7 @@
  * - The graph shows how branches diverge and merge
  *
  * Key type categories:
- * - Commit types: Re-exported from GitV2API (canonical source)
+ * - Commit types: Re-exported from GitSubscription (canonical source)
  * - Graph types: Computed visualization data
  * - Render types: SVG rendering instructions
  * - State types: Component state management

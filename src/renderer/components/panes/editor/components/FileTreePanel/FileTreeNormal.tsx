@@ -3,7 +3,7 @@
  *
  * Displays the file system hierarchy with:
  * - Lazy loading of directory contents (load when expanded)
- * - Real-time updates via FileSystemV2 events
+ * - Real-time updates via FileSystemSubscription events
  * - Git status badges from the parent's status map
  * - Keyboard navigation support
  *
@@ -18,7 +18,7 @@
  * ```
  */
 
-import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
+import type { FileSystemSubscription } from "@features/files/client/FileSystemSubscription";
 import { useSettings } from "@features/settings/client/queries";
 import { cn } from "@/utils";
 import { FileText, Folder } from "lucide-react";
@@ -62,7 +62,7 @@ export interface FileTreeNormalProps {
   cwd: string;
 
   /** FileSystem API instance (shared from parent) */
-  fs: FileSystemV2API;
+  fs: FileSystemSubscription;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;

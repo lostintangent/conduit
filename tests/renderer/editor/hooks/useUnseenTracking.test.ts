@@ -13,8 +13,8 @@ import {
 // Mock filesystem API with capturable callbacks
 let fileContentChangedCallback: ((path: string) => void) | null = null;
 
-vi.mock("@features/files/client/FileSystemV2APIService", () => ({
-  FileSystemV2APIService: {
+vi.mock("@features/files/client/FileSystemSubscriptionPool", () => ({
+  FileSystemSubscriptionPool: {
     getInstance: () => ({
       acquire: () => ({
         onAnyFileContentChanged: (callback: (path: string) => void) => {

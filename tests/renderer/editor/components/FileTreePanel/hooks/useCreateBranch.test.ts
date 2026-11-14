@@ -10,7 +10,7 @@ import { act, waitFor } from "@testing-library/react";
 import { mockGitWrites } from "../../../../git";
 import { renderHook } from "../../../../queryRender";
 import { useCreateBranch } from "@/components/panes/editor/components/FileTreePanel/hooks/useCreateBranch";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 
 // ============================================================================
 // Mock Git API
@@ -18,8 +18,8 @@ import type { GitV2API } from "@features/git/client/GitV2API";
 
 const CWD = "/repo";
 
-function createMockGitAPI(): GitV2API {
-  return { cwd: CWD } as GitV2API;
+function createMockGitAPI(): GitSubscription {
+  return { cwd: CWD } as GitSubscription;
 }
 
 // ============================================================================

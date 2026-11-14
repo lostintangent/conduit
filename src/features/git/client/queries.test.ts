@@ -36,7 +36,7 @@ const { mockGit, emit } = vi.hoisted(() => {
 });
 
 import { UNSTAGED_KEY_SUFFIX } from "../model";
-import { GitV2API } from "./GitV2API";
+import { GitSubscription } from "./GitSubscription";
 import {
   gitKeys,
   gitMutations,
@@ -75,9 +75,9 @@ const statusEvent = (
   removed: [] as string[],
 });
 
-const created: GitV2API[] = [];
+const created: GitSubscription[] = [];
 async function watch(cwd: string) {
-  const git = new GitV2API(cwd);
+  const git = new GitSubscription(cwd);
   created.push(git);
   await git.whenReady();
   return git;
@@ -108,7 +108,7 @@ beforeEach(() => {
 });
 
 /** Observe the commit graph's queries, resolving once both have loaded. */
-async function observeHistory(queryClient: QueryClient, git: GitV2API) {
+async function observeHistory(queryClient: QueryClient, git: GitSubscription) {
   const observers = [
     new InfiniteQueryObserver(queryClient, gitQueries.commitHistory(git)),
     new QueryObserver(queryClient, gitQueries.trackedBranches(git)),
@@ -129,7 +129,7 @@ async function observeHistory(queryClient: QueryClient, git: GitV2API) {
  */
 async function observeFileSides(
   queryClient: QueryClient,
-  git: GitV2API,
+  git: GitSubscription,
   sides: [ref: string, filePath: string][],
 ) {
   const version = { current: 1 };
@@ -359,7 +359,7 @@ describe("gitQueries", () => {
       new Promise((resolve) => (subscribed = resolve)),
     );
     const queryClient = createQueryClient();
-    const git = new GitV2API("/repo/b");
+    const git = new GitSubscription("/repo/b");
     created.push(git);
 
     const status = queryClient.fetchQuery(gitQueries.status(git));

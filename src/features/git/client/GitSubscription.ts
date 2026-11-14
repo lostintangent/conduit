@@ -21,7 +21,7 @@ export function cwdForGitSubscription(
   return subscriptionCwds.get(subscriptionId);
 }
 
-export class GitV2API {
+export class GitSubscription {
   readonly cwd: string;
 
   private subscriptionId: string | null = null;
@@ -74,7 +74,7 @@ export class GitV2API {
       try {
         callback(event);
       } catch (error) {
-        console.error("[GitV2API] Error in status listener:", error);
+        console.error("[GitSubscription] Error in status listener:", error);
       }
     });
   }
@@ -157,7 +157,7 @@ export class GitV2API {
         this._watchedSince = Date.now();
         subscriptionCwds.set(subscriptionId, this.cwd);
       } catch (error) {
-        console.error("[GitV2API] Failed to subscribe:", error);
+        console.error("[GitSubscription] Failed to subscribe:", error);
       } finally {
         this.subscriptionPromise = null;
       }
@@ -166,7 +166,7 @@ export class GitV2API {
 
   private ensureNotReleased(): void {
     if (this.released) {
-      throw new Error("GitV2API has been released and cannot be used");
+      throw new Error("GitSubscription has been released and cannot be used");
     }
   }
 }

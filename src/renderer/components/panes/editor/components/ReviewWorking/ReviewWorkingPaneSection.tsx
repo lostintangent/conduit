@@ -26,7 +26,7 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
@@ -65,7 +65,7 @@ export interface ReviewWorkingPaneSectionProps {
   cwd: string;
 
   /** Git API instance */
-  git: GitV2API;
+  git: GitSubscription;
 
   /** Git ref for diff comparison */
   baseBranch?: string;

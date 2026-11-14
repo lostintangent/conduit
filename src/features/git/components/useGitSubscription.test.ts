@@ -6,111 +6,113 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { MockGitV2API, mockService, mockServiceInstance } = vi.hoisted(() => {
-  // Track API instances for verification
-  const instances = new Map<
-    string,
-    { cwd: string; released: boolean; refCount: number }
-  >();
+const { MockGitSubscription, mockService, mockServiceInstance } = vi.hoisted(
+  () => {
+    // Track API instances for verification
+    const instances = new Map<
+      string,
+      { cwd: string; released: boolean; refCount: number }
+    >();
 
-  // Create a mock class that tracks instances
-  class MockAPI {
-    readonly cwd: string;
-    private _released = false;
+    // Create a mock class that tracks instances
+    class MockAPI {
+      readonly cwd: string;
+      private _released = false;
 
-    constructor(cwd: string) {
-      this.cwd = cwd;
-    }
+      constructor(cwd: string) {
+        this.cwd = cwd;
+      }
 
-    release(): void {
-      if (this._released) return;
-      this._released = true;
-      const entry = instances.get(this.cwd);
-      if (entry) {
-        entry.released = true;
+      release(): void {
+        if (this._released) return;
+        this._released = true;
+        const entry = instances.get(this.cwd);
+        if (entry) {
+          entry.released = true;
+        }
+      }
+
+      get isReleased(): boolean {
+        return this._released;
       }
     }
 
-    get isReleased(): boolean {
-      return this._released;
-    }
-  }
+    // Mock service instance
+    const serviceInstance = {
+      get: vi.fn((cwd: string) => {
+        let entry = instances.get(cwd);
+        if (!entry) {
+          const api = new MockAPI(cwd);
+          entry = { cwd, released: false, refCount: 0 };
+          instances.set(cwd, entry);
+          (entry as any).api = api;
+        }
+        return (entry as any).api;
+      }),
+      acquire: vi.fn((cwd: string) => {
+        const api = serviceInstance.get(cwd);
+        instances.get(cwd)!.refCount++;
+        return api;
+      }),
+      release: vi.fn((cwd: string) => {
+        const entry = instances.get(cwd);
+        if (entry) {
+          entry.refCount--;
+        }
+      }),
+      getRefCount: vi.fn((cwd: string) => {
+        return instances.get(cwd)?.refCount ?? 0;
+      }),
+      hasInstance: vi.fn((cwd: string) => {
+        return instances.has(cwd);
+      }),
+      getStats: vi.fn(() => ({
+        instanceCount: instances.size,
+        totalRefCount: Array.from(instances.values()).reduce(
+          (sum, e) => sum + e.refCount,
+          0,
+        ),
+      })),
+    };
 
-  // Mock service instance
-  const serviceInstance = {
-    get: vi.fn((cwd: string) => {
-      let entry = instances.get(cwd);
-      if (!entry) {
-        const api = new MockAPI(cwd);
-        entry = { cwd, released: false, refCount: 0 };
-        instances.set(cwd, entry);
-        (entry as any).api = api;
-      }
-      return (entry as any).api;
-    }),
-    acquire: vi.fn((cwd: string) => {
-      const api = serviceInstance.get(cwd);
-      instances.get(cwd)!.refCount++;
-      return api;
-    }),
-    release: vi.fn((cwd: string) => {
-      const entry = instances.get(cwd);
-      if (entry) {
-        entry.refCount--;
-      }
-    }),
-    getRefCount: vi.fn((cwd: string) => {
-      return instances.get(cwd)?.refCount ?? 0;
-    }),
-    hasInstance: vi.fn((cwd: string) => {
-      return instances.has(cwd);
-    }),
-    getStats: vi.fn(() => ({
-      instanceCount: instances.size,
-      totalRefCount: Array.from(instances.values()).reduce(
-        (sum, e) => sum + e.refCount,
-        0,
-      ),
-    })),
-  };
+    // Mock service class
+    const service = {
+      getInstance: vi.fn(() => serviceInstance),
+      resetInstance: vi.fn(() => {
+        instances.clear();
+      }),
+    };
 
-  // Mock service class
-  const service = {
-    getInstance: vi.fn(() => serviceInstance),
-    resetInstance: vi.fn(() => {
-      instances.clear();
-    }),
-  };
+    return {
+      MockGitSubscription: MockAPI,
+      mockService: service,
+      mockServiceInstance: serviceInstance,
+      getInstances: () => instances,
+      clearInstances: () => {
+        instances.clear();
+      },
+    };
+  },
+);
 
-  return {
-    MockGitV2API: MockAPI,
-    mockService: service,
-    mockServiceInstance: serviceInstance,
-    getInstances: () => instances,
-    clearInstances: () => {
-      instances.clear();
-    },
-  };
-});
-
-// Mock the GitV2API class
-vi.mock("../client/GitV2API", () => ({
-  GitV2API: MockGitV2API,
+// Mock the GitSubscription class
+vi.mock("../client/GitSubscription", () => ({
+  GitSubscription: MockGitSubscription,
 }));
 
-// Mock the GitV2APIService
-vi.mock("../client/GitV2APIService", () => ({
-  GitV2APIService: mockService,
+// Mock the GitSubscriptionPool
+vi.mock("../client/GitSubscriptionPool", () => ({
+  GitSubscriptionPool: mockService,
 }));
 
 // Import after mocks are set up
-import { useGitV2 } from "./useGitV2";
+import { useGitSubscription } from "./useGitSubscription";
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-describe("useGitV2", () => {
+describe("useGitSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockService.resetInstance();
@@ -125,21 +127,23 @@ describe("useGitV2", () => {
   // ===========================================================================
 
   describe("basic functionality", () => {
-    it("should return a GitV2API instance", () => {
-      const { result } = renderHook(() => useGitV2("/test/project"));
+    it("should return a GitSubscription instance", () => {
+      const { result } = renderHook(() => useGitSubscription("/test/project"));
 
       expect(result.current).toBeDefined();
       expect(result.current.cwd).toBe("/test/project");
     });
 
     it("should acquire instance from service", () => {
-      renderHook(() => useGitV2("/test/project"));
+      renderHook(() => useGitSubscription("/test/project"));
 
       expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/test/project");
     });
 
     it("should return the same instance on re-renders with same cwd", () => {
-      const { result, rerender } = renderHook(() => useGitV2("/test/project"));
+      const { result, rerender } = renderHook(() =>
+        useGitSubscription("/test/project"),
+      );
 
       const firstInstance = result.current;
       rerender();
@@ -151,10 +155,10 @@ describe("useGitV2", () => {
     });
 
     it("should not be released initially", () => {
-      const { result } = renderHook(() => useGitV2("/test/project"));
+      const { result } = renderHook(() => useGitSubscription("/test/project"));
 
       expect(
-        (result.current as unknown as InstanceType<typeof MockGitV2API>)
+        (result.current as unknown as InstanceType<typeof MockGitSubscription>)
           .isReleased,
       ).toBe(false);
     });
@@ -166,9 +170,12 @@ describe("useGitV2", () => {
 
   describe("cwd changes", () => {
     it("should create new instance when cwd changes", () => {
-      const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
-        initialProps: { cwd: "/project/a" },
-      });
+      const { result, rerender } = renderHook(
+        ({ cwd }) => useGitSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/a" },
+        },
+      );
 
       const firstInstance = result.current;
       expect(firstInstance.cwd).toBe("/project/a");
@@ -181,7 +188,7 @@ describe("useGitV2", () => {
     });
 
     it("should release old cwd via service when cwd changes", () => {
-      const { rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
+      const { rerender } = renderHook(({ cwd }) => useGitSubscription(cwd), {
         initialProps: { cwd: "/project/a" },
       });
 
@@ -194,9 +201,12 @@ describe("useGitV2", () => {
     });
 
     it("should keep same instance when cwd stays the same", () => {
-      const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
-        initialProps: { cwd: "/project/a" },
-      });
+      const { result, rerender } = renderHook(
+        ({ cwd }) => useGitSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/a" },
+        },
+      );
 
       const firstInstance = result.current;
 
@@ -215,7 +225,7 @@ describe("useGitV2", () => {
 
   describe("unmount cleanup", () => {
     it("should release via service on unmount", () => {
-      const { unmount } = renderHook(() => useGitV2("/test/project"));
+      const { unmount } = renderHook(() => useGitSubscription("/test/project"));
 
       unmount();
 
@@ -223,9 +233,12 @@ describe("useGitV2", () => {
     });
 
     it("should handle multiple CWD changes then unmount", () => {
-      const { rerender, unmount } = renderHook(({ cwd }) => useGitV2(cwd), {
-        initialProps: { cwd: "/project/a" },
-      });
+      const { rerender, unmount } = renderHook(
+        ({ cwd }) => useGitSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/a" },
+        },
+      );
 
       rerender({ cwd: "/project/b" });
       rerender({ cwd: "/project/c" });
@@ -247,7 +260,7 @@ describe("useGitV2", () => {
 
   describe("edge cases", () => {
     it("should handle empty string cwd", () => {
-      const { result } = renderHook(() => useGitV2(""));
+      const { result } = renderHook(() => useGitSubscription(""));
 
       expect(result.current).toBeDefined();
       expect(result.current.cwd).toBe("");
@@ -255,7 +268,7 @@ describe("useGitV2", () => {
 
     it("should handle paths with special characters", () => {
       const { result } = renderHook(() =>
-        useGitV2("/path/with spaces/and-dashes/and_underscores"),
+        useGitSubscription("/path/with spaces/and-dashes/and_underscores"),
       );
 
       expect(result.current.cwd).toBe(
@@ -264,9 +277,12 @@ describe("useGitV2", () => {
     });
 
     it("should normalize paths with trailing slashes", () => {
-      const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
-        initialProps: { cwd: "/project/foo/" },
-      });
+      const { result, rerender } = renderHook(
+        ({ cwd }) => useGitSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/foo/" },
+        },
+      );
 
       const firstInstance = result.current;
 
@@ -280,9 +296,12 @@ describe("useGitV2", () => {
     });
 
     it("should normalize paths with multiple trailing slashes", () => {
-      const { result, rerender } = renderHook(({ cwd }) => useGitV2(cwd), {
-        initialProps: { cwd: "/project/foo///" },
-      });
+      const { result, rerender } = renderHook(
+        ({ cwd }) => useGitSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/foo///" },
+        },
+      );
 
       const firstInstance = result.current;
 
@@ -295,9 +314,12 @@ describe("useGitV2", () => {
     });
 
     it("should handle rapid CWD changes", () => {
-      const { rerender, unmount } = renderHook(({ cwd }) => useGitV2(cwd), {
-        initialProps: { cwd: "/project/1" },
-      });
+      const { rerender, unmount } = renderHook(
+        ({ cwd }) => useGitSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/1" },
+        },
+      );
 
       for (let i = 2; i <= 10; i++) {
         rerender({ cwd: `/project/${i}` });

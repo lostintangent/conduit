@@ -9,7 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
 import type { CommitFile, HistoryCommit } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 
 export interface CommitDetailsResult {
   /** The commit metadata (null while loading or on error) */
@@ -29,11 +29,11 @@ const NO_FILES: CommitFile[] = [];
 
 /**
  * @param commitId - The commit to read, or null to read nothing
- * @param git - GitV2API instance for the commit's repository
+ * @param git - GitSubscription instance for the commit's repository
  */
 export function useCommitDetails(
   commitId: string | null,
-  git: GitV2API,
+  git: GitSubscription,
 ): CommitDetailsResult {
   const enabled = commitId !== null;
   const commit = useQuery({

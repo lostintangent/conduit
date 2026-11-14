@@ -23,7 +23,7 @@
  */
 
 import { gitQueries } from "@features/git/client/queries";
-import { useGitV2 } from "@features/git/components/useGitV2";
+import { useGitSubscription } from "@features/git/components/useGitSubscription";
 import { useQuery } from "@tanstack/react-query";
 import {
   type ContentSource,
@@ -64,7 +64,7 @@ export function useGitContent(
   source: ContentSource,
   cwd: string,
 ): GitContentResult {
-  const git = useGitV2(cwd);
+  const git = useGitSubscription(cwd);
   const ref = isGitSource(source) ? contentSourceToGitRef(source) : null;
   const query = useQuery({
     ...gitQueries.fileAtRef(git, filePath ?? "", ref ?? ""),

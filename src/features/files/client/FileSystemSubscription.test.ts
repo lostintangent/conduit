@@ -39,7 +39,7 @@ const { files, listening, deliver } = vi.hoisted(() => {
 });
 
 // Import after mocks are set up
-import { FileSystemV2API } from "./FileSystemV2API";
+import { FileSystemSubscription } from "./FileSystemSubscription";
 
 /** Lets subscriptions the mocks resolve land. */
 const settle = () => new Promise((resolve) => setTimeout(resolve));
@@ -48,7 +48,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve));
 // Tests
 // ============================================================================
 
-describe("FileSystemV2API", () => {
+describe("FileSystemSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (globalThis as any).window.conduit = { files };
@@ -62,7 +62,7 @@ describe("FileSystemV2API", () => {
 
   describe("construction", () => {
     it("should create instance with cwd", () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       expect(api.cwd).toBe("/test/project");
       api.release();
     });
@@ -74,7 +74,7 @@ describe("FileSystemV2API", () => {
 
   describe("onDirectoryListingChanged", () => {
     it("calls back when its directory changes", async () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       const callback = vi.fn();
       api.onDirectoryListingChanged("/test/project/src", callback);
       await settle();
@@ -100,7 +100,7 @@ describe("FileSystemV2API", () => {
     });
 
     it("stops calling a callback after its cleanup, and keeps the path's other callbacks", async () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       const removed = vi.fn();
       const kept = vi.fn();
       const cleanup = api.onDirectoryListingChanged(
@@ -134,7 +134,7 @@ describe("FileSystemV2API", () => {
         renamed: vi.fn(),
       }));
       const apis = callbacks.map((callback, index) => {
-        const api = new FileSystemV2API(`/project-${index}`);
+        const api = new FileSystemSubscription(`/project-${index}`);
         api.onAnyFileContentChanged(callback.content);
         api.onAnyFileDeleted(callback.deleted);
         api.onAnyFileRenamed(callback.renamed);
@@ -177,7 +177,7 @@ describe("FileSystemV2API", () => {
 
   describe("release", () => {
     it("should unsubscribe from main process", async () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
 
       await settle();
 
@@ -187,7 +187,7 @@ describe("FileSystemV2API", () => {
     });
 
     it("should be idempotent", async () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
 
       await settle();
 
@@ -200,14 +200,14 @@ describe("FileSystemV2API", () => {
     });
 
     it("should refuse new listeners", () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       api.release();
 
       expect(() => api.onDirectoryListingChanged("/test", vi.fn())).toThrow(
-        "FileSystemV2API has been released",
+        "FileSystemSubscription has been released",
       );
       expect(() => api.onAnyFileContentChanged(vi.fn())).toThrow(
-        "FileSystemV2API has been released",
+        "FileSystemSubscription has been released",
       );
     });
 
@@ -221,7 +221,7 @@ describe("FileSystemV2API", () => {
           }),
       );
 
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
 
       // Release BEFORE the subscription completes - this is the race condition
       api.release();
@@ -242,7 +242,7 @@ describe("FileSystemV2API", () => {
 
   describe("suspend", () => {
     it("unsubscribes until it resumes, and keeps its listeners", async () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       const callback = vi.fn();
       api.onAnyFileContentChanged(callback);
       await settle();
@@ -280,7 +280,7 @@ describe("FileSystemV2API", () => {
           }),
       );
 
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       api.suspend();
       resolveSubscription!("late-subscription-id");
       await settle();
@@ -297,7 +297,7 @@ describe("FileSystemV2API", () => {
 
   describe("error handling", () => {
     it("should isolate listener errors", async () => {
-      const api = new FileSystemV2API("/test/project");
+      const api = new FileSystemSubscription("/test/project");
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});

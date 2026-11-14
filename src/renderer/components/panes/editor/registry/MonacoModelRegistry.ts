@@ -51,8 +51,8 @@
 
 import { EventEmitter } from "@shared/EventEmitter";
 import * as monaco from "monaco-editor";
-import { FileSystemV2API } from "@features/files/client/FileSystemV2API";
-import { FileSystemV2APIService } from "@features/files/client/FileSystemV2APIService";
+import { FileSystemSubscription } from "@features/files/client/FileSystemSubscription";
+import { FileSystemSubscriptionPool } from "@features/files/client/FileSystemSubscriptionPool";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { detectLanguage, pathsEqual } from "../utils";
@@ -161,7 +161,7 @@ export class MonacoModelRegistry {
   private isDisposing = false;
 
   /** FileSystem APIs by CWD (for file watching) */
-  private fsApis = new Map<string, FileSystemV2API>();
+  private fsApis = new Map<string, FileSystemSubscription>();
 
   /** Event emitter for model state changes */
   private readonly _onModelStateChanged = new EventEmitter<ModelStateEvent>();
@@ -232,7 +232,7 @@ export class MonacoModelRegistry {
    * - Sets up file system event subscriptions
    *
    * @param filePath - Absolute path to the file
-   * @param cwd - Working directory (for FileSystemV2API)
+   * @param cwd - Working directory (for FileSystemSubscription)
    * @returns The Monaco text model
    */
   async getOrCreateModel(
@@ -605,7 +605,7 @@ export class MonacoModelRegistry {
     // No models use this cwd anymore, release the fsApi
     const fsApi = this.fsApis.get(cwd);
     if (fsApi) {
-      FileSystemV2APIService.getInstance().release(cwd);
+      FileSystemSubscriptionPool.getInstance().release(cwd);
       this.fsApis.delete(cwd);
     }
   }
@@ -640,7 +640,7 @@ export class MonacoModelRegistry {
     }
 
     // Release all filesystem APIs via service
-    const fsService = FileSystemV2APIService.getInstance();
+    const fsService = FileSystemSubscriptionPool.getInstance();
     for (const cwd of this.fsApis.keys()) {
       fsService.release(cwd);
     }
@@ -823,7 +823,7 @@ export class MonacoModelRegistry {
     _uri: string,
     _filePath: string,
     entry: ModelEntry,
-    fsApi: FileSystemV2API,
+    fsApi: FileSystemSubscription,
   ): void {
     // Listen for file content changes
     // Derives URI from entry.filePath at call time to handle renames
@@ -1118,16 +1118,16 @@ export class MonacoModelRegistry {
   }
 
   /**
-   * Get or create a FileSystemV2API for a CWD.
+   * Get or create a FileSystemSubscription for a CWD.
    *
-   * Uses FileSystemV2APIService to share instances with other components
+   * Uses FileSystemSubscriptionPool to share instances with other components
    * using the same cwd, reducing duplicate IPC subscriptions.
    */
-  private getOrCreateFsApi(cwd: string): FileSystemV2API {
+  private getOrCreateFsApi(cwd: string): FileSystemSubscription {
     let fsApi = this.fsApis.get(cwd);
     if (!fsApi) {
       // Acquire from service (increments refCount)
-      fsApi = FileSystemV2APIService.getInstance().acquire(cwd);
+      fsApi = FileSystemSubscriptionPool.getInstance().acquire(cwd);
       this.fsApis.set(cwd, fsApi);
     }
     return fsApi;

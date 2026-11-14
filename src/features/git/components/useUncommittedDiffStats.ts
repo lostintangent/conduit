@@ -26,8 +26,8 @@
 import { gitKeys, gitQueries } from "../client/queries";
 import type { GitFileStatus } from "../model";
 import { useFileEditsSettled } from "@features/files/components/useFileEditsSettled";
-import { useFileSystemV2 } from "@features/files/components/useFileSystemV2";
-import { useGitV2 } from "./useGitV2";
+import { useFileSystemSubscription } from "@features/files/components/useFileSystemSubscription";
+import { useGitSubscription } from "./useGitSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface UncommittedDiffStats {
@@ -53,8 +53,8 @@ export interface UseUncommittedDiffStatsResult {
 export function useUncommittedDiffStats(
   cwd: string,
 ): UseUncommittedDiffStatsResult {
-  const git = useGitV2(cwd);
-  const fs = useFileSystemV2(cwd);
+  const git = useGitSubscription(cwd);
+  const fs = useFileSystemSubscription(cwd);
   const queryClient = useQueryClient();
 
   const { data: root } = useQuery(gitQueries.root(git));

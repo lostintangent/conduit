@@ -1,7 +1,7 @@
 /**
  * FileTreePanel Components
  *
- * File tree components for the Editor v2 system:
+ * File tree components for the editor:
  * - FileTreePanel: Main container with view mode toggle
  * - FileTreeToolbar: Header toolbar with navigation and collapse controls
  * - FileTreeNormal: Normal directory tree view

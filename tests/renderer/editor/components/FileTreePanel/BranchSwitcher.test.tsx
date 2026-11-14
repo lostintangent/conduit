@@ -6,7 +6,7 @@
  */
 
 import type { GitBranch } from "@features/git/model";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { BranchSwitcher } from "@/components/panes/editor/components/FileTreePanel/BranchSwitcher";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { mockGitReads, mockGitWrites } from "../../../git";
@@ -54,11 +54,11 @@ const mockBranches: GitBranch[] = [
 
 const CWD = "/repo";
 
-function createMockGitAPI(): GitV2API {
+function createMockGitAPI(): GitSubscription {
   return {
     cwd: CWD,
     whenReady: vi.fn().mockResolvedValue(undefined),
-  } as unknown as GitV2API;
+  } as unknown as GitSubscription;
 }
 
 // ============================================================================

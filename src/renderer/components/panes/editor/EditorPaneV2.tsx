@@ -20,8 +20,8 @@
 import { gitMutations, gitQueries } from "@features/git/client/queries";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
-import { useFileSystemV2 } from "@features/files/components/useFileSystemV2";
-import { useGitV2 } from "@features/git/components/useGitV2";
+import { useFileSystemSubscription } from "@features/files/components/useFileSystemSubscription";
+import { useGitSubscription } from "@features/git/components/useGitSubscription";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { useSettings } from "@features/settings/client/queries";
 import type { EditorPane as EditorPaneType } from "@/types";
@@ -462,7 +462,7 @@ export function EditorPaneV2({
   // ---------------------------------------------------------------------------
 
   // Git API for checking file status
-  const git = useGitV2(currentCwd);
+  const git = useGitSubscription(currentCwd);
 
   // Monitor selected file's model state for orphan detection
   const selectedFileModelState = useModelState(selectedFile?.path ?? null);
@@ -547,7 +547,7 @@ export function EditorPaneV2({
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
   // The cwd's file events, for the trees, diff stats and outside renames
-  const fs = useFileSystemV2(currentCwd);
+  const fs = useFileSystemSubscription(currentCwd);
 
   // Auto-open file on mount (validates initial file, falls back to most recently modified)
   useAutoOpenFile({
@@ -566,7 +566,7 @@ export function EditorPaneV2({
   // External File Rename Handling
   // ---------------------------------------------------------------------------
 
-  // Subscribe to file rename events from the v2 file system API.
+  // Subscribe to file rename events from the file system subscription.
   // When a file is renamed externally (terminal, Finder, other editor),
   // update selectedFile if it matches the renamed file.
   useEffect(() => {

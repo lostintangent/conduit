@@ -9,8 +9,8 @@ const { workingCopies, watcher } = vi.hoisted(() => ({
   watcher: { ready: Promise.resolve() },
 }));
 
-vi.mock("@features/git/components/useGitV2", () => ({
-  useGitV2: (cwd: string) => ({
+vi.mock("@features/git/components/useGitSubscription", () => ({
+  useGitSubscription: (cwd: string) => ({
     cwd,
     whenReady: () => watcher.ready,
     watchedSince: null,

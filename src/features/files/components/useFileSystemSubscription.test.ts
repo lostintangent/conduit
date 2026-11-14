@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { MockFileSystemV2API, mockService, mockServiceInstance } = vi.hoisted(
-  () => {
+const { MockFileSystemSubscription, mockService, mockServiceInstance } =
+  vi.hoisted(() => {
     // Track API instances for verification
     const instances = new Map<
       string,
@@ -84,7 +84,7 @@ const { MockFileSystemV2API, mockService, mockServiceInstance } = vi.hoisted(
     };
 
     return {
-      MockFileSystemV2API: MockAPI,
+      MockFileSystemSubscription: MockAPI,
       mockService: service,
       mockServiceInstance: serviceInstance,
       getInstances: () => instances,
@@ -92,27 +92,26 @@ const { MockFileSystemV2API, mockService, mockServiceInstance } = vi.hoisted(
         instances.clear();
       },
     };
-  },
-);
+  });
 
-// Mock the FileSystemV2API class
-vi.mock("../client/FileSystemV2API", () => ({
-  FileSystemV2API: MockFileSystemV2API,
+// Mock the FileSystemSubscription class
+vi.mock("../client/FileSystemSubscription", () => ({
+  FileSystemSubscription: MockFileSystemSubscription,
 }));
 
-// Mock the FileSystemV2APIService
-vi.mock("../client/FileSystemV2APIService", () => ({
-  FileSystemV2APIService: mockService,
+// Mock the FileSystemSubscriptionPool
+vi.mock("../client/FileSystemSubscriptionPool", () => ({
+  FileSystemSubscriptionPool: mockService,
 }));
 
 // Import after mocks are set up
-import { useFileSystemV2 } from "./useFileSystemV2";
+import { useFileSystemSubscription } from "./useFileSystemSubscription";
 
 // ============================================================================
 // Tests
 // ============================================================================
 
-describe("useFileSystemV2", () => {
+describe("useFileSystemSubscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockService.resetInstance();
@@ -127,22 +126,24 @@ describe("useFileSystemV2", () => {
   // ===========================================================================
 
   describe("basic functionality", () => {
-    it("should return a FileSystemV2API instance", () => {
-      const { result } = renderHook(() => useFileSystemV2("/test/project"));
+    it("should return a FileSystemSubscription instance", () => {
+      const { result } = renderHook(() =>
+        useFileSystemSubscription("/test/project"),
+      );
 
       expect(result.current).toBeDefined();
       expect(result.current.cwd).toBe("/test/project");
     });
 
     it("should acquire instance from service", () => {
-      renderHook(() => useFileSystemV2("/test/project"));
+      renderHook(() => useFileSystemSubscription("/test/project"));
 
       expect(mockServiceInstance.acquire).toHaveBeenCalledWith("/test/project");
     });
 
     it("should return the same instance on re-renders with same cwd", () => {
       const { result, rerender } = renderHook(() =>
-        useFileSystemV2("/test/project"),
+        useFileSystemSubscription("/test/project"),
       );
 
       const firstInstance = result.current;
@@ -155,11 +156,16 @@ describe("useFileSystemV2", () => {
     });
 
     it("should not be released initially", () => {
-      const { result } = renderHook(() => useFileSystemV2("/test/project"));
+      const { result } = renderHook(() =>
+        useFileSystemSubscription("/test/project"),
+      );
 
       expect(
-        (result.current as unknown as InstanceType<typeof MockFileSystemV2API>)
-          .isReleased,
+        (
+          result.current as unknown as InstanceType<
+            typeof MockFileSystemSubscription
+          >
+        ).isReleased,
       ).toBe(false);
     });
   });
@@ -171,7 +177,7 @@ describe("useFileSystemV2", () => {
   describe("cwd changes", () => {
     it("should create new instance when cwd changes", () => {
       const { result, rerender } = renderHook(
-        ({ cwd }) => useFileSystemV2(cwd),
+        ({ cwd }) => useFileSystemSubscription(cwd),
         {
           initialProps: { cwd: "/project/a" },
         },
@@ -188,9 +194,12 @@ describe("useFileSystemV2", () => {
     });
 
     it("should release old cwd via service when cwd changes", () => {
-      const { rerender } = renderHook(({ cwd }) => useFileSystemV2(cwd), {
-        initialProps: { cwd: "/project/a" },
-      });
+      const { rerender } = renderHook(
+        ({ cwd }) => useFileSystemSubscription(cwd),
+        {
+          initialProps: { cwd: "/project/a" },
+        },
+      );
 
       rerender({ cwd: "/project/b" });
 
@@ -202,7 +211,7 @@ describe("useFileSystemV2", () => {
 
     it("should keep same instance when cwd stays the same", () => {
       const { result, rerender } = renderHook(
-        ({ cwd }) => useFileSystemV2(cwd),
+        ({ cwd }) => useFileSystemSubscription(cwd),
         {
           initialProps: { cwd: "/project/a" },
         },
@@ -225,7 +234,9 @@ describe("useFileSystemV2", () => {
 
   describe("unmount cleanup", () => {
     it("should release via service on unmount", () => {
-      const { unmount } = renderHook(() => useFileSystemV2("/test/project"));
+      const { unmount } = renderHook(() =>
+        useFileSystemSubscription("/test/project"),
+      );
 
       unmount();
 
@@ -234,7 +245,7 @@ describe("useFileSystemV2", () => {
 
     it("should handle multiple CWD changes then unmount", () => {
       const { rerender, unmount } = renderHook(
-        ({ cwd }) => useFileSystemV2(cwd),
+        ({ cwd }) => useFileSystemSubscription(cwd),
         {
           initialProps: { cwd: "/project/a" },
         },
@@ -260,7 +271,7 @@ describe("useFileSystemV2", () => {
 
   describe("edge cases", () => {
     it("should handle empty string cwd", () => {
-      const { result } = renderHook(() => useFileSystemV2(""));
+      const { result } = renderHook(() => useFileSystemSubscription(""));
 
       expect(result.current).toBeDefined();
       expect(result.current.cwd).toBe("");
@@ -268,7 +279,9 @@ describe("useFileSystemV2", () => {
 
     it("should handle paths with special characters", () => {
       const { result } = renderHook(() =>
-        useFileSystemV2("/path/with spaces/and-dashes/and_underscores"),
+        useFileSystemSubscription(
+          "/path/with spaces/and-dashes/and_underscores",
+        ),
       );
 
       expect(result.current.cwd).toBe(
@@ -278,7 +291,7 @@ describe("useFileSystemV2", () => {
 
     it("should normalize paths with trailing slashes", () => {
       const { result, rerender } = renderHook(
-        ({ cwd }) => useFileSystemV2(cwd),
+        ({ cwd }) => useFileSystemSubscription(cwd),
         {
           initialProps: { cwd: "/project/foo/" },
         },
@@ -297,7 +310,7 @@ describe("useFileSystemV2", () => {
 
     it("should normalize paths with multiple trailing slashes", () => {
       const { result, rerender } = renderHook(
-        ({ cwd }) => useFileSystemV2(cwd),
+        ({ cwd }) => useFileSystemSubscription(cwd),
         {
           initialProps: { cwd: "/project/foo///" },
         },
@@ -315,7 +328,7 @@ describe("useFileSystemV2", () => {
 
     it("should handle rapid CWD changes", () => {
       const { rerender, unmount } = renderHook(
-        ({ cwd }) => useFileSystemV2(cwd),
+        ({ cwd }) => useFileSystemSubscription(cwd),
         {
           initialProps: { cwd: "/project/1" },
         },

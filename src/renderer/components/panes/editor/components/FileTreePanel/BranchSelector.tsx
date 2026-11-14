@@ -25,7 +25,7 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { GitBranch } from "lucide-react";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,7 @@ import { useBranches, filterBranchesByQuery } from "./hooks/useBranches";
 
 export interface BranchSelectorProps {
   /** Git API instance */
-  git: GitV2API | null;
+  git: GitSubscription | null;
 
   /** Whether the dialog is open */
   open: boolean;

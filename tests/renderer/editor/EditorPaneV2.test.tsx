@@ -104,23 +104,23 @@ vi.mock("../../../src/renderer/commands/handlers", () => ({
   registerEditorHandlers: vi.fn(() => vi.fn()),
 }));
 
-// Mock useFileSystemV2 hook
+// Mock useFileSystemSubscription hook
 const mockFs = {
   release: vi.fn(),
 };
-vi.mock("@features/files/components/useFileSystemV2", () => ({
-  useFileSystemV2: () => mockFs,
+vi.mock("@features/files/components/useFileSystemSubscription", () => ({
+  useFileSystemSubscription: () => mockFs,
 }));
 
-// Mock useGitV2 hook
+// Mock useGitSubscription hook
 const mockGit = {
   cwd: "/project",
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
   whenReady: vi.fn().mockResolvedValue(undefined),
   release: vi.fn(),
 };
-vi.mock("@features/git/components/useGitV2", () => ({
-  useGitV2: () => mockGit,
+vi.mock("@features/git/components/useGitSubscription", () => ({
+  useGitSubscription: () => mockGit,
 }));
 
 // The IPC calls file and git reads make, mocked afresh for each test with an

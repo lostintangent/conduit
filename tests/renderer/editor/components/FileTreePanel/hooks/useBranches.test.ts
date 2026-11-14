@@ -12,7 +12,7 @@ import {
   useBranches,
   filterBranchesByQuery,
 } from "@/components/panes/editor/components/FileTreePanel/hooks/useBranches";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import type { GitBranch } from "@features/git/model";
 
 // ============================================================================
@@ -54,11 +54,11 @@ const mockBranches: GitBranch[] = [
 // Mock Git API
 // ============================================================================
 
-function createMockGitAPI(): GitV2API {
+function createMockGitAPI(): GitSubscription {
   return {
     cwd: "/project",
     whenReady: vi.fn().mockResolvedValue(undefined),
-  } as unknown as GitV2API;
+  } as unknown as GitSubscription;
 }
 
 // ============================================================================

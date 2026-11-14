@@ -294,7 +294,7 @@ describe("saveUserKeybinding", () => {
 
     expect(mockReadTextFile).toHaveBeenCalledWith("/test/keybindings.json");
     expect(mockWriteFile).toHaveBeenCalled();
-    // v2 API passes Uint8Array, decode to check content
+    // The files API passes Uint8Array, decode to check content
     const writtenData = mockWriteFile.mock.calls[0][2];
     const writtenContent = new TextDecoder().decode(writtenData);
     expect(writtenContent).toContain('"key": "Ctrl+T"');
@@ -326,7 +326,7 @@ describe("saveUserKeybinding", () => {
       registry,
     );
 
-    // v2 API passes Uint8Array, decode to check content
+    // The files API passes Uint8Array, decode to check content
     const writtenData = mockWriteFile.mock.calls[0][2];
     const writtenContent = new TextDecoder().decode(writtenData);
     const parsed = JSON.parse(writtenContent);
@@ -480,7 +480,7 @@ describe("removeUserKeybinding", () => {
       registry,
     );
 
-    // v2 API passes Uint8Array, decode to check content
+    // The files API passes Uint8Array, decode to check content
     const writtenData = mockWriteFile.mock.calls[0][2];
     const writtenContent = new TextDecoder().decode(writtenData);
     const parsed = JSON.parse(writtenContent);

@@ -1,4 +1,4 @@
-import type { FileSystemV2API } from "../client/FileSystemV2API";
+import type { FileSystemSubscription } from "../client/FileSystemSubscription";
 import { useEffect, useEffectEvent } from "react";
 
 /** Debounce delay for file content changes, so a burst of writes settles once (ms) */
@@ -10,7 +10,7 @@ const FILE_EDIT_DEBOUNCE_MS = 300;
  * events don't report it.
  */
 export function useFileEditsSettled(
-  fs: FileSystemV2API,
+  fs: FileSystemSubscription,
   enabled: boolean,
   onSettled: () => void,
 ): void {

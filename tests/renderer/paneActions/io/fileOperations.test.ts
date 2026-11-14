@@ -23,7 +23,7 @@ describe("fileOperations", () => {
     testDir = await mkdtemp(join(tmpdir(), "pane-actions-test-"));
     testFilePath = join(testDir, "paneactions.json");
 
-    // Mock window.conduit API with v2 file system API
+    // Mock window.conduit's files API
     (global as any).window = {
       conduit: {
         files: {

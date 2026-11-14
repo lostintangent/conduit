@@ -1,5 +1,5 @@
 /**
- * Editor v2 utilities.
+ * Editor utilities.
  */
 
 // Re-export EventEmitter from shared location

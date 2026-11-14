@@ -13,7 +13,7 @@ import { screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { mockGitReads } from "../../../git";
 import { render } from "../../../queryRender";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { CommitGraphPanel } from "@/components/panes/editor/components/CommitGraph/CommitGraphPanel";
 
 // =============================================================================
@@ -24,11 +24,11 @@ function renderWithProvider(ui: React.ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>);
 }
 
-function createMockGitApi(): GitV2API {
+function createMockGitApi(): GitSubscription {
   return {
     whenReady: vi.fn().mockResolvedValue(undefined),
     cwd: "/test/cwd",
-  } as unknown as GitV2API;
+  } as unknown as GitSubscription;
 }
 
 // =============================================================================

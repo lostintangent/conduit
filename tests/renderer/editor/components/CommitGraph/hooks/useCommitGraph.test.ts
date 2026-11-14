@@ -28,7 +28,7 @@ vi.mock(
 
 import { useCommitGraph } from "@/components/panes/editor/hooks/useCommitGraph";
 import { computeSwimlanes } from "@/components/panes/editor/components/CommitGraph/graph/swimlanes";
-import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
 import type {
   CommitGraphNode,
   HistoryCommit,
@@ -78,7 +78,7 @@ let reads: ReturnType<typeof mockGitReads>;
 
 function renderGraph(headCommitId?: string) {
   return renderHook(() =>
-    useCommitGraph(mockGit as unknown as GitV2API, { headCommitId }),
+    useCommitGraph(mockGit as unknown as GitSubscription, { headCommitId }),
   );
 }
 
