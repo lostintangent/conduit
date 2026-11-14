@@ -5,7 +5,7 @@ vi.mock("@/commands/hooks/useCommand", () => ({
   useCommand: () => ({ execute: vi.fn<() => Promise<void>>() }),
 }));
 
-import { BrowserMenu } from "@/components/panes/browser/toolbar/BrowserMenu";
+import { BrowserMenu } from "@features/browser/components/toolbar/BrowserMenu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notificationsAtom } from "@/store/atoms";
 

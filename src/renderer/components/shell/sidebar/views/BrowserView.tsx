@@ -16,7 +16,7 @@
  * in BrowserToolbar.
  */
 
-import { BrowserPane } from "@/components/panes/browser/BrowserPane";
+import { BrowserPane } from "@features/browser/components/BrowserPane";
 import {
   getBrowserFallbackUrl,
   getCwdBrowserUrl,

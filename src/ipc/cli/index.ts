@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CLI_COMMAND_NAME, type CliResponse } from "../../shared/cli/types";
-import { capturePage } from "../browser";
+import { capturePage } from "@features/browser/main/capture";
 import { ensureLauncherScripts } from "./launchers";
 import {
   createCliServer,

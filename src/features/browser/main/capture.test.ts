@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({}));
 
-import { capturePage } from "../../../src/ipc/browser";
+import { capturePage } from "./capture";
 
 const fakeContents = (capture: ReturnType<typeof vi.fn>) =>
   ({ capturePage: capture }) as unknown as WebContents;

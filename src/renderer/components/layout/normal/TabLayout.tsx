@@ -6,7 +6,7 @@ import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
-import { BrowserPane } from "@/components/panes/browser/BrowserPane";
+import { BrowserPane } from "@features/browser/components/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneAnchor } from "@/components/panes/editor";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";

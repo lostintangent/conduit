@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { initializeAgentHandlers } from "./agent";
-import { initializeBrowserHandlers } from "./browser";
+import { initializeBrowserHandlers } from "@features/browser/main/capture";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { startFeatures } from "./features";
 import {
