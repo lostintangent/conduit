@@ -1,6 +1,6 @@
 import { updateTerminalFonts } from "@features/terminal/client/xtermCache";
 import { useDotfiles } from "@features/dotfiles/components/useDotfiles";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useUserSettings } from "../../useUserSettings";
 import { quickPaneAtom } from "@/store/atoms";
 import { capitalize } from "@/utils";
 import type {
@@ -8,7 +8,7 @@ import type {
   TerminalLinkTarget,
   ThemeMode,
   UserSettings,
-} from "@shared/types";
+} from "../../../model";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,

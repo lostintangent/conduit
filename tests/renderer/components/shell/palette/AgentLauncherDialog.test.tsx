@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
-import type { AgentConfig, LaunchGroup } from "@shared/types";
+import type { AgentConfig, LaunchGroup } from "@features/settings/model";
 
 describe("AgentLauncherDialog", () => {
   const mockAgents: AgentConfig[] = [

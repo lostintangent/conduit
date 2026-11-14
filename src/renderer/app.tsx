@@ -21,7 +21,7 @@ import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialo
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@features/workspaces/components/WorkspacePicker";
-import { SettingsDialog } from "@/components/shell/settings/SettingsDialog";
+import { SettingsDialog } from "@features/settings/components/SettingsDialog";
 import { Sidebar } from "@/components/shell/sidebar/Sidebar";
 import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
 import { TabStrip } from "@/components/shell/tabs/TabStrip";
@@ -32,7 +32,7 @@ import { useAutoUpdater } from "@features/updates/components/useAutoUpdater";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useUserSettings } from "@features/settings/components/useUserSettings";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
 import {
   closeHyperTerminal,

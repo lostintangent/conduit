@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AgentsTab } from "@/components/shell/settings/tabs/agents/AgentsTab";
-import type { AgentConfig, LaunchGroup } from "@shared/types";
+import { AgentsTab } from "./AgentsTab";
+import type { AgentConfig, LaunchGroup } from "../../../model";
 
 const mockUpdateSettings = vi.fn();
 const mockUserSettings = {

@@ -1,4 +1,4 @@
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useUserSettings } from "@features/settings/components/useUserSettings";
 import { activePaneIdAtom } from "@/store/atoms";
 import { useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";

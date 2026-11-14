@@ -14,9 +14,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useUserSettings } from "@features/settings/components/useUserSettings";
 import { normalizeUrl } from "@/utils/browser";
-import type { BrowserPage } from "@shared/types";
+import type { BrowserPage } from "@features/settings/model";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";

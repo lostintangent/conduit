@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import type { AgentConfig, LaunchGroup } from "@shared/types";
+import type { AgentConfig, LaunchGroup } from "@features/settings/model";
 import {
   ChevronDown,
   ChevronRight,

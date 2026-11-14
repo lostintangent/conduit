@@ -1,4 +1,4 @@
-import type { AgentConfig } from "@shared/types";
+import type { AgentConfig } from "../../../model";
 
 /**
  * Default agent configurations that can be restored by the user

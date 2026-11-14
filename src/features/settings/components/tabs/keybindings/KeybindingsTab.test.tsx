@@ -3,7 +3,7 @@ import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import { parseKeybinding } from "@/commands/keybindings/parser";
 import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
-import { KeybindingsTab } from "@/components/shell/settings/tabs/keybindings/KeybindingsTab";
+import { KeybindingsTab } from "./KeybindingsTab";
 import { keybindingsAtom } from "@/store/atoms";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";

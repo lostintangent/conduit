@@ -1,4 +1,4 @@
-import type { ThemeMode, ThemeOverrides } from "@shared/types";
+import type { ThemeMode, ThemeOverrides } from "@features/settings/model";
 
 export function resolveColor(variable: string): string {
   const property = variable.startsWith("--") ? variable : `--color-${variable}`;

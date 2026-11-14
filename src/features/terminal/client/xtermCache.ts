@@ -1,6 +1,6 @@
 import { updateTerminalSessionProperty } from "@/store/actions/pane";
 import { resolveColor } from "@/utils/theme";
-import { UserSettings } from "@shared/types";
+import { UserSettings } from "@features/settings/model";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";

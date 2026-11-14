@@ -5,8 +5,8 @@
  */
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserSettings } from "@/hooks/useUserSettings";
-import type { AgentConfig, LaunchGroup } from "@shared/types";
+import { useUserSettings } from "../../useUserSettings";
+import type { AgentConfig, LaunchGroup } from "../../../model";
 import {
   Check,
   ChevronDown,

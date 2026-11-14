@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { ApplicationCommands } from "@shared/commands";
-import { BrowserPage } from "@shared/types";
+import { BrowserPage } from "@features/settings/model";
 import {
   Camera,
   Check,

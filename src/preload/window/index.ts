@@ -6,10 +6,9 @@ import type {
   AgentSessionInfo,
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
-  BrowserPage,
-  UserSettings,
   Workspace,
 } from "@shared/types";
+import type { BrowserPage, UserSettings } from "@features/settings/model";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";

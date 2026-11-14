@@ -10,13 +10,13 @@
 
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useUserSettings } from "./useUserSettings";
 import { DialogTitle } from "@radix-ui/react-dialog";
-import type { UserSettings } from "@shared/types";
+import type { UserSettings } from "../model";
 import { X } from "lucide-react";
 import { useState } from "react";
-import type { CommandRegistry } from "../../../commands/core/CommandRegistryImpl";
-import type { KeybindingRegistry } from "../../../commands/keybindings/KeybindingRegistry";
+import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
+import type { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import { AgentsTab } from "./tabs/agents/AgentsTab";
 import { GeneralTab } from "./tabs/general/GeneralTab";
 import { KeybindingsTab } from "./tabs/keybindings/KeybindingsTab";

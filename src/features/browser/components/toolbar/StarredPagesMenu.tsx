@@ -9,9 +9,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUserSettings } from "@/hooks/useUserSettings";
+import { useUserSettings } from "@features/settings/components/useUserSettings";
 import { cn } from "@/utils/index";
-import type { BrowserPage } from "@shared/types";
+import type { BrowserPage } from "@features/settings/model";
 import { ChevronDown, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

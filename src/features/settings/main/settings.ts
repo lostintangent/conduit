@@ -1,7 +1,7 @@
 import { app } from "electron";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { UserSettings } from "../../shared/types";
+import type { UserSettings } from "../model";
 
 const SETTINGS_FILE_NAME = "settings.json";
 let settingsPath: string;

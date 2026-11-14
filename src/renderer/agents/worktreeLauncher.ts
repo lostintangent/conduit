@@ -4,7 +4,8 @@
  * Handles launching multiple agent instances in worktrees or same folder with intelligent layout.
  */
 
-import type { AgentConfig, AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@shared/types";
+import type { AgentConfig } from "@features/settings/model";
 import { generateAgentLayout } from "@/utils/agentLayout";
 import {
   enqueueNotification,

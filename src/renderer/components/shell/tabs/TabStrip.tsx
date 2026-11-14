@@ -39,7 +39,7 @@ import {
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
-import type { TabPosition } from "@shared/types";
+import type { TabPosition } from "@features/settings/model";
 import { useAtom, useSelector } from "@tanstack/react-store";
 import {
   ChevronDown,

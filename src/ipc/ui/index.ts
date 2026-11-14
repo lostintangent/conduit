@@ -1,17 +1,14 @@
 import { BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
-import type {
-  BackgroundCommandRequest,
-  BrowserPage,
-  UserSettings,
-} from "../../shared/types";
+import type { BackgroundCommandRequest } from "../../shared/types";
+import type { BrowserPage, UserSettings } from "@features/settings/model";
 import {
   initializeRepo as initializeDotfiles,
   setDotfilesRepo,
 } from "@features/dotfiles/main";
 import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
-import { loadSettings, saveSettings } from "./settings";
+import { loadSettings, saveSettings } from "@features/settings/main/settings";
 
 let userSettings: UserSettings | null = null;
 let refreshMenuCallback: (() => Promise<void>) | null = null;
