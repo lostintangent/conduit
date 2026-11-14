@@ -1,46 +1,71 @@
-import { afterEach, expect, it, vi } from "vitest";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const { send, providers, fire } = vi.hoisted(() => {
+const { send, providers, FakeProvider } = vi.hoisted(() => {
   type Listener = (event: unknown) => void;
-  const listeners = {
-    status: new Set<Listener>(),
-    branch: new Set<Listener>(),
-    head: new Set<Listener>(),
-  };
-  const on = (set: Set<Listener>) => (listener: Listener) => {
-    set.add(listener);
-    return { dispose: () => set.delete(listener) };
-  };
-  const provider = {
-    onStatusChanged: on(listeners.status),
-    onBranchChanged: on(listeners.branch),
-    onHeadChanged: on(listeners.head),
-  };
+  const providers: InstanceType<typeof FakeProvider>[] = [];
 
-  return {
-    send: vi.fn(),
-    providers: {
-      getProvider: vi.fn(async (_cwd: string) => ({
-        provider,
-        gitRoot: "/repo",
-      })),
-      getExistingProviderByCwd: vi.fn(async (_cwd: string) => null),
-      releaseProvider: vi.fn(),
-    },
-    fire: (kind: keyof typeof listeners, event: unknown) => {
-      for (const listener of listeners[kind]) listener(event);
-    },
-  };
+  // Stands in for DiskGitProvider, so the real GitProviderService and its pool
+  // decide when a provider, and with it the watcher, is disposed.
+  class FakeProvider {
+    readonly listeners = {
+      status: new Set<Listener>(),
+      branch: new Set<Listener>(),
+      head: new Set<Listener>(),
+    };
+    startWatching = vi.fn(async () => {});
+    dispose = vi.fn();
+    getCommitHistory = vi.fn(async () => ({ commits: [], hasMore: false }));
+    getCommit = vi.fn(async () => null);
+    getCommitFiles = vi.fn(async () => []);
+    getTrackedBranches = vi.fn(async () => ({
+      current: "main",
+      upstream: null,
+      base: null,
+    }));
+    stage = vi.fn(async (_files: string[]) => {});
+    commit = vi.fn(async (_message: string) => {});
+    onStatusChanged = this.on(this.listeners.status);
+    onBranchChanged = this.on(this.listeners.branch);
+    onHeadChanged = this.on(this.listeners.head);
+
+    constructor(readonly gitRoot: string) {
+      providers.push(this);
+    }
+
+    fire(kind: keyof FakeProvider["listeners"], event: unknown) {
+      for (const listener of this.listeners[kind]) listener(event);
+    }
+
+    private on(set: Set<Listener>) {
+      return (listener: Listener) => {
+        set.add(listener);
+        return { dispose: () => set.delete(listener) };
+      };
+    }
+  }
+
+  return { send: vi.fn(), providers, FakeProvider };
 });
 
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [{ webContents: { send } }] },
 }));
-vi.mock("./GitProviderService", () => ({
-  GitProviderService: { getInstance: () => providers },
-}));
+vi.mock("./DiskGitProvider", () => ({ DiskGitProvider: FakeProvider }));
 
+import { GitProviderService } from "./GitProviderService";
 import service, { releaseGitSubscriptions } from "./service";
+
+const root = fs.realpathSync(
+  fs.mkdtempSync(path.join(os.tmpdir(), "git-service-")),
+);
+const repo = path.join(root, "repo");
+const outside = path.join(root, "outside");
+fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
+fs.mkdirSync(path.join(repo, "src"));
+fs.mkdirSync(outside);
 
 const status = {
   branch: "main",
@@ -49,18 +74,48 @@ const status = {
   files: new Map([["a.ts", { path: "a.ts", status: "modified" }]]),
 };
 
+/** Past the pool's grace period, when a provider nothing holds is disposed. */
+const afterGrace = () => vi.advanceTimersByTimeAsync(5000);
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
 afterEach(() => {
   releaseGitSubscriptions();
+  GitProviderService.resetInstance();
+  providers.length = 0;
   vi.clearAllMocks();
+  vi.useRealTimers();
+});
+
+afterAll(() => {
+  fs.rmSync(root, { recursive: true, force: true });
 });
 
 it("sends its provider's events with the subscription's id until unsubscribed", async () => {
-  const id = await service.subscribe("/repo/src");
-  expect(providers.getProvider).toHaveBeenCalledWith("/repo/src");
+  const id = await service.subscribe(path.join(repo, "src"));
+  const [provider] = providers;
+  expect(provider.gitRoot).toBe(repo);
 
-  fire("status", { status, added: ["a.ts"], modified: [], removed: [] });
-  fire("branch", { previousBranch: "main", currentBranch: "feature" });
-  fire("head", { previousHead: "a", currentHead: "b", isBranchSwitch: true });
+  provider.fire("status", {
+    status,
+    added: ["a.ts"],
+    modified: [],
+    removed: [],
+  });
+  provider.fire("branch", { previousBranch: "main", currentBranch: "feature" });
+  provider.fire("head", {
+    previousHead: "a",
+    currentHead: "b",
+    isBranchSwitch: true,
+  });
 
   expect(send.mock.calls).toEqual([
     [
@@ -91,40 +146,103 @@ it("sends its provider's events with the subscription's id until unsubscribed", 
 
   service.unsubscribe(id!);
   service.unsubscribe(id!);
-  fire("status", { status, added: [], modified: [], removed: [] });
+  provider.fire("status", { status, added: [], modified: [], removed: [] });
+  await afterGrace();
 
   expect(send).toHaveBeenCalledTimes(3);
-  expect(providers.releaseProvider).toHaveBeenCalledTimes(1);
-  expect(providers.releaseProvider).toHaveBeenCalledWith("/repo");
+  expect(provider.dispose).toHaveBeenCalledTimes(1);
 });
 
 it("releases every subscription when the page that made them goes away", async () => {
-  await service.subscribe("/repo/a");
-  await service.subscribe("/repo/b");
+  await service.subscribe(repo);
+  await service.subscribe(path.join(repo, "src"));
+  expect(providers).toHaveLength(1);
 
   releaseGitSubscriptions();
-  fire("status", { status, added: [], modified: [], removed: [] });
+  providers[0].fire("status", { status, added: [], modified: [], removed: [] });
+  await afterGrace();
 
   expect(send).not.toHaveBeenCalled();
-  expect(providers.releaseProvider).toHaveBeenCalledTimes(2);
+  expect(providers[0].dispose).toHaveBeenCalledTimes(1);
 });
 
-it("subscribes to nothing outside a repository", async () => {
-  providers.getProvider.mockRejectedValueOnce(new Error("Not a git repo"));
+it("lets the repository's watcher go once its commit graph closes", async () => {
+  const id = await service.subscribe(repo);
+  await service.getCommitHistory(repo, { limit: 50 });
+  await service.getTrackedBranches(repo);
+  await service.getCommit(repo, "abc");
+  await service.getCommitFiles(repo, "abc");
 
-  await expect(service.subscribe("/tmp")).resolves.toBeNull();
+  service.unsubscribe(id!);
+  await afterGrace();
+
+  expect(providers).toHaveLength(1);
+  expect(providers[0].getCommitHistory).toHaveBeenCalledWith({ limit: 50 });
+  expect(providers[0].dispose).toHaveBeenCalledTimes(1);
 });
 
-it("falls back to empty reads, and fails writes, without a provider", async () => {
-  await expect(service.getStatus("/tmp")).resolves.toBeNull();
-  await expect(service.getStatusFromBranch("/tmp", "main")).resolves.toEqual(
+it("reads history before anything subscribes, then lets that watcher go", async () => {
+  await expect(service.getCommitHistory(repo)).resolves.toEqual({
+    commits: [],
+    hasMore: false,
+  });
+  expect(providers[0].startWatching).toHaveBeenCalled();
+
+  await afterGrace();
+
+  expect(providers[0].dispose).toHaveBeenCalledTimes(1);
+});
+
+it("subscribes to nothing, and fails writes, outside a repository", async () => {
+  await expect(service.subscribe(outside)).resolves.toBeNull();
+  await expect(service.getCommitHistory(outside)).resolves.toEqual({
+    commits: [],
+    hasMore: false,
+  });
+  await expect(service.stage(outside, ["a.ts"])).rejects.toThrow(
+    `Not a git repository: ${outside}`,
+  );
+  expect(providers).toHaveLength(0);
+});
+
+it("lands a write that nothing else holds a provider for", async () => {
+  await service.stage(repo, ["a.ts"]);
+  expect(providers[0].stage).toHaveBeenCalledWith(["a.ts"]);
+
+  await afterGrace();
+
+  expect(providers[0].dispose).toHaveBeenCalledTimes(1);
+});
+
+it("holds the provider until a write is done, once nothing else does", async () => {
+  const id = await service.subscribe(repo);
+  const started = deferred();
+  const done = deferred();
+  providers[0].commit.mockImplementationOnce(() => {
+    started.resolve();
+    return done.promise;
+  });
+  const commit = service.commit(repo, "Slow commit");
+  await started.promise;
+
+  service.unsubscribe(id!);
+  await afterGrace();
+  expect(providers[0].dispose).not.toHaveBeenCalled();
+
+  done.resolve();
+  await commit;
+  await afterGrace();
+  expect(providers[0].dispose).toHaveBeenCalledTimes(1);
+});
+
+it("falls back to empty reads without a provider", async () => {
+  await expect(service.getStatus(repo)).resolves.toBeNull();
+  await expect(service.getStatusFromBranch(repo, "main")).resolves.toEqual(
     new Map(),
   );
-  await expect(service.getPerFileDiffStats("/tmp")).resolves.toEqual({
+  await expect(service.getPerFileDiffStats(repo)).resolves.toEqual({
     staged: new Map(),
     unstaged: new Map(),
   });
-  await expect(service.stage("/tmp", ["a.ts"])).rejects.toThrow(
-    "No active git provider for: /tmp",
-  );
+  expect(providers).toHaveLength(0);
 });

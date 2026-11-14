@@ -2,11 +2,12 @@
  * Git for the renderer, by the cwd it works in.
  *
  * A subscription holds its repository's provider, and with it the watcher,
- * until it's released. Reads and writes use the provider something already
- * holds (a subscription, or the file system's watcher for the same repo):
- * reads fall back to an empty value without one, and writes fail. History is
- * the exception, since the commit graph can read it before the pane's
- * subscription lands.
+ * until it's released. Reads use the provider something already holds (a
+ * subscription, or the file system's watcher for the same repo), and fall back
+ * to an empty value without one. History and writes borrow a provider for just
+ * the call instead: the commit graph can read history before the pane's
+ * subscription lands, and a write queued behind a slow one can run after its
+ * pane has closed.
  */
 
 import type {
@@ -14,6 +15,7 @@ import type {
   GitCommitOptions,
   GitFileStatus,
 } from "../model";
+import type { DiskGitProvider } from "./DiskGitProvider";
 import { emit } from "./events";
 import { GitProviderService } from "./GitProviderService";
 
@@ -23,20 +25,29 @@ async function existing(cwd: string) {
   return (await providers().getExistingProviderByCwd(cwd))?.provider ?? null;
 }
 
-async function required(cwd: string) {
-  const provider = await existing(cwd);
-  if (!provider) {
-    throw new Error(`No active git provider for: ${cwd}`);
-  }
-  return provider;
-}
-
-/** The repository's provider, created if nothing holds it. Null outside one. */
-async function created(cwd: string) {
+/**
+ * Run `call` with the repository's provider, created if nothing holds it, and
+ * let it go after. Outside a repository, resolves to `outside`, or throws
+ * without it.
+ */
+async function borrowed<T>(
+  cwd: string,
+  call: (provider: DiskGitProvider) => Promise<T>,
+  outside?: T,
+): Promise<T> {
+  let acquired;
   try {
-    return (await providers().getProvider(cwd)).provider;
-  } catch {
-    return null;
+    acquired = await providers().getProvider(cwd);
+  } catch (error) {
+    if (outside === undefined) {
+      throw error;
+    }
+    return outside;
+  }
+  try {
+    return await call(acquired.provider);
+  } finally {
+    providers().releaseProvider(acquired.gitRoot);
   }
 }
 
@@ -107,31 +118,27 @@ const service = {
 
   /** Newest first, in topological order, as the commit graph lays it out. */
   async getCommitHistory(cwd: string, options?: GetCommitHistoryOptions) {
-    return (
-      (await created(cwd))?.getCommitHistory(options) ?? {
-        commits: [],
-        hasMore: false,
-      }
-    );
+    return borrowed(cwd, (provider) => provider.getCommitHistory(options), {
+      commits: [],
+      hasMore: false,
+    });
   },
 
   async getCommit(cwd: string, commitId: string) {
-    return (await created(cwd))?.getCommit(commitId) ?? null;
+    return borrowed(cwd, (provider) => provider.getCommit(commitId), null);
   },
 
   async getCommitFiles(cwd: string, commitId: string) {
-    return (await created(cwd))?.getCommitFiles(commitId) ?? [];
+    return borrowed(cwd, (provider) => provider.getCommitFiles(commitId), []);
   },
 
   /** The current branch, its upstream and its base, which color the graph. */
   async getTrackedBranches(cwd: string) {
-    return (
-      (await created(cwd))?.getTrackedBranches() ?? {
-        current: null,
-        upstream: null,
-        base: null,
-      }
-    );
+    return borrowed(cwd, (provider) => provider.getTrackedBranches(), {
+      current: null,
+      upstream: null,
+      base: null,
+    });
   },
 
   isGitAvailable() {
@@ -139,42 +146,42 @@ const service = {
   },
 
   async stage(cwd: string, files: string[]) {
-    return (await required(cwd)).stage(files);
+    return borrowed(cwd, (provider) => provider.stage(files));
   },
 
   async unstage(cwd: string, files: string[]) {
-    return (await required(cwd)).unstage(files);
+    return borrowed(cwd, (provider) => provider.unstage(files));
   },
 
   /** Discard the files' changes, back to HEAD. */
   async revert(cwd: string, files: string[]) {
-    return (await required(cwd)).revert(files);
+    return borrowed(cwd, (provider) => provider.revert(files));
   },
 
   async commit(cwd: string, message: string, options?: GitCommitOptions) {
-    return (await required(cwd)).commit(message, options);
+    return borrowed(cwd, (provider) => provider.commit(message, options));
   },
 
   async pull(cwd: string, rebase?: boolean) {
-    return (await required(cwd)).pull(rebase);
+    return borrowed(cwd, (provider) => provider.pull(rebase));
   },
 
   /** `setUpstream` publishes a branch that doesn't track one yet. */
   async push(cwd: string, force?: boolean, setUpstream?: boolean) {
-    return (await required(cwd)).push(force, setUpstream);
+    return borrowed(cwd, (provider) => provider.push(force, setUpstream));
   },
 
   /** `force` discards local changes that checkout would overwrite. */
   async checkout(cwd: string, ref: string, force?: boolean) {
-    return (await required(cwd)).checkout(ref, { force });
+    return borrowed(cwd, (provider) => provider.checkout(ref, { force }));
   },
 
   async stash(cwd: string, message?: string) {
-    return (await required(cwd)).stash(message);
+    return borrowed(cwd, (provider) => provider.stash(message));
   },
 
   async stashPop(cwd: string) {
-    return (await required(cwd)).stashPop();
+    return borrowed(cwd, (provider) => provider.stashPop());
   },
 
   async createBranch(
@@ -183,7 +190,9 @@ const service = {
     checkout = true,
     startPoint?: string,
   ) {
-    return (await required(cwd)).createBranch(branchName, checkout, startPoint);
+    return borrowed(cwd, (provider) =>
+      provider.createBranch(branchName, checkout, startPoint),
+    );
   },
 
   /**
