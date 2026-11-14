@@ -42,7 +42,7 @@ import {
 } from "@/commands/contextKeys/appContextKeys";
 import { MenuId } from "@/commands/menus/types";
 import { MonacoModelRegistry } from "@features/editor/client/MonacoModelRegistry";
-import { getRelativePath } from "@features/editor/components/utils/gitStatusHelpers";
+import { getRelativePath } from "@features/editor/components/utils/pathUtils";
 
 /**
  * File tree command IDs

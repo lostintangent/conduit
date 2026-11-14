@@ -41,10 +41,10 @@ import { useScrollPersistence } from "../hooks/useScrollPersistence";
 import {
   getParentPath,
   getParentPaths,
+  getRelativePath,
   normalizePathForKey,
   pathsEqual,
 } from "../utils/pathUtils";
-import { getRelativePath } from "../utils/gitStatusHelpers";
 
 import type { DirectoryEntry } from "@features/files/model";
 import type { GitFileStatus } from "@features/git/model";

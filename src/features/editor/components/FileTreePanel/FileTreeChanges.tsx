@@ -42,8 +42,13 @@ import {
   filterDirtyFilesForStaging,
   notifyDirtyFilesSkipped,
 } from "../utils/stagingHelpers";
-import { getParentPath, getParentPaths, joinCwdPath } from "../utils/pathUtils";
-import { getRelativePath, normalizeMapKey } from "../utils/gitStatusHelpers";
+import {
+  getParentPath,
+  getParentPaths,
+  getRelativePath,
+  joinCwdPath,
+} from "../utils/pathUtils";
+import { normalizeMapKey } from "../utils/gitStatusHelpers";
 import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/ui/confirm-dialog";
 import type { FileNode } from "../../model";

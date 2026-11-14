@@ -58,6 +58,7 @@ import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { ImagePreview } from "./ImagePreview";
 import { LazyMarkdownPreview } from "./LazyMarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
+import { getRelativePath } from "../utils/pathUtils";
 
 /**
  * Brief delay when transitioning between editor and diff modes.
@@ -66,14 +67,6 @@ import { RegularEditorWrapper } from "./RegularEditorWrapper";
  * zero-size or incorrectly-sized container.
  */
 const MODE_TRANSITION_DELAY_MS = 50;
-
-/** Show a path relative to cwd when it is inside cwd (like v1). */
-function toDisplayPath(filePath: string, cwd: string): string {
-  const cwdWithSlash = cwd.endsWith("/") ? cwd : `${cwd}/`;
-  return filePath.startsWith(cwdWithSlash)
-    ? filePath.slice(cwdWithSlash.length)
-    : filePath;
-}
 
 export interface EditorPanelProps {
   /** Unique ID for the editor instance */
@@ -252,7 +245,7 @@ export const EditorPanel = memo(function EditorPanel({
   // Get file path from selected file
   const filePath = selectedFile?.path ?? null;
 
-  const displayFilePath = filePath ? toDisplayPath(filePath, cwd) : "";
+  const displayFilePath = filePath ? getRelativePath(filePath, cwd) : "";
 
   // Get model state for the current file
   const modelState = useModelState(filePath);
@@ -503,7 +496,7 @@ export const EditorPanel = memo(function EditorPanel({
       originalPath,
     } = viewMode;
 
-    const commitDisplayPath = toDisplayPath(commitFilePath, cwd);
+    const commitDisplayPath = getRelativePath(commitFilePath, cwd);
 
     return (
       <div

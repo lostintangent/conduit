@@ -64,12 +64,12 @@ import {
   computeStagedForChangesMode,
   getFileEntryPresence,
   getFileStatusForEntry,
-  getRelativePath,
   isDiffableStatus,
   isUnstagedMapKey,
   makeMapKey,
   mapKeyToPath,
 } from "./utils/gitStatusHelpers";
+import { getRelativePath } from "./utils/pathUtils";
 import { detectLanguage } from "./utils/languageDetection";
 import { getFriendlyGitError } from "./utils/gitErrorMessages";
 import { selectNextAvailableFile } from "./utils/fileSelectionHelpers";

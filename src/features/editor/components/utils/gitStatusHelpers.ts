@@ -117,23 +117,6 @@ export function normalizeMapKey(
   return asMapKey(mapKey);
 }
 
-// ============================================================================
-// Path Helpers
-// ============================================================================
-
-/**
- * Get the relative path from an absolute path and cwd. Paths outside cwd,
- * including siblings that share its prefix (`/a/bc` for `/a/b`), are
- * returned unchanged.
- */
-export function getRelativePath(absolutePath: string, cwd: string): string {
-  const prefix = cwd.endsWith("/") ? cwd : `${cwd}/`;
-  if (absolutePath.startsWith(prefix)) {
-    return absolutePath.slice(prefix.length);
-  }
-  return absolutePath === cwd ? "" : absolutePath;
-}
-
 /**
  * Look up a file's git status, handling partially staged files correctly.
  *
