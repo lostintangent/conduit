@@ -210,7 +210,7 @@ describe("KeybindingRegistry", () => {
         .getFirstChords()
         .map(({ chord, binding, startsChord }) => [
           chord.key,
-          binding.commandId,
+          binding?.commandId,
           startsChord,
         ]);
 
@@ -228,14 +228,16 @@ describe("KeybindingRegistry", () => {
       ]);
     });
 
-    it("says which first keys start a chord", () => {
-      registry.register("workspace.save", { key: "Cmd+K Cmd+S" });
+    it("says which first keys start a chord, and which keybinding of just that key wins it", () => {
+      registry.register("workspace.save", { key: "Cmd+K Cmd+S" }, 20);
       registry.register("terminal.clear", { key: "Cmd+K" }, 10);
       registry.register("workspace.open", { key: "Cmd+K Cmd+O" });
+      registry.register("pane.actions", { key: "Cmd+J Cmd+A" });
       registry.register("tab.new", { key: "Cmd+T" });
 
       expect(firstChords()).toEqual([
         ["k", "terminal.clear", true],
+        ["j", undefined, true],
         ["t", "tab.new", false],
       ]);
     });

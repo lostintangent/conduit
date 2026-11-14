@@ -103,12 +103,32 @@ describe("app keys", () => {
       expect(appKeys()).toContain("Cmd+C");
     });
 
-    it("hands over a chord's first key even when its command is off, since the app waits for the second", () => {
-      command("workspace.open", "Cmd+K Cmd+O", paneType.equals("editor"));
-      command("workspace.save", "Cmd+K Cmd+W");
+    it("leaves the page Cmd+K for its search unless the user binds Cmd+K on its own", () => {
+      command("terminal.clear", "Cmd+K");
+      command("workspace.save", "Cmd+K Cmd+S");
+      getKeybindingRegistry().register(
+        "workspace.close",
+        { key: "Cmd+K Cmd+W" },
+        USER_KEYBINDING_WEIGHT,
+      );
+      expect(appKeys().filter((key) => key.startsWith("Cmd+K"))).toEqual([]);
 
+      getKeybindingRegistry().register(
+        "terminal.clear",
+        { key: "Cmd+K" },
+        USER_KEYBINDING_WEIGHT,
+      );
       expect(appKeys().filter((key) => key.startsWith("Cmd+K"))).toEqual([
         "Cmd+K …",
+      ]);
+    });
+
+    it("hands over a chord's first key even when its command is off, since the app waits for the second", () => {
+      command("workspace.open", "Cmd+J Cmd+O", paneType.equals("editor"));
+      command("workspace.save", "Cmd+J Cmd+W");
+
+      expect(appKeys().filter((key) => key.startsWith("Cmd+J"))).toEqual([
+        "Cmd+J …",
       ]);
     });
   });

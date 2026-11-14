@@ -14,10 +14,12 @@ import { keybindingsAtom } from "@/store/atoms";
 import type { IpcMessageEvent, WebviewTag } from "electron";
 import type { AppKey, HandedKey } from "../../../preload/webview/appKeys";
 
-// Keys pages need for editing and finding, which stay with the page unless the
-// user binds them: select all, copy, cut, paste, undo, redo and find, and
-// moving the caret or selecting to the edge of a line or the page
+// Keys pages need, which stay with the page unless the user binds the key on
+// its own: select all, copy, cut, paste, undo, redo and find, moving the caret
+// or selecting to the edge of a line or the page, and the search many sites
+// open with Cmd+K
 const PAGE_KEYS = [
+  "Cmd+K",
   "Cmd+A",
   "Cmd+C",
   "Cmd+X",
@@ -52,8 +54,11 @@ export function getAppKeys(): AppKey[] {
     startsChord,
   } of getKeybindingRegistry().getFirstChords()) {
     const isPageKey = PAGE_KEYS.some((key) => isSameChord(key, chord));
-    if (isPageKey && !isUserKeybinding(binding)) continue;
-    if (startsChord || commands.isCommandEnabled(binding.commandId)) {
+    if (isPageKey && !(binding && isUserKeybinding(binding))) continue;
+    if (
+      startsChord ||
+      (binding && commands.isCommandEnabled(binding.commandId))
+    ) {
       keys.push({ chord, startsChord });
     }
   }

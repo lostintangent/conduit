@@ -216,16 +216,6 @@ describe("browser automation from the CLI", () => {
     await selectedTab(0).waitFor();
   });
 
-  it("runs a two-key shortcut started in a page", async () => {
-    await clickPage(0);
-    await app.page.keyboard.press("Meta+k");
-    await app.page.keyboard.press("Meta+s");
-    const shortcuts = app.page.getByPlaceholder(/Search keybindings/);
-    await shortcuts.waitFor();
-    await app.page.keyboard.press("Escape");
-    await shortcuts.waitFor({ state: "hidden" });
-  });
-
   it("leaves a page its editing keys and the keys the app isn't using", async () => {
     await clickPage(0);
     await inPage(
@@ -244,12 +234,37 @@ describe("browser automation from the CLI", () => {
     await app.page.keyboard.type("Hi ");
     // The app's Cmd+B is only for editors
     await app.page.keyboard.press("Meta+b");
+    // Sites open their search with Cmd+K, which starts the app's Cmd+K Cmd+S
+    await app.page.keyboard.press("Meta+k");
 
     expect(await inPage(0, `document.querySelector("input").value`)).toBe(
       "Hi Grace",
     );
     expect(await inPage(0, `pressed.includes("b")`)).toBe(true);
+    expect(await inPage(0, `pressed.includes("k")`)).toBe(true);
     await expectActivePane(url);
+  });
+
+  it("runs a two-key shortcut started in a page once the user binds its first key on its own", async () => {
+    fs.writeFileSync(
+      path.join(app.home, ".conduit", "keybindings.json"),
+      JSON.stringify([{ key: "Cmd+K", command: "view.showCommandPalette" }]),
+    );
+    await clickPage(0);
+    // Escape ends the app's wait for a second key once it takes Cmd+K
+    await until(async () => {
+      await inPage(0, "pressed.length = 0");
+      await app.page.keyboard.press("Meta+k");
+      await app.page.keyboard.press("Escape");
+      return inPage(0, `!pressed.includes("k")`);
+    }, "the app to take Cmd+K");
+
+    await app.page.keyboard.press("Meta+k");
+    await app.page.keyboard.press("Meta+s");
+    const shortcuts = app.page.getByPlaceholder(/Search keybindings/);
+    await shortcuts.waitFor();
+    await app.page.keyboard.press("Escape");
+    await shortcuts.waitFor({ state: "hidden" });
   });
 
   it("had no uncaught errors or failed loads", () => {

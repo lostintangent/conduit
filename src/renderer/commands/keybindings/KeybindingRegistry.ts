@@ -8,8 +8,11 @@ import { chordOf, isSameChord, matchesEvent, parseKeybinding } from "./parser";
 /** A key that starts a keybinding, and what pressing it does */
 export interface FirstChord {
   chord: KeyChord;
-  /** The keybinding that runs for it, unless it starts a chord */
-  binding: ResolvedKeybinding;
+  /**
+   * The keybinding of just this key that wins it, if any. It runs unless the
+   * key starts a chord.
+   */
+  binding?: ResolvedKeybinding;
   /** Whether a keybinding has a second part after it, like Cmd+K Cmd+S */
   startsChord: boolean;
 }
@@ -77,7 +80,7 @@ export class KeybindingRegistry {
   /**
    * Each key a keybinding starts with, and what pressing it does: wait for a
    * second part if any keybinding has one, or else run the keybinding
-   * findCommand picks for it
+   * findCommand picks for it, which is then a keybinding of just that key
    */
   getFirstChords(): FirstChord[] {
     const firstChords: FirstChord[] = [];
@@ -91,7 +94,7 @@ export class KeybindingRegistry {
         isSameChord(kb.chords[0], chord);
       firstChords.push({
         chord,
-        binding: this.resolve(startsWith) as ResolvedKeybinding,
+        binding: this.resolve((kb) => kb.chords.length === 1 && startsWith(kb)),
         startsChord: this.keybindings.some(
           (kb) => startsWith(kb) && kb.chords.length > 1,
         ),
