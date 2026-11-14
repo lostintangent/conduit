@@ -1,6 +1,5 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { useSelector } from "@tanstack/react-store";
-import { useCallback } from "react";
 
 const HOVER_PREVIEW_SIZE = { width: 320, height: 200 };
 
@@ -24,10 +23,8 @@ export function TabPreviewItem({
 }: TabPreviewItemProps) {
   const { previewTab, panelSize } = useTabContentPortal();
   // Shows the tab's content here for as long as the preview is mounted
-  const contentRef = useCallback(
-    (container: HTMLDivElement) => previewTab(tabId, container),
-    [previewTab, tabId],
-  );
+  const contentRef = (container: HTMLDivElement) =>
+    previewTab(tabId, container);
 
   const handleClick = () => {
     if (onClick) {

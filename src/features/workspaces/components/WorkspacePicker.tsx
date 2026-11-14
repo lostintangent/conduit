@@ -9,7 +9,7 @@ import { formatRelativeTime } from "@/utils/time";
 import type { Workspace } from "@shared/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,83 +39,74 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
     setSelectedIndex(0);
   }, [isOpen]);
 
-  const deleteWorkspace = useCallback(
-    (name: string) => {
-      deleteWorkspaceMutation(name, {
-        onSuccess: ({ workspaces }) => {
-          if (workspaces.length === 0) {
-            onClose();
-          } else {
-            setSelectedIndex((current) =>
-              Math.min(current, workspaces.length - 1),
-            );
-          }
-        },
-      });
-    },
-    [onClose, deleteWorkspaceMutation],
-  );
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-
-      if (key === "enter") {
-        event.preventDefault();
-        const session = workspaces[selectedIndex];
-        if (session) {
-          void (async () => {
-            await openWorkspace(session);
-            clearPressedKeys();
-            onClose();
-          })();
+  const deleteWorkspace = (name: string) => {
+    deleteWorkspaceMutation(name, {
+      onSuccess: ({ workspaces }) => {
+        if (workspaces.length === 0) {
+          onClose();
+        } else {
+          setSelectedIndex((current) =>
+            Math.min(current, workspaces.length - 1),
+          );
         }
-        return;
+      },
+    });
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+
+    if (key === "enter") {
+      event.preventDefault();
+      const session = workspaces[selectedIndex];
+      if (session) {
+        void (async () => {
+          await openWorkspace(session);
+          clearPressedKeys();
+          onClose();
+        })();
       }
+      return;
+    }
 
-      if (key === "arrowdown") {
-        event.preventDefault();
-        setSelectedIndex((current) =>
-          current >= workspaces.length - 1 ? 0 : current + 1,
-        );
-        return;
+    if (key === "arrowdown") {
+      event.preventDefault();
+      setSelectedIndex((current) =>
+        current >= workspaces.length - 1 ? 0 : current + 1,
+      );
+      return;
+    }
+
+    if (key === "arrowup") {
+      event.preventDefault();
+      setSelectedIndex((current) =>
+        current <= 0 ? workspaces.length - 1 : current - 1,
+      );
+    }
+
+    if (key === "delete" || key === "backspace") {
+      event.preventDefault();
+      const selectedWorkspace = workspaces[selectedIndex];
+      if (selectedWorkspace) {
+        deleteWorkspace(selectedWorkspace.name);
       }
+    }
+  };
 
-      if (key === "arrowup") {
-        event.preventDefault();
-        setSelectedIndex((current) =>
-          current <= 0 ? workspaces.length - 1 : current - 1,
-        );
-      }
+  const handleOpenWorkspace = (session: Workspace) => {
+    void (async () => {
+      await openWorkspace(session);
+      onClose();
+    })();
+  };
 
-      if (key === "delete" || key === "backspace") {
-        event.preventDefault();
-        const selectedWorkspace = workspaces[selectedIndex];
-        if (selectedWorkspace) {
-          deleteWorkspace(selectedWorkspace.name);
-        }
-      }
-    },
-    [onClose, selectedIndex, workspaces, deleteWorkspace],
-  );
-
-  const handleOpenWorkspace = useCallback(
-    (session: Workspace) => {
-      void (async () => {
-        await openWorkspace(session);
-        onClose();
-      })();
-    },
-    [onClose],
-  );
-
-  const handleDeleteWorkspace = useCallback(
-    (session: Workspace, event: React.MouseEvent) => {
-      event.stopPropagation();
-      deleteWorkspace(session.name);
-    },
-    [deleteWorkspace],
-  );
+  const handleDeleteWorkspace = (
+    session: Workspace,
+    event: React.MouseEvent,
+  ) => {
+    event.stopPropagation();
+    deleteWorkspace(session.name);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

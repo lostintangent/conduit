@@ -1,11 +1,5 @@
 import { type Atom, shallow, useCreateAtom } from "@tanstack/react-store";
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import React, { createContext, useContext, useState } from "react";
 
 /**
  * Where a tab's content is: the element it renders into for as long as the
@@ -76,65 +70,59 @@ export function TabContentPortalProvider({
       }),
   );
 
-  const update = useCallback(
-    (tabId: string, changes: TabContent) => {
-      const content = { ...contents.get(tabId), ...changes };
-      if (!content.panel && !content.preview) {
-        contents.delete(tabId);
-        return;
+  const update = (tabId: string, changes: TabContent) => {
+    const content = { ...contents.get(tabId), ...changes };
+    if (!content.panel && !content.preview) {
+      contents.delete(tabId);
+      return;
+    }
+
+    contents.set(tabId, content);
+    const parent = content.preview ?? content.panel;
+    if (content.host && parent && content.host.parentNode !== parent) {
+      moveInto(parent, content.host);
+    }
+  };
+
+  const attachPanel = (
+    tabId: string,
+    panel: HTMLElement,
+    host: HTMLElement,
+  ) => {
+    update(tabId, { panel, host });
+    panelObserver.observe(panel);
+    return () => {
+      panelObserver.unobserve(panel);
+      update(tabId, { panel: undefined, host: undefined });
+    };
+  };
+
+  const previewTab = (tabId: string, container: HTMLElement) => {
+    update(tabId, { preview: container });
+    setPreviewTabIds((ids) => new Set(ids).add(tabId));
+
+    return () => {
+      // Moves the content back before the preview leaves the page, which
+      // would reset scroll positions inside it
+      if (contents.get(tabId)?.preview === container) {
+        update(tabId, { preview: undefined });
       }
+      setPreviewTabIds((ids) => {
+        const next = new Set(ids);
+        next.delete(tabId);
+        return next;
+      });
+    };
+  };
 
-      contents.set(tabId, content);
-      const parent = content.preview ?? content.panel;
-      if (content.host && parent && content.host.parentNode !== parent) {
-        moveInto(parent, content.host);
-      }
-    },
-    [contents],
-  );
+  const isTabInPreview = (tabId: string) => previewTabIds.has(tabId);
 
-  const attachPanel = useCallback(
-    (tabId: string, panel: HTMLElement, host: HTMLElement) => {
-      update(tabId, { panel, host });
-      panelObserver.observe(panel);
-      return () => {
-        panelObserver.unobserve(panel);
-        update(tabId, { panel: undefined, host: undefined });
-      };
-    },
-    [update, panelObserver],
-  );
-
-  const previewTab = useCallback(
-    (tabId: string, container: HTMLElement) => {
-      update(tabId, { preview: container });
-      setPreviewTabIds((ids) => new Set(ids).add(tabId));
-
-      return () => {
-        // Moves the content back before the preview leaves the page, which
-        // would reset scroll positions inside it
-        if (contents.get(tabId)?.preview === container) {
-          update(tabId, { preview: undefined });
-        }
-        setPreviewTabIds((ids) => {
-          const next = new Set(ids);
-          next.delete(tabId);
-          return next;
-        });
-      };
-    },
-    [contents, update],
-  );
-
-  const isTabInPreview = useCallback(
-    (tabId: string) => previewTabIds.has(tabId),
-    [previewTabIds],
-  );
-
-  const value = useMemo<TabContentPortalContextValue>(
-    () => ({ attachPanel, previewTab, isTabInPreview, panelSize }),
-    [attachPanel, previewTab, isTabInPreview, panelSize],
-  );
+  const value: TabContentPortalContextValue = {
+    attachPanel,
+    previewTab,
+    isTabInPreview,
+    panelSize,
+  };
 
   return (
     <TabContentPortalContext.Provider value={value}>

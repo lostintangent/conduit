@@ -21,15 +21,7 @@ import {
   createTextElement,
   generateElementId,
 } from "@features/canvas/model";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   ElementStyle,
   Position,
@@ -150,11 +142,74 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/** Whether the selected elements are stylable, and their current styles */
+function getSelectedStyleInfo(
+  elements: CanvasElement[],
+  selectedIds: string[],
+) {
+  if (selectedIds.length === 0) {
+    return { hasStylableSelection: false };
+  }
+
+  // Find selected elements that have style properties
+  // Exclude eraser strokes - their style is not editable and has no visual effect
+  const stylableElements = elements.filter(
+    (el) =>
+      selectedIds.includes(el.id) &&
+      "style" in el &&
+      !(el.type === "stroke" && el.isEraser),
+  );
+
+  if (stylableElements.length === 0) {
+    return { hasStylableSelection: false };
+  }
+
+  // Get the first stylable element's style for display
+  const firstElement = stylableElements[0];
+  const style = "style" in firstElement ? firstElement.style : null;
+
+  // Extract width - only stroke and shape have width property
+  const selectedWidth =
+    firstElement.type === "stroke" || firstElement.type === "shape"
+      ? firstElement.style.width
+      : undefined;
+
+  // Check if any selected element supports width changes (stroke or shape, not text)
+  const hasWidthSupport = stylableElements.some(
+    (el) => el.type === "stroke" || el.type === "shape",
+  );
+
+  // Check if any selected element supports fill (only rectangle and ellipse shapes)
+  const fillableElements = stylableElements.filter(
+    (el) =>
+      el.type === "shape" &&
+      (el.shapeType === "rectangle" || el.shapeType === "ellipse"),
+  );
+  const hasFillableSelection = fillableElements.length > 0;
+
+  // Get fill from first fillable element
+  const selectedFill =
+    hasFillableSelection && fillableElements[0].type === "shape"
+      ? fillableElements[0].style.fill
+      : undefined;
+
+  return {
+    hasStylableSelection: true,
+    hasWidthSupport,
+    hasFillableSelection,
+    selectedColor: style?.color,
+    selectedWidth,
+    selectedFill,
+    stylableElements,
+    fillableElements,
+  };
+}
+
 // =============================================================================
 // Main Component
 // =============================================================================
 
-export const CanvasPane = memo(function CanvasPane({
+export function CanvasPane({
   pane: _pane,
   paneId,
   tabId: _tabId,
@@ -213,32 +268,20 @@ export const CanvasPane = memo(function CanvasPane({
     updateElementStyle,
   } = useCanvasState(paneId);
 
-  // Operations for undo/redo (memoized to prevent hook recreation)
-  const historyOperations = useMemo(
-    () => ({
-      addElement,
-      deleteElements,
-      updateElementPosition,
-      updateElementTransform: (id: string, transform: Transform) =>
-        updateElement(id, { transform }),
-      updateElementStyle,
-      setElements,
-      addElementsAtIndices,
-      clearCanvas,
-      updateLineEndpoint: (id: string, transform: Transform, size: ShapeSize) =>
-        updateElement(id, { transform, size }),
-    }),
-    [
-      addElement,
-      deleteElements,
-      updateElementPosition,
-      updateElement,
-      updateElementStyle,
-      setElements,
-      addElementsAtIndices,
-      clearCanvas,
-    ],
-  );
+  // Operations for undo/redo
+  const historyOperations = {
+    addElement,
+    deleteElements,
+    updateElementPosition,
+    updateElementTransform: (id: string, transform: Transform) =>
+      updateElement(id, { transform }),
+    updateElementStyle,
+    setElements,
+    addElementsAtIndices,
+    clearCanvas,
+    updateLineEndpoint: (id: string, transform: Transform, size: ShapeSize) =>
+      updateElement(id, { transform, size }),
+  };
 
   // Undo/redo history
   const {
@@ -282,10 +325,10 @@ export const CanvasPane = memo(function CanvasPane({
   } = useViewport(paneId);
 
   // Wrap zoomToFit with bounds calculation
-  const handleZoomToFit = useCallback(() => {
+  const handleZoomToFit = () => {
     const bounds = calculateElementsBoundingBox(elements);
     zoomToFit(bounds, canvasSize.width, canvasSize.height);
-  }, [elements, canvasSize, zoomToFit]);
+  };
 
   // Pan state
   const [isPanning, setIsPanning] = useState(false);
@@ -302,41 +345,35 @@ export const CanvasPane = memo(function CanvasPane({
   const copySuccessTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Wrap setTool to clear selection when switching tools
-  const setTool = useCallback(
-    (newTool: CanvasTool) => {
-      if (newTool !== tool) {
-        clearSelection();
-      }
-      setToolInternal(newTool);
-    },
-    [tool, clearSelection],
-  );
+  const setTool = (newTool: CanvasTool) => {
+    if (newTool !== tool) {
+      clearSelection();
+    }
+    setToolInternal(newTool);
+  };
 
   // Shared handler for adding an image to the canvas (used by both paste and drop)
-  const addImageToCanvas = useCallback(
-    async (file: File) => {
-      try {
-        const dataUrl = await fileToBase64(file);
-        const img = await loadImage(dataUrl);
+  const addImageToCanvas = async (file: File) => {
+    try {
+      const dataUrl = await fileToBase64(file);
+      const img = await loadImage(dataUrl);
 
-        const imageElement = createImageElement(
-          dataUrl.split(",")[1],
-          file.type,
-          { width: img.width, height: img.height },
-          canvasSize.width / 2 / viewport.zoom - viewport.panX,
-          canvasSize.height / 2 / viewport.zoom - viewport.panY,
-        );
+      const imageElement = createImageElement(
+        dataUrl.split(",")[1],
+        file.type,
+        { width: img.width, height: img.height },
+        canvasSize.width / 2 / viewport.zoom - viewport.panX,
+        canvasSize.height / 2 / viewport.zoom - viewport.panY,
+      );
 
-        addElement(imageElement);
-        recordAdd([imageElement]);
-        selectElements([imageElement.id]);
-        setToolInternal("select");
-      } catch (err) {
-        console.error("Failed to add image to canvas:", err);
-      }
-    },
-    [canvasSize, viewport, addElement, recordAdd, selectElements],
-  );
+      addElement(imageElement);
+      recordAdd([imageElement]);
+      selectElements([imageElement.id]);
+      setToolInternal("select");
+    } catch (err) {
+      console.error("Failed to add image to canvas:", err);
+    }
+  };
 
   // Image drag and drop
   const { isImageDragOver, dragHandlers: imageDragHandlers } = useImageDrop({
@@ -363,36 +400,33 @@ export const CanvasPane = memo(function CanvasPane({
   // Cursor preview for pen/eraser tools. We update the DOM directly (rather than via React
   // state) to avoid triggering expensive re-renders of large canvases on every mouse move.
   const cursorPreviewRef = useRef<HTMLDivElement>(null);
-  const updateCursorPreview = useCallback(
-    (screenX?: number, screenY?: number) => {
-      const el = cursorPreviewRef.current;
-      if (!el) return;
+  const updateCursorPreview = (screenX?: number, screenY?: number) => {
+    const el = cursorPreviewRef.current;
+    if (!el) return;
 
-      const shouldShow =
-        screenX !== undefined &&
-        screenY !== undefined &&
-        (tool === "pen" || tool === "eraser") &&
-        !isPanning &&
-        !isSpacePressed;
+    const shouldShow =
+      screenX !== undefined &&
+      screenY !== undefined &&
+      (tool === "pen" || tool === "eraser") &&
+      !isPanning &&
+      !isSpacePressed;
 
-      if (!shouldShow) {
-        el.style.display = "none";
-        return;
-      }
+    if (!shouldShow) {
+      el.style.display = "none";
+      return;
+    }
 
-      const size = strokeWidth * viewport.zoom;
-      el.style.left = `${screenX - size / 2}px`;
-      el.style.top = `${screenY - size / 2}px`;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.borderColor =
-        tool === "eraser" ? "rgba(128, 128, 128, 0.8)" : strokeColor;
-      el.style.backgroundColor =
-        tool === "eraser" ? "rgba(128, 128, 128, 0.2)" : "";
-      el.style.display = "block";
-    },
-    [tool, isPanning, isSpacePressed, strokeWidth, strokeColor, viewport.zoom],
-  );
+    const size = strokeWidth * viewport.zoom;
+    el.style.left = `${screenX - size / 2}px`;
+    el.style.top = `${screenY - size / 2}px`;
+    el.style.width = `${size}px`;
+    el.style.height = `${size}px`;
+    el.style.borderColor =
+      tool === "eraser" ? "rgba(128, 128, 128, 0.8)" : strokeColor;
+    el.style.backgroundColor =
+      tool === "eraser" ? "rgba(128, 128, 128, 0.2)" : "";
+    el.style.display = "block";
+  };
 
   // Track if hovering over an element (for cursor feedback)
   const [isHoveringElement, setIsHoveringElement] = useState(false);
@@ -430,7 +464,7 @@ export const CanvasPane = memo(function CanvasPane({
   // ---------------------------------------------------------------------------
   // Render canvas (called when elements, viewport, or size changes)
   // ---------------------------------------------------------------------------
-  const renderCanvas = useCallback(() => {
+  const renderCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -516,18 +550,7 @@ export const CanvasPane = memo(function CanvasPane({
       // Reset composite operation to ensure clean state for any subsequent operations
       ctx.globalCompositeOperation = "source-over";
     }
-  }, [
-    backgroundColor,
-    canvasSize,
-    dpr,
-    viewport,
-    elements,
-    selectedIds,
-    showDotGrid,
-    tool,
-    strokeColor,
-    strokeWidth,
-  ]);
+  };
 
   // ---------------------------------------------------------------------------
   // Sync canvas when dependencies change
@@ -556,7 +579,7 @@ export const CanvasPane = memo(function CanvasPane({
   // ---------------------------------------------------------------------------
   // Reset interaction - clears a drawing/dragging operation without committing
   // ---------------------------------------------------------------------------
-  const resetInteraction = useCallback(() => {
+  const resetInteraction = () => {
     currentStrokeRef.current = [];
     setIsDrawing(false);
     setIsDragging(false);
@@ -575,12 +598,12 @@ export const CanvasPane = memo(function CanvasPane({
     setMarqueeRect(null);
     marqueeStartRef.current = null;
     preMarqueeSelectionRef.current = [];
-  }, []);
+  };
 
   // ---------------------------------------------------------------------------
   // Commit interaction - shared logic for completing drawing/dragging operations
   // ---------------------------------------------------------------------------
-  const commitInteraction = useCallback(() => {
+  const commitInteraction = () => {
     // Commit current stroke if drawing
     if (isDrawing && currentStrokeRef.current.length > 1) {
       const stroke = createStrokeElement(
@@ -655,26 +678,7 @@ export const CanvasPane = memo(function CanvasPane({
     }
 
     resetInteraction();
-  }, [
-    isDrawing,
-    isDragging,
-    isDrawingShape,
-    shapePreview,
-    activeHandle,
-    selectedIds,
-    elements,
-    tool,
-    shapeType,
-    strokeColor,
-    strokeWidth,
-    fill,
-    addElement,
-    recordAdd,
-    recordMove,
-    recordTransform,
-    recordLineEndpoint,
-    resetInteraction,
-  ]);
+  };
 
   // ---------------------------------------------------------------------------
   // Handle mouse up outside canvas (important for good UX)
@@ -707,7 +711,7 @@ export const CanvasPane = memo(function CanvasPane({
   // ---------------------------------------------------------------------------
 
   // Show copy success checkmark for 2 seconds
-  const triggerCopySuccess = useCallback(() => {
+  const triggerCopySuccess = () => {
     if (copySuccessTimeoutRef.current) {
       clearTimeout(copySuccessTimeoutRef.current);
     }
@@ -717,9 +721,9 @@ export const CanvasPane = memo(function CanvasPane({
     copySuccessTimeoutRef.current = setTimeout(() => {
       setShowCopySuccess(false);
     }, COPY_SUCCESS_DURATION_MS);
-  }, []);
+  };
 
-  const handleCopyToClipboard = useCallback(async () => {
+  const handleCopyToClipboard = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -753,9 +757,9 @@ export const CanvasPane = memo(function CanvasPane({
         resolve();
       }, "image/png");
     });
-  }, [canvasSize, dpr, backgroundColor, elements, triggerCopySuccess]);
+  };
 
-  const handleCopyElements = useCallback(async () => {
+  const handleCopyElements = async () => {
     const selectedElements = elements.filter((el) =>
       selectedIds.includes(el.id),
     );
@@ -769,98 +773,83 @@ export const CanvasPane = memo(function CanvasPane({
 
     // Use writeText for broader compatibility
     await navigator.clipboard.writeText(clipboardData);
-  }, [elements, selectedIds]);
+  };
 
   // ---------------------------------------------------------------------------
   // Keyboard handlers (attached to container, not window)
   // ---------------------------------------------------------------------------
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      // Space for panning
-      if (e.code === "Space" && !isAddingText) {
-        e.preventDefault();
-        setIsSpacePressed(true);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Space for panning
+    if (e.code === "Space" && !isAddingText) {
+      e.preventDefault();
+      setIsSpacePressed(true);
+    }
+    // Ctrl+Z or Cmd+Z for undo
+    if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      undo();
+    }
+    // Ctrl+Shift+Z or Cmd+Shift+Z or Ctrl+Y for redo
+    if (
+      ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) ||
+      (e.ctrlKey && e.key === "y")
+    ) {
+      e.preventDefault();
+      redo();
+    }
+    // Ctrl+C or Cmd+C to copy selected elements or canvas
+    if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+      e.preventDefault();
+      if (selectedIds.length > 0) {
+        // Copy selected elements as JSON
+        handleCopyElements();
+      } else {
+        // Copy entire canvas as image
+        handleCopyToClipboard();
       }
-      // Ctrl+Z or Cmd+Z for undo
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
-        e.preventDefault();
-        undo();
+    }
+    // Ctrl+0 or Cmd+0 for zoom to fit
+    if ((e.ctrlKey || e.metaKey) && e.key === "0") {
+      e.preventDefault();
+      handleZoomToFit();
+    }
+    // Delete or Backspace to delete selected elements
+    if (
+      (e.key === "Delete" || e.key === "Backspace") &&
+      !isAddingText &&
+      selectedIds.length > 0
+    ) {
+      e.preventDefault();
+      const selectedElements = elements.filter((el) =>
+        selectedIds.includes(el.id),
+      );
+      recordDelete(selectedElements, elements);
+      deleteSelectedElements();
+    }
+    // Escape to clear selection or cancel text input
+    if (e.key === "Escape") {
+      if (isAddingText) {
+        setIsAddingText(false);
+      } else {
+        clearSelection();
       }
-      // Ctrl+Shift+Z or Cmd+Shift+Z or Ctrl+Y for redo
-      if (
-        ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) ||
-        (e.ctrlKey && e.key === "y")
-      ) {
-        e.preventDefault();
-        redo();
-      }
-      // Ctrl+C or Cmd+C to copy selected elements or canvas
-      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        e.preventDefault();
-        if (selectedIds.length > 0) {
-          // Copy selected elements as JSON
-          handleCopyElements();
-        } else {
-          // Copy entire canvas as image
-          handleCopyToClipboard();
-        }
-      }
-      // Ctrl+0 or Cmd+0 for zoom to fit
-      if ((e.ctrlKey || e.metaKey) && e.key === "0") {
-        e.preventDefault();
-        handleZoomToFit();
-      }
-      // Delete or Backspace to delete selected elements
-      if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        !isAddingText &&
-        selectedIds.length > 0
-      ) {
-        e.preventDefault();
-        const selectedElements = elements.filter((el) =>
-          selectedIds.includes(el.id),
-        );
-        recordDelete(selectedElements, elements);
-        deleteSelectedElements();
-      }
-      // Escape to clear selection or cancel text input
-      if (e.key === "Escape") {
-        if (isAddingText) {
-          setIsAddingText(false);
-        } else {
-          clearSelection();
-        }
-      }
-    },
-    [
-      isAddingText,
-      handleZoomToFit,
-      handleCopyToClipboard,
-      handleCopyElements,
-      selectedIds,
-      elements,
-      deleteSelectedElements,
-      clearSelection,
-      undo,
-      redo,
-      recordDelete,
-    ],
-  );
+    }
+  };
 
-  const handleKeyUp = useCallback((e: React.KeyboardEvent) => {
+  const handleKeyUp = (e: React.KeyboardEvent) => {
     if (e.code === "Space") {
       setIsSpacePressed(false);
       setIsPanning(false);
       panStartRef.current = null;
     }
-  }, []);
+  };
 
   // Space's keyup goes wherever focus went, so release it when focus leaves.
-  const handleBlur = useCallback((e: React.FocusEvent) => {
+  const handleBlur = (e: React.FocusEvent) => {
     if (!e.currentTarget.contains(e.relatedTarget)) {
       setIsSpacePressed(false);
     }
-  }, []);
+  };
 
   // ---------------------------------------------------------------------------
   // Focus text input when it appears
@@ -877,395 +866,98 @@ export const CanvasPane = memo(function CanvasPane({
   }, [isAddingText]);
 
   // Paste canvas elements from JSON clipboard data
-  const pasteElements = useCallback(
-    (text: string) => {
-      try {
-        const data = JSON.parse(text);
-        if (data?.type !== "conduit-canvas-elements") return;
-        if (!Array.isArray(data.elements)) return;
+  const pasteElements = (text: string) => {
+    try {
+      const data = JSON.parse(text);
+      if (data?.type !== "conduit-canvas-elements") return;
+      if (!Array.isArray(data.elements)) return;
 
-        const newElements = data.elements.map((el: CanvasElement) => ({
-          ...el,
-          id: generateElementId(),
-          transform: {
-            ...el.transform,
-            x: el.transform.x + PASTE_OFFSET,
-            y: el.transform.y + PASTE_OFFSET,
-          },
-        })) as CanvasElement[];
+      const newElements = data.elements.map((el: CanvasElement) => ({
+        ...el,
+        id: generateElementId(),
+        transform: {
+          ...el.transform,
+          x: el.transform.x + PASTE_OFFSET,
+          y: el.transform.y + PASTE_OFFSET,
+        },
+      })) as CanvasElement[];
 
-        for (const element of newElements) {
-          addElement(element);
-        }
-        recordAdd(newElements);
-        selectElements(newElements.map((el) => el.id));
-      } catch {
-        // Not valid canvas element data - ignore
+      for (const element of newElements) {
+        addElement(element);
       }
-    },
-    [addElement, recordAdd, selectElements],
-  );
+      recordAdd(newElements);
+      selectElements(newElements.map((el) => el.id));
+    } catch {
+      // Not valid canvas element data - ignore
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Paste handler for images and elements (attached to container, not window)
   // ---------------------------------------------------------------------------
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
-      const items = Array.from(e.clipboardData?.items ?? []);
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
 
-      // Priority: image > elements
-      const imageItem = items.find((item) => item.type.startsWith("image/"));
+    // Priority: image > elements
+    const imageItem = items.find((item) => item.type.startsWith("image/"));
 
-      if (imageItem) {
-        const file = imageItem.getAsFile();
-        if (!file) return;
+    if (imageItem) {
+      const file = imageItem.getAsFile();
+      if (!file) return;
 
-        e.preventDefault();
-        addImageToCanvas(file);
-      } else {
-        const text = e.clipboardData?.getData("text/plain");
-        if (text) pasteElements(text);
-      }
-    },
-    [addImageToCanvas, pasteElements],
-  );
+      e.preventDefault();
+      addImageToCanvas(file);
+    } else {
+      const text = e.clipboardData?.getData("text/plain");
+      if (text) pasteElements(text);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Get canvas point from mouse event (applies viewport transform)
   // ---------------------------------------------------------------------------
-  const getCanvasPoint = useCallback(
-    (e: React.MouseEvent): Point | null => {
-      const canvas = canvasRef.current;
-      if (!canvas) return null;
-      const rect = canvas.getBoundingClientRect();
-      return screenToCanvas(e.clientX, e.clientY, rect);
-    },
-    [screenToCanvas],
-  );
+  const getCanvasPoint = (e: React.MouseEvent): Point | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return screenToCanvas(e.clientX, e.clientY, rect);
+  };
 
   // ---------------------------------------------------------------------------
   // Get screen point from canvas coordinates (for UI positioning)
   // ---------------------------------------------------------------------------
-  const canvasToScreenPoint = useCallback(
-    (canvasX: number, canvasY: number): Point => {
-      return {
-        x: (canvasX + viewport.panX) * viewport.zoom,
-        y: (canvasY + viewport.panY) * viewport.zoom,
-      };
-    },
-    [viewport],
-  );
+  const canvasToScreenPoint = (canvasX: number, canvasY: number): Point => {
+    return {
+      x: (canvasX + viewport.panX) * viewport.zoom,
+      y: (canvasY + viewport.panY) * viewport.zoom,
+    };
+  };
 
   // ---------------------------------------------------------------------------
   // Mouse handlers
   // ---------------------------------------------------------------------------
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      // Middle-click, Space+click, or hand tool starts panning
-      if (
-        e.button === 1 ||
-        (e.button === 0 && isSpacePressed) ||
-        (e.button === 0 && tool === "hand")
-      ) {
-        e.preventDefault();
-        setIsPanning(true);
-        panStartRef.current = { x: e.clientX, y: e.clientY };
-        return;
-      }
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Middle-click, Space+click, or hand tool starts panning
+    if (
+      e.button === 1 ||
+      (e.button === 0 && isSpacePressed) ||
+      (e.button === 0 && tool === "hand")
+    ) {
+      e.preventDefault();
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
 
-      if (e.button !== 0) return; // Only left click
+    if (e.button !== 0) return; // Only left click
 
-      const point = getCanvasPoint(e);
-      if (!point) return;
+    const point = getCanvasPoint(e);
+    if (!point) return;
 
-      // Handle based on tool
-      switch (tool) {
-        case "select": {
-          // First, check if we clicked on a handle of an already-selected element
-          if (selectedIds.length === 1) {
-            const selectedElement = elements.find(
-              (el) => el.id === selectedIds[0],
-            );
-            if (selectedElement) {
-              const handle = getHandleAtPoint(
-                point,
-                selectedElement,
-                viewport.zoom,
-              );
-              if (handle && handle !== "move") {
-                // Start resize, rotate, or line endpoint drag
-                setActiveHandle(handle);
-                dragStartRef.current = point;
-                resizeStartRef.current = {
-                  bounds: getElementBounds(selectedElement),
-                  scale: {
-                    scaleX: selectedElement.transform.scaleX,
-                    scaleY: selectedElement.transform.scaleY,
-                  },
-                  rotation: selectedElement.transform.rotation,
-                };
-                // Save state for undo - for line endpoints, save size too
-                if (handle === "line-start" || handle === "line-end") {
-                  if (selectedElement.type === "shape") {
-                    lineEndpointBeforeRef.current = {
-                      transform: { ...selectedElement.transform },
-                      size: { ...selectedElement.size },
-                    };
-                  }
-                } else {
-                  transformBeforeRef.current = { ...selectedElement.transform };
-                }
-                return;
-              }
-            }
-          }
-
-          // Otherwise, check if we hit an element
-          const hitElement = hitTestElements(point, elements);
-          if (hitElement) {
-            if (e.shiftKey) {
-              // Add to selection
-              if (!selectedIds.includes(hitElement.id)) {
-                selectElements([...selectedIds, hitElement.id]);
-              }
-            } else {
-              // Select single element (or keep if already selected for drag)
-              if (!selectedIds.includes(hitElement.id)) {
-                selectElements([hitElement.id]);
-              }
-            }
-            // Start drag
-            setIsDragging(true);
-            dragStartRef.current = point;
-            // Store initial positions of all selected elements
-            const positions = new Map<string, Point>();
-            const idsToTrack = selectedIds.includes(hitElement.id)
-              ? selectedIds
-              : [hitElement.id];
-            for (const id of idsToTrack) {
-              const el = elements.find((elem) => elem.id === id);
-              if (el) {
-                positions.set(id, {
-                  x: el.transform.x,
-                  y: el.transform.y,
-                });
-              }
-            }
-            dragElementStartPositions.current = positions;
-          } else {
-            // Click on empty space - start marquee selection
-            setIsMarqueeSelecting(true);
-            marqueeStartRef.current = point;
-            setMarqueeRect({ x: point.x, y: point.y, width: 0, height: 0 });
-
-            // Store current selection for Shift+drag additive mode
-            preMarqueeSelectionRef.current = e.shiftKey ? [...selectedIds] : [];
-
-            if (!e.shiftKey) {
-              clearSelection();
-            }
-          }
-          break;
-        }
-
-        case "text":
-          setTextPosition(point);
-          setIsAddingText(true);
-          break;
-
-        case "pen":
-        case "eraser":
-          setIsDrawing(true);
-          currentStrokeRef.current = [point];
-          break;
-
-        case "shape":
-          setIsDrawingShape(true);
-          shapeStartRef.current = point;
-          setShapePreview({ x: point.x, y: point.y, width: 0, height: 0 });
-          break;
-      }
-    },
-    [
-      tool,
-      isSpacePressed,
-      getCanvasPoint,
-      elements,
-      selectedIds,
-      selectElements,
-      clearSelection,
-      viewport.zoom,
-    ],
-  );
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      // Handle panning
-      if (isPanning && panStartRef.current) {
-        const deltaX = e.clientX - panStartRef.current.x;
-        const deltaY = e.clientY - panStartRef.current.y;
-        panBy(deltaX, deltaY);
-        panStartRef.current = { x: e.clientX, y: e.clientY };
-        return;
-      }
-
-      const point = getCanvasPoint(e);
-      if (!point) return;
-
-      // Update cursor preview (handles visibility, position, size, and color)
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const rect = canvas.getBoundingClientRect();
-        updateCursorPreview(e.clientX - rect.left, e.clientY - rect.top);
-      }
-
-      // Early exit when not in select mode and not actively interacting
-      if (
-        tool !== "select" &&
-        !isDragging &&
-        !isDrawing &&
-        !isDrawingShape &&
-        !isMarqueeSelecting &&
-        !activeHandle
-      ) {
-        return;
-      }
-
-      // Handle resize/rotate/line-endpoint dragging
-      if (activeHandle && selectedIds.length === 1 && resizeStartRef.current) {
-        const element = elements.find((el) => el.id === selectedIds[0]);
-        if (element) {
-          if (activeHandle === "rotate") {
-            // Calculate new rotation
-            const newRotation = calculateRotation(point, {
-              x: element.transform.x,
-              y: element.transform.y,
-            });
-            updateElement(element.id, {
-              transform: {
-                ...element.transform,
-                rotation: newRotation,
-              },
-            });
-          } else if (
-            activeHandle === "line-start" ||
-            activeHandle === "line-end"
-          ) {
-            // Handle line/arrow endpoint dragging
-            if (element.type === "shape" && dragStartRef.current) {
-              // Get current endpoints in world space (accounting for scale)
-              const rad = (element.transform.rotation * Math.PI) / 180;
-              const cos = Math.cos(rad);
-              const sin = Math.sin(rad);
-              const halfWidth =
-                (element.size.width * element.transform.scaleX) / 2;
-
-              const startWorld = {
-                x: element.transform.x + -halfWidth * cos,
-                y: element.transform.y + -halfWidth * sin,
-              };
-              const endWorld = {
-                x: element.transform.x + halfWidth * cos,
-                y: element.transform.y + halfWidth * sin,
-              };
-
-              // Update the dragged endpoint
-              const newStart =
-                activeHandle === "line-start" ? point : startWorld;
-              const newEnd = activeHandle === "line-end" ? point : endWorld;
-
-              // Calculate new center, length, and rotation
-              const newCenterX = (newStart.x + newEnd.x) / 2;
-              const newCenterY = (newStart.y + newEnd.y) / 2;
-              const newLength = Math.sqrt(
-                Math.pow(newEnd.x - newStart.x, 2) +
-                  Math.pow(newEnd.y - newStart.y, 2),
-              );
-              const newRotation =
-                (Math.atan2(newEnd.y - newStart.y, newEnd.x - newStart.x) *
-                  180) /
-                Math.PI;
-
-              // Bake scale into size and reset scale to 1.0
-              updateElement(element.id, {
-                size: {
-                  width: newLength,
-                  height: element.size.height,
-                },
-                transform: {
-                  ...element.transform,
-                  x: newCenterX,
-                  y: newCenterY,
-                  rotation: newRotation,
-                  scaleX: 1.0,
-                  scaleY: 1.0,
-                },
-              });
-            }
-          } else if (activeHandle.startsWith("resize-")) {
-            // Calculate new scale (uniform scaling from any corner)
-            const { scaleX, scaleY } = calculateResizeScale(
-              point,
-              { x: element.transform.x, y: element.transform.y },
-              resizeStartRef.current.bounds,
-              resizeStartRef.current.scale,
-              element.transform.rotation,
-            );
-            updateElement(element.id, {
-              transform: {
-                ...element.transform,
-                scaleX,
-                scaleY,
-              },
-            });
-          }
-        }
-        return;
-      }
-
-      // Handle dragging selected elements - check BEFORE hover detection
-      // to avoid expensive hit testing on every mouse move during drag
-      if (isDragging && dragStartRef.current && selectedIds.length > 0) {
-        const dx = point.x - dragStartRef.current.x;
-        const dy = point.y - dragStartRef.current.y;
-
-        for (const id of selectedIds) {
-          const startPos = dragElementStartPositions.current.get(id);
-          if (startPos) {
-            // Use updateElementPosition to preserve rotation/scale
-            updateElementPosition(id, startPos.x + dx, startPos.y + dy);
-          }
-        }
-        return;
-      }
-
-      // Handle marquee selection - dynamically update selection as marquee changes
-      if (isMarqueeSelecting && marqueeStartRef.current) {
-        const start = marqueeStartRef.current;
-        const newRect = {
-          x: Math.min(start.x, point.x),
-          y: Math.min(start.y, point.y),
-          width: Math.abs(point.x - start.x),
-          height: Math.abs(point.y - start.y),
-        };
-        setMarqueeRect(newRect);
-
-        // Dynamically update selection based on intersection
-        const intersecting = getElementsInRect(newRect, elements);
-        const intersectingIds = intersecting.map((el) => el.id);
-
-        // Combine with pre-marquee selection (for Shift+drag additive mode)
-        const newSelection = [
-          ...new Set([...preMarqueeSelectionRef.current, ...intersectingIds]),
-        ];
-        selectElements(newSelection);
-        return;
-      }
-
-      // Check if hovering over any element or handle (for cursor feedback)
-      // Only runs when not actively dragging, so hover states update correctly
-      if (tool === "select") {
-        // First check handles of selected element
+    // Handle based on tool
+    switch (tool) {
+      case "select": {
+        // First, check if we clicked on a handle of an already-selected element
         if (selectedIds.length === 1) {
           const selectedElement = elements.find(
             (el) => el.id === selectedIds[0],
@@ -1276,176 +968,411 @@ export const CanvasPane = memo(function CanvasPane({
               selectedElement,
               viewport.zoom,
             );
-            setHoveredHandle(handle);
-            if (handle) {
-              setIsHoveringElement(true);
+            if (handle && handle !== "move") {
+              // Start resize, rotate, or line endpoint drag
+              setActiveHandle(handle);
+              dragStartRef.current = point;
+              resizeStartRef.current = {
+                bounds: getElementBounds(selectedElement),
+                scale: {
+                  scaleX: selectedElement.transform.scaleX,
+                  scaleY: selectedElement.transform.scaleY,
+                },
+                rotation: selectedElement.transform.rotation,
+              };
+              // Save state for undo - for line endpoints, save size too
+              if (handle === "line-start" || handle === "line-end") {
+                if (selectedElement.type === "shape") {
+                  lineEndpointBeforeRef.current = {
+                    transform: { ...selectedElement.transform },
+                    size: { ...selectedElement.size },
+                  };
+                }
+              } else {
+                transformBeforeRef.current = { ...selectedElement.transform };
+              }
               return;
             }
           }
         }
-        // Then check elements
+
+        // Otherwise, check if we hit an element
         const hitElement = hitTestElements(point, elements);
-        setIsHoveringElement(hitElement !== null);
-        setHoveredHandle(hitElement ? "move" : null);
-      } else {
-        setIsHoveringElement(false);
-        setHoveredHandle(null);
-      }
-
-      // Handle drawing
-      if (isDrawing && (tool === "pen" || tool === "eraser")) {
-        currentStrokeRef.current.push(point);
-        renderCanvas();
-      }
-
-      // Handle shape drawing preview
-      if (isDrawingShape && shapeStartRef.current) {
-        const start = shapeStartRef.current;
-        const dx = point.x - start.x;
-        const dy = point.y - start.y;
-        const isLinear = shapeType === "line" || shapeType === "arrow";
-
-        if (isLinear) {
-          // For lines/arrows: calculate length and angle
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-          setShapePreview({
-            x: start.x + dx / 2, // Center point
-            y: start.y + dy / 2, // Center point
-            width: length,
-            height: 0,
-            rotation: angle,
-          });
+        if (hitElement) {
+          if (e.shiftKey) {
+            // Add to selection
+            if (!selectedIds.includes(hitElement.id)) {
+              selectElements([...selectedIds, hitElement.id]);
+            }
+          } else {
+            // Select single element (or keep if already selected for drag)
+            if (!selectedIds.includes(hitElement.id)) {
+              selectElements([hitElement.id]);
+            }
+          }
+          // Start drag
+          setIsDragging(true);
+          dragStartRef.current = point;
+          // Store initial positions of all selected elements
+          const positions = new Map<string, Point>();
+          const idsToTrack = selectedIds.includes(hitElement.id)
+            ? selectedIds
+            : [hitElement.id];
+          for (const id of idsToTrack) {
+            const el = elements.find((elem) => elem.id === id);
+            if (el) {
+              positions.set(id, {
+                x: el.transform.x,
+                y: el.transform.y,
+              });
+            }
+          }
+          dragElementStartPositions.current = positions;
         } else {
-          // For rectangles/ellipses: use width/height as before
-          setShapePreview({
-            x: start.x + dx / 2,
-            y: start.y + dy / 2,
-            width: Math.abs(dx),
-            height: Math.abs(dy),
+          // Click on empty space - start marquee selection
+          setIsMarqueeSelecting(true);
+          marqueeStartRef.current = point;
+          setMarqueeRect({ x: point.x, y: point.y, width: 0, height: 0 });
+
+          // Store current selection for Shift+drag additive mode
+          preMarqueeSelectionRef.current = e.shiftKey ? [...selectedIds] : [];
+
+          if (!e.shiftKey) {
+            clearSelection();
+          }
+        }
+        break;
+      }
+
+      case "text":
+        setTextPosition(point);
+        setIsAddingText(true);
+        break;
+
+      case "pen":
+      case "eraser":
+        setIsDrawing(true);
+        currentStrokeRef.current = [point];
+        break;
+
+      case "shape":
+        setIsDrawingShape(true);
+        shapeStartRef.current = point;
+        setShapePreview({ x: point.x, y: point.y, width: 0, height: 0 });
+        break;
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    // Handle panning
+    if (isPanning && panStartRef.current) {
+      const deltaX = e.clientX - panStartRef.current.x;
+      const deltaY = e.clientY - panStartRef.current.y;
+      panBy(deltaX, deltaY);
+      panStartRef.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+
+    const point = getCanvasPoint(e);
+    if (!point) return;
+
+    // Update cursor preview (handles visibility, position, size, and color)
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      updateCursorPreview(e.clientX - rect.left, e.clientY - rect.top);
+    }
+
+    // Early exit when not in select mode and not actively interacting
+    if (
+      tool !== "select" &&
+      !isDragging &&
+      !isDrawing &&
+      !isDrawingShape &&
+      !isMarqueeSelecting &&
+      !activeHandle
+    ) {
+      return;
+    }
+
+    // Handle resize/rotate/line-endpoint dragging
+    if (activeHandle && selectedIds.length === 1 && resizeStartRef.current) {
+      const element = elements.find((el) => el.id === selectedIds[0]);
+      if (element) {
+        if (activeHandle === "rotate") {
+          // Calculate new rotation
+          const newRotation = calculateRotation(point, {
+            x: element.transform.x,
+            y: element.transform.y,
+          });
+          updateElement(element.id, {
+            transform: {
+              ...element.transform,
+              rotation: newRotation,
+            },
+          });
+        } else if (
+          activeHandle === "line-start" ||
+          activeHandle === "line-end"
+        ) {
+          // Handle line/arrow endpoint dragging
+          if (element.type === "shape" && dragStartRef.current) {
+            // Get current endpoints in world space (accounting for scale)
+            const rad = (element.transform.rotation * Math.PI) / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            const halfWidth =
+              (element.size.width * element.transform.scaleX) / 2;
+
+            const startWorld = {
+              x: element.transform.x + -halfWidth * cos,
+              y: element.transform.y + -halfWidth * sin,
+            };
+            const endWorld = {
+              x: element.transform.x + halfWidth * cos,
+              y: element.transform.y + halfWidth * sin,
+            };
+
+            // Update the dragged endpoint
+            const newStart = activeHandle === "line-start" ? point : startWorld;
+            const newEnd = activeHandle === "line-end" ? point : endWorld;
+
+            // Calculate new center, length, and rotation
+            const newCenterX = (newStart.x + newEnd.x) / 2;
+            const newCenterY = (newStart.y + newEnd.y) / 2;
+            const newLength = Math.sqrt(
+              Math.pow(newEnd.x - newStart.x, 2) +
+                Math.pow(newEnd.y - newStart.y, 2),
+            );
+            const newRotation =
+              (Math.atan2(newEnd.y - newStart.y, newEnd.x - newStart.x) * 180) /
+              Math.PI;
+
+            // Bake scale into size and reset scale to 1.0
+            updateElement(element.id, {
+              size: {
+                width: newLength,
+                height: element.size.height,
+              },
+              transform: {
+                ...element.transform,
+                x: newCenterX,
+                y: newCenterY,
+                rotation: newRotation,
+                scaleX: 1.0,
+                scaleY: 1.0,
+              },
+            });
+          }
+        } else if (activeHandle.startsWith("resize-")) {
+          // Calculate new scale (uniform scaling from any corner)
+          const { scaleX, scaleY } = calculateResizeScale(
+            point,
+            { x: element.transform.x, y: element.transform.y },
+            resizeStartRef.current.bounds,
+            resizeStartRef.current.scale,
+            element.transform.rotation,
+          );
+          updateElement(element.id, {
+            transform: {
+              ...element.transform,
+              scaleX,
+              scaleY,
+            },
           });
         }
       }
-    },
-    [
-      isPanning,
-      isDragging,
-      isDrawing,
-      isDrawingShape,
-      isMarqueeSelecting,
-      activeHandle,
-      tool,
-      shapeType,
-      selectedIds,
-      elements,
-      getCanvasPoint,
-      panBy,
-      updateElement,
-      updateElementPosition,
-      updateCursorPreview,
-      renderCanvas,
-      selectElements,
-      viewport.zoom,
-    ],
-  );
+      return;
+    }
 
-  const handleMouseUp = useCallback(() => {
+    // Handle dragging selected elements - check BEFORE hover detection
+    // to avoid expensive hit testing on every mouse move during drag
+    if (isDragging && dragStartRef.current && selectedIds.length > 0) {
+      const dx = point.x - dragStartRef.current.x;
+      const dy = point.y - dragStartRef.current.y;
+
+      for (const id of selectedIds) {
+        const startPos = dragElementStartPositions.current.get(id);
+        if (startPos) {
+          // Use updateElementPosition to preserve rotation/scale
+          updateElementPosition(id, startPos.x + dx, startPos.y + dy);
+        }
+      }
+      return;
+    }
+
+    // Handle marquee selection - dynamically update selection as marquee changes
+    if (isMarqueeSelecting && marqueeStartRef.current) {
+      const start = marqueeStartRef.current;
+      const newRect = {
+        x: Math.min(start.x, point.x),
+        y: Math.min(start.y, point.y),
+        width: Math.abs(point.x - start.x),
+        height: Math.abs(point.y - start.y),
+      };
+      setMarqueeRect(newRect);
+
+      // Dynamically update selection based on intersection
+      const intersecting = getElementsInRect(newRect, elements);
+      const intersectingIds = intersecting.map((el) => el.id);
+
+      // Combine with pre-marquee selection (for Shift+drag additive mode)
+      const newSelection = [
+        ...new Set([...preMarqueeSelectionRef.current, ...intersectingIds]),
+      ];
+      selectElements(newSelection);
+      return;
+    }
+
+    // Check if hovering over any element or handle (for cursor feedback)
+    // Only runs when not actively dragging, so hover states update correctly
+    if (tool === "select") {
+      // First check handles of selected element
+      if (selectedIds.length === 1) {
+        const selectedElement = elements.find((el) => el.id === selectedIds[0]);
+        if (selectedElement) {
+          const handle = getHandleAtPoint(
+            point,
+            selectedElement,
+            viewport.zoom,
+          );
+          setHoveredHandle(handle);
+          if (handle) {
+            setIsHoveringElement(true);
+            return;
+          }
+        }
+      }
+      // Then check elements
+      const hitElement = hitTestElements(point, elements);
+      setIsHoveringElement(hitElement !== null);
+      setHoveredHandle(hitElement ? "move" : null);
+    } else {
+      setIsHoveringElement(false);
+      setHoveredHandle(null);
+    }
+
+    // Handle drawing
+    if (isDrawing && (tool === "pen" || tool === "eraser")) {
+      currentStrokeRef.current.push(point);
+      renderCanvas();
+    }
+
+    // Handle shape drawing preview
+    if (isDrawingShape && shapeStartRef.current) {
+      const start = shapeStartRef.current;
+      const dx = point.x - start.x;
+      const dy = point.y - start.y;
+      const isLinear = shapeType === "line" || shapeType === "arrow";
+
+      if (isLinear) {
+        // For lines/arrows: calculate length and angle
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        setShapePreview({
+          x: start.x + dx / 2, // Center point
+          y: start.y + dy / 2, // Center point
+          width: length,
+          height: 0,
+          rotation: angle,
+        });
+      } else {
+        // For rectangles/ellipses: use width/height as before
+        setShapePreview({
+          x: start.x + dx / 2,
+          y: start.y + dy / 2,
+          width: Math.abs(dx),
+          height: Math.abs(dy),
+        });
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
     commitInteraction();
     setIsPanning(false);
     panStartRef.current = null;
-  }, [commitInteraction]);
+  };
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = () => {
     updateCursorPreview(); // Hide cursor preview
     setIsHoveringElement(false);
     setHoveredHandle(null);
-  }, [updateCursorPreview]);
+  };
 
   // ---------------------------------------------------------------------------
   // Wheel handler for zooming
   // ---------------------------------------------------------------------------
-  const handleWheelEvent = useCallback(
-    (e: React.WheelEvent) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      handleWheel(e, rect);
-    },
-    [handleWheel],
-  );
+  const handleWheelEvent = (e: React.WheelEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    handleWheel(e, rect);
+  };
 
   // ---------------------------------------------------------------------------
   // Text input handlers
   // ---------------------------------------------------------------------------
-  const handleTextCommit = useCallback(
-    (text: string) => {
-      if (!text.trim()) {
-        setIsAddingText(false);
-        return;
-      }
-
-      // Measure text to calculate the center position for rendering.
-      // Text elements are rendered centered on their transform position, so we need
-      // to calculate where the center should be based on where the text appears in the input.
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.font = `${fontSize}px ${FONT_FAMILY}`;
-        const metrics = ctx.measureText(text);
-        const textWidth = metrics.width;
-        const textHeight = fontSize;
-
-        // Calculate where the text top-left appears, then offset to center for rendering.
-        // TEXT_CONTENT_OFFSET accounts for where text actually appears relative to textPosition.
-        const textTopLeftX = textPosition.x + TEXT_CONTENT_OFFSET.x;
-        const textTopLeftY = textPosition.y + TEXT_CONTENT_OFFSET.y;
-        const adjustedX = textTopLeftX + textWidth / 2;
-        const adjustedY = textTopLeftY + textHeight / 2;
-
-        const textElement = createTextElement(text, adjustedX, adjustedY, {
-          fontSize,
-          fontFamily: FONT_FAMILY,
-          color: strokeColor,
-        });
-        addElement(textElement);
-        recordAdd([textElement]); // Record for undo
-      }
+  const handleTextCommit = (text: string) => {
+    if (!text.trim()) {
       setIsAddingText(false);
-    },
-    [fontSize, strokeColor, textPosition, addElement, recordAdd],
-  );
+      return;
+    }
 
-  const handleTextKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        handleTextCommit(e.currentTarget.value);
-      } else if (e.key === "Escape") {
-        setIsAddingText(false);
-      }
-    },
-    [handleTextCommit],
-  );
+    // Measure text to calculate the center position for rendering.
+    // Text elements are rendered centered on their transform position, so we need
+    // to calculate where the center should be based on where the text appears in the input.
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.font = `${fontSize}px ${FONT_FAMILY}`;
+      const metrics = ctx.measureText(text);
+      const textWidth = metrics.width;
+      const textHeight = fontSize;
+
+      // Calculate where the text top-left appears, then offset to center for rendering.
+      // TEXT_CONTENT_OFFSET accounts for where text actually appears relative to textPosition.
+      const textTopLeftX = textPosition.x + TEXT_CONTENT_OFFSET.x;
+      const textTopLeftY = textPosition.y + TEXT_CONTENT_OFFSET.y;
+      const adjustedX = textTopLeftX + textWidth / 2;
+      const adjustedY = textTopLeftY + textHeight / 2;
+
+      const textElement = createTextElement(text, adjustedX, adjustedY, {
+        fontSize,
+        fontFamily: FONT_FAMILY,
+        color: strokeColor,
+      });
+      addElement(textElement);
+      recordAdd([textElement]); // Record for undo
+    }
+    setIsAddingText(false);
+  };
+
+  const handleTextKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleTextCommit(e.currentTarget.value);
+    } else if (e.key === "Escape") {
+      setIsAddingText(false);
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Toolbar actions
   // ---------------------------------------------------------------------------
-  const handleClear = useCallback(() => {
+  const handleClear = () => {
     if (elements.length > 0) {
       recordClear(elements); // Record for undo before clearing
     }
     clearCanvas();
     resetZoom();
-  }, [elements, recordClear, clearCanvas, resetZoom]);
+  };
 
-  const handleContextMenu = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      onContextMenu({ clientX: e.clientX, clientY: e.clientY });
-    },
-    [onContextMenu],
-  );
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onContextMenu({ clientX: e.clientX, clientY: e.clientY });
+  };
 
-  const handleAddImage = useCallback(() => {
+  const handleAddImage = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
@@ -1454,38 +1381,37 @@ export const CanvasPane = memo(function CanvasPane({
       if (file) void addImageToCanvas(file);
     };
     input.click();
-  }, [addImageToCanvas]);
+  };
 
   // ---------------------------------------------------------------------------
   // Zoom toolbar handlers
   // ---------------------------------------------------------------------------
-  const handleZoomIn = useCallback(() => {
+  const handleZoomIn = () => {
     const canvas = canvasRef.current;
     if (canvas) {
       zoomIn(canvas.getBoundingClientRect());
     }
-  }, [zoomIn]);
+  };
 
-  const handleZoomOut = useCallback(() => {
+  const handleZoomOut = () => {
     const canvas = canvasRef.current;
     if (canvas) {
       zoomOut(canvas.getBoundingClientRect());
     }
-  }, [zoomOut]);
+  };
 
   // ---------------------------------------------------------------------------
   // Cursor based on tool and state
   // ---------------------------------------------------------------------------
   // Get the rotation of the selected element for cursor calculation
-  const selectedElementRotation = useMemo(() => {
-    if (selectedIds.length === 1) {
-      const element = elements.find((el) => el.id === selectedIds[0]);
-      return element?.transform.rotation ?? 0;
-    }
-    return 0;
-  }, [selectedIds, elements]);
+  const singleSelectedElement =
+    selectedIds.length === 1
+      ? elements.find((el) => el.id === selectedIds[0])
+      : undefined;
+  const selectedElementRotation =
+    singleSelectedElement?.transform.rotation ?? 0;
 
-  const cursor = useMemo(() => {
+  const cursor = (() => {
     if (isPanning) {
       return "grabbing";
     }
@@ -1519,16 +1445,7 @@ export const CanvasPane = memo(function CanvasPane({
       default:
         return "crosshair";
     }
-  }, [
-    tool,
-    isPanning,
-    isDragging,
-    isSpacePressed,
-    isHoveringElement,
-    activeHandle,
-    hoveredHandle,
-    selectedElementRotation,
-  ]);
+  })();
 
   // Hide cursor preview when conditions change (tool switch, panning starts, etc.)
   useEffect(() => {
@@ -1538,148 +1455,77 @@ export const CanvasPane = memo(function CanvasPane({
   }, [tool, isPanning, isSpacePressed, updateCursorPreview]);
 
   // Calculate text input screen position from canvas position
-  const textInputScreenPos = useMemo(() => {
-    if (!isAddingText) return null;
-    const screenPoint = canvasToScreenPoint(textPosition.x, textPosition.y);
-    return {
-      x: screenPoint.x + TEXT_INPUT_OFFSET.x,
-      y: screenPoint.y + TEXT_INPUT_OFFSET.y,
-    };
-  }, [isAddingText, textPosition, canvasToScreenPoint]);
+  const textInputScreenPoint = isAddingText
+    ? canvasToScreenPoint(textPosition.x, textPosition.y)
+    : null;
+  const textInputScreenPos = textInputScreenPoint && {
+    x: textInputScreenPoint.x + TEXT_INPUT_OFFSET.x,
+    y: textInputScreenPoint.y + TEXT_INPUT_OFFSET.y,
+  };
 
   // ---------------------------------------------------------------------------
   // Selected element style info (for toolbar)
   // ---------------------------------------------------------------------------
 
-  // Compute whether selected elements are stylable and their current styles
-  const selectedStyleInfo = useMemo(() => {
-    if (selectedIds.length === 0) {
-      return { hasStylableSelection: false };
-    }
-
-    // Find selected elements that have style properties
-    // Exclude eraser strokes - their style is not editable and has no visual effect
-    const stylableElements = elements.filter(
-      (el) =>
-        selectedIds.includes(el.id) &&
-        "style" in el &&
-        !(el.type === "stroke" && el.isEraser),
-    );
-
-    if (stylableElements.length === 0) {
-      return { hasStylableSelection: false };
-    }
-
-    // Get the first stylable element's style for display
-    const firstElement = stylableElements[0];
-    const style = "style" in firstElement ? firstElement.style : null;
-
-    // Extract width - only stroke and shape have width property
-    const selectedWidth =
-      firstElement.type === "stroke" || firstElement.type === "shape"
-        ? firstElement.style.width
-        : undefined;
-
-    // Check if any selected element supports width changes (stroke or shape, not text)
-    const hasWidthSupport = stylableElements.some(
-      (el) => el.type === "stroke" || el.type === "shape",
-    );
-
-    // Check if any selected element supports fill (only rectangle and ellipse shapes)
-    const fillableElements = stylableElements.filter(
-      (el) =>
-        el.type === "shape" &&
-        (el.shapeType === "rectangle" || el.shapeType === "ellipse"),
-    );
-    const hasFillableSelection = fillableElements.length > 0;
-
-    // Get fill from first fillable element
-    const selectedFill =
-      hasFillableSelection && fillableElements[0].type === "shape"
-        ? fillableElements[0].style.fill
-        : undefined;
-
-    return {
-      hasStylableSelection: true,
-      hasWidthSupport,
-      hasFillableSelection,
-      selectedColor: style?.color,
-      selectedWidth,
-      selectedFill,
-      stylableElements,
-      fillableElements,
-    };
-  }, [selectedIds, elements]);
+  const selectedStyleInfo = getSelectedStyleInfo(elements, selectedIds);
 
   // Apply a style patch to elements and record it as a single undo step
-  const restyleElements = useCallback(
-    (targets: CanvasElement[], patch: ElementStyle) => {
-      const changes = new Map<
-        string,
-        { before: ElementStyle; after: ElementStyle }
-      >();
+  const restyleElements = (targets: CanvasElement[], patch: ElementStyle) => {
+    const changes = new Map<
+      string,
+      { before: ElementStyle; after: ElementStyle }
+    >();
 
-      for (const el of targets) {
-        if (!("style" in el)) continue;
-        const before: ElementStyle = {
-          color: el.style.color,
-          width:
-            el.type === "stroke" || el.type === "shape"
-              ? el.style.width
-              : undefined,
-          ...("fill" in patch && {
-            fill: el.type === "shape" ? el.style.fill : undefined,
-          }),
-        };
-        changes.set(el.id, { before, after: { ...before, ...patch } });
-        updateElementStyle(el.id, patch);
-      }
+    for (const el of targets) {
+      if (!("style" in el)) continue;
+      const before: ElementStyle = {
+        color: el.style.color,
+        width:
+          el.type === "stroke" || el.type === "shape"
+            ? el.style.width
+            : undefined,
+        ...("fill" in patch && {
+          fill: el.type === "shape" ? el.style.fill : undefined,
+        }),
+      };
+      changes.set(el.id, { before, after: { ...before, ...patch } });
+      updateElementStyle(el.id, patch);
+    }
 
-      recordStyle(changes);
-    },
-    [updateElementStyle, recordStyle],
-  );
+    recordStyle(changes);
+  };
 
   // Style changes update the selection in select mode, otherwise the tool defaults
-  const handleColorChange = useCallback(
-    (color: string) => {
-      if (tool === "select" && selectedStyleInfo.hasStylableSelection) {
-        restyleElements(selectedStyleInfo.stylableElements ?? [], { color });
-      } else {
-        setStrokeColor(color);
-      }
-    },
-    [tool, selectedStyleInfo, restyleElements],
-  );
+  const handleColorChange = (color: string) => {
+    if (tool === "select" && selectedStyleInfo.hasStylableSelection) {
+      restyleElements(selectedStyleInfo.stylableElements ?? [], { color });
+    } else {
+      setStrokeColor(color);
+    }
+  };
 
-  const handleSizeChange = useCallback(
-    (size: number) => {
-      if (tool === "select" && selectedStyleInfo.hasStylableSelection) {
-        restyleElements(
-          (selectedStyleInfo.stylableElements ?? []).filter(
-            (el) => el.type === "stroke" || el.type === "shape",
-          ),
-          { width: size },
-        );
-      } else {
-        setStrokeWidth(size);
-      }
-    },
-    [tool, selectedStyleInfo, restyleElements],
-  );
+  const handleSizeChange = (size: number) => {
+    if (tool === "select" && selectedStyleInfo.hasStylableSelection) {
+      restyleElements(
+        (selectedStyleInfo.stylableElements ?? []).filter(
+          (el) => el.type === "stroke" || el.type === "shape",
+        ),
+        { width: size },
+      );
+    } else {
+      setStrokeWidth(size);
+    }
+  };
 
-  const handleFillChange = useCallback(
-    (newFill: FillStyle | undefined) => {
-      if (tool === "select" && selectedStyleInfo.hasFillableSelection) {
-        restyleElements(selectedStyleInfo.fillableElements ?? [], {
-          fill: newFill,
-        });
-      } else {
-        setFill(newFill);
-      }
-    },
-    [tool, selectedStyleInfo, restyleElements],
-  );
+  const handleFillChange = (newFill: FillStyle | undefined) => {
+    if (tool === "select" && selectedStyleInfo.hasFillableSelection) {
+      restyleElements(selectedStyleInfo.fillableElements ?? [], {
+        fill: newFill,
+      });
+    } else {
+      setFill(newFill);
+    }
+  };
 
   // The root takes the canvas's keyboard shortcuts
   useFocusWhenActive(isActive, paneRef, () =>
@@ -1902,4 +1748,4 @@ export const CanvasPane = memo(function CanvasPane({
       </div>
     </div>
   );
-});
+}

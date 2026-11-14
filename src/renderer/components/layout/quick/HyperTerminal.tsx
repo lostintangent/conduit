@@ -11,7 +11,7 @@ import type {
   HyperTerminalPosition,
 } from "@shared/types";
 import { ArrowUpRight, Maximize2, Minus, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Constants for overlay dimensions and positioning
 const OVERLAY_WIDTH = 400;
@@ -139,41 +139,35 @@ export function HyperTerminal({
   // was in it goes back to the active pane
   useEffect(() => () => focusActivePane(), []);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      // Don't start dragging if clicking on buttons
-      if ((e.target as HTMLElement).closest("button")) {
-        return;
-      }
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't start dragging if clicking on buttons
+    if ((e.target as HTMLElement).closest("button")) {
+      return;
+    }
 
-      setIsDragging(true);
-      dragOffset.current = {
-        x: e.clientX - position.x,
-        y: e.clientY - position.y,
-      };
-    },
-    [position],
-  );
+    setIsDragging(true);
+    dragOffset.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y,
+    };
+  };
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!isDragging) return;
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
 
-      const newX = e.clientX - dragOffset.current.x;
-      const newY = e.clientY - dragOffset.current.y;
+    const newX = e.clientX - dragOffset.current.x;
+    const newY = e.clientY - dragOffset.current.y;
 
-      const newPosition = constrainPosition({ x: newX, y: newY });
-      setPosition(newPosition);
-    },
-    [isDragging],
-  );
+    const newPosition = constrainPosition({ x: newX, y: newY });
+    setPosition(newPosition);
+  };
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp = () => {
     setIsDragging(false);
     // Save the latest position from ref to avoid stale closure
     savePosition(positionRef.current);
     onPositionChange(positionRef.current);
-  }, [onPositionChange]);
+  };
 
   // Set up global mouse event listeners
   useEffect(() => {

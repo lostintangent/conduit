@@ -11,7 +11,7 @@ import { applicationModeAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType, Pane } from "@/types";
 import { generateId } from "@shared/utils";
 import { ArrowUpRight, PictureInPicture2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Omit each pane variant separately so narrowing on `type` keeps its fields.
 export type PaneDescriptor = Pane extends infer P
@@ -62,36 +62,30 @@ export function QuickPaneDialog({
   }, [setApplicationMode]);
 
   // Focus the Monaco editor when dialog opens
-  const handleOpenAutoFocus = useCallback(
-    (e: Event) => {
-      if (currentDescriptor.type === "editor") {
-        e.preventDefault();
+  const handleOpenAutoFocus = (e: Event) => {
+    if (currentDescriptor.type === "editor") {
+      e.preventDefault();
 
-        // Wait for dialog to render, then click the editor to focus it
-        setTimeout(() => {
-          const viewLines = dialogContentRef.current?.querySelector(
-            ".monaco-editor .view-lines",
-          ) as HTMLElement;
-          viewLines?.click();
-        }, 200);
-      }
-    },
-    [currentDescriptor.type],
-  );
+      // Wait for dialog to render, then click the editor to focus it
+      setTimeout(() => {
+        const viewLines = dialogContentRef.current?.querySelector(
+          ".monaco-editor .view-lines",
+        ) as HTMLElement;
+        viewLines?.click();
+      }, 200);
+    }
+  };
 
   // Handle updates from editor pane
-  const handleEditorUpdate = useCallback(
-    (updates: Partial<EditorPaneType>) => {
-      if (currentDescriptor.type === "editor") {
-        setCurrentDescriptor((prev) =>
-          prev.type === "editor" ? { ...prev, ...updates } : prev,
-        );
-      }
-    },
-    [currentDescriptor.type],
-  );
+  const handleEditorUpdate = (updates: Partial<EditorPaneType>) => {
+    if (currentDescriptor.type === "editor") {
+      setCurrentDescriptor((prev) =>
+        prev.type === "editor" ? { ...prev, ...updates } : prev,
+      );
+    }
+  };
 
-  const handleOpenAsTabClick = useCallback(() => {
+  const handleOpenAsTabClick = () => {
     const {
       onClose: _onClose,
       closeOnSave: _closeOnSave,
@@ -99,14 +93,14 @@ export function QuickPaneDialog({
     } = currentDescriptor;
 
     onOpenAsTab(rest);
-  }, [currentDescriptor, onOpenAsTab]);
+  };
 
-  const handleOpenAsFloatingClick = useCallback(() => {
+  const handleOpenAsFloatingClick = () => {
     if (currentDescriptor.type === "terminal" && onOpenAsFloating) {
       onOpenAsFloating(currentDescriptor.sessionId, quickPaneId);
       onClose();
     }
-  }, [currentDescriptor, onOpenAsFloating, quickPaneId, onClose]);
+  };
 
   return (
     <Dialog

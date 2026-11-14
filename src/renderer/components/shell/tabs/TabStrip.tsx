@@ -54,18 +54,51 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 type TabStripProps = {
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
   position?: TabPosition;
 };
+
+// Where the dragged tab's placeholder goes among the tabs that aren't being dragged.
+function getTabDragLayout(
+  tabIds: string[],
+  draggingTab: { id: string; originalIndex: number } | null,
+  dropTargetIndex: number | null,
+) {
+  if (!draggingTab) {
+    return {
+      reorderableTabIds: tabIds,
+      placeholderIndex: null,
+      nonDraggingIndexById: {} as Record<string, number>,
+    };
+  }
+
+  const reorderableTabIds = tabIds.filter((id) => id !== draggingTab.id);
+  const nonDraggingIndexById = reorderableTabIds.reduce<Record<string, number>>(
+    (acc, id, index) => {
+      acc[id] = index;
+      return acc;
+    },
+    {},
+  );
+
+  const baseIndex = Math.max(0, draggingTab.originalIndex);
+  const fallbackIndex = Math.min(baseIndex, reorderableTabIds.length);
+  const clampedTarget = Math.max(
+    0,
+    Math.min(dropTargetIndex ?? fallbackIndex, reorderableTabIds.length),
+  );
+  const placeholderIndex =
+    clampedTarget === fallbackIndex ? null : clampedTarget;
+
+  return {
+    reorderableTabIds,
+    placeholderIndex,
+    nonDraggingIndexById,
+  };
+}
 
 export const TabStrip = ({
   onTabContextMenu,
@@ -185,32 +218,32 @@ export const TabStrip = ({
   const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const paneDragHoverTabRef = useRef<string | null>(null);
 
-  const clearPaneDragHoverTimeout = useCallback(() => {
+  const clearPaneDragHoverTimeout = () => {
     if (paneDragHoverTimeoutRef.current) {
       clearTimeout(paneDragHoverTimeoutRef.current);
       paneDragHoverTimeoutRef.current = null;
     }
     paneDragHoverTabRef.current = null;
-  }, []);
+  };
 
-  const clearPreviewCloseTimeout = useCallback(() => {
+  const clearPreviewCloseTimeout = () => {
     if (previewCloseTimeoutRef.current) {
       clearTimeout(previewCloseTimeoutRef.current);
       previewCloseTimeoutRef.current = null;
     }
-  }, []);
+  };
 
-  const clearDragState = useCallback(() => {
+  const clearDragState = () => {
     setDraggingTab(null);
     setDropTargetIndex(null);
     clearPaneDragHoverTimeout();
     clearPreviewCloseTimeout();
     setHoverPreview(null);
-  }, [clearPaneDragHoverTimeout, clearPreviewCloseTimeout]);
+  };
 
-  const isPaneDrag = useCallback((e: React.DragEvent): boolean => {
+  const isPaneDrag = (e: React.DragEvent): boolean => {
     return e.dataTransfer.types.includes("application/x-conduit-pane-drag");
-  }, []);
+  };
 
   const applyMoveDropEffect = (e: React.DragEvent<Element>) => {
     e.preventDefault();
@@ -248,270 +281,181 @@ export const TabStrip = ({
 
   // TODO: See if we can remove this code in favor of mergining it with the descriptors and tabs w/placeholders memos
   const { reorderableTabIds, placeholderIndex, nonDraggingIndexById } =
-    useMemo(() => {
-      if (!draggingTab) {
-        return {
-          reorderableTabIds: tabIds,
-          placeholderIndex: null,
-          nonDraggingIndexById: {} as Record<string, number>,
-        };
-      }
+    getTabDragLayout(tabIds, draggingTab, dropTargetIndex);
 
-      const reorderableTabIds = tabIds.filter((id) => id !== draggingTab.id);
-      const nonDraggingIndexById = reorderableTabIds.reduce<
-        Record<string, number>
-      >((acc, id, index) => {
-        acc[id] = index;
-        return acc;
-      }, {});
+  const handleDragStart = (
+    e: React.DragEvent<HTMLButtonElement>,
+    tabId: string,
+  ) => {
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", tabId);
+    }
 
-      const baseIndex = Math.max(0, draggingTab.originalIndex);
-      const fallbackIndex = Math.min(baseIndex, reorderableTabIds.length);
-      const clampedTarget = Math.max(
-        0,
-        Math.min(dropTargetIndex ?? fallbackIndex, reorderableTabIds.length),
-      );
-      const placeholderIndex =
-        clampedTarget === fallbackIndex ? null : clampedTarget;
+    const { width } = e.currentTarget.getBoundingClientRect();
+    const originalIndex = tabIds.indexOf(tabId);
 
-      return {
-        reorderableTabIds,
-        placeholderIndex,
-        nonDraggingIndexById,
-      };
-    }, [tabIds, dropTargetIndex, draggingTab]);
-
-  const handleDragStart = useCallback(
-    (e: React.DragEvent<HTMLButtonElement>, tabId: string) => {
-      if (e.dataTransfer) {
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", tabId);
-      }
-
-      const { width } = e.currentTarget.getBoundingClientRect();
-      const originalIndex = tabIds.indexOf(tabId);
-
-      setDraggingTab({
-        id: tabId,
-        width,
-        originalIndex,
-      });
-
-      setDropTargetIndex(null);
-      setHoverPreview(null);
-    },
-    [tabIds],
-  );
-
-  const handlePreviewHoverChange = useCallback(
-    (isHovering: boolean) => {
-      if (isHovering) {
-        // Mouse entered - cancel any pending close timeout
-        clearPreviewCloseTimeout();
-        setIsPreviewHovered(true);
-      } else {
-        // Mouse truly left (relatedTarget check passed) - close immediately
-        setIsPreviewHovered(false);
-        setHoverPreview(null);
-      }
-    },
-    [clearPreviewCloseTimeout],
-  );
-
-  const handleTabHoverChange = useCallback(
-    (tabId: string, element: HTMLButtonElement | null) => {
-      // Don't show preview while dragging or in design mode
-      if (draggingTab !== null || isDesignMode) {
-        return;
-      }
-
-      if (!element) {
-        // Mouse left the tab button - start a delay before closing the preview
-        // This gives the user time to move their mouse into the preview area
-        if (!isPreviewHovered) {
-          clearPreviewCloseTimeout();
-          previewCloseTimeoutRef.current = setTimeout(() => {
-            setHoverPreview(null);
-            previewCloseTimeoutRef.current = null;
-          }, 2000); // 2 second delay to give time to move mouse to preview
-        }
-        return;
-      }
-
-      if (tabId === activeTabId) {
-        // Hovering over active tab, clear any preview
-        clearPreviewCloseTimeout();
-        setHoverPreview(null);
-        return;
-      }
-
-      // Mouse entered a tab button - cancel any pending close and show preview immediately
-      clearPreviewCloseTimeout();
-      const rect = element.getBoundingClientRect();
-      setHoverPreview({
-        tabId,
-        left: rect.left,
-        top: rect.top,
-      });
-    },
-    [
-      activeTabId,
-      draggingTab,
-      isPreviewHovered,
-      isDesignMode,
-      clearPreviewCloseTimeout,
-    ],
-  );
-
-  const handleDragOverTab = useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, overTabId: string) => {
-      // Check if this is a pane drag (not tab drag)
-      if (isPaneDrag(event)) {
-        // Handle pane drag - switch tab after 500ms hover if not already active
-        if (overTabId !== activeTabId) {
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
-
-          // Only start timeout if we're hovering over a different tab than before
-          if (paneDragHoverTabRef.current !== overTabId) {
-            clearPaneDragHoverTimeout();
-            paneDragHoverTabRef.current = overTabId;
-
-            paneDragHoverTimeoutRef.current = setTimeout(() => {
-              focusTab(overTabId);
-              clearPaneDragHoverTimeout();
-            }, 500);
-          }
-        }
-        return;
-      }
-
-      // Handle tab drag (existing tab reordering logic). External drags, like
-      // files from Finder, have no dragging tab.
-      if (!draggingTab || draggingTab.id === overTabId) {
-        return;
-      }
-
-      applyMoveDropEffect(event);
-
-      const rect = event.currentTarget.getBoundingClientRect();
-      const isBefore = event.clientX < rect.left + rect.width / 2;
-      const overIndex = reorderableTabIds.indexOf(overTabId);
-
-      if (overIndex === -1) {
-        return;
-      }
-
-      const nextIndex = isBefore ? overIndex : overIndex + 1;
-      if (nextIndex !== dropTargetIndex) {
-        setDropTargetIndex(nextIndex);
-      }
-    },
-    [
-      activeTabId,
-      applyMoveDropEffect,
-      clearPaneDragHoverTimeout,
-      dropTargetIndex,
-      draggingTab,
-      isPaneDrag,
-      reorderableTabIds,
-    ],
-  );
-
-  const handleDragLeaveTab = useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, tabId: string) => {
-      // Only clear if we're actually leaving the tab (not moving to a child)
-      const relatedTarget = event.relatedTarget;
-      if (
-        relatedTarget instanceof Node &&
-        event.currentTarget.contains(relatedTarget)
-      ) {
-        return;
-      }
-
-      // Clear pane drag hover timeout if leaving the tab
-      if (paneDragHoverTabRef.current === tabId) {
-        clearPaneDragHoverTimeout();
-      }
-    },
-    [clearPaneDragHoverTimeout],
-  );
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent<Element>) => {
-      e.preventDefault();
-
-      if (
-        draggingTab &&
-        dropTargetIndex !== null &&
-        dropTargetIndex !== draggingTab.originalIndex
-      ) {
-        moveTab(draggingTab.id, dropTargetIndex);
-      }
-
-      clearDragState();
-      clearPaneDragHoverTimeout();
-    },
-    [
-      clearDragState,
-      clearPaneDragHoverTimeout,
-      draggingTab,
-      dropTargetIndex,
-      reorderableTabIds.length,
-    ],
-  );
-
-  const tabsWithPlaceholders = useMemo<React.ReactNode[]>(() => {
-    const shouldShowPlaceholder =
-      draggingTab !== null && placeholderIndex !== null;
-
-    const shouldShowTrailingPlaceholder =
-      shouldShowPlaceholder && placeholderIndex === reorderableTabIds.length;
-
-    const elements: React.ReactNode[] = [];
-
-    tabIds.forEach((tabId, index) => {
-      const nonDraggingIndex = nonDraggingIndexById[tabId];
-      const showLeadingPlaceholder =
-        shouldShowPlaceholder &&
-        nonDraggingIndex !== undefined &&
-        nonDraggingIndex === placeholderIndex;
-
-      if (showLeadingPlaceholder) {
-        elements.push(
-          <TabPlaceholder
-            key={`placeholder-${tabId}-${index}`}
-            width={draggingTab?.width}
-            onDragOver={applyMoveDropEffect}
-            onDrop={handleDrop}
-          />,
-        );
-      }
-
-      // Render the tab if it's not being dragged, or if we aren't showing a placeholder
-      if (tabId !== draggingTab?.id || !shouldShowPlaceholder) {
-        elements.push(
-          <TabButton
-            key={tabId}
-            tabId={tabId}
-            index={index}
-            disableClick={draggingTab !== null}
-            onContextMenu={onTabContextMenu}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOverTab}
-            onDragLeave={handleDragLeaveTab}
-            onDrop={handleDrop}
-            onDragEnd={clearDragState}
-            onHoverChange={handleTabHoverChange}
-          />,
-        );
-      }
+    setDraggingTab({
+      id: tabId,
+      width,
+      originalIndex,
     });
 
-    if (shouldShowTrailingPlaceholder) {
-      elements.push(
+    setDropTargetIndex(null);
+    setHoverPreview(null);
+  };
+
+  const handlePreviewHoverChange = (isHovering: boolean) => {
+    if (isHovering) {
+      // Mouse entered - cancel any pending close timeout
+      clearPreviewCloseTimeout();
+      setIsPreviewHovered(true);
+    } else {
+      // Mouse truly left (relatedTarget check passed) - close immediately
+      setIsPreviewHovered(false);
+      setHoverPreview(null);
+    }
+  };
+
+  const handleTabHoverChange = (
+    tabId: string,
+    element: HTMLButtonElement | null,
+  ) => {
+    // Don't show preview while dragging or in design mode
+    if (draggingTab !== null || isDesignMode) {
+      return;
+    }
+
+    if (!element) {
+      // Mouse left the tab button - start a delay before closing the preview
+      // This gives the user time to move their mouse into the preview area
+      if (!isPreviewHovered) {
+        clearPreviewCloseTimeout();
+        previewCloseTimeoutRef.current = setTimeout(() => {
+          setHoverPreview(null);
+          previewCloseTimeoutRef.current = null;
+        }, 2000); // 2 second delay to give time to move mouse to preview
+      }
+      return;
+    }
+
+    if (tabId === activeTabId) {
+      // Hovering over active tab, clear any preview
+      clearPreviewCloseTimeout();
+      setHoverPreview(null);
+      return;
+    }
+
+    // Mouse entered a tab button - cancel any pending close and show preview immediately
+    clearPreviewCloseTimeout();
+    const rect = element.getBoundingClientRect();
+    setHoverPreview({
+      tabId,
+      left: rect.left,
+      top: rect.top,
+    });
+  };
+
+  const handleDragOverTab = (
+    event: React.DragEvent<HTMLButtonElement>,
+    overTabId: string,
+  ) => {
+    // Check if this is a pane drag (not tab drag)
+    if (isPaneDrag(event)) {
+      // Handle pane drag - switch tab after 500ms hover if not already active
+      if (overTabId !== activeTabId) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+
+        // Only start timeout if we're hovering over a different tab than before
+        if (paneDragHoverTabRef.current !== overTabId) {
+          clearPaneDragHoverTimeout();
+          paneDragHoverTabRef.current = overTabId;
+
+          paneDragHoverTimeoutRef.current = setTimeout(() => {
+            focusTab(overTabId);
+            clearPaneDragHoverTimeout();
+          }, 500);
+        }
+      }
+      return;
+    }
+
+    // Handle tab drag (existing tab reordering logic). External drags, like
+    // files from Finder, have no dragging tab.
+    if (!draggingTab || draggingTab.id === overTabId) {
+      return;
+    }
+
+    applyMoveDropEffect(event);
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const isBefore = event.clientX < rect.left + rect.width / 2;
+    const overIndex = reorderableTabIds.indexOf(overTabId);
+
+    if (overIndex === -1) {
+      return;
+    }
+
+    const nextIndex = isBefore ? overIndex : overIndex + 1;
+    if (nextIndex !== dropTargetIndex) {
+      setDropTargetIndex(nextIndex);
+    }
+  };
+
+  const handleDragLeaveTab = (
+    event: React.DragEvent<HTMLButtonElement>,
+    tabId: string,
+  ) => {
+    // Only clear if we're actually leaving the tab (not moving to a child)
+    const relatedTarget = event.relatedTarget;
+    if (
+      relatedTarget instanceof Node &&
+      event.currentTarget.contains(relatedTarget)
+    ) {
+      return;
+    }
+
+    // Clear pane drag hover timeout if leaving the tab
+    if (paneDragHoverTabRef.current === tabId) {
+      clearPaneDragHoverTimeout();
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<Element>) => {
+    e.preventDefault();
+
+    if (
+      draggingTab &&
+      dropTargetIndex !== null &&
+      dropTargetIndex !== draggingTab.originalIndex
+    ) {
+      moveTab(draggingTab.id, dropTargetIndex);
+    }
+
+    clearDragState();
+    clearPaneDragHoverTimeout();
+  };
+
+  const shouldShowPlaceholder =
+    draggingTab !== null && placeholderIndex !== null;
+
+  const shouldShowTrailingPlaceholder =
+    shouldShowPlaceholder && placeholderIndex === reorderableTabIds.length;
+
+  const tabsWithPlaceholders: React.ReactNode[] = [];
+
+  tabIds.forEach((tabId, index) => {
+    const nonDraggingIndex = nonDraggingIndexById[tabId];
+    const showLeadingPlaceholder =
+      shouldShowPlaceholder &&
+      nonDraggingIndex !== undefined &&
+      nonDraggingIndex === placeholderIndex;
+
+    if (showLeadingPlaceholder) {
+      tabsWithPlaceholders.push(
         <TabPlaceholder
-          key="placeholder-trailing"
+          key={`placeholder-${tabId}-${index}`}
           width={draggingTab?.width}
           onDragOver={applyMoveDropEffect}
           onDrop={handleDrop}
@@ -519,22 +463,38 @@ export const TabStrip = ({
       );
     }
 
-    return elements;
-  }, [
-    clearDragState,
-    tabIds,
-    draggingTab,
-    handleDragLeaveTab,
-    handleDragOverTab,
-    handleDragStart,
-    handleDrop,
-    handleTabHoverChange,
-    nonDraggingIndexById,
-    onTabContextMenu,
-    placeholderIndex,
-  ]);
+    // Render the tab if it's not being dragged, or if we aren't showing a placeholder
+    if (tabId !== draggingTab?.id || !shouldShowPlaceholder) {
+      tabsWithPlaceholders.push(
+        <TabButton
+          key={tabId}
+          tabId={tabId}
+          index={index}
+          disableClick={draggingTab !== null}
+          onContextMenu={onTabContextMenu}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOverTab}
+          onDragLeave={handleDragLeaveTab}
+          onDrop={handleDrop}
+          onDragEnd={clearDragState}
+          onHoverChange={handleTabHoverChange}
+        />,
+      );
+    }
+  });
 
-  const handleOpenHyperTerminal = useCallback(async () => {
+  if (shouldShowTrailingPlaceholder) {
+    tabsWithPlaceholders.push(
+      <TabPlaceholder
+        key="placeholder-trailing"
+        width={draggingTab?.width}
+        onDragOver={applyMoveDropEffect}
+        onDrop={handleDrop}
+      />,
+    );
+  }
+
+  const handleOpenHyperTerminal = async () => {
     // If there are minimized terminals, restore them instead of opening a new one
     if (hasMinimizedTerminals) {
       restoreMinimizedHyperTerminals();
@@ -544,20 +504,20 @@ export const TabStrip = ({
     await createHyperTerminal(
       getActiveTabCwd(activeTabAtom.get(), homeDirectory),
     );
-  }, [homeDirectory, hasMinimizedTerminals]);
+  };
 
   // Always opens a new hyper terminal (used in dropdown menu)
-  const handleNewHyperTerminal = useCallback(async () => {
+  const handleNewHyperTerminal = async () => {
     await createHyperTerminal(
       getActiveTabCwd(activeTabAtom.get(), homeDirectory),
     );
-  }, [homeDirectory]);
+  };
 
-  const handleOpenQuickTerminal = useCallback(async () => {
+  const handleOpenQuickTerminal = async () => {
     await openQuickTerminal(
       getActiveTabCwd(activeTabAtom.get(), homeDirectory),
     );
-  }, [homeDirectory]);
+  };
 
   // Use margins to create gaps that reveal the overlay underneath
   // On Windows, no rounded corners (Windows 11 handles rounding)

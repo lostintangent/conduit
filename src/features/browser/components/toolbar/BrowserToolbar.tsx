@@ -22,7 +22,7 @@ import { normalizeUrl } from "@/utils/browser";
 import type { BrowserPage } from "@features/settings/model";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
 import { StarredPagesMenu } from "./StarredPagesMenu";
@@ -83,22 +83,20 @@ export function BrowserToolbar({
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filter history based on input text
-  const filteredHistory = useMemo(() => {
-    const searchText = inputUrl.trim().toLowerCase();
-    // Don't filter if empty or "about:blank" (show all history)
-    if (!searchText || searchText === "about:blank") {
-      return urlHistory;
-    }
-    return urlHistory.filter((url) => url.toLowerCase().includes(searchText));
-  }, [inputUrl, urlHistory]);
+  // Filter history based on input text. Show all of it when the input is
+  // empty or "about:blank".
+  const searchText = inputUrl.trim().toLowerCase();
+  const filteredHistory =
+    !searchText || searchText === "about:blank"
+      ? urlHistory
+      : urlHistory.filter((url) => url.toLowerCase().includes(searchText));
 
-  const closeDropdowns = useCallback(() => {
+  const closeDropdowns = () => {
     setShowHistory(false);
     setSelectedHistoryIndex(-1);
-  }, []);
+  };
 
-  const handleUrlSubmit = useCallback(() => {
+  const handleUrlSubmit = () => {
     // If history is showing and an item is selected, navigate to it
     if (
       showHistory &&
@@ -120,113 +118,90 @@ export function BrowserToolbar({
     closeDropdowns();
 
     onNavigate(targetUrl);
-  }, [
-    inputUrl,
-    addUrlToHistory,
-    closeDropdowns,
-    onNavigate,
-    showHistory,
-    selectedHistoryIndex,
-    filteredHistory,
-  ]);
+  };
 
-  const handleUrlInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setInputUrl(value);
+  const handleUrlInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputUrl(value);
 
-      // Show history dropdown when there's input or when cleared (if history exists)
-      if (urlHistory.length > 0) {
-        setShowHistory(true);
-      }
-      setSelectedHistoryIndex(-1);
-    },
-    [urlHistory.length],
-  );
+    // Show history dropdown when there's input or when cleared (if history exists)
+    if (urlHistory.length > 0) {
+      setShowHistory(true);
+    }
+    setSelectedHistoryIndex(-1);
+  };
 
-  const handleUrlInputBlur = useCallback(() => {
+  const handleUrlInputBlur = () => {
     // Reset the input URL to the current URL after a short delay
     setInputUrl(currentPage.url);
     closeDropdowns();
-  }, [currentPage.url, closeDropdowns]);
+  };
 
-  const handleUrlInputFocus = useCallback(() => {
+  const handleUrlInputFocus = () => {
     if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
       setShowHistory(true);
     }
-  }, [inputUrl, urlHistory.length]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Escape") {
-        if (showHistory) {
-          closeDropdowns();
-        } else {
-          // Clear the input if history isn't showing
-          setInputUrl("");
-          // Show history if available
-          if (urlHistory.length > 0) {
-            setShowHistory(true);
-          }
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      if (showHistory) {
+        closeDropdowns();
+      } else {
+        // Clear the input if history isn't showing
+        setInputUrl("");
+        // Show history if available
+        if (urlHistory.length > 0) {
+          setShowHistory(true);
         }
-        return;
       }
+      return;
+    }
 
-      if (!showHistory || filteredHistory.length === 0) return;
+    if (!showHistory || filteredHistory.length === 0) return;
 
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedHistoryIndex((prev) => {
-          if (prev < filteredHistory.length - 1) {
-            return prev + 1;
-          }
-          return 0; // Wrap to top
-        });
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedHistoryIndex((prev) => {
-          if (prev <= 0) {
-            return filteredHistory.length - 1; // Wrap to bottom
-          }
-          return prev - 1;
-        });
-      }
-    },
-    [showHistory, filteredHistory.length, closeDropdowns, urlHistory.length],
-  );
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedHistoryIndex((prev) => {
+        if (prev < filteredHistory.length - 1) {
+          return prev + 1;
+        }
+        return 0; // Wrap to top
+      });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedHistoryIndex((prev) => {
+        if (prev <= 0) {
+          return filteredHistory.length - 1; // Wrap to bottom
+        }
+        return prev - 1;
+      });
+    }
+  };
 
-  const handleHistoryItemClick = useCallback(
-    (historyUrl: string) => {
-      setInputUrl(historyUrl);
-      onNavigate(historyUrl);
+  const handleHistoryItemClick = (historyUrl: string) => {
+    setInputUrl(historyUrl);
+    onNavigate(historyUrl);
 
-      addUrlToHistory(historyUrl);
-      closeDropdowns();
-    },
-    [addUrlToHistory, closeDropdowns, onNavigate],
-  );
+    addUrlToHistory(historyUrl);
+    closeDropdowns();
+  };
 
-  const handleHistoryItemRemove = useCallback(
-    (historyUrl: string) => {
-      removeUrlFromHistory(historyUrl);
-    },
-    [removeUrlFromHistory],
-  );
+  const handleHistoryItemRemove = (historyUrl: string) => {
+    removeUrlFromHistory(historyUrl);
+  };
 
-  const handleStarredNavigation = useCallback(
-    (pageUrl: string) => {
-      setInputUrl(pageUrl);
-      onNavigate(pageUrl);
+  const handleStarredNavigation = (pageUrl: string) => {
+    setInputUrl(pageUrl);
+    onNavigate(pageUrl);
 
-      addUrlToHistory(pageUrl);
-      closeDropdowns();
-    },
-    [addUrlToHistory, closeDropdowns, onNavigate],
-  );
+    addUrlToHistory(pageUrl);
+    closeDropdowns();
+  };
 
-  const handleStarredCloseRequest = useCallback(() => {
+  const handleStarredCloseRequest = () => {
     setShowHistory(false);
-  }, []);
+  };
 
   // Helper to highlight matching text
   const highlightMatch = (text: string, query: string) => {

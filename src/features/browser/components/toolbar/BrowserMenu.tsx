@@ -26,7 +26,7 @@ import {
   MoreVertical,
   X,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -55,7 +55,7 @@ export function BrowserMenu({
   const collapsePane = useCommand(ApplicationCommands.PANE_COLLAPSE);
   const closePane = useCommand(ApplicationCommands.PANE_CLOSE);
 
-  const showCheckmarkWithTimer = useCallback(() => {
+  const showCheckmarkWithTimer = () => {
     setShowCheckmark(true);
 
     // Clear any existing timeout
@@ -68,9 +68,9 @@ export function BrowserMenu({
     checkmarkTimeoutRef.current = setTimeout(() => {
       setShowCheckmark(false);
     }, 2000);
-  }, []);
+  };
 
-  const handleCaptureScreenshot = useCallback(async () => {
+  const handleCaptureScreenshot = async () => {
     try {
       await onCaptureScreenshot();
       showCheckmarkWithTimer();
@@ -81,12 +81,12 @@ export function BrowserMenu({
         details: error instanceof Error ? error.message : "Unknown error",
       });
     }
-  }, [onCaptureScreenshot, showCheckmarkWithTimer]);
+  };
 
-  const handleCopyUrl = useCallback(() => {
+  const handleCopyUrl = () => {
     navigator.clipboard.writeText(currentPage.url);
     showCheckmarkWithTimer();
-  }, [currentPage.url, showCheckmarkWithTimer]);
+  };
 
   return (
     <DropdownMenu>

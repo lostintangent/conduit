@@ -1,7 +1,7 @@
 import { useSettings } from "@features/settings/client/queries";
 import { activePaneIdAtom } from "@/store/atoms";
 import { useSelector } from "@tanstack/react-store";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.css @keyframes pane-highlight
 
@@ -28,37 +28,34 @@ function usePaneHighlight() {
   // (e.g., terminal cwd updates) but the active pane remains the same
   const previousActivePaneIdRef = useRef<string | null>(null);
 
-  const clearExistingTimeout = useCallback(() => {
+  const clearExistingTimeout = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-  }, []);
+  };
 
-  const triggerHighlight = useCallback(
-    (paneId: string) => {
-      if (!paneId) {
-        return;
+  const triggerHighlight = (paneId: string) => {
+    if (!paneId) {
+      return;
+    }
+
+    clearExistingTimeout();
+    setHighlightedPaneId(null);
+
+    requestAnimationFrame(() => {
+      setHighlightedPaneId(paneId);
+
+      if (!alwaysHighlightActivePane) {
+        timeoutRef.current = setTimeout(() => {
+          setHighlightedPaneId((current) =>
+            current === paneId ? null : current,
+          );
+          timeoutRef.current = null;
+        }, HIGHLIGHT_DURATION_MS);
       }
-
-      clearExistingTimeout();
-      setHighlightedPaneId(null);
-
-      requestAnimationFrame(() => {
-        setHighlightedPaneId(paneId);
-
-        if (!alwaysHighlightActivePane) {
-          timeoutRef.current = setTimeout(() => {
-            setHighlightedPaneId((current) =>
-              current === paneId ? null : current,
-            );
-            timeoutRef.current = null;
-          }, HIGHLIGHT_DURATION_MS);
-        }
-      });
-    },
-    [clearExistingTimeout, alwaysHighlightActivePane],
-  );
+    });
+  };
 
   // Runs on unmount and when the tab hides, since a hidden tab keeps its state.
   // Forgetting the active pane here makes it flash again when the tab shows.

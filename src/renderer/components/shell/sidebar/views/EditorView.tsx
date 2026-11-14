@@ -20,7 +20,6 @@ import {
 import type { EditorTreeMode } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { useSelector } from "@tanstack/react-store";
-import { useCallback, useMemo } from "react";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { useSidebarNavigation } from "../hooks/useSidebarNavigation";
 
@@ -58,7 +57,7 @@ export function EditorView({ cwd }: EditorViewProps) {
     );
 
   // Stable pane ID based on CWD - ensures editor state is cached per directory
-  const paneId = useMemo(() => sidebarPaneIds.editor(cwd), [cwd]);
+  const paneId = sidebarPaneIds.editor(cwd);
 
   // Current file, cached per CWD so it survives view switches. The pane
   // reports its own selections here, and navigation requests set it to open
@@ -77,30 +76,28 @@ export function EditorView({ cwd }: EditorViewProps) {
   });
 
   // File change handler - tracks file per CWD
-  const handleFileChange = useCallback(
-    (fileData: { file: string; language: string; content: string }) => {
-      setCwdEditorFile(cwd, fileData.file);
-    },
-    [cwd],
-  );
+  const handleFileChange = (fileData: {
+    file: string;
+    language: string;
+    content: string;
+  }) => {
+    setCwdEditorFile(cwd, fileData.file);
+  };
 
   // Clear file handler
-  const handleClearFile = useCallback(() => {
+  const handleClearFile = () => {
     clearCwdEditorFile(cwd);
-  }, [cwd]);
+  };
 
   // Construct pane object for EditorPaneAnchor
-  const pane = useMemo(
-    () => ({
-      id: paneId,
-      type: "editor" as const,
-      cwd,
-      file: currentFile,
-      treeMode,
-      changesViewMode,
-    }),
-    [paneId, cwd, currentFile, treeMode, changesViewMode],
-  );
+  const pane = {
+    id: paneId,
+    type: "editor" as const,
+    cwd,
+    file: currentFile,
+    treeMode,
+    changesViewMode,
+  };
 
   return (
     <EditorPaneAnchor

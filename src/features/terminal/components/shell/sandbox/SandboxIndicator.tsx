@@ -7,7 +7,6 @@ import { applicationModeAtom } from "@/store/atoms";
 import { getHashedColor } from "@/utils/color";
 import { useSelector } from "@tanstack/react-store";
 import { GitMerge, Trash2 } from "lucide-react";
-import { useMemo } from "react";
 
 type SandboxIndicatorProps = {
   agentSessionId?: string | null;
@@ -29,21 +28,15 @@ export function SandboxIndicator({
   const showAgentControls = isSandboxVisibleMode && !!agentSessionId;
   const overlayKey = showAgentControls ? agentSessionId : null;
 
-  const overlayColor = useMemo(
-    () => (overlayKey ? getHashedColor(overlayKey) : undefined),
-    [overlayKey],
-  );
+  const overlayColor = overlayKey ? getHashedColor(overlayKey) : undefined;
 
-  const overlayStyle = useMemo(
-    () =>
-      providedOverlayStyle ??
-      (overlayColor
-        ? {
-            backgroundColor: overlayColor,
-          }
-        : undefined),
-    [overlayColor, providedOverlayStyle],
-  );
+  const overlayStyle =
+    providedOverlayStyle ??
+    (overlayColor
+      ? {
+          backgroundColor: overlayColor,
+        }
+      : undefined);
 
   if (!showAgentControls) {
     return null;

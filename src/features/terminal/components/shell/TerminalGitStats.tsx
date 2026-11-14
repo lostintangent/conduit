@@ -27,32 +27,28 @@ import {
 import { useUncommittedDiffStats } from "@features/git/components/useUncommittedDiffStats";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import { ApplicationCommands } from "@shared/commands";
-import { memo, useCallback, useState } from "react";
+import { useState } from "react";
 
 /**
  * Internal component that uses the hooks.
  * Separated to allow conditional rendering in the parent.
  */
-const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
-  cwd,
-}: {
-  cwd: string;
-}) {
+function TerminalGitStatsInner({ cwd }: { cwd: string }) {
   const { stats, gitStatus, isGitRepo } = useUncommittedDiffStats(cwd);
   const setSidebarState = sidebarStateAtom.set;
   const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleClick = useCallback(() => {
+  const handleClick = () => {
     setSidebarState({
       isOpen: true,
       view: "editor",
       navigation: { cwd, editorTreeMode: "changes" },
     });
-  }, [setSidebarState, cwd]);
+  };
 
-  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
-  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => setIsHovered(false);
 
   // Don't render if not a git repo or no stats
   if (isGitRepo === false || !stats) {
@@ -96,7 +92,7 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
       </TooltipContent>
     </Tooltip>
   );
-});
+}
 
 /**
  * Displays aggregated git statistics for a terminal's cwd.
@@ -109,15 +105,11 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
  * - Pinned to top-right corner (doesn't scroll with terminal)
  * - Reuses DiffStatsDisplay and GitStatusSummary for consistent styling
  */
-export const TerminalGitStats = memo(function TerminalGitStats({
-  cwd,
-}: {
-  cwd: string | null;
-}) {
+export function TerminalGitStats({ cwd }: { cwd: string | null }) {
   // Don't render anything if no cwd
   if (!cwd) {
     return null;
   }
 
   return <TerminalGitStatsInner cwd={cwd} />;
-});
+}

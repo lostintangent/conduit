@@ -1,5 +1,4 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { useCallback } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
 
 type ComputeTargetIndicatorProps = {
@@ -26,19 +25,19 @@ export function ComputeTargetIndicator({
   } = useSandboxHandlers({ tabId });
 
   // Wrap the base handlers to check for required values
-  const handleCompleteAgentSession = useCallback(async () => {
+  const handleCompleteAgentSession = async () => {
     if (!agentSessionId) {
       return;
     }
     await handleCompleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, handleCompleteAgentSessionBase]);
+  };
 
-  const handleDeleteAgentSession = useCallback(async () => {
+  const handleDeleteAgentSession = async () => {
     if (!agentSessionId) {
       return;
     }
     await handleDeleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, handleDeleteAgentSessionBase]);
+  };
 
   if (hideIndividualSandboxIndicator) {
     return null;

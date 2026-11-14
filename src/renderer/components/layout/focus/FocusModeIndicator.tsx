@@ -10,7 +10,7 @@ import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import { shallow, useSelector } from "@tanstack/react-store";
 import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { FocusModeMiniMap } from "./FocusModeMiniMap";
 
 export function FocusModeIndicator() {
@@ -46,55 +46,35 @@ export function FocusModeIndicator() {
     return () => clearTimeout(timer);
   }, []);
 
-  const navigateToAdjacentTab = useCallback(
-    (direction: "prev" | "next") => {
-      if (activeTabIndex === -1) {
-        return;
-      }
-
-      if (direction === "prev") {
-        if (!canGoPrev) {
-          return;
-        }
-        focusTab(tabsAtom.get()[activeTabIndex - 1].id);
-        return;
-      }
-
-      if (!canGoNext) {
-        return;
-      }
-
-      focusTab(tabsAtom.get()[activeTabIndex + 1].id);
-    },
-    [activeTabIndex, canGoNext, canGoPrev],
-  );
-
-  const handleSelectPane = useCallback(
-    (paneId: string) => {
-      if (!activeTabId) {
-        return;
-      }
-
-      activatePane(activeTabId, paneId);
-    },
-    [activeTabId],
-  );
-
-  const hasMultiplePanes = (activeTab?.paneCount ?? 0) > 1;
-
-  const miniMap = useMemo(() => {
-    if (!activeTab || !hasMultiplePanes) {
-      return null;
+  const navigateToAdjacentTab = (direction: "prev" | "next") => {
+    if (activeTabIndex === -1) {
+      return;
     }
 
-    return (
-      <FocusModeMiniMap
-        layout={activeTab.layout}
-        activePaneId={activeTab.activePaneId}
-        onSelectPane={handleSelectPane}
-      />
-    );
-  }, [activeTab, hasMultiplePanes, handleSelectPane]);
+    if (direction === "prev") {
+      if (!canGoPrev) {
+        return;
+      }
+      focusTab(tabsAtom.get()[activeTabIndex - 1].id);
+      return;
+    }
+
+    if (!canGoNext) {
+      return;
+    }
+
+    focusTab(tabsAtom.get()[activeTabIndex + 1].id);
+  };
+
+  const handleSelectPane = (paneId: string) => {
+    if (!activeTabId) {
+      return;
+    }
+
+    activatePane(activeTabId, paneId);
+  };
+
+  const hasMultiplePanes = (activeTab?.paneCount ?? 0) > 1;
 
   if (!activeTab) {
     return null;
@@ -117,7 +97,13 @@ export function FocusModeIndicator() {
       aria-live="polite"
     >
       <div className="flex flex-col items-end gap-2">
-        {miniMap}
+        {hasMultiplePanes && (
+          <FocusModeMiniMap
+            layout={activeTab.layout}
+            activePaneId={activeTab.activePaneId}
+            onSelectPane={handleSelectPane}
+          />
+        )}
         <div className="flex items-center gap-2 rounded-full bg-black/50 px-3 py-2 shadow-lg backdrop-blur">
           {tabInfo && (
             <span className="text-xs text-white/90 font-medium">{tabInfo}</span>

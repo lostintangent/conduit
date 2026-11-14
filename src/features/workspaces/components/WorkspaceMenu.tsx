@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
 import { Download, LayoutDashboard, Trash2 } from "lucide-react";
-import { type MouseEvent, useCallback } from "react";
+import { type MouseEvent } from "react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import {
@@ -51,39 +51,36 @@ export const WorkspaceMenu = () => {
   );
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
 
-  const handleImportWorkspace = useCallback(() => {
+  const handleImportWorkspace = () => {
     importWorkspace(undefined, {
       onSuccess: (workspace) => {
         if (workspace) void openWorkspace(workspace);
       },
     });
-  }, [importWorkspace]);
+  };
 
-  const handleOpenWorkspace = useCallback(
-    (workspace: Workspace) => {
-      if (workspace.name === workspaceName) return;
-      openWorkspace(workspace);
-    },
-    [workspaceName],
-  );
+  const handleOpenWorkspace = (workspace: Workspace) => {
+    if (workspace.name === workspaceName) return;
+    openWorkspace(workspace);
+  };
 
-  const handleExportWorkspace = useCallback(
-    async (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
-      e.stopPropagation();
-      await api.workspaces.exportToFile(workspace);
-    },
-    [],
-  );
+  const handleExportWorkspace = async (
+    workspace: Workspace,
+    e: MouseEvent<HTMLButtonElement>,
+  ) => {
+    e.stopPropagation();
+    await api.workspaces.exportToFile(workspace);
+  };
 
-  const handleDeleteWorkspace = useCallback(
-    (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
-      // Prevent the click from bubbling up to the menu item
-      // which would result in the workspace being opened
-      e.stopPropagation();
-      deleteWorkspace(workspace.name);
-    },
-    [deleteWorkspace],
-  );
+  const handleDeleteWorkspace = (
+    workspace: Workspace,
+    e: MouseEvent<HTMLButtonElement>,
+  ) => {
+    // Prevent the click from bubbling up to the menu item
+    // which would result in the workspace being opened
+    e.stopPropagation();
+    deleteWorkspace(workspace.name);
+  };
 
   return (
     <DropdownMenu>

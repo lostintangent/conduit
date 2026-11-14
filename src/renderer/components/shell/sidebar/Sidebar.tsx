@@ -13,7 +13,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { applicationModeAtom } from "@/store/atoms";
 import { sidebarStateAtom, type SidebarView } from "@/store/sidebarStore";
 import { useAtom, useSelector } from "@tanstack/react-store";
-import { Activity, useCallback, useEffect, useRef, useState } from "react";
+import { Activity, useEffect, useRef, useState } from "react";
 import { ResizablePanel } from "./ResizablePanel";
 import { SidebarActivityBar } from "./SidebarActivityBar";
 import { BrowserView } from "./views/BrowserView";
@@ -77,23 +77,15 @@ export function Sidebar({ cwd }: SidebarProps) {
     }
   }, [sidebarState.navigation, isLocked]);
 
-  const setView = useCallback(
-    (newView: SidebarView) =>
-      setSidebarState((prev) => ({ ...prev, view: newView })),
-    [setSidebarState],
-  );
+  const setView = (newView: SidebarView) =>
+    setSidebarState((prev) => ({ ...prev, view: newView }));
 
-  const closeSidebar = useCallback(
-    () => setSidebarState((prev) => ({ ...prev, isOpen: false })),
-    [setSidebarState],
-  );
+  const closeSidebar = () =>
+    setSidebarState((prev) => ({ ...prev, isOpen: false }));
 
-  const toggleMaximized = useCallback(
-    () => setIsMaximized((prev) => !prev),
-    [],
-  );
+  const toggleMaximized = () => setIsMaximized((prev) => !prev);
 
-  const toggleLocked = useCallback(() => {
+  const toggleLocked = () => {
     if (isLocked) {
       setIsLocked(false);
       setLockedCwd(null);
@@ -101,7 +93,7 @@ export function Sidebar({ cwd }: SidebarProps) {
       setIsLocked(true);
       setLockedCwd(cwd);
     }
-  }, [isLocked, cwd]);
+  };
 
   // The effective CWD: locked CWD if locked, otherwise current CWD
   const effectiveCwd = isLocked && lockedCwd ? lockedCwd : cwd;
@@ -115,9 +107,9 @@ export function Sidebar({ cwd }: SidebarProps) {
     if (isOpen) setIsContentVisible(true);
   }, [isOpen]);
 
-  const handleTransitionEnd = useCallback(() => {
+  const handleTransitionEnd = () => {
     if (!isOpen) setIsContentVisible(false);
-  }, [isOpen]);
+  };
 
   return (
     <ResizablePanel

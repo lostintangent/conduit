@@ -13,7 +13,7 @@ import {
   SplitSquareVertical,
   X,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   PaneControlFanButtons,
   type SplitButtonPosition,
@@ -27,32 +27,32 @@ function useFanMenuState() {
     useState<SplitButtonPosition | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const clearHideTimeout = useCallback(() => {
+  const clearHideTimeout = () => {
     if (hideTimeoutRef.current) {
       clearTimeout(hideTimeoutRef.current);
       hideTimeoutRef.current = null;
     }
-  }, []);
+  };
 
-  const handleVisibilityChange = useCallback(
-    (position: SplitButtonPosition, visible: boolean) => {
-      if (!visible) {
-        // Clear any existing timeout and set a new one
-        clearHideTimeout();
-        hideTimeoutRef.current = setTimeout(() => {
-          setHoveredPosition((current) => {
-            // Only clear if we're still showing this position
-            return current === position ? null : current;
-          });
-        }, 350);
-      } else {
-        // Cancel any pending hide and immediately switch to this position
-        clearHideTimeout();
-        setHoveredPosition(position);
-      }
-    },
-    [clearHideTimeout],
-  );
+  const handleVisibilityChange = (
+    position: SplitButtonPosition,
+    visible: boolean,
+  ) => {
+    if (!visible) {
+      // Clear any existing timeout and set a new one
+      clearHideTimeout();
+      hideTimeoutRef.current = setTimeout(() => {
+        setHoveredPosition((current) => {
+          // Only clear if we're still showing this position
+          return current === position ? null : current;
+        });
+      }, 350);
+    } else {
+      // Cancel any pending hide and immediately switch to this position
+      clearHideTimeout();
+      setHoveredPosition(position);
+    }
+  };
 
   return {
     hoveredPosition,

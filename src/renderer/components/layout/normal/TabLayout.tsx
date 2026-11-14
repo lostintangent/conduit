@@ -51,13 +51,7 @@ import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { shallow, useSelector } from "@tanstack/react-store";
 import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -290,10 +284,7 @@ function TabPanel({
     element.style.display = "contents";
     return element;
   });
-  const ref = useCallback(
-    (panel: HTMLDivElement) => attachPanel(tabId, panel, host),
-    [attachPanel, tabId, host],
-  );
+  const ref = (panel: HTMLDivElement) => attachPanel(tabId, panel, host);
 
   // A hidden element keeps focus until the next tab's pane takes it a frame
   // later, so keys typed in between would go to this tab, e.g. to its shell
@@ -389,567 +380,514 @@ export function TabLayout({
     previousResizingNodeRef.current = resizingNode;
   }, [resizingNode]);
 
-  const setHoverKeys = useCallback(
-    (keys: string[]) => {
-      if (resizingNode === null) {
-        setHoveredAxisKeys(keys);
+  const setHoverKeys = (keys: string[]) => {
+    if (resizingNode === null) {
+      setHoveredAxisKeys(keys);
+    }
+  };
+
+  const renderPaneNode = (
+    node: LayoutPaneNode,
+    tab: Tab,
+    hasUnifiedSandbox: boolean,
+    ctx: TabRenderContext,
+    parentDirection?: SplitDirection,
+  ): React.ReactNode => {
+    const pane = tab.panes[node.paneId];
+    if (!pane) {
+      return null;
+    }
+
+    const isLocked = tab.locked;
+    const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
+    const isInFocusMode = applicationMode === "focus";
+    const isHiddenInFocusMode = isInFocusMode && !isActivePane;
+    const isInPreview = isTabInPreview(tab.id);
+    const isCollapsed = Boolean(node.collapsed);
+
+    const onPaneContextMenu = (event: React.MouseEvent) =>
+      handleContextMenu(event, tab.id, pane.id);
+
+    const onPaneActivate = (event?: React.MouseEvent) => {
+      // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first
+      if (tab.id !== activeTabId) {
+        focusTab(tab.id);
       }
-    },
-    [resizingNode, setHoveredAxisKeys],
-  );
-
-  const renderPaneNode = useCallback(
-    (
-      node: LayoutPaneNode,
-      tab: Tab,
-      hasUnifiedSandbox: boolean,
-      ctx: TabRenderContext,
-      parentDirection?: SplitDirection,
-    ): React.ReactNode => {
-      const pane = tab.panes[node.paneId];
-      if (!pane) {
-        return null;
+      if (applicationMode === "overview") {
+        setApplicationMode("normal");
       }
+      activatePane(tab.id, pane.id);
 
-      const isLocked = tab.locked;
-      const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
-      const isInFocusMode = applicationMode === "focus";
-      const isHiddenInFocusMode = isInFocusMode && !isActivePane;
-      const isInPreview = isTabInPreview(tab.id);
-      const isCollapsed = Boolean(node.collapsed);
-
-      const onPaneContextMenu = (event: React.MouseEvent) =>
-        handleContextMenu(event, tab.id, pane.id);
-
-      const onPaneActivate = (event?: React.MouseEvent) => {
-        // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first
-        if (tab.id !== activeTabId) {
-          focusTab(tab.id);
-        }
-        if (applicationMode === "overview") {
-          setApplicationMode("normal");
-        }
-        activatePane(tab.id, pane.id);
-
-        // If Command (Mac) or Ctrl (Windows/Linux) is held, enter focus mode on this pane
-        if (event && (event.metaKey || event.ctrlKey)) {
-          enterFocusMode(tab.id, pane.id);
-        }
-      };
-
-      // If the pane is collapsed, then we need to render it as a
-      // horizontal/vertical bar with an expand button. But if we're
-      // in focus mode, then we render the pane normally (not collapsed).
-      if (isCollapsed && !isInFocusMode) {
-        const isHorizontalBar = parentDirection === "column";
-        return (
-          <div
-            data-node-id={node.id}
-            className={cn(
-              "flex-1 min-h-0 min-w-0 overflow-hidden relative",
-              isHiddenInFocusMode && "hidden",
-            )}
-            onContextMenu={onPaneContextMenu}
-          >
-            <button
-              className="flex items-center w-full h-full justify-center bg-elevated hover:bg-elevated/80 transition-colors"
-              onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
-            >
-              {isHorizontalBar ? (
-                <UnfoldVertical className="w-4 h-4" />
-              ) : (
-                <UnfoldHorizontal className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-        );
+      // If Command (Mac) or Ctrl (Windows/Linux) is held, enter focus mode on this pane
+      if (event && (event.metaKey || event.ctrlKey)) {
+        enterFocusMode(tab.id, pane.id);
       }
+    };
 
-      const onBrowserContextMenu = (coords: {
-        clientX: number;
-        clientY: number;
-      }) => {
-        const syntheticEvent = {
-          preventDefault: () => {},
-          stopPropagation: () => {},
-          clientX: coords.clientX,
-          clientY: coords.clientY,
-        } as React.MouseEvent;
-        handleContextMenu(syntheticEvent, tab.id, pane.id);
-      };
-
-      const dragHandlers = isLocked
-        ? LOCKED_DRAG_HANDLERS
-        : createDragHandlers(pane.id, tab.id);
-      const dropHandlers = isLocked
-        ? LOCKED_DROP_HANDLERS
-        : createDropHandlers(pane.id, tab.id);
-
-      // While in design mode, show the pane controls if the current pane meets any of:
-      // 1. It's currently being dragged
-      // 2. It's currently being hovered (not during a drag operation)
-      // 3. It's the active pane (not during a drag operation)
-      const shouldRenderControls =
-        isInDesignMode &&
-        !isLocked &&
-        (draggedPaneId === pane.id ||
-          (!draggedPaneId && hoveredPaneId === pane.id) ||
-          (!draggedPaneId && !hoveredPaneId && isActivePane));
-
+    // If the pane is collapsed, then we need to render it as a
+    // horizontal/vertical bar with an expand button. But if we're
+    // in focus mode, then we render the pane normally (not collapsed).
+    if (isCollapsed && !isInFocusMode) {
+      const isHorizontalBar = parentDirection === "column";
       return (
         <div
           data-node-id={node.id}
-          className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
-          style={{
-            gridTemplateColumns: "minmax(0, 1fr)",
-            gridTemplateRows: "minmax(0, 1fr)",
-            display: isHiddenInFocusMode ? "none" : undefined,
-          }}
-          {...dropHandlers}
-          onMouseEnter={() => {
-            // Only track hover state in design mode (for showing pane controls)
-            // to avoid unnecessary re-renders in normal mode
-            if (isInDesignMode) {
-              setHoveredPaneId(pane.id);
-            }
-            if (isInPreview) {
-              setHoveredPreviewPaneId(pane.id);
-            }
-          }}
-          onMouseLeave={() => {
-            // Editor panes use the global container pattern where content is
-            // rendered via React portal. This causes onMouseLeave to fire when
-            // entering the editor (React sees it as leaving this tree). Instead,
-            // editor panes manage hover state via their onHover callback.
-            if (isInDesignMode && pane.type !== "editor") {
-              setHoveredPaneId(null);
-            }
-            if (isInPreview) {
-              setHoveredPreviewPaneId(null);
-            }
-          }}
+          className={cn(
+            "flex-1 min-h-0 min-w-0 overflow-hidden relative",
+            isHiddenInFocusMode && "hidden",
+          )}
+          onContextMenu={onPaneContextMenu}
         >
-          <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
-            <ErrorBoundary
-              resetKey={pane.id}
-              onClose={() => closePane(tab.id, pane.id)}
-            >
-              {pane.type === "terminal" ? (
-                <TerminalPane
-                  key={pane.id}
-                  pane={pane}
-                  tabId={tab.id}
-                  isActive={isActivePane}
-                  onActivate={onPaneActivate}
-                  onContextMenu={onPaneContextMenu}
-                  // Resolve cloned terminal's sessionId here to avoid TerminalPane subscribing to all tabs
-                  resolvedSessionId={
-                    pane.cloneOf
-                      ? ((tab.panes[pane.cloneOf] as typeof pane)?.sessionId ??
-                        pane.sessionId)
-                      : pane.sessionId
+          <button
+            className="flex items-center w-full h-full justify-center bg-elevated hover:bg-elevated/80 transition-colors"
+            onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
+          >
+            {isHorizontalBar ? (
+              <UnfoldVertical className="w-4 h-4" />
+            ) : (
+              <UnfoldHorizontal className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      );
+    }
+
+    const onBrowserContextMenu = (coords: {
+      clientX: number;
+      clientY: number;
+    }) => {
+      const syntheticEvent = {
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        clientX: coords.clientX,
+        clientY: coords.clientY,
+      } as React.MouseEvent;
+      handleContextMenu(syntheticEvent, tab.id, pane.id);
+    };
+
+    const dragHandlers = isLocked
+      ? LOCKED_DRAG_HANDLERS
+      : createDragHandlers(pane.id, tab.id);
+    const dropHandlers = isLocked
+      ? LOCKED_DROP_HANDLERS
+      : createDropHandlers(pane.id, tab.id);
+
+    // While in design mode, show the pane controls if the current pane meets any of:
+    // 1. It's currently being dragged
+    // 2. It's currently being hovered (not during a drag operation)
+    // 3. It's the active pane (not during a drag operation)
+    const shouldRenderControls =
+      isInDesignMode &&
+      !isLocked &&
+      (draggedPaneId === pane.id ||
+        (!draggedPaneId && hoveredPaneId === pane.id) ||
+        (!draggedPaneId && !hoveredPaneId && isActivePane));
+
+    return (
+      <div
+        data-node-id={node.id}
+        className="grid flex-1 min-h-0 min-w-0 overflow-hidden relative"
+        style={{
+          gridTemplateColumns: "minmax(0, 1fr)",
+          gridTemplateRows: "minmax(0, 1fr)",
+          display: isHiddenInFocusMode ? "none" : undefined,
+        }}
+        {...dropHandlers}
+        onMouseEnter={() => {
+          // Only track hover state in design mode (for showing pane controls)
+          // to avoid unnecessary re-renders in normal mode
+          if (isInDesignMode) {
+            setHoveredPaneId(pane.id);
+          }
+          if (isInPreview) {
+            setHoveredPreviewPaneId(pane.id);
+          }
+        }}
+        onMouseLeave={() => {
+          // Editor panes use the global container pattern where content is
+          // rendered via React portal. This causes onMouseLeave to fire when
+          // entering the editor (React sees it as leaving this tree). Instead,
+          // editor panes manage hover state via their onHover callback.
+          if (isInDesignMode && pane.type !== "editor") {
+            setHoveredPaneId(null);
+          }
+          if (isInPreview) {
+            setHoveredPreviewPaneId(null);
+          }
+        }}
+      >
+        <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
+          <ErrorBoundary
+            resetKey={pane.id}
+            onClose={() => closePane(tab.id, pane.id)}
+          >
+            {pane.type === "terminal" ? (
+              <TerminalPane
+                key={pane.id}
+                pane={pane}
+                tabId={tab.id}
+                isActive={isActivePane}
+                onActivate={onPaneActivate}
+                onContextMenu={onPaneContextMenu}
+                // Resolve cloned terminal's sessionId here to avoid TerminalPane subscribing to all tabs
+                resolvedSessionId={
+                  pane.cloneOf
+                    ? ((tab.panes[pane.cloneOf] as typeof pane)?.sessionId ??
+                      pane.sessionId)
+                    : pane.sessionId
+                }
+                onLinkClick={(url) => {
+                  if (terminalLinkTarget === "sidebar") {
+                    setSidebarState({
+                      isOpen: true,
+                      view: "browser",
+                      navigation: {
+                        cwd: pane.cwd ?? undefined,
+                        browserUrl: url,
+                      },
+                    });
+                  } else if (terminalLinkTarget === "default") {
+                    window.conduit.openExternal(url);
+                  } else {
+                    openBrowserPane(tab.id, pane.id, url);
                   }
-                  onLinkClick={(url) => {
-                    if (terminalLinkTarget === "sidebar") {
-                      setSidebarState({
-                        isOpen: true,
-                        view: "browser",
-                        navigation: {
-                          cwd: pane.cwd ?? undefined,
-                          browserUrl: url,
-                        },
-                      });
-                    } else if (terminalLinkTarget === "default") {
-                      window.conduit.openExternal(url);
-                    } else {
-                      openBrowserPane(tab.id, pane.id, url);
+                }}
+                showDimensions={shouldShowTerminalDimensions && !isInPreview}
+                hideIndividualSandboxIndicator={hasUnifiedSandbox}
+                isTabSynchronized={tab.synchronized}
+              />
+            ) : pane.type === "editor" ? (
+              <div
+                className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                onContextMenu={onPaneContextMenu}
+                onMouseDown={onPaneActivate}
+              >
+                <EditorPaneAnchor
+                  key={pane.id}
+                  paneId={pane.id}
+                  pane={pane}
+                  onFileChange={(fileData) =>
+                    handleEditorUpdate(tab.id, pane.id, {
+                      file: fileData.file,
+                    })
+                  }
+                  onClearFile={() =>
+                    handleEditorUpdate(tab.id, pane.id, {
+                      file: undefined,
+                    })
+                  }
+                  onCwdChange={(cwd) =>
+                    handleEditorUpdate(tab.id, pane.id, { cwd })
+                  }
+                  onTreeModeChange={(mode) =>
+                    handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
+                  }
+                  onChangesViewModeChange={(mode) =>
+                    handleEditorUpdate(tab.id, pane.id, {
+                      changesViewMode: mode,
+                    })
+                  }
+                  onHover={(isHovering) => {
+                    if (isInDesignMode) {
+                      setHoveredPaneId(isHovering ? pane.id : null);
+                    }
+                    if (isInPreview) {
+                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
                   }}
-                  showDimensions={shouldShowTerminalDimensions && !isInPreview}
+                  isInPreview={isInPreview}
+                  isActive={isActivePane}
                   hideIndividualSandboxIndicator={hasUnifiedSandbox}
-                  isTabSynchronized={tab.synchronized}
+                  tabId={tab.id}
+                  onClose={() => closePane(tab.id, pane.id)}
+                  className="h-full w-full"
                 />
-              ) : pane.type === "editor" ? (
-                <div
-                  className="flex flex-1 w-full h-full min-h-0 min-w-0"
-                  onContextMenu={onPaneContextMenu}
-                  onMouseDown={onPaneActivate}
-                >
-                  <EditorPaneAnchor
-                    key={pane.id}
-                    paneId={pane.id}
-                    pane={pane}
-                    onFileChange={(fileData) =>
-                      handleEditorUpdate(tab.id, pane.id, {
-                        file: fileData.file,
-                      })
+              </div>
+            ) : pane.type === "browser" ? (
+              <div
+                className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                onContextMenu={onPaneContextMenu}
+                onMouseDown={onPaneActivate}
+              >
+                <BrowserPane
+                  key={pane.id}
+                  url={pane.url}
+                  paneId={pane.id}
+                  tabId={tab.id}
+                  disableInteraction={resizingNode !== null}
+                  isActive={isActivePane}
+                  onContextMenu={onBrowserContextMenu}
+                  onUrlChange={(nextUrl) =>
+                    handleBrowserUpdate(tab.id, pane.id, { url: nextUrl })
+                  }
+                  onTitleChange={(nextTitle) =>
+                    handleBrowserUpdate(tab.id, pane.id, { title: nextTitle })
+                  }
+                  isInPreview={isInPreview}
+                  onHover={(isHovering) => {
+                    if (isInDesignMode) {
+                      setHoveredPaneId(isHovering ? pane.id : null);
                     }
-                    onClearFile={() =>
-                      handleEditorUpdate(tab.id, pane.id, {
-                        file: undefined,
-                      })
+                    if (isInPreview) {
+                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
                     }
-                    onCwdChange={(cwd) =>
-                      handleEditorUpdate(tab.id, pane.id, { cwd })
-                    }
-                    onTreeModeChange={(mode) =>
-                      handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
-                    }
-                    onChangesViewModeChange={(mode) =>
-                      handleEditorUpdate(tab.id, pane.id, {
-                        changesViewMode: mode,
-                      })
-                    }
-                    onHover={(isHovering) => {
-                      if (isInDesignMode) {
-                        setHoveredPaneId(isHovering ? pane.id : null);
-                      }
-                      if (isInPreview) {
-                        setHoveredPreviewPaneId(isHovering ? pane.id : null);
-                      }
-                    }}
-                    isInPreview={isInPreview}
-                    isActive={isActivePane}
-                    hideIndividualSandboxIndicator={hasUnifiedSandbox}
-                    tabId={tab.id}
-                    onClose={() => closePane(tab.id, pane.id)}
-                    className="h-full w-full"
-                  />
-                </div>
-              ) : pane.type === "browser" ? (
-                <div
-                  className="flex flex-1 w-full h-full min-h-0 min-w-0"
-                  onContextMenu={onPaneContextMenu}
-                  onMouseDown={onPaneActivate}
-                >
-                  <BrowserPane
-                    key={pane.id}
-                    url={pane.url}
-                    paneId={pane.id}
-                    tabId={tab.id}
-                    disableInteraction={resizingNode !== null}
-                    isActive={isActivePane}
-                    onContextMenu={onBrowserContextMenu}
-                    onUrlChange={(nextUrl) =>
-                      handleBrowserUpdate(tab.id, pane.id, { url: nextUrl })
-                    }
-                    onTitleChange={(nextTitle) =>
-                      handleBrowserUpdate(tab.id, pane.id, { title: nextTitle })
-                    }
-                    isInPreview={isInPreview}
-                    onHover={(isHovering) => {
-                      if (isInDesignMode) {
-                        setHoveredPaneId(isHovering ? pane.id : null);
-                      }
-                      if (isInPreview) {
-                        setHoveredPreviewPaneId(isHovering ? pane.id : null);
-                      }
-                    }}
-                    devToolsFor={pane.devToolsFor}
-                    chromeless={pane.chromeless}
-                    isDevToolsOpen={ctx.devToolsTargets.has(pane.id)}
-                    onToggleDevTools={() => {
-                      const devToolsPane = Object.values(tab.panes).find(
-                        (p) =>
-                          p.type === "browser" && p.devToolsFor === pane.id,
+                  }}
+                  devToolsFor={pane.devToolsFor}
+                  chromeless={pane.chromeless}
+                  isDevToolsOpen={ctx.devToolsTargets.has(pane.id)}
+                  onToggleDevTools={() => {
+                    const devToolsPane = Object.values(tab.panes).find(
+                      (p) => p.type === "browser" && p.devToolsFor === pane.id,
+                    );
+                    if (devToolsPane) {
+                      closePane(tab.id, devToolsPane.id);
+                    } else {
+                      openBrowserPane(
+                        tab.id,
+                        pane.id,
+                        "about:blank",
+                        "column",
+                        false,
+                        true,
                       );
-                      if (devToolsPane) {
-                        closePane(tab.id, devToolsPane.id);
-                      } else {
-                        openBrowserPane(
-                          tab.id,
-                          pane.id,
-                          "about:blank",
-                          "column",
-                          false,
-                          true,
-                        );
-                      }
-                    }}
-                    onHideToolbar={() =>
-                      updatePaneProperty(tab.id, pane.id, { chromeless: true })
                     }
-                  />
-                </div>
-              ) : pane.type === "canvas" ? (
-                <div
-                  className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                  }}
+                  onHideToolbar={() =>
+                    updatePaneProperty(tab.id, pane.id, { chromeless: true })
+                  }
+                />
+              </div>
+            ) : pane.type === "canvas" ? (
+              <div
+                className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                onContextMenu={onPaneContextMenu}
+                onMouseDown={onPaneActivate}
+              >
+                <CanvasPane
+                  key={pane.id}
+                  pane={pane}
+                  paneId={pane.id}
+                  tabId={tab.id}
+                  isActive={isActivePane}
                   onContextMenu={onPaneContextMenu}
-                  onMouseDown={onPaneActivate}
-                >
-                  <CanvasPane
-                    key={pane.id}
-                    pane={pane}
-                    paneId={pane.id}
-                    tabId={tab.id}
-                    isActive={isActivePane}
-                    onContextMenu={onPaneContextMenu}
-                  />
-                </div>
-              ) : null}
-            </ErrorBoundary>
-          </div>
+                />
+              </div>
+            ) : null}
+          </ErrorBoundary>
+        </div>
 
-          {/* Design mode overlay - blocks pane interactions while allowing
+        {/* Design mode overlay - blocks pane interactions while allowing
               resize handles (which are rendered outside this container) and
               pane control buttons (which have higher z-index) to remain interactive */}
-          {isInDesignMode && (
-            <div className="pointer-events-auto absolute inset-0 z-[30] bg-accent/20 backdrop-blur-[0.5px]" />
-          )}
+        {isInDesignMode && (
+          <div className="pointer-events-auto absolute inset-0 z-[30] bg-accent/20 backdrop-blur-[0.5px]" />
+        )}
 
-          {/* Dim inactive panes overlay (only in normal mode) */}
-          {dimInactivePanes && applicationMode === "normal" && (
-            <div
-              className={`pointer-events-none absolute inset-0 z-[5] bg-black/40 transition-opacity duration-150 ${
-                isActivePane ? "opacity-0" : "opacity-100"
-              }`}
-            />
-          )}
+        {/* Dim inactive panes overlay (only in normal mode) */}
+        {dimInactivePanes && applicationMode === "normal" && (
+          <div
+            className={`pointer-events-none absolute inset-0 z-[5] bg-black/40 transition-opacity duration-150 ${
+              isActivePane ? "opacity-0" : "opacity-100"
+            }`}
+          />
+        )}
 
-          {/* Pane highlight overlay - only render when appropriate */}
-          {Object.keys(tab.panes).length > 1 &&
-            !isInFocusMode &&
-            !isInDesignMode &&
-            resizingNode === null && <PaneHighlight paneId={pane.id} />}
+        {/* Pane highlight overlay - only render when appropriate */}
+        {Object.keys(tab.panes).length > 1 &&
+          !isInFocusMode &&
+          !isInDesignMode &&
+          resizingNode === null && <PaneHighlight paneId={pane.id} />}
 
-          {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
-          {isInPreview && hoveredPreviewPaneId === pane.id && (
-            <div className="pointer-events-none absolute inset-0 z-[30] bg-accent/30 backdrop-blur-[0.5px]" />
-          )}
+        {/* Preview hover overlay - show blue highlight when hovering pane in preview */}
+        {isInPreview && hoveredPreviewPaneId === pane.id && (
+          <div className="pointer-events-none absolute inset-0 z-[30] bg-accent/30 backdrop-blur-[0.5px]" />
+        )}
 
-          {/* Drop zone overlay */}
-          {renderDropZone(pane.id)}
+        {/* Drop zone overlay */}
+        {renderDropZone(pane.id)}
 
-          {shouldRenderControls && (
-            <PaneControlButtons
-              tabId={tab.id}
-              paneId={pane.id}
-              canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
-              canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
-              canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
-              canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
-              isOnlyPane={ctx.paneCount === 1}
-              isOnlyTab={ctx.isOnlyTab}
-              onOpenPaneActions={onOpenPaneActions}
-              {...dragHandlers}
-            />
-          )}
-        </div>
-      );
-    },
-    [
-      activePaneId,
-      activeTabId,
-      applicationMode,
-      createDragHandlers,
-      createDropHandlers,
-      handleContextMenu,
-      handleEditorUpdate,
-      handleBrowserUpdate,
-      isInDesignMode,
-      renderDropZone,
-      shouldShowTerminalDimensions,
-      resizingNode,
-      setHoveredPaneId,
-      draggedPaneId,
-      hoveredPaneId,
-      isTabInPreview,
-      hoveredPreviewPaneId,
-      setHoveredPreviewPaneId,
-      setApplicationMode,
-      setSidebarState,
-      dimInactivePanes,
-      terminalLinkTarget,
-      onOpenPaneActions,
-    ],
-  );
+        {shouldRenderControls && (
+          <PaneControlButtons
+            tabId={tab.id}
+            paneId={pane.id}
+            canMoveLeft={hasNeighborPane(tab.layout, pane.id, "left")}
+            canMoveRight={hasNeighborPane(tab.layout, pane.id, "right")}
+            canMoveUp={hasNeighborPane(tab.layout, pane.id, "up")}
+            canMoveDown={hasNeighborPane(tab.layout, pane.id, "down")}
+            isOnlyPane={ctx.paneCount === 1}
+            isOnlyTab={ctx.isOnlyTab}
+            onOpenPaneActions={onOpenPaneActions}
+            {...dragHandlers}
+          />
+        )}
+      </div>
+    );
+  };
 
-  const renderSplitNode = useCallback(
-    (
-      node: LayoutSplitNode,
+  const renderSplitNode = (
+    node: LayoutSplitNode,
+    tab: Tab,
+    renderChild: (
+      node: LayoutNode,
       tab: Tab,
-      renderChild: (
-        node: LayoutNode,
-        tab: Tab,
-        hasUnifiedSandbox: boolean,
-        ctx: TabRenderContext,
-        parentDirection: SplitDirection,
-      ) => React.ReactNode,
       hasUnifiedSandbox: boolean,
       ctx: TabRenderContext,
-    ): React.ReactNode => {
-      const isInFocusMode = applicationMode === "focus";
-      const isLocked = tab.locked;
-      const isInPreview = isTabInPreview(tab.id);
+      parentDirection: SplitDirection,
+    ) => React.ReactNode,
+    hasUnifiedSandbox: boolean,
+    ctx: TabRenderContext,
+  ): React.ReactNode => {
+    const isInFocusMode = applicationMode === "focus";
+    const isLocked = tab.locked;
+    const isInPreview = isTabInPreview(tab.id);
 
-      // Generate the grid template for this split
-      const gridTemplate = buildGridTemplateStyles(
-        node.children,
-        node.direction,
-        tab.activePaneId,
-        isInFocusMode,
-      );
+    // Generate the grid template for this split
+    const gridTemplate = buildGridTemplateStyles(
+      node.children,
+      node.direction,
+      tab.activePaneId,
+      isInFocusMode,
+    );
 
-      // Use grid gap to create spaces that reveal the overlay underneath
-      // Hide gaps in focus mode, design mode, and preview mode (use borders instead in preview)
-      const gridGapClass =
-        applicationMode === "focus" ||
-        applicationMode === "design" ||
-        isInPreview
-          ? "gap-0"
-          : "gap-[1px]";
+    // Use grid gap to create spaces that reveal the overlay underneath
+    // Hide gaps in focus mode, design mode, and preview mode (use borders instead in preview)
+    const gridGapClass =
+      applicationMode === "focus" || applicationMode === "design" || isInPreview
+        ? "gap-0"
+        : "gap-[1px]";
 
-      return (
-        /* Render the split container (the grid which positions the child panes) */
-        <div
-          data-node-id={node.id}
-          className={`grid flex-1 min-h-0 min-w-0 overflow-hidden ${gridGapClass}`}
-          style={
-            resizingNode === null
-              ? { ...gridTemplate } // ...GRID_TEMPLATE_TRANSITION_STYLE } (Disabling this for now due to jank)
-              : gridTemplate
-          }
-        >
-          {node.children.map((child, index) => {
-            const previousSibling =
-              index !== 0 ? node.children[index - 1] : null;
-            const isBeingResized = resizingNode === child.id;
+    return (
+      /* Render the split container (the grid which positions the child panes) */
+      <div
+        data-node-id={node.id}
+        className={`grid flex-1 min-h-0 min-w-0 overflow-hidden ${gridGapClass}`}
+        style={
+          resizingNode === null
+            ? { ...gridTemplate } // ...GRID_TEMPLATE_TRANSITION_STYLE } (Disabling this for now due to jank)
+            : gridTemplate
+        }
+      >
+        {node.children.map((child, index) => {
+          const previousSibling = index !== 0 ? node.children[index - 1] : null;
+          const isBeingResized = resizingNode === child.id;
 
-            // In design mode, add dashed borders as visual indicators (overlaid on content)
-            // In preview mode, add solid borders to replace grid gaps
-            const designModeBorderClass = isInDesignMode
-              ? `${node.direction === "row" ? "border-l" : "border-t"} border-accent border-dashed`
+          // In design mode, add dashed borders as visual indicators (overlaid on content)
+          // In preview mode, add solid borders to replace grid gaps
+          const designModeBorderClass = isInDesignMode
+            ? `${node.direction === "row" ? "border-l" : "border-t"} border-accent border-dashed`
+            : "";
+          const previewBorderClass = isInPreview
+            ? `${node.direction === "row" ? "border-l" : "border-t"} border-border`
+            : "";
+          const splitBorderClass =
+            index !== 0 && (isInDesignMode || isInPreview)
+              ? isInDesignMode
+                ? designModeBorderClass
+                : previewBorderClass
               : "";
-            const previewBorderClass = isInPreview
-              ? `${node.direction === "row" ? "border-l" : "border-t"} border-border`
-              : "";
-            const splitBorderClass =
-              index !== 0 && (isInDesignMode || isInPreview)
-                ? isInDesignMode
-                  ? designModeBorderClass
-                  : previewBorderClass
-                : "";
 
-            const primaryAxis: LayoutResizeAxis | null = previousSibling
-              ? {
-                  containerNodeId: node.id,
-                  direction: node.direction,
-                  leadingNodeId: previousSibling.id,
-                  trailingNodeId: child.id,
-                  leadingSize: previousSibling.size ?? 1,
-                  trailingSize: child.size ?? 1,
-                }
-              : null;
-
-            const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
-            const baseHighlightKeys =
-              primaryAxisKey !== null ? [primaryAxisKey] : [];
-            const isAxisHighlighted =
-              isBeingResized ||
-              (primaryAxisKey !== null &&
-                hoveredAxisKeys.includes(primaryAxisKey));
-
-            const highlightDividerClass = isAxisHighlighted
-              ? "bg-accent/80"
-              : "bg-transparent hover:bg-accent/80";
-
-            // We only want to render resize handles between two pane nodes
-            // when the previous sibling pane isn't collapsed, when the tab
-            // isn't locked, and when we're not in focus mode.
-            const shouldRenderHandles =
-              previousSibling !== null &&
-              !isInFocusMode &&
-              !isLocked &&
-              (previousSibling.type === "split" ||
-                (previousSibling.type === "pane" &&
-                  !previousSibling.collapsed));
-
-            const intersectionHandles =
-              shouldRenderHandles && primaryAxis
-                ? computeIntersectionHandles(
-                    previousSibling,
-                    child,
-                    node.direction,
-                  )
-                : [];
-
-            const clearHover = () => {
-              if (!isBeingResized) {
-                setHoverKeys([]);
+          const primaryAxis: LayoutResizeAxis | null = previousSibling
+            ? {
+                containerNodeId: node.id,
+                direction: node.direction,
+                leadingNodeId: previousSibling.id,
+                trailingNodeId: child.id,
+                leadingSize: previousSibling.size ?? 1,
+                trailingSize: child.size ?? 1,
               }
-            };
+            : null;
 
-            return (
-              // Render the pane with optional dividers/handles
-              <div
-                key={child.id}
-                className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${splitBorderClass}`}
-              >
-                {shouldRenderHandles && primaryAxis && (
-                  <>
-                    <ResizeHandle
-                      direction={node.direction}
-                      highlightClass={highlightDividerClass}
-                      className={isInDesignMode ? "z-[31]" : undefined}
-                      onMouseDown={(e) => {
-                        setHoverKeys(baseHighlightKeys);
-                        handleResizeStart(e, {
-                          tabId: tab.id,
-                          activeHandleId: child.id,
-                          axes: [primaryAxis],
-                        });
-                      }}
-                      onMouseLeave={clearHover}
-                    />
+          const primaryAxisKey = primaryAxis ? getAxisKey(primaryAxis) : null;
+          const baseHighlightKeys =
+            primaryAxisKey !== null ? [primaryAxisKey] : [];
+          const isAxisHighlighted =
+            isBeingResized ||
+            (primaryAxisKey !== null &&
+              hoveredAxisKeys.includes(primaryAxisKey));
 
-                    <IntersectionHandles
-                      direction={node.direction}
-                      handles={intersectionHandles}
-                      baseHighlightKeys={baseHighlightKeys}
-                      className={isInDesignMode ? "z-[31]" : undefined}
-                      onHandleMouseDown={(e, handle, highlightKeys) => {
-                        setHoverKeys(highlightKeys);
-                        handleResizeStart(e, {
-                          tabId: tab.id,
-                          activeHandleId: child.id,
-                          axes: [primaryAxis, ...handle.axes],
-                        });
-                      }}
-                      onHandleMouseEnter={(_, highlightKeys) => {
-                        setHoverKeys(highlightKeys);
-                      }}
-                      onHandleMouseLeave={clearHover}
-                    />
-                  </>
-                )}
+          const highlightDividerClass = isAxisHighlighted
+            ? "bg-accent/80"
+            : "bg-transparent hover:bg-accent/80";
 
-                {renderChild(
+          // We only want to render resize handles between two pane nodes
+          // when the previous sibling pane isn't collapsed, when the tab
+          // isn't locked, and when we're not in focus mode.
+          const shouldRenderHandles =
+            previousSibling !== null &&
+            !isInFocusMode &&
+            !isLocked &&
+            (previousSibling.type === "split" ||
+              (previousSibling.type === "pane" && !previousSibling.collapsed));
+
+          const intersectionHandles =
+            shouldRenderHandles && primaryAxis
+              ? computeIntersectionHandles(
+                  previousSibling,
                   child,
-                  tab,
-                  hasUnifiedSandbox,
-                  ctx,
                   node.direction,
-                )}
-              </div>
-            );
-          })}
-        </div>
-      );
-    },
-    [
-      applicationMode,
-      handleResizeStart,
-      hoveredAxisKeys,
-      isInDesignMode,
-      isTabInPreview,
-      resizingNode,
-      setHoverKeys,
-    ],
-  );
+                )
+              : [];
 
-  // A plain arrow rather than a useCallback or function declaration, because
-  // the React Compiler skips the whole component for a recursive useCallback
-  // and for a recursive function declaration that a later useCallback uses.
+          const clearHover = () => {
+            if (!isBeingResized) {
+              setHoverKeys([]);
+            }
+          };
+
+          return (
+            // Render the pane with optional dividers/handles
+            <div
+              key={child.id}
+              className={`flex w-full h-full min-h-0 min-w-0 overflow-hidden relative ${splitBorderClass}`}
+            >
+              {shouldRenderHandles && primaryAxis && (
+                <>
+                  <ResizeHandle
+                    direction={node.direction}
+                    highlightClass={highlightDividerClass}
+                    className={isInDesignMode ? "z-[31]" : undefined}
+                    onMouseDown={(e) => {
+                      setHoverKeys(baseHighlightKeys);
+                      handleResizeStart(e, {
+                        tabId: tab.id,
+                        activeHandleId: child.id,
+                        axes: [primaryAxis],
+                      });
+                    }}
+                    onMouseLeave={clearHover}
+                  />
+
+                  <IntersectionHandles
+                    direction={node.direction}
+                    handles={intersectionHandles}
+                    baseHighlightKeys={baseHighlightKeys}
+                    className={isInDesignMode ? "z-[31]" : undefined}
+                    onHandleMouseDown={(e, handle, highlightKeys) => {
+                      setHoverKeys(highlightKeys);
+                      handleResizeStart(e, {
+                        tabId: tab.id,
+                        activeHandleId: child.id,
+                        axes: [primaryAxis, ...handle.axes],
+                      });
+                    }}
+                    onHandleMouseEnter={(_, highlightKeys) => {
+                      setHoverKeys(highlightKeys);
+                    }}
+                    onHandleMouseLeave={clearHover}
+                  />
+                </>
+              )}
+
+              {renderChild(child, tab, hasUnifiedSandbox, ctx, node.direction)}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Not a useCallback, because the React Compiler skips the whole component
+  // for a recursive useCallback.
   const renderLayout = (
     node: LayoutNode,
     tab: Tab,
@@ -963,105 +901,93 @@ export function TabLayout({
 
   const isFocusModeActive = applicationMode === "focus";
 
-  const renderTab = useCallback(
-    (tab: Tab): React.ReactNode => {
-      const isActive = tab.id === activeTabId;
+  const renderTab = (tab: Tab): React.ReactNode => {
+    const isActive = tab.id === activeTabId;
 
-      // Check if all panes share the same sandbox context
-      const unifiedSandbox = getUnifiedSandboxForTab(tab);
-      const hasUnifiedSandbox = unifiedSandbox !== null;
+    // Check if all panes share the same sandbox context
+    const unifiedSandbox = getUnifiedSandboxForTab(tab);
+    const hasUnifiedSandbox = unifiedSandbox !== null;
 
-      // Pre-compute values that would otherwise be calculated per-pane
-      const ctx: TabRenderContext = {
-        paneCount: countPanesInLayout(tab.layout),
-        devToolsTargets: new Set(
-          Object.values(tab.panes)
-            .filter((p) => p.type === "browser" && p.devToolsFor)
-            .map((p) => (p as { devToolsFor: string }).devToolsFor),
-        ),
-        isOnlyTab: tabIds.length === 1,
-      };
+    // Pre-compute values that would otherwise be calculated per-pane
+    const ctx: TabRenderContext = {
+      paneCount: countPanesInLayout(tab.layout),
+      devToolsTargets: new Set(
+        Object.values(tab.panes)
+          .filter((p) => p.type === "browser" && p.devToolsFor)
+          .map((p) => (p as { devToolsFor: string }).devToolsFor),
+      ),
+      isOnlyTab: tabIds.length === 1,
+    };
 
-      const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
+    const tabContent = renderLayout(tab.layout, tab, hasUnifiedSandbox, ctx);
 
-      // Get drop handlers for root-level splits (only for active, unlocked tabs)
-      const tabDropHandlers =
-        isActive && !tab.locked
-          ? createTabContainerDropHandlers(tab.id)
-          : undefined;
+    // Get drop handlers for root-level splits (only for active, unlocked tabs)
+    const tabDropHandlers =
+      isActive && !tab.locked
+        ? createTabContainerDropHandlers(tab.id)
+        : undefined;
 
-      // Determine if we should show the tab edge drop zone overlay
-      const showTabEdgeOverlay =
-        isActive && isInDesignMode && draggedPaneId && tabEdgeDropZone;
+    // Determine if we should show the tab edge drop zone overlay
+    const showTabEdgeOverlay =
+      isActive && isInDesignMode && draggedPaneId && tabEdgeDropZone;
 
-      return (
-        <TabPanel
-          key={tab.id}
-          tabId={tab.id}
-          isActive={isActive}
-          isVisible={isActive || isTabInPreview(tab.id)}
-          tabContent={tabContent}
-          role="tabpanel"
-          className={
-            isActive
-              ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
-              : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
-          }
-          onDragOver={tabDropHandlers?.onDragOver}
-          onDragLeave={tabDropHandlers?.onDragLeave}
-          onDrop={tabDropHandlers?.onDrop}
-        >
-          {/* Tab edge drop zone overlay for root-level splits */}
-          {showTabEdgeOverlay && (
-            <div
-              className="pointer-events-none absolute z-[35] bg-accent/40"
-              style={{
-                top: tabEdgeDropZone === "bottom" ? "auto" : 0,
-                bottom: tabEdgeDropZone === "top" ? "auto" : 0,
-                left: tabEdgeDropZone === "right" ? "auto" : 0,
-                right: tabEdgeDropZone === "left" ? "auto" : 0,
-                width:
-                  tabEdgeDropZone === "left" || tabEdgeDropZone === "right"
-                    ? "80px"
-                    : "100%",
-                height:
-                  tabEdgeDropZone === "top" || tabEdgeDropZone === "bottom"
-                    ? "80px"
-                    : "100%",
-              }}
-            />
-          )}
-          {unifiedSandbox && (
-            <SandboxIndicator
-              agentSessionId={unifiedSandbox.agentSessionId}
-              onCompleteAgentSession={() =>
-                handleCompleteAgentSessionAction(
-                  tab.id,
-                  unifiedSandbox.agentSessionId,
-                )
-              }
-              onDeleteAgentSession={() =>
-                handleDeleteAgentSessionAction(
-                  tab.id,
-                  unifiedSandbox.agentSessionId,
-                )
-              }
-            />
-          )}
-        </TabPanel>
-      );
-    },
-    [
-      activeTabId,
-      isTabInPreview,
-      renderLayout,
-      createTabContainerDropHandlers,
-      isInDesignMode,
-      draggedPaneId,
-      tabEdgeDropZone,
-      tabIds.length,
-    ],
-  );
+    return (
+      <TabPanel
+        key={tab.id}
+        tabId={tab.id}
+        isActive={isActive}
+        isVisible={isActive || isTabInPreview(tab.id)}
+        tabContent={tabContent}
+        role="tabpanel"
+        className={
+          isActive
+            ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
+            : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
+        }
+        onDragOver={tabDropHandlers?.onDragOver}
+        onDragLeave={tabDropHandlers?.onDragLeave}
+        onDrop={tabDropHandlers?.onDrop}
+      >
+        {/* Tab edge drop zone overlay for root-level splits */}
+        {showTabEdgeOverlay && (
+          <div
+            className="pointer-events-none absolute z-[35] bg-accent/40"
+            style={{
+              top: tabEdgeDropZone === "bottom" ? "auto" : 0,
+              bottom: tabEdgeDropZone === "top" ? "auto" : 0,
+              left: tabEdgeDropZone === "right" ? "auto" : 0,
+              right: tabEdgeDropZone === "left" ? "auto" : 0,
+              width:
+                tabEdgeDropZone === "left" || tabEdgeDropZone === "right"
+                  ? "80px"
+                  : "100%",
+              height:
+                tabEdgeDropZone === "top" || tabEdgeDropZone === "bottom"
+                  ? "80px"
+                  : "100%",
+            }}
+          />
+        )}
+        {unifiedSandbox && (
+          <SandboxIndicator
+            agentSessionId={unifiedSandbox.agentSessionId}
+            onCompleteAgentSession={() =>
+              handleCompleteAgentSessionAction(
+                tab.id,
+                unifiedSandbox.agentSessionId,
+              )
+            }
+            onDeleteAgentSession={() =>
+              handleDeleteAgentSessionAction(
+                tab.id,
+                unifiedSandbox.agentSessionId,
+              )
+            }
+          />
+        )}
+      </TabPanel>
+    );
+  };
 
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">

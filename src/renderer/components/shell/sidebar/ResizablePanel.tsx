@@ -16,7 +16,7 @@
  */
 
 import { cn } from "@/utils";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // =============================================================================
 // Constants
@@ -168,30 +168,24 @@ export function ResizablePanel({
     }
   }, [isResizing, widthPercent, storageKey]);
 
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      // Don't allow resizing when maximized
-      if (isMaximized) return;
-      e.preventDefault();
-      setIsResizing(true);
-    },
-    [isMaximized],
-  );
+  const handleResizeStart = (e: React.MouseEvent) => {
+    // Don't allow resizing when maximized
+    if (isMaximized) return;
+    e.preventDefault();
+    setIsResizing(true);
+  };
 
   const showAccentBorder = isResizing || isHoveringHandle;
 
   // Use full width when maximized, otherwise use the resizable width
   const effectiveWidth = isMaximized ? 1 : widthPercent;
 
-  const handleTransitionEnd = useCallback(
-    (e: React.TransitionEvent<HTMLDivElement>) => {
-      // Only fire for the transform transition on this element (not children)
-      if (e.target === e.currentTarget && e.propertyName === "transform") {
-        onTransitionEnd?.();
-      }
-    },
-    [onTransitionEnd],
-  );
+  const handleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
+    // Only fire for the transform transition on this element (not children)
+    if (e.target === e.currentTarget && e.propertyName === "transform") {
+      onTransitionEnd?.();
+    }
+  };
 
   return (
     <div

@@ -9,14 +9,7 @@ import {
   WholeWord,
   X,
 } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { xtermInstance } from "../../client/xtermCache";
 
 const buildSearchDecorations = (): NonNullable<
@@ -63,77 +56,72 @@ export function SearchWidget({ onClosed, ref }: SearchWidgetProps) {
   const searchAddon = terminal?.search ?? null;
   const xterm = terminal?.terminal ?? null;
   const hasSearchTerm = searchTerm.trim().length > 0;
-  const searchDecorations = useMemo(() => buildSearchDecorations(), []);
+  const searchDecorations = buildSearchDecorations();
 
-  const buildSearchOptions = useCallback(
-    (
-      overrides?: Partial<ISearchOptions>,
-      flags?: {
-        caseSensitive?: boolean;
-        wholeWord?: boolean;
-        regex?: boolean;
-      },
-    ): ISearchOptions => {
-      const options: ISearchOptions = {
-        caseSensitive: flags?.caseSensitive ?? matchCase,
-        wholeWord: flags?.wholeWord ?? matchWholeWord,
-        regex: flags?.regex ?? useRegex,
-        ...(overrides ?? {}),
-      };
-
-      options.decorations = searchDecorations;
-      return options;
+  const buildSearchOptions = (
+    overrides?: Partial<ISearchOptions>,
+    flags?: {
+      caseSensitive?: boolean;
+      wholeWord?: boolean;
+      regex?: boolean;
     },
-    [matchCase, matchWholeWord, searchDecorations, useRegex],
-  );
+  ): ISearchOptions => {
+    const options: ISearchOptions = {
+      caseSensitive: flags?.caseSensitive ?? matchCase,
+      wholeWord: flags?.wholeWord ?? matchWholeWord,
+      regex: flags?.regex ?? useRegex,
+      ...(overrides ?? {}),
+    };
 
-  const clearSearchArtifacts = useCallback(() => {
+    options.decorations = searchDecorations;
+    return options;
+  };
+
+  const clearSearchArtifacts = () => {
     searchAddon?.clearActiveDecoration();
     searchAddon?.clearDecorations();
     setSearchResults({ index: -1, count: 0 });
-  }, [searchAddon]);
+  };
 
-  const runSearch = useCallback(
-    (direction: "next" | "previous") => {
-      const trimmed = searchTerm.trim();
-      if (!searchAddon || !trimmed) {
-        return;
+  const runSearch = (direction: "next" | "previous") => {
+    const trimmed = searchTerm.trim();
+    if (!searchAddon || !trimmed) {
+      return;
+    }
+
+    if (direction === "next") {
+      searchAddon.findNext(trimmed, buildSearchOptions());
+    } else {
+      searchAddon.findPrevious(trimmed, buildSearchOptions());
+    }
+  };
+
+  const applySearchFlags = (
+    nextCase: boolean,
+    nextWholeWord: boolean,
+    nextRegex: boolean,
+  ) => {
+    const trimmed = searchTerm.trim();
+    if (!searchAddon || !trimmed) {
+      if (!trimmed) {
+        clearSearchArtifacts();
       }
+      return;
+    }
 
-      if (direction === "next") {
-        searchAddon.findNext(trimmed, buildSearchOptions());
-      } else {
-        searchAddon.findPrevious(trimmed, buildSearchOptions());
-      }
-    },
-    [buildSearchOptions, searchAddon, searchTerm],
-  );
-
-  const applySearchFlags = useCallback(
-    (nextCase: boolean, nextWholeWord: boolean, nextRegex: boolean) => {
-      const trimmed = searchTerm.trim();
-      if (!searchAddon || !trimmed) {
-        if (!trimmed) {
-          clearSearchArtifacts();
-        }
-        return;
-      }
-
-      setSearchResults({ index: -1, count: -1 });
-      searchAddon.findNext(
-        trimmed,
-        buildSearchOptions(
-          { incremental: true },
-          {
-            caseSensitive: nextCase,
-            wholeWord: nextWholeWord,
-            regex: nextRegex,
-          },
-        ),
-      );
-    },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon, searchTerm],
-  );
+    setSearchResults({ index: -1, count: -1 });
+    searchAddon.findNext(
+      trimmed,
+      buildSearchOptions(
+        { incremental: true },
+        {
+          caseSensitive: nextCase,
+          wholeWord: nextWholeWord,
+          regex: nextRegex,
+        },
+      ),
+    );
+  };
 
   const toggleMatchCase = () => {
     const next = !matchCase;
@@ -153,56 +141,47 @@ export function SearchWidget({ onClosed, ref }: SearchWidgetProps) {
     applySearchFlags(matchCase, matchWholeWord, next);
   };
 
-  const updateSearchTerm = useCallback(
-    (value: string) => {
-      setSearchTerm(value);
-      if (!searchAddon) {
-        return;
-      }
+  const updateSearchTerm = (value: string) => {
+    setSearchTerm(value);
+    if (!searchAddon) {
+      return;
+    }
 
-      const trimmed = value.trim();
-      if (!trimmed) {
-        clearSearchArtifacts();
-        xterm?.clearSelection();
-        return;
-      }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      clearSearchArtifacts();
+      xterm?.clearSelection();
+      return;
+    }
 
-      setSearchResults({ index: -1, count: -1 });
-      searchAddon.findNext(
-        trimmed,
-        buildSearchOptions({
-          incremental: true,
-        }),
-      );
-    },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon, xterm],
-  );
+    setSearchResults({ index: -1, count: -1 });
+    searchAddon.findNext(
+      trimmed,
+      buildSearchOptions({
+        incremental: true,
+      }),
+    );
+  };
 
-  const show = useCallback(
-    (entry: xtermInstance, selection: string) => {
-      setTerminal(entry);
-      const trimmed = selection.trim();
-      setIsVisible(true);
-      requestAnimationFrame(() => inputRef.current?.focus());
+  const show = (entry: xtermInstance, selection: string) => {
+    setTerminal(entry);
+    const trimmed = selection.trim();
+    setIsVisible(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
 
-      if (!trimmed) {
-        setSearchTerm("");
-        clearSearchArtifacts();
-        return;
-      }
+    if (!trimmed) {
+      setSearchTerm("");
+      clearSearchArtifacts();
+      return;
+    }
 
-      setSearchTerm(trimmed);
-      setSearchResults({ index: -1, count: -1 });
+    setSearchTerm(trimmed);
+    setSearchResults({ index: -1, count: -1 });
 
-      requestAnimationFrame(() => {
-        entry.search.findNext(
-          trimmed,
-          buildSearchOptions({ incremental: true }),
-        );
-      });
-    },
-    [buildSearchOptions, clearSearchArtifacts],
-  );
+    requestAnimationFrame(() => {
+      entry.search.findNext(trimmed, buildSearchOptions({ incremental: true }));
+    });
+  };
 
   const handleSearchKeyDown = (
     event: React.KeyboardEvent<HTMLInputElement>,
@@ -256,25 +235,15 @@ export function SearchWidget({ onClosed, ref }: SearchWidgetProps) {
     [show],
   );
 
-  const searchStatusLabel = useMemo(() => {
-    if (searchResults.count <= 0) {
-      return "No results";
-    }
+  const searchStatusLabel =
+    searchResults.count <= 0
+      ? "No results"
+      : searchResults.index >= 0
+        ? `${searchResults.index + 1} of ${searchResults.count}`
+        : `${searchResults.count} results`;
 
-    return searchResults.index >= 0
-      ? `${searchResults.index + 1} of ${searchResults.count}`
-      : `${searchResults.count} results`;
-  }, [searchResults.count, searchResults.index]);
-
-  const searchStatusClass = useMemo(() => {
-    if (searchResults.count < 0) {
-      return "text-white";
-    }
-    if (hasSearchTerm && searchResults.count === 0) {
-      return "text-red-400";
-    }
-    return "text-white";
-  }, [hasSearchTerm, searchResults.count]);
+  const searchStatusClass =
+    hasSearchTerm && searchResults.count === 0 ? "text-red-400" : "text-white";
 
   const searchNavigationDisabled =
     !hasSearchTerm || searchResults.count <= 0 || !searchAddon;

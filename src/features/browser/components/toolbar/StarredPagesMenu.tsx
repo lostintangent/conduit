@@ -17,7 +17,7 @@ import { cn } from "@/utils/index";
 import type { BrowserPage } from "@features/settings/model";
 import { useMutation } from "@tanstack/react-query";
 import { ChevronDown, Star } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type StarredPagesMenuProps = {
   currentPage: BrowserPage;
@@ -65,7 +65,7 @@ export function StarredPagesMenu({
     }
   }, [showStarredList, onMenuOpened]);
 
-  const handleToggleStar = useCallback(() => {
+  const handleToggleStar = () => {
     if (!currentPage.url) {
       return;
     }
@@ -81,28 +81,16 @@ export function StarredPagesMenu({
     }
 
     setShowStarredList(false);
-  }, [
-    currentPage.url,
-    currentPage.title,
-    isCurrentUrlStarred,
-    addStarredPage,
-    removeStarredPage,
-  ]);
+  };
 
-  const handleStarredNavigation = useCallback(
-    (pageUrl: string) => {
-      onPageSelected(pageUrl);
-      setShowStarredList(false);
-    },
-    [onPageSelected],
-  );
+  const handleStarredNavigation = (pageUrl: string) => {
+    onPageSelected(pageUrl);
+    setShowStarredList(false);
+  };
 
-  const handleStarredRemove = useCallback(
-    (pageUrl: string) => {
-      removeStarredPage(pageUrl);
-    },
-    [removeStarredPage],
-  );
+  const handleStarredRemove = (pageUrl: string) => {
+    removeStarredPage(pageUrl);
+  };
 
   return (
     <>

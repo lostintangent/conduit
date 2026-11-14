@@ -25,7 +25,7 @@ import {
   sidebarPaneIds,
 } from "@/store/sidebarStore";
 import { noop } from "@/utils";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSidebarNavigationField } from "../hooks/useSidebarNavigation";
 
 interface BrowserViewProps {
@@ -52,12 +52,12 @@ export function BrowserView({ cwd }: BrowserViewProps) {
   });
 
   // Track URL changes from browser navigation (MRU, typing, clicking links)
-  const handleUrlChange = useCallback((url: string) => {
+  const handleUrlChange = (url: string) => {
     if (url && url !== "about:blank") {
       setCurrentUrl(url);
       setBrowserFallbackUrl(url);
     }
-  }, []);
+  };
 
   return (
     <BrowserPane

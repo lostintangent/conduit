@@ -12,7 +12,7 @@ import { CanvasPane } from "@features/canvas/components/CanvasPane";
 import { migrateCanvasState } from "@features/canvas/client/canvasStore";
 import { sidebarPaneIds } from "@/store/sidebarStore";
 import { noop } from "@/utils";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 interface CanvasViewProps {
   cwd: string;
@@ -21,13 +21,9 @@ interface CanvasViewProps {
 
 export function CanvasView({ cwd, isLocked }: CanvasViewProps) {
   // Determine pane ID based on lock state
-  const paneId = useMemo(
-    () =>
-      isLocked
-        ? sidebarPaneIds.canvas.global()
-        : sidebarPaneIds.canvas.forCwd(cwd),
-    [cwd, isLocked],
-  );
+  const paneId = isLocked
+    ? sidebarPaneIds.canvas.global()
+    : sidebarPaneIds.canvas.forCwd(cwd);
 
   // Track previous state for migration
   const prevStateRef = useRef({ cwd, isLocked, paneId });
@@ -45,13 +41,10 @@ export function CanvasView({ cwd, isLocked }: CanvasViewProps) {
   }, [cwd, isLocked, paneId]);
 
   // Construct a minimal pane object for the CanvasPane
-  const pane = useMemo(
-    () => ({
-      id: paneId,
-      type: "canvas" as const,
-    }),
-    [paneId],
-  );
+  const pane = {
+    id: paneId,
+    type: "canvas" as const,
+  };
 
   return <CanvasPane pane={pane} paneId={paneId} onContextMenu={noop} />;
 }

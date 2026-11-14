@@ -75,7 +75,7 @@ import { sidebarStateAtom } from "@/store/sidebarStore";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
 import { useAtom, useSelector } from "@tanstack/react-store";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -315,20 +315,17 @@ export function App() {
     };
   }, []);
 
-  const handleTitleModalSave = useCallback(
-    (title: string) => {
-      if (!titleModalState) {
-        return;
-      }
+  const handleTitleModalSave = (title: string) => {
+    if (!titleModalState) {
+      return;
+    }
 
-      updateTabProperty(titleModalState.tabId, {
-        name: title.length > 0 ? title : undefined,
-      });
+    updateTabProperty(titleModalState.tabId, {
+      name: title.length > 0 ? title : undefined,
+    });
 
-      setTitleModalState(null);
-    },
-    [titleModalState],
-  );
+    setTitleModalState(null);
+  };
 
   const handleContextMenu = useContextMenu({
     canChangeTitle: (_tabId: string) => {
@@ -345,7 +342,7 @@ export function App() {
     },
   });
 
-  const closeAgentSessionPanes = useCallback((sessionId: string) => {
+  const closeAgentSessionPanes = (sessionId: string) => {
     tabsAtom.get().forEach((tab) => {
       Object.entries(tab.panes).forEach(([paneId, pane]) => {
         if (pane.type === "terminal" && pane.agentSessionId === sessionId) {
@@ -353,85 +350,78 @@ export function App() {
         }
       });
     });
-  }, []);
+  };
 
-  const handleAgentSessionOpen = useCallback(
-    async (session: AgentSessionInfo) => {
-      await openTabFromExistingAgentSession(session);
-    },
-    [],
-  );
+  const handleAgentSessionOpen = async (session: AgentSessionInfo) => {
+    await openTabFromExistingAgentSession(session);
+  };
 
-  const handleAgentSessionCleanup = useCallback(
-    async (sessionIds: string[]) => {
-      if (!cleanupDialogSessions || sessionIds.length === 0) {
-        setCleanupDialogSessions(null);
-        return;
-      }
-
-      const lookup = new Map(
-        cleanupDialogSessions.map((session) => [session.id, session]),
-      );
-      const targets = sessionIds
-        .map((id) => lookup.get(id))
-        .filter((session): session is AgentSessionInfo => Boolean(session));
-
-      if (targets.length === 0) {
-        setCleanupDialogSessions(null);
-        return;
-      }
-
-      const plural = targets.length > 1;
-      const notificationId = enqueueNotification({
-        kind: "info",
-        message: plural
-          ? "Removing selected agent sessions..."
-          : `Removing ${targets[0].branchName}...`,
-        persistent: true,
-      });
-
-      let successCount = 0;
-      const failures: string[] = [];
-
-      for (const session of targets) {
-        try {
-          await api.cleanupAgentSession({ sessionId: session.id });
-          closeAgentSessionPanes(session.id);
-          successCount += 1;
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          failures.push(
-            `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`,
-          );
-        }
-      }
-
-      if (failures.length === 0) {
-        updateNotification(notificationId, {
-          kind: "success",
-          message: plural
-            ? `Removed ${successCount} agent sessions.`
-            : "Agent session removed.",
-          autoCloseMs: 3500,
-        });
-      } else {
-        updateNotification(notificationId, {
-          kind: "error",
-          message: `Failed to remove ${failures.length} session${
-            failures.length > 1 ? "s" : ""
-          }`,
-          details: failures.join("\n"),
-          autoCloseMs: null,
-        });
-      }
-
+  const handleAgentSessionCleanup = async (sessionIds: string[]) => {
+    if (!cleanupDialogSessions || sessionIds.length === 0) {
       setCleanupDialogSessions(null);
-    },
-    [cleanupDialogSessions, closeAgentSessionPanes],
-  );
+      return;
+    }
 
-  const handleOpenWebPage = useCallback((url: string) => {
+    const lookup = new Map(
+      cleanupDialogSessions.map((session) => [session.id, session]),
+    );
+    const targets = sessionIds
+      .map((id) => lookup.get(id))
+      .filter((session): session is AgentSessionInfo => Boolean(session));
+
+    if (targets.length === 0) {
+      setCleanupDialogSessions(null);
+      return;
+    }
+
+    const plural = targets.length > 1;
+    const notificationId = enqueueNotification({
+      kind: "info",
+      message: plural
+        ? "Removing selected agent sessions..."
+        : `Removing ${targets[0].branchName}...`,
+      persistent: true,
+    });
+
+    let successCount = 0;
+    const failures: string[] = [];
+
+    for (const session of targets) {
+      try {
+        await api.cleanupAgentSession({ sessionId: session.id });
+        closeAgentSessionPanes(session.id);
+        successCount += 1;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failures.push(
+          `${session.branchName} [${session.id.slice(0, 8)}]: ${message}`,
+        );
+      }
+    }
+
+    if (failures.length === 0) {
+      updateNotification(notificationId, {
+        kind: "success",
+        message: plural
+          ? `Removed ${successCount} agent sessions.`
+          : "Agent session removed.",
+        autoCloseMs: 3500,
+      });
+    } else {
+      updateNotification(notificationId, {
+        kind: "error",
+        message: `Failed to remove ${failures.length} session${
+          failures.length > 1 ? "s" : ""
+        }`,
+        details: failures.join("\n"),
+        autoCloseMs: null,
+      });
+    }
+
+    setCleanupDialogSessions(null);
+  };
+
+  const handleOpenWebPage = (url: string) => {
     const activeTab = activeTabAtom.get();
     if (!activeTab || !activeTab.activePaneId) {
       return;
@@ -439,59 +429,53 @@ export function App() {
 
     openBrowserPane(activeTab.id, activeTab.activePaneId, url);
     setIsUrlDialogOpen(false);
-  }, []);
+  };
 
-  const handleDuplicateWorkspace = useCallback(
-    (name: string) => {
-      if (!workspaceName || !activeTabAtom.get()) {
-        return;
-      }
+  const handleDuplicateWorkspace = (name: string) => {
+    if (!workspaceName || !activeTabAtom.get()) {
+      return;
+    }
 
-      // Save the current tabs as a new workspace with the provided name
-      saveWorkspace(name, () => setShowDuplicateWorkspaceDialog(false));
-    },
-    [workspaceName, saveWorkspace],
-  );
+    // Save the current tabs as a new workspace with the provided name
+    saveWorkspace(name, () => setShowDuplicateWorkspaceDialog(false));
+  };
 
-  const handleDuplicateTabWithCwd = useCallback(
-    async (cwd: string, title?: string) => {
-      if (!duplicateTabWithCwdDialogState) {
-        return;
-      }
+  const handleDuplicateTabWithCwd = async (cwd: string, title?: string) => {
+    if (!duplicateTabWithCwdDialogState) {
+      return;
+    }
 
-      const targetTab = tabsAtom
-        .get()
-        .find((t) => t.id === duplicateTabWithCwdDialogState.tabId);
-      if (!targetTab) {
-        return;
-      }
+    const targetTab = tabsAtom
+      .get()
+      .find((t) => t.id === duplicateTabWithCwdDialogState.tabId);
+    if (!targetTab) {
+      return;
+    }
 
-      const trimmedCwd = cwd.trim();
-      if (trimmedCwd.length === 0) {
-        setDuplicateTabWithCwdDialogState(null);
-        return;
-      }
-
-      // Validate that the directory exists
-      try {
-        await api.files.readDirectory(trimmedCwd, trimmedCwd);
-      } catch {
-        enqueueNotification({
-          kind: "error",
-          message: `Directory not found: ${trimmedCwd}`,
-        });
-        return;
-      }
-
-      // Duplicate the tab with the specified CWD and optional title
-      await duplicateTab(duplicateTabWithCwdDialogState.tabId, {
-        cwd: trimmedCwd,
-        title: title || undefined,
-      });
+    const trimmedCwd = cwd.trim();
+    if (trimmedCwd.length === 0) {
       setDuplicateTabWithCwdDialogState(null);
-    },
-    [duplicateTabWithCwdDialogState],
-  );
+      return;
+    }
+
+    // Validate that the directory exists
+    try {
+      await api.files.readDirectory(trimmedCwd, trimmedCwd);
+    } catch {
+      enqueueNotification({
+        kind: "error",
+        message: `Directory not found: ${trimmedCwd}`,
+      });
+      return;
+    }
+
+    // Duplicate the tab with the specified CWD and optional title
+    await duplicateTab(duplicateTabWithCwdDialogState.tabId, {
+      cwd: trimmedCwd,
+      title: title || undefined,
+    });
+    setDuplicateTabWithCwdDialogState(null);
+  };
 
   // Get commands from registry (or empty array if command system not ready)
   const commandItems = useCommands(
@@ -499,7 +483,7 @@ export function App() {
     commandSystem?.contextKeyService,
   );
 
-  const handleCloseQuickPane = useCallback(() => {
+  const handleCloseQuickPane = () => {
     setQuickPaneState((current) => {
       if (!current) {
         return current;
@@ -514,51 +498,48 @@ export function App() {
 
       return null;
     });
-  }, [setQuickPaneState]);
+  };
 
-  const handleOpenQuickPaneAsTab = useCallback(
-    async (descriptor: PaneDescriptor) => {
-      // Close quick pane without disposing terminal sessions
-      // since they will be reused in the new tab
-      setQuickPaneState((current) => {
-        if (current) {
-          current.onClose?.();
-        }
-        return null;
-      });
-      await openTabFromPaneDescriptor(descriptor);
-    },
-    [setQuickPaneState],
-  );
-
-  const handleOpenQuickPaneAsFloating = useCallback(
-    (terminalId: string, paneId: string) => {
-      // Transfer terminal from quick pane to floating overlay.
-      setQuickPaneState((current) => {
-        if (!current || current.type !== "terminal") {
-          return null;
-        }
-
-        const cwd = current.cwd;
-
+  const handleOpenQuickPaneAsTab = async (descriptor: PaneDescriptor) => {
+    // Close quick pane without disposing terminal sessions
+    // since they will be reused in the new tab
+    setQuickPaneState((current) => {
+      if (current) {
         current.onClose?.();
+      }
+      return null;
+    });
+    await openTabFromPaneDescriptor(descriptor);
+  };
 
-        openHyperTerminal(terminalId, paneId, cwd);
-
+  const handleOpenQuickPaneAsFloating = (
+    terminalId: string,
+    paneId: string,
+  ) => {
+    // Transfer terminal from quick pane to floating overlay.
+    setQuickPaneState((current) => {
+      if (!current || current.type !== "terminal") {
         return null;
-      });
-    },
-    [setQuickPaneState],
-  );
+      }
 
-  const handleMaximizeHyperTerminal = useCallback(
-    (terminalId: string, cwd: string | null) => {
-      // Transfer terminal from floating overlay back to quick dialog.
-      const quickPaneDescriptor = maximizeHyperTerminal(terminalId, cwd);
-      setQuickPaneState(quickPaneDescriptor);
-    },
-    [setQuickPaneState],
-  );
+      const cwd = current.cwd;
+
+      current.onClose?.();
+
+      openHyperTerminal(terminalId, paneId, cwd);
+
+      return null;
+    });
+  };
+
+  const handleMaximizeHyperTerminal = (
+    terminalId: string,
+    cwd: string | null,
+  ) => {
+    // Transfer terminal from floating overlay back to quick dialog.
+    const quickPaneDescriptor = maximizeHyperTerminal(terminalId, cwd);
+    setQuickPaneState(quickPaneDescriptor);
+  };
 
   const shouldUseDrawer = !alwaysShowTabs;
 

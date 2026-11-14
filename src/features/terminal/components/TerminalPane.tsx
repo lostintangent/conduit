@@ -21,7 +21,7 @@ import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@features/terminal/client/prompt";
 import { useSelector } from "@tanstack/react-store";
 import { Keyboard } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
 import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
 import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
@@ -215,165 +215,151 @@ export const TerminalPane = ({
       enabled: isTabSynchronized,
     });
 
-  const focusTerminal = useCallback(
-    () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
-    [],
-  );
+  const focusTerminal = () =>
+    requestAnimationFrame(() => terminalRef.current?.terminal.focus());
 
-  const showSearchWidget = useCallback(() => {
+  const showSearchWidget = () => {
     const entry = terminalRef.current;
     if (!entry) return;
     const selection = entry.terminal.hasSelection()
       ? entry.terminal.getSelection().replace(/\s+/g, " ").trim()
       : "";
     searchWidgetRef.current?.show(entry, selection);
-  }, []);
+  };
 
-  const handleTogglePromptMode = useCallback(() => {
+  const handleTogglePromptMode = () => {
     setPromptMode((prev) => ({
       ...prev,
       isOpen: !prev.isOpen,
       // Don't reset content or conversationHistory - keep the chat history
       error: undefined,
     }));
-  }, []);
+  };
 
-  const handlePromptSubmit = useCallback(
-    async (prompt: string, requestedAgentId?: string) => {
-      const settings = getSettings();
-      const agents = settings.agents;
+  const handlePromptSubmit = async (
+    prompt: string,
+    requestedAgentId?: string,
+  ) => {
+    const settings = getSettings();
+    const agents = settings.agents;
 
-      // Find the requested agent or default agent
-      let selectedAgent = agents.find((a) => a.isDefault);
+    // Find the requested agent or default agent
+    let selectedAgent = agents.find((a) => a.isDefault);
 
-      if (requestedAgentId) {
-        const requestedAgent = agents.find((a) => a.id === requestedAgentId);
-        if (requestedAgent) {
-          selectedAgent = requestedAgent;
-        } else {
-          // Agent not found - show error in panel
-          setPromptMode((prev) => ({
-            ...prev,
-            error: `Agent '${requestedAgentId}' not found. Available agents: ${agents.map((a) => a.id).join(", ")}`,
-          }));
-          return;
-        }
-      }
-
-      const agentCommand = selectedAgent?.command;
-
-      if (!agentCommand) {
-        // Show error in panel
+    if (requestedAgentId) {
+      const requestedAgent = agents.find((a) => a.id === requestedAgentId);
+      if (requestedAgent) {
+        selectedAgent = requestedAgent;
+      } else {
+        // Agent not found - show error in panel
         setPromptMode((prev) => ({
           ...prev,
-          error: "No agent configured. Please configure agents in settings.",
+          error: `Agent '${requestedAgentId}' not found. Available agents: ${agents.map((a) => a.id).join(", ")}`,
         }));
         return;
       }
+    }
 
-      // Clean up any existing stream listener
-      if (streamCleanupRef.current) {
-        streamCleanupRef.current();
-        streamCleanupRef.current = null;
-      }
+    const agentCommand = selectedAgent?.command;
 
-      const agentName = selectedAgent?.name || "Agent";
-
-      // Append user message to display
+    if (!agentCommand) {
+      // Show error in panel
       setPromptMode((prev) => ({
         ...prev,
-        isProcessing: true,
-        content: prev.content + `\n❯ [You] ${prompt}\n\n[${agentName}] `,
-        error: undefined,
+        error: "No agent configured. Please configure agents in settings.",
       }));
+      return;
+    }
 
-      // Get terminal buffer
-      const buffer = serializeSession(sessionId, {
-        scrollback: settings.terminalPromptBufferLines,
-      });
+    // Clean up any existing stream listener
+    if (streamCleanupRef.current) {
+      streamCleanupRef.current();
+      streamCleanupRef.current = null;
+    }
 
-      // Construct full prompt with conversation history
-      const fullPrompt = constructPrompt(
-        prompt,
-        buffer || "",
-        cwd || null,
-        promptMode.conversationHistory,
-      );
+    const agentName = selectedAgent?.name || "Agent";
 
-      // Track the assistant's response
-      let assistantResponse = "";
+    // Append user message to display
+    setPromptMode((prev) => ({
+      ...prev,
+      isProcessing: true,
+      content: prev.content + `\n❯ [You] ${prompt}\n\n[${agentName}] `,
+      error: undefined,
+    }));
 
-      // Set up stream listener
-      const removeListener = api.terminal.on("promptStream", (payload) => {
-        if (payload.sessionId !== sessionId) return;
-        const { chunk } = payload;
-        if (chunk.type === "data" && chunk.data) {
-          assistantResponse += chunk.data;
-          // Stream data to panel
-          setPromptMode((prev) => ({
-            ...prev,
-            content: prev.content + chunk.data,
-          }));
-        } else if (chunk.type === "error" && chunk.error) {
-          // Show error in panel
-          setPromptMode((prev) => ({
-            ...prev,
-            error: chunk.error,
-            isProcessing: false,
-          }));
-          if (streamCleanupRef.current) {
-            streamCleanupRef.current();
-            streamCleanupRef.current = null;
-          }
-        } else if (chunk.type === "end") {
-          // Stream ended - add to conversation history
-          setPromptMode((prev) => ({
-            ...prev,
-            isProcessing: false,
-            conversationHistory: [
-              ...prev.conversationHistory,
-              { role: "user", content: prompt },
-              { role: "assistant", content: assistantResponse },
-            ],
-          }));
-          if (streamCleanupRef.current) {
-            streamCleanupRef.current();
-            streamCleanupRef.current = null;
-          }
-        }
-      });
+    // Get terminal buffer
+    const buffer = serializeSession(sessionId, {
+      scrollback: settings.terminalPromptBufferLines,
+    });
 
-      // The listener removes itself when the stream ends or fails, and not on
-      // unmount, so a response keeps arriving while the tab is hidden.
-      streamCleanupRef.current = removeListener;
+    // Construct full prompt with conversation history
+    const fullPrompt = constructPrompt(
+      prompt,
+      buffer || "",
+      cwd || null,
+      promptMode.conversationHistory,
+    );
 
-      try {
-        // Call IPC handler
-        const response = await api.terminal.prompt({
-          sessionId,
-          prompt: fullPrompt,
-          agentCommand,
-        });
+    // Track the assistant's response
+    let assistantResponse = "";
 
-        // Handle any errors from the initial call
-        if (!response.success && response.error) {
-          setPromptMode((prev) => ({
-            ...prev,
-            error: response.error,
-            isProcessing: false,
-          }));
-          if (streamCleanupRef.current) {
-            streamCleanupRef.current();
-            streamCleanupRef.current = null;
-          }
-        }
-      } catch (error) {
-        // Handle IPC call errors
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+    // Set up stream listener
+    const removeListener = api.terminal.on("promptStream", (payload) => {
+      if (payload.sessionId !== sessionId) return;
+      const { chunk } = payload;
+      if (chunk.type === "data" && chunk.data) {
+        assistantResponse += chunk.data;
+        // Stream data to panel
         setPromptMode((prev) => ({
           ...prev,
-          error: errorMessage,
+          content: prev.content + chunk.data,
+        }));
+      } else if (chunk.type === "error" && chunk.error) {
+        // Show error in panel
+        setPromptMode((prev) => ({
+          ...prev,
+          error: chunk.error,
+          isProcessing: false,
+        }));
+        if (streamCleanupRef.current) {
+          streamCleanupRef.current();
+          streamCleanupRef.current = null;
+        }
+      } else if (chunk.type === "end") {
+        // Stream ended - add to conversation history
+        setPromptMode((prev) => ({
+          ...prev,
+          isProcessing: false,
+          conversationHistory: [
+            ...prev.conversationHistory,
+            { role: "user", content: prompt },
+            { role: "assistant", content: assistantResponse },
+          ],
+        }));
+        if (streamCleanupRef.current) {
+          streamCleanupRef.current();
+          streamCleanupRef.current = null;
+        }
+      }
+    });
+
+    // The listener removes itself when the stream ends or fails, and not on
+    // unmount, so a response keeps arriving while the tab is hidden.
+    streamCleanupRef.current = removeListener;
+
+    try {
+      // Call IPC handler
+      const response = await api.terminal.prompt({
+        sessionId,
+        prompt: fullPrompt,
+        agentCommand,
+      });
+
+      // Handle any errors from the initial call
+      if (!response.success && response.error) {
+        setPromptMode((prev) => ({
+          ...prev,
+          error: response.error,
           isProcessing: false,
         }));
         if (streamCleanupRef.current) {
@@ -381,11 +367,23 @@ export const TerminalPane = ({
           streamCleanupRef.current = null;
         }
       }
-    },
-    [sessionId, cwd, promptMode.conversationHistory],
-  );
+    } catch (error) {
+      // Handle IPC call errors
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setPromptMode((prev) => ({
+        ...prev,
+        error: errorMessage,
+        isProcessing: false,
+      }));
+      if (streamCleanupRef.current) {
+        streamCleanupRef.current();
+        streamCleanupRef.current = null;
+      }
+    }
+  };
 
-  const handleClosePromptMode = useCallback(() => {
+  const handleClosePromptMode = () => {
     setPromptMode((prev) => ({
       ...prev,
       isOpen: false,
@@ -393,33 +391,30 @@ export const TerminalPane = ({
       error: undefined,
     }));
     focusTerminal();
-  }, [focusTerminal]);
+  };
 
-  const handleClearPromptHistory = useCallback(() => {
+  const handleClearPromptHistory = () => {
     setPromptMode((prev) => ({
       ...prev,
       content: "",
       conversationHistory: [],
       error: undefined,
     }));
-  }, []);
+  };
 
-  const handleRunScript = useCallback(
-    async (scriptName: string) => {
-      if (!tabId) return;
+  const handleRunScript = async (scriptName: string) => {
+    if (!tabId) return;
 
-      const command = `npm i && npm run ${scriptName}`;
+    const command = `npm i && npm run ${scriptName}`;
 
-      if (playButtonTarget === "hyper") {
-        await createHyperTerminal(cwd, command);
-      } else {
-        await splitPane(tabId, paneId, "row", false, {
-          terminalOptions: { cwd: cwd ?? undefined, command },
-        });
-      }
-    },
-    [tabId, cwd, paneId, playButtonTarget],
-  );
+    if (playButtonTarget === "hyper") {
+      await createHyperTerminal(cwd, command);
+    } else {
+      await splitPane(tabId, paneId, "row", false, {
+        terminalOptions: { cwd: cwd ?? undefined, command },
+      });
+    }
+  };
 
   useEffect(() => {
     const container = containerRef.current;
