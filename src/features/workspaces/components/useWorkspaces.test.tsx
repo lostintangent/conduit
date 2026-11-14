@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { getState } = vi.hoisted(() => {
   const getState = vi.fn<() => Promise<WorkspaceState>>();
   (globalThis as any).window.conduit = {
-    workspace: { getState },
+    workspaces: { getState },
     onOpenWorkspaceRequest: () => () => {},
   };
   return { getState };

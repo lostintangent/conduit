@@ -46,7 +46,7 @@ export const WorkspaceMenu = () => {
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
 
   const handleImportWorkspace = useCallback(async () => {
-    const workspace = await api.workspace.importFromFile();
+    const workspace = await api.workspaces.importFromFile();
     if (workspace) {
       setWorkspaces((current) => {
         // Remove existing workspace with the same name if it exists
@@ -73,7 +73,7 @@ export const WorkspaceMenu = () => {
   const handleExportWorkspace = useCallback(
     async (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
-      await api.workspace.exportToFile(workspace);
+      await api.workspaces.exportToFile(workspace);
     },
     [],
   );
@@ -85,7 +85,7 @@ export const WorkspaceMenu = () => {
       e.stopPropagation();
 
       // Delete the workspace and then remove it from state
-      await api.workspace.deleteWorkspace(workspace.name);
+      await api.workspaces.deleteWorkspace(workspace.name);
       setWorkspaces((current) => ({
         ...current,
         workspaces: current.workspaces.filter(

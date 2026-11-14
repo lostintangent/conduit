@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain } from "electron";
+import { app, dialog } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "yaml";
@@ -7,83 +7,57 @@ import type { Workspace, WorkspaceState } from "@shared/types";
 import { captureTerminalCommand } from "../../../ipc/terminal/command";
 import { getAllTerminals } from "../../../ipc/terminal/store";
 import type { TerminalInstance } from "../../../ipc/terminal/types";
+import { refreshApplicationMenu } from "../../../ipc/ui";
 import { convertWorkspaceToTemplate } from "./template/export";
 import { convertTemplateToWorkspace } from "./template/import";
 import type { WorkspaceTemplate } from "./template/types";
 
-const WORKSPACES_FILE_NAME = "workspaces.json";
 const WORKSPACE_FILE_FILTER = {
   name: "Conduit Workspace",
   extensions: ["yaml", "yml"],
 };
 
-let workspacesFilePath: string;
+const service = {
+  getState: () => workspaceState,
+  saveWorkspace: refreshingMenu(saveWorkspace),
+  deleteWorkspace: refreshingMenu(deleteWorkspace),
+  renameWorkspace: refreshingMenu(renameWorkspace),
+  saveLastWorkspace,
+  importFromFile: importWorkspace,
+  exportToFile: exportWorkspaceToFile,
+};
+
+export default service;
+
+declare module "@shared/rpc" {
+  interface Services {
+    workspaces: typeof service;
+  }
+}
+
+/** The application menu lists workspaces, so changing them refreshes it. */
+function refreshingMenu<Args extends unknown[], Result>(
+  change: (...args: Args) => Promise<Result>,
+) {
+  return async (...args: Args) => {
+    const result = await change(...args);
+    await refreshApplicationMenu();
+    return result;
+  };
+}
+
 let workspaceState: WorkspaceState = { workspaces: [] };
 // Without a defaultPath, open dialogs start in Downloads (Electron 43+)
 let lastImportDirectory: string | undefined;
 
-export default async function initializeWorkspaceHandlers(
-  conduitStateDirectory: string,
-  refreshApplicationMenu: () => Promise<void>,
-) {
-  // Initialize the workspace state
-  workspacesFilePath = path.join(conduitStateDirectory, WORKSPACES_FILE_NAME);
-  await loadWorkspaceState();
-
-  // Refresh the application menu now that workspaces are loaded
-  await refreshApplicationMenu();
-
-  // Setup IPC handlers for workspace operations
-  ipcMain.handle("workspace:get-state", () => workspaceState);
-
-  ipcMain.handle(
-    "workspace:save-workspace",
-    async (_, name, tabs, activeTabId) => {
-      const updatedState = await saveWorkspace(name, tabs, activeTabId);
-
-      await refreshApplicationMenu();
-      return updatedState;
-    },
-  );
-
-  ipcMain.handle("workspace:delete-workspace", async (_, name) => {
-    const updatedState = await deleteWorkspace(name);
-    await refreshApplicationMenu();
-
-    return updatedState;
-  });
-
-  ipcMain.handle(
-    "workspace:rename-workspace",
-    async (_, currentName, newName) => {
-      const updatedState = await renameWorkspace(currentName, newName);
-      await refreshApplicationMenu();
-
-      return updatedState;
-    },
-  );
-
-  ipcMain.handle(
-    "workspace:save-last-workspace",
-    async (_, tabs, activeTabId) => {
-      return await saveLastWorkspace(tabs, activeTabId);
-    },
-  );
-
-  ipcMain.handle("workspace:import", async () => {
-    return await importWorkspace();
-  });
-
-  ipcMain.handle("workspace:export-to-file", async (_, workspace) => {
-    return await exportWorkspaceToFile(workspace);
-  });
-}
+const workspacesFilePath = () =>
+  path.join(app.getPath("home"), ".conduit", "workspaces.json");
 
 /* Load/save workspace state from/to disk */
 
-async function loadWorkspaceState(): Promise<void> {
+export async function loadWorkspaceState(): Promise<void> {
   try {
-    const data = await fs.readFile(workspacesFilePath, "utf-8");
+    const data = await fs.readFile(workspacesFilePath(), "utf-8");
     workspaceState = JSON.parse(data) as WorkspaceState;
   } catch {
     // The workspace state is already initialized to an empty state,
@@ -93,7 +67,7 @@ async function loadWorkspaceState(): Promise<void> {
 
 async function saveWorkspaceState(): Promise<void> {
   return fs.writeFile(
-    workspacesFilePath,
+    workspacesFilePath(),
     JSON.stringify(workspaceState, null, 2),
     "utf-8",
   );
@@ -152,7 +126,7 @@ async function addWorkspaceToState(workspace: Workspace): Promise<void> {
   await saveWorkspaceState();
 }
 
-export async function saveWorkspace(
+async function saveWorkspace(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,

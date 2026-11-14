@@ -463,7 +463,8 @@ const serializedTabs = await serializeTabs(tabs);
 ```
 src/features/workspaces/
 ├── main/
-│   ├── service.ts        # IPC handlers, serialization
+│   ├── service.ts        # Service methods, serialization
+│   ├── startup.ts        # Loads state, builds the menu
 │   └── template/
 │       ├── types.ts      # Template type definitions
 │       ├── import.ts     # Template to workspace
@@ -480,17 +481,19 @@ src/shared/types/
 src/renderer/types.ts     # Runtime pane types with extensions
 ```
 
-### IPC Handlers
+### Service Methods
 
-| Handler                         | Description                   |
-| ------------------------------- | ----------------------------- |
-| `workspace:get-state`           | Get current workspace state   |
-| `workspace:save-workspace`      | Save named workspace          |
-| `workspace:delete-workspace`    | Delete named workspace        |
-| `workspace:rename-workspace`    | Rename existing workspace     |
-| `workspace:save-last-workspace` | Auto-save for session restore |
-| `workspace:import`              | Import from YAML file         |
-| `workspace:export-to-file`      | Export to YAML file           |
+The renderer calls these as `window.conduit.workspaces.<method>()`.
+
+| Method              | Description                   |
+| ------------------- | ----------------------------- |
+| `getState`          | Get current workspace state   |
+| `saveWorkspace`     | Save named workspace          |
+| `deleteWorkspace`   | Delete named workspace        |
+| `renameWorkspace`   | Rename existing workspace     |
+| `saveLastWorkspace` | Auto-save for session restore |
+| `importFromFile`    | Import from YAML file         |
+| `exportToFile`      | Export to YAML file           |
 
 ### Storage Locations
 

@@ -310,7 +310,7 @@ export function App() {
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
       if (tabsRef.current.length > 0) {
-        void api.workspace.saveLastWorkspace(
+        void api.workspaces.saveLastWorkspace(
           tabsRef.current,
           activeTabRef.current?.id,
         );

@@ -1,7 +1,11 @@
 import { app, BrowserWindow } from "electron";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { initializeIpcHandlers, shutdownIpcHandlers } from "./ipc";
+import {
+  featuresArgument,
+  initializeIpcHandlers,
+  shutdownIpcHandlers,
+} from "./ipc";
 import { closeContextMenu } from "./ipc/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
@@ -54,6 +58,7 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
+      additionalArguments: [featuresArgument],
     },
     frame: false,
     transparent: true,

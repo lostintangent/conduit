@@ -11,7 +11,7 @@ const { workspaceApi } = vi.hoisted(() => {
     getState: vi.fn<() => Promise<WorkspaceState>>(),
     deleteWorkspace: vi.fn<(name: string) => Promise<void>>(),
   };
-  (globalThis as any).window.conduit = { workspace: workspaceApi };
+  (globalThis as any).window.conduit = { workspaces: workspaceApi };
   return { workspaceApi };
 });
 

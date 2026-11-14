@@ -14,7 +14,7 @@ import {
 import { useAtom, useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const { workspace } = window.conduit;
+const workspace = window.conduit.workspaces;
 
 export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);

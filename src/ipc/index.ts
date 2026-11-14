@@ -6,6 +6,7 @@ import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { initialize as initializeDotfiles } from "./dotfiles";
+import { startFeatures } from "./features";
 import {
   cleanupFileSystemV2Handlers,
   handleWindowClose as handleFsWindowClose,
@@ -23,7 +24,6 @@ import {
 } from "./terminal";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
-import initializeWorkspaceHandlers from "@features/workspaces/main/service";
 
 async function ensureConduitDirectory(): Promise<string> {
   const homeDir = app.getPath("home");
@@ -37,6 +37,8 @@ async function ensureConduitDirectory(): Promise<string> {
 
   return conduitDir;
 }
+
+let stopFeatures: (() => Promise<void>) | undefined;
 
 async function initializeIpcHandlers(window: BrowserWindow) {
   const sendToRenderer = (channel: string, payload: unknown) => {
@@ -54,7 +56,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
     conduitStateDirectory,
   );
 
-  await initializeWorkspaceHandlers(conduitStateDirectory, refreshMenu);
+  stopFeatures = await startFeatures();
 
   await initializeCliHandlers(sendToRenderer);
   initializeTerminalHandlers(sendToRenderer);
@@ -93,11 +95,13 @@ async function shutdownIpcHandlers(): Promise<void> {
       cleanupTerminalSessions(),
       unwatchAll(),
       shutdownCliServer(),
+      stopFeatures?.(),
     ]),
     delay(SHUTDOWN_TIMEOUT_MS),
   ]);
 }
 
+export { featuresArgument } from "./features";
 export {
   cleanupFileSystemV2Handlers,
   cleanupGitV2Handlers,

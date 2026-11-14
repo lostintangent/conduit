@@ -20,7 +20,7 @@ type WorkspacePickerDialog = {
   onClose: () => void;
 };
 
-const { workspace } = window.conduit;
+const workspace = window.conduit.workspaces;
 
 export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
   const [{ workspaces }, setWorkspaceState] = useAtom(workspaceStateAtom);

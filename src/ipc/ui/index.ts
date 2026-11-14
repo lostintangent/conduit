@@ -57,6 +57,10 @@ export async function initializeUserSettings(
   };
 }
 
+export async function refreshApplicationMenu() {
+  await refreshMenuCallback?.();
+}
+
 /**
  * Registers the IPC handlers for the UI channel.
  */
@@ -81,9 +85,7 @@ export function initializeUIHandlers(window: BrowserWindow) {
         await setDotfilesRepo(userSettings.dotfilesRepo);
       }
 
-      if (refreshMenuCallback) {
-        await refreshMenuCallback();
-      }
+      await refreshApplicationMenu();
       return requireUserSettings();
     },
   );

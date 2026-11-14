@@ -19,13 +19,14 @@ import type {
   UserSettings,
   Workspace,
 } from "@shared/types";
+import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import fsModule from "./modules/fs";
 import gitModule from "./modules/git";
 import configureUpdatesModule from "./modules/updates";
-import configureWorkspaceModule from "./modules/workspace";
+import { createFeatureApis } from "./features";
 import { createEventListener } from "./utils";
 
 const conduitAPI = {
@@ -219,11 +220,13 @@ const conduitAPI = {
   browser: configureBrowserModule,
   cli: configureCliModule,
   updates: configureUpdatesModule,
-  workspace: configureWorkspaceModule,
   fs: fsModule,
   git: gitModule,
 };
 
-export type ConduitAPI = typeof conduitAPI;
+export type ConduitAPI = typeof conduitAPI & FeatureApis;
 
-contextBridge.exposeInMainWorld("conduit", conduitAPI);
+contextBridge.exposeInMainWorld("conduit", {
+  ...conduitAPI,
+  ...createFeatureApis(),
+});

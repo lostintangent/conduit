@@ -13,7 +13,7 @@ const mockWorkspaceApi = {
 
 global.window = {
   conduit: {
-    workspace: mockWorkspaceApi,
+    workspaces: mockWorkspaceApi,
   },
 } as any;
 

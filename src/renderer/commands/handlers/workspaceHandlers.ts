@@ -31,7 +31,7 @@ export async function handleSaveWorkspace(
   const workspaceName = workspaceNameAtom.get();
 
   if (workspaceName) {
-    const state = await window.conduit.workspace.saveWorkspace(
+    const state = await window.conduit.workspaces.saveWorkspace(
       workspaceName,
       tabs,
       activeTabId,
@@ -94,7 +94,7 @@ export function handleOpenWorkspace(
  * Open the last workspace
  */
 export async function handleOpenLastWorkspace(): Promise<void> {
-  const state = await window.conduit.workspace.getState();
+  const state = await window.conduit.workspaces.getState();
   if (state.lastWorkspace) {
     const { openWorkspace } =
       await import("@features/workspaces/client/actions");

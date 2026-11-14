@@ -4,53 +4,84 @@ import path from "node:path";
 import type { OpenDialogOptions, OpenDialogReturnValue } from "electron";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-const handlers = new Map<string, (...args: unknown[]) => Promise<unknown>>();
+const home = mkdtempSync(path.join(tmpdir(), "workspace-import-"));
 const showOpenDialog =
   vi.fn<
     (options: OpenDialogOptions) => Promise<Partial<OpenDialogReturnValue>>
   >();
 
 vi.mock("electron", () => ({
-  app: { getPath: (name: string) => `/fake-${name}` },
+  app: { getPath: () => home },
   dialog: {
     showOpenDialog: (options: OpenDialogOptions) => showOpenDialog(options),
   },
-  ipcMain: {
-    handle: (channel: string, fn: (...args: unknown[]) => Promise<unknown>) =>
-      handlers.set(channel, fn),
-  },
 }));
+vi.mock("../../../ipc/ui", () => ({ refreshApplicationMenu: async () => {} }));
 
-import initializeWorkspaceHandlers from "./service";
+import type { Tab } from "@/types";
+import { removeTerminal, storeTerminal } from "../../../ipc/terminal/store";
+import type { TerminalInstance } from "../../../ipc/terminal/types";
+import service from "./service";
 
-describe("workspace:import", () => {
-  let dir: string;
+beforeAll(() => {
+  mkdirSync(path.join(home, ".conduit"));
+  mkdirSync(path.join(home, "templates"));
+});
 
-  beforeAll(async () => {
-    dir = mkdtempSync(path.join(tmpdir(), "workspace-import-"));
-    mkdirSync(path.join(dir, "state"));
-    mkdirSync(path.join(dir, "templates"));
-    await initializeWorkspaceHandlers(path.join(dir, "state"), async () => {});
-  });
+afterAll(() => rmSync(home, { recursive: true, force: true }));
 
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
-
+describe("workspaces.importFromFile", () => {
   it("opens in home, then in the folder of the last file picked", async () => {
-    const file = path.join(dir, "templates", "team.yaml");
+    const file = path.join(home, "templates", "team.yaml");
     writeFileSync(
       file,
       "name: Team\ntabs:\n  - name: Dev\n    panes:\n      - npm start\n",
     );
-    const importWorkspace = () => handlers.get("workspace:import")?.({});
 
     showOpenDialog.mockResolvedValueOnce({ filePaths: [file] });
-    await expect(importWorkspace()).resolves.toMatchObject({ name: "Team" });
+    await expect(service.importFromFile()).resolves.toMatchObject({
+      name: "Team",
+    });
     showOpenDialog.mockResolvedValueOnce({ filePaths: [] });
-    await expect(importWorkspace()).resolves.toBeNull();
+    await expect(service.importFromFile()).resolves.toBeNull();
 
     expect(showOpenDialog.mock.calls.map(([o]) => o.defaultPath)).toEqual([
-      "/fake-home",
-      path.join(dir, "templates"),
+      home,
+      path.join(home, "templates"),
     ]);
+  });
+});
+
+describe("workspaces.saveWorkspace", () => {
+  it("records each terminal's PTY size", async () => {
+    storeTerminal({
+      id: "session-1",
+      pty: { pid: -1, cols: 132, rows: 41 },
+      lastProcessName: "zsh",
+      isRendererReady: true,
+      bufferedOutput: [],
+      cwd: "/tmp",
+    } as unknown as TerminalInstance);
+
+    try {
+      const tab = {
+        id: "tab-1",
+        name: "Shell",
+        panes: {
+          a: { id: "a", type: "terminal", sessionId: "session-1", cwd: "/tmp" },
+        },
+        layout: { id: "node-a", type: "pane", paneId: "a" },
+        activePaneId: "a",
+      } as unknown as Tab;
+
+      const state = await service.saveWorkspace("Work", [tab], "tab-1");
+
+      expect(state?.workspaces[0].tabs[0].panes[0]).toMatchObject({
+        cols: 132,
+        rows: 41,
+      });
+    } finally {
+      removeTerminal("session-1");
+    }
   });
 });
