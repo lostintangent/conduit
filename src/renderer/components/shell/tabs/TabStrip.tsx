@@ -5,6 +5,7 @@ import {
   useCommand,
 } from "@/commands/hooks/useCommand";
 import { TabPreviewOverlay } from "@/components/layout/overview/TabPreviewOverlay";
+import { LaunchAgentsButton } from "@/components/shell/tabs/LaunchAgentsButton";
 import { TabButton } from "@/components/shell/tabs/TabButton";
 import { TabPlaceholder } from "@/components/shell/tabs/TabPlaceholder";
 import {
@@ -40,7 +41,7 @@ import {
 } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@features/settings/model";
-import { useAtom, useSelector } from "@tanstack/react-store";
+import { shallow, useAtom, useSelector } from "@tanstack/react-store";
 import {
   ChevronDown,
   Fullscreen,
@@ -48,7 +49,6 @@ import {
   MoreHorizontal,
   PanelRightOpen,
   PlusSquare,
-  Rocket,
   SquareDashedMousePointer,
   SquareTerminal,
   Terminal,
@@ -71,25 +71,19 @@ export const TabStrip = ({
   onTabContextMenu,
   position = "top",
 }: TabStripProps) => {
-  const tabLabels = useSelector(tabLabelsAtom);
-  const hasMultipleTabs = useSelector(tabsAtom, (tabs) => tabs.length > 1);
-  const activeTabId = useSelector(activeTabIdAtom);
-  // Pane titles change constantly, so select only the active pane's facts
-  const hasActiveTab = useSelector(activeTabAtom, (tab) => tab !== null);
-  const activePaneType = useSelector(
-    activeTabAtom,
-    (tab) => tab?.panes[tab.activePaneId]?.type,
+  // Each tab's button selects its own label
+  const tabIds = useSelector(tabsAtom, (tabs) => tabs.map((tab) => tab.id), {
+    compare: shallow,
+  });
+  const hasMultipleTabs = tabIds.length > 1;
+  // Only to measure overflow again, since buttons resize with their labels
+  const tabLabels = useSelector(
+    tabLabelsAtom,
+    (tabs) => tabs.map((tab) => tab.label),
+    { compare: shallow },
   );
-  const activeTerminalCwd = useSelector(activeTabAtom, (tab) => {
-    const pane = tab?.panes[tab.activePaneId];
-    return pane?.type === "terminal" ? (pane.cwd ?? null) : null;
-  });
-  // A shell retitles itself as commands run, which is the cue to check
-  // again for a repo created or removed without changing directory
-  const activeTerminalTitle = useSelector(activeTabAtom, (tab) => {
-    const pane = tab?.panes[tab.activePaneId];
-    return pane?.type === "terminal" ? pane.title : undefined;
-  });
+  const activeTabId = useSelector(activeTabIdAtom);
+  const hasActiveTab = useSelector(activeTabAtom, (tab) => tab !== null);
   const hyperTerminals = useSelector(hyperTerminalsAtom);
   const hasMinimizedTerminals = hyperTerminals.some(
     (t) => t.state === "minimized",
@@ -126,18 +120,12 @@ export const TabStrip = ({
     ApplicationCommands.VIEW_TOGGLE_DESIGN_MODE,
   );
   const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
-  const launchAgentsCmd = useCommand(ApplicationCommands.AGENT_LAUNCH);
 
   const showCommandPaletteCmd = useCommand(
     ApplicationCommands.VIEW_SHOW_COMMAND_PALETTE,
   );
 
   const newTabCmd = useCommand(ApplicationCommands.TAB_NEW);
-
-  // Track if active pane is in a git repo
-  const [isInGitRepo, setIsInGitRepo] = useState(false);
-
-  const canLaunchAgents = activePaneType === "terminal" && isInGitRepo;
 
   const isInOverviewMode = applicationMode === "overview";
 
@@ -192,27 +180,6 @@ export const TabStrip = ({
       resizeObserver.disconnect();
     };
   }, [tabLabels]);
-
-  // Check if current terminal pane is in a git repository
-  useEffect(() => {
-    const checkGitRepo = async () => {
-      if (!activeTerminalCwd) {
-        setIsInGitRepo(false);
-        return;
-      }
-
-      try {
-        const api = window.conduit;
-        const gitRoot = await api.git.findRoot(activeTerminalCwd);
-        setIsInGitRepo(gitRoot !== null);
-      } catch (error) {
-        console.error("Failed to check git repo:", error);
-        setIsInGitRepo(false);
-      }
-    };
-
-    void checkGitRepo();
-  }, [activeTerminalCwd, activeTerminalTitle]);
 
   // Track pane drag hover for tab switching
   const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -280,41 +247,39 @@ export const TabStrip = ({
   }, [clearPreviewCloseTimeout]);
 
   // TODO: See if we can remove this code in favor of mergining it with the descriptors and tabs w/placeholders memos
-  const { reorderableTabs, placeholderIndex, nonDraggingIndexById } =
+  const { reorderableTabIds, placeholderIndex, nonDraggingIndexById } =
     useMemo(() => {
       if (!draggingTab) {
         return {
-          reorderableTabs: tabLabels,
+          reorderableTabIds: tabIds,
           placeholderIndex: null,
           nonDraggingIndexById: {} as Record<string, number>,
         };
       }
 
-      const reorderableTabs = tabLabels.filter(
-        (tab) => tab.id !== draggingTab.id,
-      );
-      const nonDraggingIndexById = reorderableTabs.reduce<
+      const reorderableTabIds = tabIds.filter((id) => id !== draggingTab.id);
+      const nonDraggingIndexById = reorderableTabIds.reduce<
         Record<string, number>
-      >((acc, tab, index) => {
-        acc[tab.id] = index;
+      >((acc, id, index) => {
+        acc[id] = index;
         return acc;
       }, {});
 
       const baseIndex = Math.max(0, draggingTab.originalIndex);
-      const fallbackIndex = Math.min(baseIndex, reorderableTabs.length);
+      const fallbackIndex = Math.min(baseIndex, reorderableTabIds.length);
       const clampedTarget = Math.max(
         0,
-        Math.min(dropTargetIndex ?? fallbackIndex, reorderableTabs.length),
+        Math.min(dropTargetIndex ?? fallbackIndex, reorderableTabIds.length),
       );
       const placeholderIndex =
         clampedTarget === fallbackIndex ? null : clampedTarget;
 
       return {
-        reorderableTabs,
+        reorderableTabIds,
         placeholderIndex,
         nonDraggingIndexById,
       };
-    }, [tabLabels, dropTargetIndex, draggingTab]);
+    }, [tabIds, dropTargetIndex, draggingTab]);
 
   const handleDragStart = useCallback(
     (e: React.DragEvent<HTMLButtonElement>, tabId: string) => {
@@ -324,7 +289,7 @@ export const TabStrip = ({
       }
 
       const { width } = e.currentTarget.getBoundingClientRect();
-      const originalIndex = tabLabels.findIndex((tab) => tab.id === tabId);
+      const originalIndex = tabIds.indexOf(tabId);
 
       setDraggingTab({
         id: tabId,
@@ -335,7 +300,7 @@ export const TabStrip = ({
       setDropTargetIndex(null);
       setHoverPreview(null);
     },
-    [tabLabels],
+    [tabIds],
   );
 
   const handlePreviewHoverChange = useCallback(
@@ -431,9 +396,7 @@ export const TabStrip = ({
 
       const rect = event.currentTarget.getBoundingClientRect();
       const isBefore = event.clientX < rect.left + rect.width / 2;
-      const overIndex = reorderableTabs.findIndex(
-        (tab) => tab.id === overTabId,
-      );
+      const overIndex = reorderableTabIds.indexOf(overTabId);
 
       if (overIndex === -1) {
         return;
@@ -451,7 +414,7 @@ export const TabStrip = ({
       dropTargetIndex,
       draggingTab,
       isPaneDrag,
-      reorderableTabs,
+      reorderableTabIds,
     ],
   );
 
@@ -494,7 +457,7 @@ export const TabStrip = ({
       clearPaneDragHoverTimeout,
       draggingTab,
       dropTargetIndex,
-      reorderableTabs.length,
+      reorderableTabIds.length,
     ],
   );
 
@@ -503,12 +466,12 @@ export const TabStrip = ({
       draggingTab !== null && placeholderIndex !== null;
 
     const shouldShowTrailingPlaceholder =
-      shouldShowPlaceholder && placeholderIndex === reorderableTabs.length;
+      shouldShowPlaceholder && placeholderIndex === reorderableTabIds.length;
 
     const elements: React.ReactNode[] = [];
 
-    tabLabels.forEach((tab, index) => {
-      const nonDraggingIndex = nonDraggingIndexById[tab.id];
+    tabIds.forEach((tabId, index) => {
+      const nonDraggingIndex = nonDraggingIndexById[tabId];
       const showLeadingPlaceholder =
         shouldShowPlaceholder &&
         nonDraggingIndex !== undefined &&
@@ -517,7 +480,7 @@ export const TabStrip = ({
       if (showLeadingPlaceholder) {
         elements.push(
           <TabPlaceholder
-            key={`placeholder-${tab.id}-${index}`}
+            key={`placeholder-${tabId}-${index}`}
             width={draggingTab?.width}
             onDragOver={applyMoveDropEffect}
             onDrop={handleDrop}
@@ -526,11 +489,11 @@ export const TabStrip = ({
       }
 
       // Render the tab if it's not being dragged, or if we aren't showing a placeholder
-      if (tab.id !== draggingTab?.id || !shouldShowPlaceholder) {
+      if (tabId !== draggingTab?.id || !shouldShowPlaceholder) {
         elements.push(
           <TabButton
-            key={tab.id}
-            tab={tab}
+            key={tabId}
+            tabId={tabId}
             index={index}
             disableClick={draggingTab !== null}
             onContextMenu={onTabContextMenu}
@@ -559,7 +522,7 @@ export const TabStrip = ({
     return elements;
   }, [
     clearDragState,
-    tabLabels,
+    tabIds,
     draggingTab,
     handleDragLeaveTab,
     handleDragOverTab,
@@ -622,7 +585,7 @@ export const TabStrip = ({
               }
 
               applyMoveDropEffect(event);
-              setDropTargetIndex(reorderableTabs.length);
+              setDropTargetIndex(reorderableTabIds.length);
             }}
             onDrop={(e) => {
               if (e.target !== e.currentTarget) {
@@ -847,29 +810,7 @@ export const TabStrip = ({
             </TooltipContent>
           </Tooltip>
 
-          {showLaunchButton && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="rounded-lg h-8 px-3 inline-flex items-center gap-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-green-700 text-white hover:bg-green-600 disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label={launchAgentsCmd.title || "Launch agents"}
-                  onClick={launchAgentsCmd.execute}
-                  disabled={launchAgentsCmd.disabled || !canLaunchAgents}
-                >
-                  <Rocket size={16} />
-                  <span>Launch</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {!canLaunchAgents && activePaneType !== "terminal"
-                  ? "Focus a terminal pane to launch agents"
-                  : !canLaunchAgents && !isInGitRepo
-                    ? "Navigate to a git repository to launch agents"
-                    : getCommandDisplayTitle(launchAgentsCmd)}
-              </TooltipContent>
-            </Tooltip>
-          )}
+          {showLaunchButton && <LaunchAgentsButton />}
         </div>
       </div>
 

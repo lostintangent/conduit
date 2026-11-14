@@ -10,6 +10,7 @@ import type { Pane, Tab } from "@/types";
 import { formatHomePath } from "@/utils/pathUtils";
 import { createAtom } from "@/store/createAtom";
 import { getSettings } from "@features/settings/client/queries";
+import { shallow } from "@tanstack/react-store";
 
 export type TabDescriptor = {
   id: string;
@@ -34,7 +35,17 @@ function resolveActivePane(tab: Tab): Pane | undefined {
   return firstPane;
 }
 
-export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
+function isSameDescriptor(
+  { tooltip, ...descriptor }: TabDescriptor,
+  { tooltip: otherTooltip, ...other }: TabDescriptor,
+) {
+  return shallow(descriptor, other) && shallow(tooltip, otherTooltip);
+}
+
+// Pane titles change constantly, so an unchanged tab keeps its descriptor,
+// and the list stays the same when no tab changed. That way subscribers
+// re-render only for the tabs whose labels changed.
+export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
   const tabs = tabsAtom.get();
   const activeTabId = activeTabIdAtom.get();
   const tabStates = tabStateAtom.get();
@@ -45,7 +56,7 @@ export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
   const formatPathForLabel = (pathValue: string | null | undefined) =>
     pathValue ? formatHomePath(pathValue, homeDirectory) : null;
 
-  return tabs.map((tab) => {
+  const descriptors = tabs.map((tab, index) => {
     const activePane = resolveActivePane(tab);
 
     let label: string | undefined;
@@ -99,7 +110,7 @@ export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
     const name = tab.name?.trim();
     const isActive = tab.id === activeTabId;
     const progress = tabProgress.get(tab.id);
-    return {
+    const descriptor: TabDescriptor = {
       id: tab.id,
       label: name || label,
       name,
@@ -110,5 +121,12 @@ export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
       progressState: progress?.state ?? null,
       progressPercent: progress?.percent ?? 0,
     };
+    const previousDescriptor = previous?.[index];
+    return previousDescriptor &&
+      isSameDescriptor(previousDescriptor, descriptor)
+      ? previousDescriptor
+      : descriptor;
   });
+
+  return previous && shallow(previous, descriptors) ? previous : descriptors;
 });

@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/tooltip";
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
 import { useSettings } from "@features/settings/client/queries";
-import type { TabDescriptor } from "@/store/tabLabels";
+import { tabLabelsAtom } from "@/store/tabLabels";
+import { useSelector } from "@tanstack/react-store";
 import { cn } from "@/utils";
 import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -17,7 +18,7 @@ import React, { useEffect, useRef, useState } from "react";
 const CHAR_WIDTH_PX = 8;
 
 type TabButtonProps = {
-  tab: TabDescriptor;
+  tabId: string;
   index: number;
   disableClick: boolean;
   onContextMenu?: (event: React.MouseEvent, tabId: string) => void;
@@ -39,7 +40,7 @@ type TabButtonProps = {
 };
 
 export function TabButton({
-  tab,
+  tabId,
   index,
   disableClick,
   onContextMenu,
@@ -50,6 +51,11 @@ export function TabButton({
   onDragEnd,
   onHoverChange,
 }: TabButtonProps) {
+  // Selected here rather than passed down, so that a tab's button re-renders
+  // only when its own label changes
+  const tab = useSelector(tabLabelsAtom, (tabs) =>
+    tabs.find((candidate) => candidate.id === tabId),
+  );
   const showTabState = useSettings((s) => s.showTabState);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -57,6 +63,29 @@ export function TabButton({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Scroll active tab into view
+  useEffect(() => {
+    if (tab?.isActive && buttonRef.current) {
+      buttonRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    }
+  }, [tab?.isActive]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  // Only until the strip drops a closed tab's button
+  if (!tab) {
+    return null;
+  }
 
   const showCloseButton = isHovered && !disableClick && !tab.locked;
   const progressState = showTabState ? tab.progressState : null;
@@ -70,24 +99,6 @@ export function TabButton({
     !tab.isActive &&
     !showAgentIndicator &&
     tab.tabState === "running";
-
-  // Scroll active tab into view
-  useEffect(() => {
-    if (tab.isActive && buttonRef.current) {
-      buttonRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "nearest",
-      });
-    }
-  }, [tab.isActive]);
-
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isEditing]);
 
   const handleDoubleClick = (event: React.MouseEvent) => {
     if (disableClick || isEditing || tab.locked) {
@@ -106,7 +117,7 @@ export function TabButton({
 
   const handleSaveEdit = () => {
     const trimmedValue = editValue.trim();
-    updateTabProperty(tab.id, { name: trimmedValue || undefined });
+    updateTabProperty(tabId, { name: trimmedValue || undefined });
     setIsEditing(false);
     setEditValue("");
   };
