@@ -133,17 +133,21 @@ describe("integer options", () => {
 });
 
 describe("terminal-wait", () => {
-  it("passes fractional seconds as milliseconds", async () => {
-    expect(await run(["terminal-wait", "--timeout", "1.5"])).toEqual([
+  it.each([
+    ["1.5", 1500],
+    ["5s", 5000],
+    ["1.5s", 1500],
+  ])("passes `--timeout %s` as milliseconds", async (value, timeout) => {
+    expect(await run(["terminal-wait", "--timeout", value])).toEqual([
       "terminal-wait",
-      { timeout: 1500 },
+      { timeout },
     ]);
   });
 
   it.each([
     "abc",
-    "5s",
     "-1",
+    "5ms",
   ])("rejects `--timeout %s` without sending it", async (value) => {
     await expect(run(["terminal-wait", "--timeout", value])).rejects.toThrow(
       "is invalid. Expected a number of seconds.",

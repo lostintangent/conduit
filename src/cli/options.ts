@@ -10,9 +10,11 @@ export function parseInteger(value: string) {
   return Number(value);
 }
 
+// Accepts an optional trailing "s", since `--timeout 30s` reads naturally.
 export function parseSeconds(value: string) {
-  if (!/^(\d+\.?\d*|\.\d+)$/.test(value)) {
+  const match = /^(\d+\.?\d*|\.\d+)s?$/.exec(value);
+  if (!match) {
     throw new InvalidArgumentError("Expected a number of seconds.");
   }
-  return Number(value);
+  return Number(match[1]);
 }
