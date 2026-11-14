@@ -4,6 +4,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import type {
   HyperTerminal as HyperTerminalType,
   HyperTerminalPosition,
@@ -132,6 +133,10 @@ export function HyperTerminal({
   useEffect(() => {
     positionRef.current = position;
   }, [position]);
+
+  // Minimizing, closing or moving a hyper terminal unmounts it, so focus that
+  // was in it goes back to the active pane
+  useEffect(() => () => focusActivePane(), []);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

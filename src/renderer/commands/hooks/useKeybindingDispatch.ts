@@ -6,6 +6,7 @@ import type { CommandRegistry } from "../core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";
 import {
   clearPressedKeys,
+  isModifierKey,
   trackKeyDown,
   trackKeyUp,
 } from "../keybindings/parser";
@@ -113,6 +114,11 @@ export function useKeybindingDispatch(
       ) {
         return; // Exit immediately - no command processing needed
       }
+
+      // A modifier on its own doesn't end a pending chord, so Cmd can be
+      // released and pressed again between its parts, as in VS Code. The
+      // second part's modifiers still have to match.
+      if (currentChordRef.current && isModifierKey(event.key)) return;
 
       const chordIndex = currentChordRef.current ? 1 : 0;
 

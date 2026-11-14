@@ -9,11 +9,14 @@ const pressedKeys = new Set<string>();
  * Track keydown events to maintain set of pressed keys
  */
 export function trackKeyDown(event: KeyboardEvent): void {
-  const key = normalizeKey(event.key);
-  // Don't track modifier keys (check lowercase since normalizeKey returns lowercase)
-  if (!["control", "shift", "alt", "meta"].includes(key.toLowerCase())) {
-    pressedKeys.add(key.toLowerCase());
+  if (!isModifierKey(event.key)) {
+    pressedKeys.add(normalizeKey(event.key).toLowerCase());
   }
+}
+
+/** Whether the key is a modifier pressed on its own (e.g. Cmd's own keydown) */
+export function isModifierKey(key: string): boolean {
+  return ["control", "shift", "alt", "meta"].includes(normalizeKey(key));
 }
 
 /**

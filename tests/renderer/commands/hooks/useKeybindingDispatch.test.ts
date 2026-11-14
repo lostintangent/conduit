@@ -157,6 +157,54 @@ describe("useKeybindingDispatch", () => {
       });
     });
 
+    it("keeps a chord pending while Cmd is released and pressed again", async () => {
+      commandRegistry.registerCommand({
+        id: "test.chordCommand",
+        title: "Chord Command",
+        keybinding: { key: "Cmd+K Cmd+T" },
+        run: mockCommandRun,
+      });
+
+      renderHook(() =>
+        useKeybindingDispatch(commandRegistry, keybindingRegistry),
+      );
+
+      const key = (type: string, init: KeyboardEventInit) =>
+        window.dispatchEvent(
+          new KeyboardEvent(type, { bubbles: true, ...init }),
+        );
+      key("keydown", { key: "Meta", metaKey: true });
+      key("keydown", { key: "k", metaKey: true });
+      key("keyup", { key: "k", metaKey: true });
+      key("keyup", { key: "Meta" });
+      key("keydown", { key: "Meta", metaKey: true });
+      key("keydown", { key: "t", metaKey: true });
+
+      await waitFor(() => {
+        expect(mockCommandRun).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it("doesn't complete a chord when the second key's modifiers differ", () => {
+      commandRegistry.registerCommand({
+        id: "test.chordCommand",
+        title: "Chord Command",
+        keybinding: { key: "Cmd+K Cmd+T" },
+        run: mockCommandRun,
+      });
+
+      renderHook(() =>
+        useKeybindingDispatch(commandRegistry, keybindingRegistry),
+      );
+
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "k", metaKey: true }),
+      );
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "t" }));
+
+      expect(mockCommandRun).not.toHaveBeenCalled();
+    });
+
     it("should timeout chord sequence after 1 second", async () => {
       vi.useFakeTimers();
 

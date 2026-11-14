@@ -739,7 +739,7 @@ export const TabStrip = ({
                   <ChevronDown size={14} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" focusPaneOnSelect>
                 <DropdownMenuItem onClick={handleNewHyperTerminal}>
                   <Zap size={16} className="mr-3" />
                   Hyper Terminal
