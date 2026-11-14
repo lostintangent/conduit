@@ -44,9 +44,6 @@ export type PlayButtonTarget = "hyper" | "newPane";
 
 export type TerminalLinkTarget = "pane" | "sidebar" | "default";
 
-export type DotfilesStatus =
-  "disabled" | "cloning" | "idle" | "fetching" | "pushing" | "failed";
-
 export type UserSettings = {
   // UI/Layout settings
   tabPosition: TabPosition;

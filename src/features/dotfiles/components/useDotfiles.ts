@@ -1,7 +1,7 @@
-import type { DotfilesStatus } from "@shared/types";
+import type { DotfilesStatus } from "../model";
 import { useEffect, useState } from "react";
 
-const api = window.conduit;
+const { dotfiles } = window.conduit;
 
 export function useDotfiles() {
   const [status, setStatus] = useState<DotfilesStatus>("disabled");
@@ -9,10 +9,10 @@ export function useDotfiles() {
 
   useEffect(() => {
     // Load the initial status and repo path, and set up listeners
-    const unsubscribeStatus = api.onDotfilesStatusChanged(setStatus);
+    const unsubscribeStatus = dotfiles.on("statusChanged", setStatus);
 
-    api.getDotfilesStatus().then(setStatus);
-    api.getDotfilesRepoPath().then(setRepoPath);
+    dotfiles.getStatus().then(setStatus);
+    dotfiles.getPath().then(setRepoPath);
 
     return () => {
       unsubscribeStatus();
@@ -23,7 +23,7 @@ export function useDotfiles() {
     status,
     repoPath,
 
-    fetchDotfiles: api.fetchDotfiles,
-    createDotfilesRepo: api.createDotfilesRepo,
+    fetchDotfiles: dotfiles.fetch,
+    createDotfilesRepo: dotfiles.createRepo,
   };
 }

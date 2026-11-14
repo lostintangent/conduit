@@ -7,7 +7,6 @@ import type {
   AgentSessionSpawnRequest,
   BackgroundCommandRequest,
   BrowserPage,
-  DotfilesStatus,
   UserSettings,
   Workspace,
 } from "@shared/types";
@@ -43,24 +42,6 @@ const conduitAPI = {
   // Notify when the app is about to close
   onBeforeClose: (listener: () => void) =>
     createEventListener("app:before-close", listener),
-
-  // Notify when dotfiles repo status changes
-  onDotfilesStatusChanged: (listener: (status: DotfilesStatus) => void) =>
-    createEventListener("dotfiles:status-changed", listener),
-
-  getDotfilesRepoPath: () =>
-    ipcRenderer.invoke("dotfiles:get-path") as Promise<string | null>,
-
-  getDotfilesStatus: () =>
-    ipcRenderer.invoke("dotfiles:get-status") as Promise<DotfilesStatus>,
-
-  createDotfilesRepo: () =>
-    ipcRenderer.invoke("dotfiles:create-repo") as Promise<string>,
-
-  fetchDotfiles: () => ipcRenderer.invoke("dotfiles:fetch") as Promise<void>,
-
-  addToDotfiles: (filePath: string) =>
-    ipcRenderer.invoke("dotfiles:add-file", filePath) as Promise<void>,
 
   /* UI-related methods (UI->main) */
 

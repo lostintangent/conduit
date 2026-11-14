@@ -1,5 +1,5 @@
 /**
- * Dotfiles IPC module.
+ * Dotfiles sync.
  *
  * Manages syncing a user's dotfiles repository to their home directory.
  * Features:
@@ -12,14 +12,15 @@
  * Users can clear the setting to remove all symlinks and the cloned repo.
  */
 
-import { BrowserWindow, ipcMain } from "electron";
+import { app } from "electron";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
-import type { DotfilesStatus } from "@shared/types/settings";
+import { emitter } from "../../../ipc/events";
 import { createGit } from "../../../ipc/git/createGit";
+import type { DotfilesStatus } from "../model";
 import {
-  createDotfilesRepo as createRepo,
+  createDotfilesRepo,
   discoverDotfilesRepo,
   normalizeDotfilesRepo,
 } from "./gh";
@@ -27,26 +28,35 @@ import { cloneRepo, fetchAndPull, getRemoteUrl, repoExists } from "./git";
 import { removeSymlinks } from "./symlinks";
 import { startSync, stopSync } from "./sync";
 
+const emit = emitter("dotfiles");
+
 let repoUrl: string | undefined;
-let repoPath: string;
 let status: DotfilesStatus = "disabled";
 
-let homeDirectory: string;
-let window: BrowserWindow;
-let git: SimpleGit;
+// Created on first use rather than at import, which runs before main.ts
+// hydrates the login shell's environment.
+let git: SimpleGit | undefined;
+const currentGit = () => (git ??= createGit());
+
+const homeDirectory = () => app.getPath("home");
+
+export function getRepoPath(): string {
+  return path.join(homeDirectory(), ".conduit", "dotfiles");
+}
+
+export function getStatus(): DotfilesStatus {
+  return status;
+}
 
 function updateStatus(newStatus: DotfilesStatus): void {
   status = newStatus;
-
-  if (window && !window.isDestroyed()) {
-    window.webContents.send("dotfiles:status-changed", newStatus);
-  }
+  emit("statusChanged", newStatus);
 }
 
 async function deleteRepo(): Promise<void> {
   try {
-    await removeSymlinks(repoPath, homeDirectory);
-    await fs.rm(repoPath, { recursive: true, force: true });
+    await removeSymlinks(getRepoPath(), homeDirectory());
+    await fs.rm(getRepoPath(), { recursive: true, force: true });
   } catch (error) {
     console.error("Failed to delete repo:", error);
   }
@@ -56,53 +66,43 @@ async function deleteRepo(): Promise<void> {
 // Module API
 // ============================================================================
 
+/** Creates a "dotfiles" repo on the user's GitHub account and syncs it. */
+export async function createRepo(): Promise<string> {
+  try {
+    const url = await createDotfilesRepo();
+    await setDotfilesRepo(url);
+    return url;
+  } catch (error) {
+    console.error("Failed to create dotfiles repo:", error);
+    throw error;
+  }
+}
+
+/** Pulls the latest changes from the configured repo. */
+export async function fetch(): Promise<void> {
+  if (!repoUrl) {
+    throw new Error("No dotfiles repository configured");
+  }
+  await fetchAndPull(
+    currentGit(),
+    status,
+    updateStatus,
+    getRepoPath(),
+    homeDirectory(),
+  );
+}
+
 /**
- * Initializes the dotfiles module: sets up state and registers IPC handlers.
- * Must be called before any other dotfiles functions.
+ * Moves a file from the home directory into the repo. The repo's file watcher
+ * then creates the symlink back.
  */
-export function initialize(
-  conduitStateDirectory: string,
-  home: string,
-  win: BrowserWindow,
-): void {
-  repoPath = path.join(conduitStateDirectory, "dotfiles");
-  homeDirectory = home;
-  window = win;
-  git = createGit();
+export async function addFile(filePath: string): Promise<void> {
+  const relativePath = path.relative(homeDirectory(), filePath);
+  const destPath = path.join(getRepoPath(), relativePath);
 
-  // Register IPC handlers
-  ipcMain.handle("dotfiles:get-path", () => repoPath);
-  ipcMain.handle("dotfiles:get-status", () => status);
-
-  ipcMain.handle("dotfiles:create-repo", async () => {
-    try {
-      const url = await createRepo();
-      await setDotfilesRepo(url);
-      return url;
-    } catch (error) {
-      console.error("Failed to create dotfiles repo:", error);
-      throw error;
-    }
-  });
-
-  ipcMain.handle("dotfiles:fetch", async () => {
-    if (!repoUrl) {
-      throw new Error("No dotfiles repository configured");
-    }
-    await fetchAndPull(git, status, updateStatus, repoPath, homeDirectory);
-  });
-
-  ipcMain.handle("dotfiles:add-file", async (_event, filePath: string) => {
-    const relativePath = path.relative(homeDirectory, filePath);
-    const destPath = path.join(repoPath, relativePath);
-
-    // Ensure parent directory exists in repo
-    await fs.mkdir(path.dirname(destPath), { recursive: true });
-
-    // Move the file to the dotfiles repo
-    // The file watcher will automatically create the symlink back
-    await fs.rename(filePath, destPath);
-  });
+  // Ensure parent directory exists in repo
+  await fs.mkdir(path.dirname(destPath), { recursive: true });
+  await fs.rename(filePath, destPath);
 }
 
 /**
@@ -157,6 +157,9 @@ export async function setDotfilesRepo(url: string | undefined): Promise<void> {
     return;
   }
 
+  const repoPath = getRepoPath();
+  const home = homeDirectory();
+
   // Clone if repo doesn't exist, otherwise check if remote changed
   const exists = await repoExists(repoPath);
   const needsClone =
@@ -168,15 +171,15 @@ export async function setDotfilesRepo(url: string | undefined): Promise<void> {
     git = await cloneRepo(
       normalizedUrl,
       repoPath,
-      homeDirectory,
-      git,
+      home,
+      currentGit(),
       updateStatus,
     );
   } else {
     // Repo exists with matching remote - sync latest changes
     git = createGit(repoPath);
-    await fetchAndPull(git, status, updateStatus, repoPath, homeDirectory);
+    await fetchAndPull(git, status, updateStatus, repoPath, home);
   }
 
-  await startSync(repoPath, homeDirectory, git, () => status, updateStatus);
+  await startSync(repoPath, home, git, () => status, updateStatus);
 }

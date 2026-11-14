@@ -513,7 +513,7 @@ export function registerFileTreeCommands(
       if (path) {
         // Suppress orphan warning since symlink will be created immediately
         MonacoModelRegistry.getInstance().suppressOrphanWarning(path);
-        await window.conduit.addToDotfiles(path);
+        await window.conduit.dotfiles.addFile(path);
       }
     },
   });

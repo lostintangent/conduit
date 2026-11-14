@@ -5,7 +5,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
-import { initialize as initializeDotfiles } from "@features/dotfiles/main";
 import { startFeatures } from "./features";
 import {
   cleanupFileSystemV2Handlers,
@@ -43,8 +42,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   };
 
   const conduitStateDirectory = await ensureConduitDirectory();
-
-  initializeDotfiles(conduitStateDirectory, app.getPath("home"), window);
 
   await initializeUserSettings(window, conduitStateDirectory);
 
