@@ -15,7 +15,7 @@ export type Workspace = {
   name: string;
   lastModified: number;
   tabs: WorkspaceTab[];
-  activeTabId: string;
+  activeTabId?: string;
 };
 
 export type WorkspaceState = {

@@ -30,7 +30,7 @@ import { startSync, stopSync } from "./sync";
 
 const emit = emitter("dotfiles");
 
-let repoUrl: string | undefined;
+let repoUrl: string | null | undefined;
 let status: DotfilesStatus = "disabled";
 
 // Created on first use rather than at import, which runs before main.ts
@@ -160,11 +160,15 @@ export async function setDotfilesRepo(url: string | undefined): Promise<void> {
   const repoPath = getRepoPath();
   const home = homeDirectory();
 
-  // Clone if repo doesn't exist, otherwise check if remote changed
+  // Clone if repo doesn't exist, otherwise check if remote changed. An
+  // unreadable origin fails rather than recloning, which would delete the repo.
   const exists = await repoExists(repoPath);
+  const remoteUrl = exists ? await getRemoteUrl(repoPath) : null;
+  if (exists && !remoteUrl) {
+    throw new Error(`Couldn't read the origin remote of ${repoPath}`);
+  }
   const needsClone =
-    !exists ||
-    normalizeDotfilesRepo(await getRemoteUrl(repoPath)) !== normalizedUrl;
+    !remoteUrl || normalizeDotfilesRepo(remoteUrl) !== normalizedUrl;
 
   if (needsClone) {
     await deleteRepo();

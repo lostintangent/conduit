@@ -145,6 +145,7 @@ async function saveWorkspace(
     return workspaceState;
   } catch (error) {
     console.error("Failed to save workspace:", error);
+    throw error;
   }
 }
 
@@ -218,6 +219,7 @@ async function renameWorkspace(
     return workspaceState;
   } catch (error) {
     console.error("Failed to rename workspace:", error);
+    throw error;
   }
 }
 

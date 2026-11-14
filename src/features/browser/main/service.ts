@@ -1,10 +1,10 @@
-import { ClipboardItem, clipboard, webContents } from "electron";
-import { capturePage } from "./capture";
+import { ClipboardItem, clipboard } from "electron";
+import { capturePage, getWebContents } from "./capture";
 
 const service = {
   /** Copies a screenshot of the page to the clipboard. */
   async captureScreenshot(webContentsId: number): Promise<void> {
-    const image = await capturePage(webContents.fromId(webContentsId));
+    const image = await capturePage(getWebContents(webContentsId));
     // Copy the bytes because TypeScript doesn't accept a Node Buffer as a BlobPart.
     const png = new Blob([new Uint8Array(image.toPNG())], {
       type: "image/png",
@@ -14,8 +14,8 @@ const service = {
 
   /** Opens the page's DevTools inside the pane's own DevTools webview. */
   showDevTools(sourceWebContentsId: number, devToolsWebContentsId: number) {
-    const sourceContents = webContents.fromId(sourceWebContentsId);
-    const devToolsContents = webContents.fromId(devToolsWebContentsId);
+    const sourceContents = getWebContents(sourceWebContentsId);
+    const devToolsContents = getWebContents(devToolsWebContentsId);
 
     sourceContents.setDevToolsWebContents(devToolsContents);
     sourceContents.openDevTools();

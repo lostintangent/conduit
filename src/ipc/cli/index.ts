@@ -1,10 +1,10 @@
-import { app, ipcMain, webContents } from "electron";
+import { app, ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { CLI_COMMAND_NAME, type CliResponse } from "../../shared/cli/types";
-import { capturePage } from "@features/browser/main/capture";
+import { capturePage, getWebContents } from "@features/browser/main/capture";
 import { ensureLauncherScripts } from "./launchers";
 import {
   createCliServer,
@@ -19,6 +19,13 @@ type CliState = {
 };
 
 let cliState: CliState | null = null;
+
+function requireCliState() {
+  if (!cliState) {
+    throw new Error("The Conduit CLI server isn't running.");
+  }
+  return cliState;
+}
 
 function resolveSocketPath(baseDir: string) {
   const envSuffix = app.isPackaged ? "" : "-dev";
@@ -53,7 +60,7 @@ function respondToCli<ResultType>(
   requestId: string,
   response: Omit<CliResponse<ResultType>, "requestId">,
 ) {
-  cliState.server.respond({
+  requireCliState().server.respond({
     requestId,
     ...response,
   });
@@ -68,7 +75,7 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
   }
 
   ipcMain.handle("cli:respond", async (_, payload: CliResponse) =>
-    cliState.server.respond(payload),
+    requireCliState().server.respond(payload),
   );
 
   // See the note in useCliClient about why this is done in the main process.
@@ -92,9 +99,7 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
       },
     ) => {
       try {
-        const contents = webContents.fromId(webContentsId);
-
-        const image = await capturePage(contents, clip);
+        const image = await capturePage(getWebContents(webContentsId), clip);
         const buffer = image.toPNG();
 
         const filePath = path.join(tmpdir(), `capture-${randomUUID()}.png`);
@@ -113,13 +118,14 @@ export async function initializeCliHandlers(sendToRenderer: SendToRendererFn) {
 }
 
 export async function shutdownCliServer() {
-  await cliState.server.shutdown();
+  await cliState?.server.shutdown();
 }
 
 export function getCliState() {
+  const { binDir, socketPath } = requireCliState();
   return {
     commandName: CLI_COMMAND_NAME,
-    cliDirectory: cliState.binDir,
-    socketPath: cliState.socketPath,
+    cliDirectory: binDir,
+    socketPath,
   };
 }

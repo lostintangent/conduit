@@ -36,7 +36,10 @@ import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { warmFileCache, getPreWarmedCache } from "./fileCacheWarmer";
-import { diskReads } from "./DiskFileSystemProvider";
+import {
+  type DiskFileSystemProvider,
+  diskReads,
+} from "./DiskFileSystemProvider";
 import { FileSystemProviderService } from "./FileSystemProviderService";
 import { pathEquals, pathStartsWith } from "./pathUtils";
 import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
@@ -123,7 +126,7 @@ function getService(): FileSystemProviderService {
  * Result from getOrAcquireProvider - includes whether we need to release.
  */
 interface ProviderHandle {
-  provider: ReturnType<FileSystemProviderService["getExistingProvider"]>;
+  provider: DiskFileSystemProvider;
   needsRelease: boolean;
 }
 

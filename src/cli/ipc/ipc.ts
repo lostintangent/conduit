@@ -23,7 +23,11 @@ const sessionId = process.env.CONDUIT_SESSION_ID;
 export async function sendCliCommand<
   Name extends CliCommand["name"],
   Result = undefined,
->(name: Name, args?: CliCommandArgs<Name>) {
+>(name: Name, args?: CliCommandArgs<Name>): Promise<Result> {
+  if (!socketPath) {
+    throw new Error("Run this command from a Conduit terminal.");
+  }
+
   // Build the CLI request message.
   const command = { name, args } as CliCommand;
   const request = JSON.stringify({
@@ -45,5 +49,6 @@ export async function sendCliCommand<
     throw new Error(response.error);
   }
 
-  return response.result;
+  // Commands without a result respond without one, so Result is undefined.
+  return response.result as Result;
 }

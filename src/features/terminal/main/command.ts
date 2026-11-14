@@ -157,10 +157,12 @@ const pickActiveCommand = (
 
   const childMap = new Map<number, ProcessInfo[]>();
   for (const entry of processes) {
-    if (!childMap.has(entry.ppid)) {
-      childMap.set(entry.ppid, []);
+    const siblings = childMap.get(entry.ppid);
+    if (siblings) {
+      siblings.push(entry);
+    } else {
+      childMap.set(entry.ppid, [entry]);
     }
-    childMap.get(entry.ppid).push(entry);
   }
 
   const visited = new Set<number>([shellPid]);

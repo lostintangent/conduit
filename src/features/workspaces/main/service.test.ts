@@ -85,3 +85,21 @@ describe("workspaces.saveWorkspace", () => {
     }
   });
 });
+
+describe("workspaces.renameWorkspace", () => {
+  it("rejects instead of resolving empty when the new name is taken", async () => {
+    await service.saveWorkspace("Alpha", [], undefined);
+    await service.saveWorkspace("Beta", [], undefined);
+
+    await expect(service.renameWorkspace("Alpha", "Beta")).rejects.toThrow(
+      'Workspace "Beta" already exists',
+    );
+    await expect(service.renameWorkspace("Alpha", "Gamma")).resolves.toEqual(
+      expect.objectContaining({
+        workspaces: expect.arrayContaining([
+          expect.objectContaining({ name: "Gamma" }),
+        ]),
+      }),
+    );
+  });
+});

@@ -19,7 +19,7 @@ export const isHttpUrl = (s: string) =>
 export const isFileUrl = (s: string) => s.startsWith("file://");
 
 /** Get CWD from a pane (only terminal/editor have CWD) */
-export const getPaneCwd = (pane: Pane): string | undefined =>
+export const getPaneCwd = (pane: Pane): string | null | undefined =>
   pane.type === "terminal" || pane.type === "editor" ? pane.cwd : undefined;
 
 /** Creates a terminal pane from a template pane definition */
