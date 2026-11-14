@@ -73,7 +73,7 @@ vi.mock("@/store/actions/notifications", () => ({
 import { useEffect, useState } from "react";
 import { FileTreeChanges as FileTreeChangesView } from "./FileTreeChanges";
 
-// Supplies gitStatus from the mocked git API the way EditorPaneV2 does
+// Supplies gitStatus from the mocked git API the way EditorPane does
 function FileTreeChanges(props) {
   const [gitStatus, setGitStatus] = useState(undefined);
   useEffect(() => {

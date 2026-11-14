@@ -1,5 +1,5 @@
 /**
- * EditorPane - Main editor panel that orchestrates editor components.
+ * EditorPanel - Main editor panel that orchestrates editor components.
  *
  * This is the top-level component for the editor view. It coordinates:
  * - RegularEditorWrapper (for regular editing)
@@ -16,7 +16,7 @@
  *
  * @example
  * ```tsx
- * <EditorPane
+ * <EditorPanel
  *   editorId="main-editor"
  *   cwd="/project"
  *   git={git}
@@ -75,7 +75,7 @@ function toDisplayPath(filePath: string, cwd: string): string {
     : filePath;
 }
 
-export interface EditorPaneProps {
+export interface EditorPanelProps {
   /** Unique ID for the editor instance */
   editorId: string;
 
@@ -180,7 +180,7 @@ export interface EditorPaneProps {
   // Unseen Tracking (shared state from parent)
   // ---------------------------------------------------------------------------
 
-  /** Unseen tracking state and functions (shared from EditorPaneV2) */
+  /** Unseen tracking state and functions (shared from EditorPane) */
   unseenTracking?: UnseenTrackingResult;
 
   // ---------------------------------------------------------------------------
@@ -209,7 +209,7 @@ export interface EditorPaneProps {
  *
  * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export const EditorPane = memo(function EditorPane({
+export const EditorPanel = memo(function EditorPanel({
   editorId,
   cwd,
   git,
@@ -243,7 +243,7 @@ export const EditorPane = memo(function EditorPane({
   isFileDirty,
   // Close handler
   onClose,
-}: EditorPaneProps) {
+}: EditorPanelProps) {
   // Editor instance state - using state instead of ref so changes trigger re-renders
   // This ensures useEditorActions re-subscribes when the editor changes
   const [editor, setEditor] =
@@ -476,7 +476,7 @@ export const EditorPane = memo(function EditorPane({
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
-        data-testid="editor-pane"
+        data-testid="editor-panel"
       >
         <ReviewWorkingPane
           cwd={cwd}
@@ -508,7 +508,7 @@ export const EditorPane = memo(function EditorPane({
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
-        data-testid="editor-pane"
+        data-testid="editor-panel"
       >
         <FileEditor
           layout="standalone"
@@ -542,7 +542,7 @@ export const EditorPane = memo(function EditorPane({
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
-        data-testid="editor-pane"
+        data-testid="editor-panel"
       >
         <ReviewCommitPane
           key={commitId}
@@ -589,7 +589,7 @@ export const EditorPane = memo(function EditorPane({
   return (
     <div
       className="flex flex-col h-full w-full bg-background"
-      data-testid="editor-pane"
+      data-testid="editor-panel"
     >
       {/* Toolbar */}
       <EditorToolbar

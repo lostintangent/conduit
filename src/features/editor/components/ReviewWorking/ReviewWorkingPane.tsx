@@ -76,7 +76,7 @@ export interface ReviewWorkingPaneProps {
   // File Change Tracking (shared state from parent)
   // ---------------------------------------------------------------------------
 
-  /** Unseen tracking state and functions (shared from EditorPaneV2) */
+  /** Unseen tracking state and functions (shared from EditorPane) */
   unseenTracking?: UnseenTrackingResult;
 
   // ---------------------------------------------------------------------------
@@ -182,10 +182,10 @@ export function ReviewWorkingPane({
     useExpandedFiles(allFilePaths, true);
 
   // ---------------------------------------------------------------------------
-  // Unseen Tracking (from parent EditorPaneV2)
+  // Unseen Tracking (from parent EditorPane)
   // ---------------------------------------------------------------------------
 
-  // Subscriptions are handled by useUnseenTracking in EditorPaneV2
+  // Subscriptions are handled by useUnseenTracking in EditorPane
   // This component just uses the tracking state
   const {
     isUnseen,

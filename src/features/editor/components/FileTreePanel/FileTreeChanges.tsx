@@ -669,7 +669,7 @@ export function FileTreeChanges({
       }
 
       // If a reverted file was untracked or added, it's deleted, and
-      // EditorPaneV2's git status sync effect selects the next file
+      // EditorPane's git status sync effect selects the next file
       revert(actualPaths, { onSuccess: followFocus() });
       clearSelection();
     },

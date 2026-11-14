@@ -4,7 +4,7 @@
  * Provides a vertical handle that users can drag to resize the file tree
  * panel width. Includes visual feedback on hover and during drag.
  *
- * Uses the same approach as v1 EditorPane:
+ * Approach:
  * - Always-visible 1px border
  * - Wider interactive area that highlights on hover/drag
  * - Position-based width calculation (not delta-based)
@@ -101,7 +101,7 @@ export function TreeResizer({
     // Using closest() instead of querySelector() to support multiple editors
     // in the global container pattern
     const container = resizerRef.current?.closest(
-      '[data-testid="editor-pane-v2"]',
+      '[data-testid="editor-pane"]',
     );
     if (!container) return;
 

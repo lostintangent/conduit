@@ -1,5 +1,5 @@
 /**
- * Shared constants for EditorPane components.
+ * Shared constants for EditorPanel components.
  *
  * These constants are used by both RegularEditorWrapper and DiffEditorWrapper
  * to ensure consistent behavior across editor types.

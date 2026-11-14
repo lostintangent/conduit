@@ -1,7 +1,7 @@
 /**
- * EditorPaneRegistry - Global registry for EditorPaneV2 instances.
+ * EditorPaneRegistry - Global registry for EditorPane instances.
  *
- * This singleton registry manages EditorPaneV2 component instances globally,
+ * This singleton registry manages EditorPane component instances globally,
  * enabling the "global container" pattern where editors are kept alive and
  * moved between containers rather than unmounted/remounted.
  *
@@ -11,7 +11,7 @@
  * 3. State loss during tab switches (scroll position, undo history)
  *
  * The pattern works as follows:
- * 1. EditorPaneV2 instances are rendered in a GlobalEditorContainer at app root
+ * 1. EditorPane instances are rendered in a GlobalEditorContainer at app root
  * 2. EditorPaneAnchor components mark where editors should appear
  * 3. When an anchor mounts, the registry "attaches" the editor DOM to it
  * 4. When an anchor unmounts, the registry "detaches" (moves off-screen, not destroyed)
@@ -21,12 +21,12 @@
 
 import type { EditorPane } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
-import type { FileChangeData } from "../components/EditorPaneV2";
+import type { FileChangeData } from "../components/EditorPane";
 import { EventEmitter } from "@shared/EventEmitter";
 
 /**
- * Props required for an EditorPaneV2 instance.
- * This is a subset of EditorPaneV2Props that the registry tracks.
+ * Props required for an EditorPane instance.
+ * This is a subset of EditorPaneProps that the registry tracks.
  */
 export interface EditorPaneConfig {
   /** The pane configuration (cwd, filePath, changesViewMode, etc.) */
@@ -155,7 +155,7 @@ export type EditorPaneRegistryEvent =
 // ============================================================================
 
 /**
- * Singleton registry for EditorPaneV2 instances.
+ * Singleton registry for EditorPane instances.
  *
  * Manages the lifecycle of editor panes, including:
  * - Creation and disposal

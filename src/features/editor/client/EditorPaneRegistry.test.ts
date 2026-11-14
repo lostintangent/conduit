@@ -2,7 +2,7 @@
 /**
  * EditorPaneRegistry Tests
  *
- * Tests the global registry for EditorPaneV2 instances, including:
+ * Tests the global registry for EditorPane instances, including:
  * - Lifecycle management (create, attach, detach, dispose)
  * - Scroll persistence across DOM moves
  * - Visibility tracking and layout triggers

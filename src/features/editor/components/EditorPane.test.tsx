@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import { EditorPaneV2 } from "./EditorPaneV2";
+import { EditorPane } from "./EditorPane";
 import { GlobalEditorContainer } from "./GlobalEditorContainer";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { EditorPaneRegistry } from "../client/EditorPaneRegistry";
@@ -262,16 +262,16 @@ vi.mock("./FileTreePanel/BranchSelector", () => ({
   ),
 }));
 
-// Mock EditorPane
-vi.mock("./EditorPane/EditorPane", () => ({
-  EditorPane: ({
+// Mock EditorPanel
+vi.mock("./EditorPanel/EditorPanel", () => ({
+  EditorPanel: ({
     selectedFile,
     viewMode,
     onBack,
     onExitReview,
     onExitCommitMode,
   }) => (
-    <div data-testid="mock-editor-pane">
+    <div data-testid="mock-editor-panel">
       <button data-testid="back-button" onClick={onBack}>
         Back
       </button>
@@ -331,7 +331,7 @@ const TEST_PANE_WITH_FILE = {
 // Tests
 // ============================================================================
 
-describe("EditorPaneV2", () => {
+describe("EditorPane", () => {
   // Store original localStorage
   let originalLocalStorage: Storage;
 
@@ -381,7 +381,7 @@ describe("EditorPaneV2", () => {
     it("should not render tree resizer in single mode", () => {
       mockLayout.mockReturnValue("single");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       expect(screen.queryByTestId("mock-tree-resizer")).toBeNull();
     });
@@ -393,7 +393,7 @@ describe("EditorPaneV2", () => {
 
   describe("initial state", () => {
     it("should initialize with no file selected when pane has no filePath", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       expect(screen.getByTestId("editor-file-path").textContent).toBe(
         "no-file",
@@ -401,7 +401,7 @@ describe("EditorPaneV2", () => {
     });
 
     it("should initialize with file selected when pane has filePath", () => {
-      render(<EditorPaneV2 pane={TEST_PANE_WITH_FILE} />);
+      render(<EditorPane pane={TEST_PANE_WITH_FILE} />);
 
       expect(screen.getByTestId("editor-file-path").textContent).toBe(
         "/project/src/index.ts",
@@ -409,14 +409,14 @@ describe("EditorPaneV2", () => {
     });
 
     it("should initialize with editor view mode", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       expect(screen.getByTestId("editor-view-mode").textContent).toBe("editor");
     });
 
     it("should initialize tree view mode from pane treeMode", () => {
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
-      render(<EditorPaneV2 pane={paneWithChanges} />);
+      render(<EditorPane pane={paneWithChanges} />);
 
       expect(screen.getByTestId("tree-view-mode").textContent).toBe("changes");
     });
@@ -428,7 +428,7 @@ describe("EditorPaneV2", () => {
 
   describe("file selection", () => {
     it("should select the file and mark it seen when file is selected from tree", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       fireEvent.click(screen.getByTestId("select-file-button"));
 
@@ -445,7 +445,7 @@ describe("EditorPaneV2", () => {
 
   describe("tree view mode", () => {
     it("should toggle tree view mode", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       expect(screen.getByTestId("tree-view-mode").textContent).toBe("files");
 
@@ -455,7 +455,7 @@ describe("EditorPaneV2", () => {
     });
 
     it("should persist tree view mode to localStorage", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       fireEvent.click(screen.getByTestId("toggle-tree-mode"));
 
@@ -474,7 +474,7 @@ describe("EditorPaneV2", () => {
     it("should update tree width when resizer is used", () => {
       mockLayout.mockReturnValue("split");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       const resizer = screen.getByTestId("mock-tree-resizer");
       expect(resizer.textContent).toContain("220px"); // Default width
@@ -487,7 +487,7 @@ describe("EditorPaneV2", () => {
     it("should persist tree width to localStorage", () => {
       mockLayout.mockReturnValue("split");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       fireEvent.click(screen.getByTestId("mock-tree-resizer"));
 
@@ -506,7 +506,7 @@ describe("EditorPaneV2", () => {
     it("should show both panels in split mode", () => {
       mockLayout.mockReturnValue("split");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
@@ -518,7 +518,7 @@ describe("EditorPaneV2", () => {
     it("should show only tree panel initially in single mode", () => {
       mockLayout.mockReturnValue("single");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
@@ -530,7 +530,7 @@ describe("EditorPaneV2", () => {
     it("should swap the tree for review in single mode and back on exit", () => {
       mockLayout.mockReturnValue("single");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
 
@@ -548,7 +548,7 @@ describe("EditorPaneV2", () => {
       (openCommit) => {
         mockLayout.mockReturnValue("single");
 
-        render(<EditorPaneV2 pane={TEST_PANE} />);
+        render(<EditorPane pane={TEST_PANE} />);
         const treeContainer = screen.getByTestId("tree-container");
         const editorContainer = screen.getByTestId("editor-container");
 
@@ -571,7 +571,7 @@ describe("EditorPaneV2", () => {
       const onClearFile = vi.fn();
 
       render(
-        <EditorPaneV2
+        <EditorPane
           pane={{ ...TEST_PANE, treeMode: "changes" }}
           onClearFile={onClearFile}
         />,
@@ -606,7 +606,7 @@ describe("EditorPaneV2", () => {
       const clean = { files: new Map(), branch: "main" };
       reads.getStatus.mockResolvedValue(dirty);
 
-      render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
+      render(<EditorPane pane={{ ...TEST_PANE, treeMode: "changes" }} />);
       await reportStatus(dirty);
       const treeContainer = screen.getByTestId("tree-container");
 
@@ -628,7 +628,7 @@ describe("EditorPaneV2", () => {
     });
 
     it("should keep the tree in split mode while there's no file to show instead", async () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       const treeContainer = screen.getByTestId("tree-container");
 
       expect(screen.queryByTestId("collapse-toggle-button")).toBeNull();
@@ -643,7 +643,7 @@ describe("EditorPaneV2", () => {
     it("should toggle and reveal the tree in single mode", async () => {
       mockLayout.mockReturnValue("single");
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
       fireEvent.click(screen.getByTestId("select-file-button"));
@@ -685,14 +685,14 @@ describe("EditorPaneV2", () => {
     };
 
     it("moves focus into the editor when a file opens from the tree", async () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       await openFileFromTree();
 
       expect(document.activeElement).toBe(screen.getByTestId("editor-input"));
     });
 
     it("returns focus to where it was in the tree on back", async () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       const treeButton = await openFileFromTree();
 
       const back = screen.getByTestId("back-button");
@@ -705,7 +705,7 @@ describe("EditorPaneV2", () => {
     });
 
     it("returns focus to the row of a hover-only button that opened a commit", async () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       const viewCommit = screen.getByTestId("view-commit-button");
       viewCommit.focus();
       fireEvent.click(viewCommit);
@@ -732,7 +732,7 @@ describe("EditorPaneV2", () => {
       const clean = { files: new Map(), branch: "main" };
       reads.getStatus.mockResolvedValue(dirty);
 
-      render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
+      render(<EditorPane pane={{ ...TEST_PANE, treeMode: "changes" }} />);
       await reportStatus(dirty);
       const treeButton = await openFileFromTree("select-changes-file-button");
 
@@ -748,7 +748,7 @@ describe("EditorPaneV2", () => {
       const outside = document.body.appendChild(
         document.createElement("input"),
       );
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       const treeButton = screen.getByTestId("select-file-button");
       treeButton.focus();
       outside.focus();
@@ -763,7 +763,7 @@ describe("EditorPaneV2", () => {
     });
 
     it("doesn't take focus that the pane didn't have", async () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       fireEvent.click(screen.getByTestId("select-file-button"));
       await waitFor(() => {
@@ -781,7 +781,7 @@ describe("EditorPaneV2", () => {
     ])(
       "moves focus into the editor when %s collapses the tree it was in",
       async (_, button) => {
-        render(<EditorPaneV2 pane={TEST_PANE} />);
+        render(<EditorPane pane={TEST_PANE} />);
         const treeButton = screen.getByTestId("select-file-button");
         treeButton.focus();
         fireEvent.click(treeButton);
@@ -815,7 +815,7 @@ describe("EditorPaneV2", () => {
     it("should call onFileChange with file content when file is selected", async () => {
       const onFileChange = vi.fn();
 
-      render(<EditorPaneV2 pane={TEST_PANE} onFileChange={onFileChange} />);
+      render(<EditorPane pane={TEST_PANE} onFileChange={onFileChange} />);
 
       fireEvent.click(screen.getByTestId("select-file-button"));
 
@@ -833,7 +833,7 @@ describe("EditorPaneV2", () => {
       const onTreeModeChange = vi.fn();
 
       render(
-        <EditorPaneV2 pane={TEST_PANE} onTreeModeChange={onTreeModeChange} />,
+        <EditorPane pane={TEST_PANE} onTreeModeChange={onTreeModeChange} />,
       );
 
       fireEvent.click(screen.getByTestId("toggle-tree-mode"));
@@ -846,7 +846,7 @@ describe("EditorPaneV2", () => {
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
 
       render(
-        <EditorPaneV2
+        <EditorPane
           pane={paneWithChanges}
           onTreeModeChange={onTreeModeChange}
         />,
@@ -864,7 +864,7 @@ describe("EditorPaneV2", () => {
 
   describe("git-derived editor mode", () => {
     it("should fetch git status on mount", async () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       await waitFor(() => {
         expect(reads.getStatus).toHaveBeenCalledWith("/project");
@@ -883,7 +883,7 @@ describe("EditorPaneV2", () => {
       reads.getCurrentBranch.mockResolvedValue(null);
 
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
-      render(<EditorPaneV2 pane={paneWithChanges} />);
+      render(<EditorPane pane={paneWithChanges} />);
 
       // Initially starts in changes mode (from pane config)
       expect(screen.getByTestId("tree-view-mode").textContent).toBe("changes");
@@ -903,7 +903,7 @@ describe("EditorPaneV2", () => {
       reads.getCurrentBranch.mockResolvedValue("main");
 
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
-      render(<EditorPaneV2 pane={paneWithChanges} />);
+      render(<EditorPane pane={paneWithChanges} />);
 
       // Wait for git status to load
       await waitFor(() => {
@@ -923,7 +923,7 @@ describe("EditorPaneV2", () => {
       reads.getCurrentBranch.mockResolvedValue("main");
 
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
-      render(<EditorPaneV2 pane={paneWithChanges} />);
+      render(<EditorPane pane={paneWithChanges} />);
 
       // Wait for initial load
       await waitFor(() => {
@@ -946,7 +946,7 @@ describe("EditorPaneV2", () => {
       reads.getStatus.mockResolvedValue(null);
       reads.getCurrentBranch.mockResolvedValue(null);
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
 
       // Wait for git status to load
       await waitFor(() => {
@@ -969,7 +969,7 @@ describe("EditorPaneV2", () => {
         cwd: "/project/initial",
       };
 
-      const { rerender } = render(<EditorPaneV2 pane={initialPane} />);
+      const { rerender } = render(<EditorPane pane={initialPane} />);
 
       expect(screen.getByTestId("tree-cwd").textContent).toBe(
         "/project/initial",
@@ -982,7 +982,7 @@ describe("EditorPaneV2", () => {
       };
 
       await act(async () => {
-        rerender(<EditorPaneV2 pane={updatedPane} />);
+        rerender(<EditorPane pane={updatedPane} />);
       });
 
       expect(screen.getByTestId("tree-cwd").textContent).toBe(
@@ -1015,7 +1015,7 @@ describe("EditorPaneV2", () => {
       reads.getStatus.mockResolvedValue(staged);
       const call = hang();
       writes.commit.mockReturnValueOnce(call.promise);
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       await reportStatus(staged);
 
       fireEvent.change(screen.getByTestId("commit-message-input"), {
@@ -1042,7 +1042,7 @@ describe("EditorPaneV2", () => {
           new Map([changed("feature.ts"), changed("saved.ts")]),
         );
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       fireEvent.click(screen.getByTestId("select-branch-button"));
       await waitFor(() => {
         expect(screen.getByTestId("tree-git-status").textContent).toBe(
@@ -1078,7 +1078,7 @@ describe("EditorPaneV2", () => {
         }),
       );
 
-      render(<EditorPaneV2 pane={TEST_PANE} />);
+      render(<EditorPane pane={TEST_PANE} />);
       await waitFor(() => {
         expect(screen.getByTestId("tree-git-status").textContent).toBe(
           "head.ts",
@@ -1115,7 +1115,7 @@ describe("EditorPaneV2", () => {
         new Map([changed("feature.ts")]),
       );
 
-      render(<EditorPaneV2 pane={{ ...TEST_PANE, agentBaseBranch: "main" }} />);
+      render(<EditorPane pane={{ ...TEST_PANE, agentBaseBranch: "main" }} />);
       await waitFor(() => {
         expect(screen.getByTestId("tree-git-status").textContent).toBe(
           "feature.ts",
@@ -1138,7 +1138,7 @@ describe("EditorPaneV2", () => {
   describe("pane.file prop sync", () => {
     it("opens an image in preview when the pane mounts on it", () => {
       render(
-        <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
+        <EditorPane pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
       );
 
       expect(screen.getByTestId("editor-view-mode").textContent).toBe(
@@ -1148,13 +1148,13 @@ describe("EditorPaneV2", () => {
 
     it("switches to preview when pane.file changes to an image", async () => {
       const { rerender } = render(
-        <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/src/index.ts" }} />,
+        <EditorPane pane={{ ...TEST_PANE, file: "/project/src/index.ts" }} />,
       );
       expect(screen.getByTestId("editor-view-mode").textContent).toBe("editor");
 
       await act(async () => {
         rerender(
-          <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
+          <EditorPane pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
         );
       });
 
@@ -1170,7 +1170,7 @@ describe("EditorPaneV2", () => {
     // image's preview mode from carrying over to it
     it("opens the next file in the editor after an image", async () => {
       const { rerender } = render(
-        <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
+        <EditorPane pane={{ ...TEST_PANE, file: "/project/pixel.png" }} />,
       );
       expect(screen.getByTestId("editor-view-mode").textContent).toBe(
         "preview",
@@ -1178,7 +1178,7 @@ describe("EditorPaneV2", () => {
 
       await act(async () => {
         rerender(
-          <EditorPaneV2 pane={{ ...TEST_PANE, file: "/project/notes.md" }} />,
+          <EditorPane pane={{ ...TEST_PANE, file: "/project/notes.md" }} />,
         );
       });
 
@@ -1198,7 +1198,7 @@ describe("EditorPaneV2", () => {
       function EchoingParent() {
         const [file, setFile] = useState<string>();
         return (
-          <EditorPaneV2
+          <EditorPane
             pane={{ ...TEST_PANE, file }}
             onFileChange={(change) => setFile(change.file)}
           />
@@ -1224,7 +1224,7 @@ describe("EditorPaneV2", () => {
   });
 });
 
-describe("EditorPaneV2 in a tab", () => {
+describe("EditorPane in a tab", () => {
   const agentSession = {
     agentSessionId: "agent-1",
     agentBranchName: "agent/agent-1",
@@ -1291,7 +1291,7 @@ describe("EditorPaneV2 in a tab", () => {
   // Each agent pill has one Merge button
   const pills = () => document.querySelectorAll(".lucide-git-merge").length;
   const editorPills = () =>
-    screen.getByTestId("editor-pane-v2").querySelectorAll(".lucide-git-merge")
+    screen.getByTestId("editor-pane").querySelectorAll(".lucide-git-merge")
       .length;
 
   beforeEach(() => {
@@ -1337,7 +1337,7 @@ describe("EditorPaneV2 in a tab", () => {
   it("activates the editor's pane when the editor is clicked", () => {
     renderTab([terminal("term"), editor], row("term", "editor"));
 
-    fireEvent.mouseDown(screen.getByTestId("editor-pane-v2"));
+    fireEvent.mouseDown(screen.getByTestId("editor-pane"));
 
     expect(tabsAtom.get()[0].activePaneId).toBe("editor");
   });
@@ -1352,7 +1352,7 @@ describe("EditorPaneV2 in a tab", () => {
 
     fireEvent.click(
       screen
-        .getByTestId("editor-pane-v2")
+        .getByTestId("editor-pane")
         .querySelector(".lucide-git-merge")
         .closest("button"),
     );

@@ -1,5 +1,5 @@
 /**
- * EditorPaneAnchor - Lightweight anchor component for EditorPaneV2 placement.
+ * EditorPaneAnchor - Lightweight anchor component for EditorPane placement.
  *
  * This component implements the "anchor" pattern for the global editor container:
  * - Renders a container div that marks where an editor should appear
@@ -11,7 +11,7 @@
  *
  * @example
  * ```tsx
- * // Instead of rendering EditorPaneV2 directly:
+ * // Instead of rendering EditorPane directly:
  * <EditorPaneAnchor
  *   paneId="editor-1"
  *   pane={paneConfig}
@@ -24,7 +24,7 @@ import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import type { EditorPane } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { useEffect, useRef } from "react";
-import type { FileChangeData } from "./EditorPaneV2";
+import type { FileChangeData } from "./EditorPane";
 import {
   EditorPaneRegistry,
   type EditorPaneConfig,
@@ -80,7 +80,7 @@ export interface EditorPaneAnchorProps {
   /**
    * Callback fired when hover state changes on the editor.
    *
-   * Required for design mode hover detection. Since EditorPaneV2 renders via
+   * Required for design mode hover detection. Since EditorPane renders via
    * portal, standard mouse events don't bubble to parent components. This
    * callback propagates hover state from the editor back to the layout system.
    */
@@ -133,7 +133,7 @@ export interface EditorPaneAnchorProps {
 }
 
 /**
- * Anchor component that marks where an EditorPaneV2 should appear.
+ * Anchor component that marks where an EditorPane should appear.
  *
  * The actual editor content is rendered in GlobalEditorContainer and
  * moved to this anchor's container when mounted.

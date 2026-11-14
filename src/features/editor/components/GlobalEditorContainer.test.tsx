@@ -1,8 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@features/editor/components/EditorPaneV2", () => ({
-  EditorPaneV2: ({ pane }: { pane: { id: string } }) => {
+vi.mock("@features/editor/components/EditorPane", () => ({
+  EditorPane: ({ pane }: { pane: { id: string } }) => {
     if (pane.id === "broken") {
       throw new Error("Editor broke");
     }

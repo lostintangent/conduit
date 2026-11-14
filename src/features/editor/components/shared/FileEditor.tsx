@@ -2,7 +2,7 @@
  * FileEditor - Unified file editor component.
  *
  * Renders a file with its content and toolbar. Supports two layouts:
- * - "standalone": Full editor view with toolbar (used by EditorPane)
+ * - "standalone": Full editor view with toolbar (used by EditorPanel)
  * - "inline": Collapsible file in a list (used by ReviewWorkingPane/ReviewCommitPane)
  *
  * And three contexts:
@@ -66,9 +66,9 @@ import { canStageFile } from "../utils/stagingHelpers";
 import { commitFileToFileChange } from "../utils/gitStatusHelpers";
 import { joinCwdPath } from "../utils/pathUtils";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
-import { DiffEditorWrapper } from "../EditorPane/DiffEditorWrapper";
-import { EDITOR_MAX_HEIGHT } from "../EditorPane/constants";
-import { RegularEditorWrapper } from "../EditorPane/RegularEditorWrapper";
+import { DiffEditorWrapper } from "../EditorPanel/DiffEditorWrapper";
+import { EDITOR_MAX_HEIGHT } from "../EditorPanel/constants";
+import { RegularEditorWrapper } from "../EditorPanel/RegularEditorWrapper";
 import { EditorToolbar } from "../Toolbar/EditorToolbar";
 
 // ============================================================================

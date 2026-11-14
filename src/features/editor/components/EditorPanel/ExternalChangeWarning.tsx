@@ -9,8 +9,6 @@
  * - Reload: Discard local changes and reload from disk
  * - Keep My Changes: Dismiss warning and keep local changes
  * - Save: Save local changes to disk (useful for deleted files)
- *
- * Styling matches v1 EditorPane warning banner.
  */
 
 import { X } from "lucide-react";

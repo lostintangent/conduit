@@ -1,8 +1,8 @@
 /**
- * GlobalEditorContainer - Renders all EditorPaneV2 instances at app root level.
+ * GlobalEditorContainer - Renders all EditorPane instances at app root level.
  *
  * This component implements the "global container" pattern for editor panes:
- * - All EditorPaneV2 instances are rendered here, at the app root
+ * - All EditorPane instances are rendered here, at the app root
  * - Editors are positioned off-screen when not attached to a container
  * - When a tab becomes active, EditorPaneAnchor calls attach() to move the editor
  *
@@ -23,7 +23,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { EditorPaneV2 } from "./EditorPaneV2";
+import { EditorPane } from "./EditorPane";
 import {
   EditorPaneRegistry,
   type EditorPaneConfig,
@@ -39,10 +39,10 @@ interface EditorPaneEntry {
 }
 
 /**
- * Wrapper component for a single EditorPaneV2 instance.
+ * Wrapper component for a single EditorPane instance.
  *
  * Responsibilities:
- * - Renders EditorPaneV2 into the registry-owned wrapper element via portal
+ * - Renders EditorPane into the registry-owned wrapper element via portal
  * - Calls markReady() to signal that React has rendered
  *
  * The key insight: React renders INTO the wrapper element (via portal),
@@ -74,7 +74,7 @@ function EditorPaneWrapper({
   // React doesn't own the wrapper, so no DOM conflicts when registry moves it
   return createPortal(
     <ErrorBoundary onClose={config.onClose}>
-      <EditorPaneV2
+      <EditorPane
         pane={config.pane}
         onFileChange={config.onFileChange}
         onClearFile={config.onClearFile}
@@ -98,7 +98,7 @@ function EditorPaneWrapper({
 // ============================================================================
 
 /**
- * Global container for all EditorPaneV2 instances.
+ * Global container for all EditorPane instances.
  *
  * Renders at app root level and manages all editor panes globally.
  * Each EditorPaneWrapper renders into its registry-owned wrapper element via portal.

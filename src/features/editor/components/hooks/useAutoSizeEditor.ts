@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import type * as monaco from "monaco-editor";
-import { EDITOR_MIN_HEIGHT } from "../EditorPane/constants";
+import { EDITOR_MIN_HEIGHT } from "../EditorPanel/constants";
 
 export interface UseAutoSizeEditorOptions {
   /** Regular Monaco editor instance */

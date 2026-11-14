@@ -1,9 +1,9 @@
 /**
- * EditorPaneV2 - Main orchestrator for the Editor v2 system.
+ * EditorPane - Main orchestrator for the editor.
  *
  * This component ties together all the editor subsystems:
  * - FileTreePanel for file navigation
- * - EditorPane for file editing
+ * - EditorPanel for file editing
  * - TreeResizer for panel resizing
  *
  * It handles responsive layout switching between split and single modes,
@@ -11,7 +11,7 @@
  *
  * @example
  * ```tsx
- * <EditorPaneV2
+ * <EditorPane
  *   pane={{ id: "editor-1", type: "editor", cwd: "/project" }}
  * />
  * ```
@@ -36,7 +36,7 @@ import {
   useState,
 } from "react";
 import { BranchSelector } from "./FileTreePanel/BranchSelector";
-import { EditorPane } from "./EditorPane/EditorPane";
+import { EditorPanel } from "./EditorPanel/EditorPanel";
 import { FileDiffStatsProvider } from "./FileDiffStats/FileDiffStatsContext";
 import {
   FileTreePanel,
@@ -106,7 +106,7 @@ export interface FileChangeData {
   content?: string;
 }
 
-export interface EditorPaneV2Props {
+export interface EditorPaneProps {
   /** Editor pane configuration */
   pane: EditorPaneType;
 
@@ -144,7 +144,7 @@ export interface EditorPaneV2Props {
   /**
    * Callback fired when hover state changes (mouseenter/mouseleave on root element).
    *
-   * This is essential for design mode because EditorPaneV2 is rendered via React
+   * This is essential for design mode because EditorPane is rendered via React
    * portal in GlobalEditorContainer. Mouse events don't propagate across the portal
    * boundary in React's event system, so parent components can't detect hover via
    * their own event handlers. This callback bridges that gap.
@@ -197,7 +197,7 @@ const MAX_TREE_WIDTH = 500;
  * Manages the layout, state, and coordination between the file tree
  * and editor panels.
  */
-export function EditorPaneV2({
+export function EditorPane({
   pane,
   onFileChange,
   onClearFile,
@@ -210,7 +210,7 @@ export function EditorPaneV2({
   hideIndividualSandboxIndicator = false,
   tabId,
   onClose,
-}: EditorPaneV2Props) {
+}: EditorPaneProps) {
   const {
     cwd: initialCwd,
     file: initialFilePath,
@@ -1258,7 +1258,7 @@ export function EditorPaneV2({
           setPreviewContent(content);
         }
       } catch (error) {
-        console.error("[EditorPaneV2] Failed to load preview content:", error);
+        console.error("[EditorPane] Failed to load preview content:", error);
         if (!cancelled) {
           setPreviewContent("");
         }
@@ -1408,7 +1408,7 @@ export function EditorPaneV2({
       <div
         ref={containerRef}
         className="relative flex h-full w-full overflow-hidden bg-background"
-        data-testid="editor-pane-v2"
+        data-testid="editor-pane"
         onMouseEnter={() => onHover?.(true)}
         onMouseLeave={() => onHover?.(false)}
       >
@@ -1497,7 +1497,7 @@ export function EditorPaneV2({
           data-testid="editor-container"
           tabIndex={-1}
         >
-          <EditorPane
+          <EditorPanel
             editorId={editorId}
             cwd={currentCwd}
             git={git}

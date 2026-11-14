@@ -12,7 +12,7 @@ describe("TreeResizer", () => {
     const onResizeEnd = vi.fn();
     const tab = (mode: Mode) => (
       <Activity mode={mode}>
-        <div data-testid="editor-pane-v2">
+        <div data-testid="editor-pane">
           <TreeResizer
             currentWidth={250}
             onResize={onResize}

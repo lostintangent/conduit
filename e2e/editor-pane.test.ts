@@ -55,7 +55,7 @@ describe("editor pane", () => {
 
   afterAll(() => app?.close());
 
-  const pane = () => app.page.getByTestId("editor-pane-v2");
+  const pane = () => app.page.getByTestId("editor-pane");
   const tree = () => pane().getByTestId("tree-container");
   const fileTree = () => pane().getByRole("tree", { name: "File tree" });
   const changes = () => pane().getByRole("navigation");

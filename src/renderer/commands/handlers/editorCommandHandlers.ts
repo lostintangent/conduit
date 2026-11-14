@@ -2,7 +2,7 @@
  * Editor Command Handler Registry
  *
  * This module provides a registry pattern for editor pane commands.
- * It allows EditorPaneV2 components to register their handlers when mounted,
+ * It allows EditorPane components to register their handlers when mounted,
  * which can then be invoked by the command system.
  *
  * This approach keeps state local to the editor component while allowing
@@ -10,7 +10,7 @@
  *
  * @example
  * ```tsx
- * // In EditorPaneV2:
+ * // In EditorPane:
  * useEffect(() => {
  *   return registerEditorHandlers(pane.id, {
  *     toggleSidebar: handleToggleTree,
@@ -45,7 +45,7 @@ export interface EditorCommandHandlers {
 
 /**
  * Map of pane ID to registered handlers.
- * Each EditorPaneV2 instance registers its handlers here when mounted.
+ * Each EditorPane instance registers its handlers here when mounted.
  */
 const registeredHandlers = new Map<string, EditorCommandHandlers>();
 
