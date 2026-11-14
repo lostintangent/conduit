@@ -21,6 +21,7 @@
  */
 
 import type { CommitFile } from "@/api/GitV2API";
+import { cn } from "@/utils";
 import { GitCommit } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { FileEditor } from "../shared";
@@ -60,6 +61,12 @@ export interface ReviewCommitPaneProps {
   /** Commit metadata for the header */
   commitMetadata?: CommitMetadata;
 
+  /** Whether the commit is still loading */
+  isLoading?: boolean;
+
+  /** Why the commit failed to load */
+  error?: string | null;
+
   /** Callback when close button is clicked */
   onClose?: () => void;
 }
@@ -77,6 +84,8 @@ export function ReviewCommitPane({
   parentCommitId,
   files,
   commitMetadata,
+  isLoading = false,
+  error = null,
   onClose,
 }: ReviewCommitPaneProps) {
   // Sort files alphabetically
@@ -84,7 +93,8 @@ export function ReviewCommitPane({
     return [...files].sort((a, b) => a.path.localeCompare(b.path));
   }, [files]);
 
-  // Files start expanded, so track the ones the user collapsed
+  // Files start expanded, including those that arrive after the pane mounts
+  // while the commit loads
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(
     () => new Set(),
   );
@@ -102,19 +112,6 @@ export function ReviewCommitPane({
     });
   }, []);
 
-  // Empty state
-  if (files.length === 0) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2"
-        data-testid="commit-changes-pane-empty"
-      >
-        <GitCommit className="w-8 h-8 opacity-50" />
-        <span>No files in this commit</span>
-      </div>
-    );
-  }
-
   return (
     <div
       className="flex flex-col h-full overflow-hidden"
@@ -127,30 +124,51 @@ export function ReviewCommitPane({
         onClose={onClose}
       />
 
-      {/* Scrollable File List */}
-      <div className="flex-1 overflow-auto" data-testid="changes-list">
-        {sortedFiles.map((file) => (
-          <FileEditor
-            key={file.path}
-            layout="inline"
-            context="commit"
-            filePath={file.path}
-            cwd={cwd}
-            commitFile={file}
-            commitId={commitId}
-            parentCommitId={parentCommitId}
-            isExpanded={!collapsedFiles.has(file.path)}
-            onToggle={() => toggleFile(file.path)}
-          />
-        ))}
-      </div>
+      {isLoading || error ? (
+        <div
+          className={cn(
+            "flex flex-1 items-center justify-center text-sm",
+            error ? "text-destructive" : "text-muted-foreground",
+          )}
+        >
+          {error ?? "Loading commit details..."}
+        </div>
+      ) : (
+        <>
+          {files.length === 0 ? (
+            <div
+              className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground"
+              data-testid="commit-changes-pane-empty"
+            >
+              <GitCommit className="w-8 h-8 opacity-50" />
+              <span>No files in this commit</span>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-auto" data-testid="changes-list">
+              {sortedFiles.map((file) => (
+                <FileEditor
+                  key={file.path}
+                  layout="inline"
+                  context="commit"
+                  filePath={file.path}
+                  cwd={cwd}
+                  commitFile={file}
+                  commitId={commitId}
+                  parentCommitId={parentCommitId}
+                  isExpanded={!collapsedFiles.has(file.path)}
+                  onToggle={() => toggleFile(file.path)}
+                />
+              ))}
+            </div>
+          )}
 
-      {/* Footer */}
-      <ReviewCommitPaneFooter
-        fileCount={files.length}
-        author={commitMetadata?.author}
-        timestamp={commitMetadata?.timestamp}
-      />
+          <ReviewCommitPaneFooter
+            fileCount={files.length}
+            author={commitMetadata?.author}
+            timestamp={commitMetadata?.timestamp}
+          />
+        </>
+      )}
     </div>
   );
 }

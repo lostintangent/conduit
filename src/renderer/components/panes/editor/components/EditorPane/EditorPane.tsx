@@ -566,30 +566,6 @@ export const EditorPane = memo(function EditorPane({
   if (viewMode.type === "commitReview" && git) {
     const { commitId, parentCommitId } = viewMode;
 
-    // Loading state
-    if (isCommitLoading) {
-      return (
-        <div
-          className="flex flex-col h-full w-full bg-background items-center justify-center text-muted-foreground"
-          data-testid="editor-pane"
-        >
-          Loading commit details...
-        </div>
-      );
-    }
-
-    // Error state
-    if (commitError) {
-      return (
-        <div
-          className="flex flex-col h-full w-full bg-background items-center justify-center text-destructive"
-          data-testid="editor-pane"
-        >
-          {commitError}
-        </div>
-      );
-    }
-
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
@@ -602,6 +578,8 @@ export const EditorPane = memo(function EditorPane({
           parentCommitId={parentCommitId}
           files={historicalFiles}
           commitMetadata={commitMetadata}
+          isLoading={isCommitLoading}
+          error={commitError}
           onClose={onExitCommitMode}
         />
       </div>

@@ -51,4 +51,29 @@ describe("ReviewCommitPane", () => {
 
     expect(expanded("b.ts")).toBe("true");
   });
+
+  it.each([
+    ["lists no files", {}, "No files in this commit"],
+    ["is loading", { isLoading: true }, "Loading commit details..."],
+    ["fails to load", { error: "Commit abc1234 not found" }, "not found"],
+  ])("keeps its back button when the commit %s", (_, props, text) => {
+    const onClose = vi.fn();
+    render(pane({ ...props, onClose }));
+
+    expect(screen.getByText(text, { exact: false })).toBeDefined();
+    fireEvent.click(screen.getByTestId("back-button"));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("expands files that arrive after it mounts", () => {
+    const { rerender } = render(pane({ isLoading: true }));
+
+    rerender(pane({ files: [file("a.ts"), file("b.ts")] }));
+
+    expect(expanded("a.ts")).toBe("true");
+    expect(expanded("b.ts")).toBe("true");
+    fireEvent.click(screen.getByTestId("file-a.ts"));
+    expect(expanded("a.ts")).toBe("false");
+    expect(expanded("b.ts")).toBe("true");
+  });
 });
