@@ -244,11 +244,11 @@ describe("duplicateTab", () => {
     const newTabs = tabsAtom.get();
 
     const newPane = Object.values(newTabs[1].panes)[0];
-    expect(newPane.type).toBe("editor");
-    if (newPane.type === "editor") {
-      expect(newPane.file).toBe("/home/user/project/index.ts");
-      expect(newPane.cwd).toBe("/home/user/project");
-    }
+    expect(newPane).toMatchObject({
+      type: "editor",
+      file: "/home/user/project/index.ts",
+      cwd: "/home/user/project",
+    });
   });
 
   it("should duplicate browser panes with same URL", async () => {
@@ -280,11 +280,11 @@ describe("duplicateTab", () => {
     const newTabs = tabsAtom.get();
 
     const newPane = Object.values(newTabs[1].panes)[0];
-    expect(newPane.type).toBe("browser");
-    if (newPane.type === "browser") {
-      expect(newPane.url).toBe("https://example.com");
-      expect(newPane.title).toBe("Example Site");
-    }
+    expect(newPane).toMatchObject({
+      type: "browser",
+      url: "https://example.com",
+      title: "Example Site",
+    });
   });
 
   it("should preserve agent session info in duplicated terminal panes", async () => {
@@ -327,12 +327,12 @@ describe("duplicateTab", () => {
     const newTabs = tabsAtom.get();
 
     const newPane = Object.values(newTabs[1].panes)[0];
-    expect(newPane.type).toBe("terminal");
-    if (newPane.type === "terminal") {
-      expect(newPane.agentSessionId).toBe("agent-1");
-      expect(newPane.agentBranchName).toBe("feature-branch");
-      expect(newPane.agentBaseBranch).toBe("main");
-    }
+    expect(newPane).toMatchObject({
+      type: "terminal",
+      agentSessionId: "agent-1",
+      agentBranchName: "feature-branch",
+      agentBaseBranch: "main",
+    });
   });
 
   it("should increment title number correctly", async () => {
@@ -583,12 +583,11 @@ describe("duplicateTab", () => {
     const newTabs = tabsAtom.get();
 
     const newTab = newTabs[1];
-    expect(newTab.layout.type).toBe("split");
-    if (newTab.layout.type === "split") {
-      expect(newTab.layout.direction).toBe("column");
-      expect(newTab.layout.children).toHaveLength(2);
-      expect(newTab.layout.children[1].type).toBe("split");
-    }
+    expect(newTab.layout).toMatchObject({
+      type: "split",
+      direction: "column",
+      children: [expect.anything(), { type: "split" }],
+    });
   });
 
   it("should handle tabs with no title gracefully", async () => {
