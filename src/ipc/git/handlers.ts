@@ -1085,15 +1085,6 @@ export function initializeGitV2Handlers(): void {
 
       subscriptions.set(subscriptionId, subscription);
 
-      // Clean up if window is destroyed
-      event.sender.once("destroyed", () => {
-        const sub = subscriptions.get(subscriptionId);
-        if (sub) {
-          sub.dispose();
-          subscriptions.delete(subscriptionId);
-        }
-      });
-
       return subscriptionId;
     },
   );
@@ -1164,14 +1155,11 @@ export function cleanupGitV2Handlers(): void {
 }
 
 /**
- * Handle window close event.
- *
- * Cleans up all subscriptions for the closing window.
- * Provider lifecycle is managed by the service's grace period.
- *
- * @param windowId - The ID of the window that closed
+ * Releases every subscription the window's page made, when that page reloads
+ * or the window closes. Provider lifecycle is managed by the service's grace
+ * period, so a reloaded page that subscribes again reuses the same watchers.
  */
-export function handleGitWindowClose(windowId: number): void {
+export function releaseGitSubscriptions(windowId: number): void {
   for (const [id, subscription] of subscriptions) {
     if (subscription.windowId === windowId) {
       try {

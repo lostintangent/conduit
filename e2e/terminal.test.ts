@@ -1,6 +1,21 @@
+import fs from "node:fs";
+import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Locator } from "playwright-core";
-import { type Conduit, launch, type Terminal, until } from "./app";
+import { type Conduit, git, launch, type Terminal, until } from "./app";
+
+/** The part of the window's API that watches files and repos. */
+interface Watching {
+  fs: {
+    subscribe(cwd: string, type: "file"): Promise<string>;
+    onFileContentChanged(listener: (event: SubscriptionEvent) => void): void;
+  };
+  git: {
+    subscribe(cwd: string): Promise<string | null>;
+    onStatusChanged(listener: (event: SubscriptionEvent) => void): void;
+  };
+}
+type SubscriptionEvent = { subscriptionId: string };
 
 describe("terminal and CLI", () => {
   let app: Conduit;
@@ -89,9 +104,7 @@ describe("terminal and CLI", () => {
   });
 
   it("closes the page's shells when it reloads", async () => {
-    const shell = await app.terminal();
-    expect(await shell.run("echo pid-$$")).toBe(0);
-    const pid = Number((await shell.text()).match(/^pid-(\d+)$/m)?.[1]);
+    const pid = await shellPid(await app.terminal());
     expect(isRunning(pid)).toBe(true);
 
     await app.page.reload();
@@ -99,11 +112,58 @@ describe("terminal and CLI", () => {
     await until(() => !isRunning(pid), "the old page's shell to exit");
   });
 
+  it("stops notifying the page's file and git subscriptions when it reloads", async () => {
+    const repo = path.join(app.home, "watched");
+    fs.mkdirSync(repo);
+    git(repo, "init", "-q");
+    const subscribe = () =>
+      app.page.evaluate(async (cwd) => {
+        const { conduit } = window as unknown as { conduit: Watching };
+        return [
+          await conduit.fs.subscribe(cwd, "file"),
+          await conduit.git.subscribe(cwd),
+        ];
+      }, repo);
+    const before = await subscribe();
+
+    await app.page.reload();
+    await app.page.waitForFunction(() => "conduit" in window);
+    await app.page.evaluate(() => {
+      const scope = window as unknown as {
+        conduit: Watching;
+        notified: string[];
+      };
+      scope.notified = [];
+      const record = ({ subscriptionId }: SubscriptionEvent) =>
+        scope.notified.push(subscriptionId);
+      scope.conduit.fs.onFileContentChanged(record);
+      scope.conduit.git.onStatusChanged(record);
+    });
+    const after = await subscribe();
+
+    // The old page's subscriptions listen to the same watchers, ahead of the
+    // new page's, so they'd have been notified by the time those are.
+    fs.writeFileSync(path.join(repo, "new.txt"), "");
+    const notified = await until(async () => {
+      const ids = await app.page.evaluate(
+        () => (window as unknown as { notified: string[] }).notified,
+      );
+      return after.every((id) => ids.includes(id!)) && ids;
+    }, "the new page's subscriptions to see a new file");
+    expect(notified).not.toContain(before[0]);
+    expect(notified).not.toContain(before[1]);
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);
   });
 });
+
+async function shellPid(shell: Terminal) {
+  expect(await shell.run("echo pid-$$")).toBe(0);
+  return Number((await shell.text()).match(/^pid-(\d+)$/m)?.[1]);
+}
 
 function isRunning(pid: number) {
   try {

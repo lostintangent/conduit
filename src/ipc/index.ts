@@ -8,14 +8,14 @@ import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { startFeatures } from "./features";
 import {
   cleanupFileSystemV2Handlers,
-  handleWindowClose as handleFsWindowClose,
   initializeFileSystemV2Handlers,
+  releaseFileSystemSubscriptions,
 } from "./fs/handlers";
 import { unwatchAll } from "./fs/ParcelFileWatcher";
 import {
   cleanupGitV2Handlers,
-  handleGitWindowClose,
   initializeGitV2Handlers,
+  releaseGitSubscriptions,
 } from "./git/handlers";
 import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
 
@@ -48,20 +48,21 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeFileSystemV2Handlers();
   initializeGitV2Handlers();
 
-  // Clean up providers when window closes
-  // Capture windowId now since webContents won't be accessible in "closed" event
+  // Captured now, since webContents is gone by the time the window closes.
   const windowId = window.webContents.id;
-  window.on("closed", () => {
-    handleFsWindowClose(windowId);
-    handleGitWindowClose(windowId);
-  });
+  const releaseSubscriptions = () => {
+    releaseFileSystemSubscriptions(windowId);
+    releaseGitSubscriptions(windowId);
+  };
+  window.on("closed", releaseSubscriptions);
 
-  // A reloaded page starts its own shells and never reattaches to the old
-  // page's, which would otherwise run unseen until quit. Navigations that
-  // `will-navigate` blocks never commit, so they don't count.
+  // A reloaded page starts its own shells and subscriptions and never
+  // reattaches to the old page's, which would otherwise run unseen until quit.
+  // Navigations that `will-navigate` blocks never commit, so they don't count.
   let hasLoaded = false;
   window.webContents.on("did-navigate", () => {
     if (hasLoaded) {
+      releaseSubscriptions();
       closeTerminals().catch((error) =>
         console.error("Failed to close the reloaded page's terminals", error),
       );
