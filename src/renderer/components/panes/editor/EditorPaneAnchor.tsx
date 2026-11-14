@@ -26,17 +26,7 @@ import type { ChangesViewMode } from "@shared/types";
 import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
 import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
-
-// Monaco's text input (the left side of a diff editor is read-only)
-const MONACO_INPUT_SELECTOR = [".native-edit-context", "textarea.inputarea"]
-  .map(
-    (input) => `.monaco-editor:not(.original-in-monaco-diff-editor) ${input}`,
-  )
-  .join(", ");
-
-// The file tree's roving tab stop
-const TREE_TAB_STOP_SELECTOR =
-  '[role="tree"][tabindex="0"], [role="treeitem"] > [tabindex="0"]';
+import { findEditorInput, findTreeTabStop } from "./utils/focusTargets";
 
 export interface EditorPaneAnchorProps {
   /**
@@ -162,10 +152,8 @@ export function EditorPaneAnchor({
       lastFocused.checkVisibility();
     const target =
       (canReturn ? lastFocused : null) ??
-      findVisible(container, MONACO_INPUT_SELECTOR) ??
-      (settled || !lastFocused
-        ? findVisible(container, TREE_TAB_STOP_SELECTOR)
-        : null);
+      findEditorInput(container) ??
+      (settled || !lastFocused ? findTreeTabStop(container) : null);
     target?.focus({ preventScroll: true });
   });
 
@@ -296,12 +284,4 @@ export function EditorPaneAnchor({
 export function disposeEditorPane(paneId: string): void {
   const registry = EditorPaneRegistry.getInstance();
   registry.dispose(paneId);
-}
-
-function findVisible(container: HTMLElement, selector: string) {
-  return (
-    [...container.querySelectorAll<HTMLElement>(selector)].find((element) =>
-      element.checkVisibility(),
-    ) ?? null
-  );
 }

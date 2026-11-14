@@ -140,14 +140,16 @@ vi.mock(
         <button data-testid="review-changes-button" onClick={onReviewChanges}>
           Review
         </button>
-        <button
-          data-testid="view-commit-button"
-          onClick={() =>
-            onViewCommit({ commitId: "abc1234", parentCommitId: "def5678" })
-          }
-        >
-          View Commit
-        </button>
+        <div data-testid="commit-row" tabIndex={0}>
+          <button
+            data-testid="view-commit-button"
+            onClick={() =>
+              onViewCommit({ commitId: "abc1234", parentCommitId: "def5678" })
+            }
+          >
+            View Commit
+          </button>
+        </div>
         <button
           data-testid="select-commit-file-button"
           onClick={() =>
@@ -227,10 +229,14 @@ vi.mock(
     EditorPane: ({
       selectedFile,
       viewMode,
+      onBack,
       onExitReview,
       onExitCommitMode,
     }) => (
       <div data-testid="mock-editor-pane">
+        <button data-testid="back-button" onClick={onBack}>
+          Back
+        </button>
         <button data-testid="exit-review-button" onClick={onExitReview}>
           Exit Review
         </button>
@@ -241,6 +247,11 @@ vi.mock(
           {selectedFile?.path ?? "no-file"}
         </span>
         <span data-testid="editor-view-mode">{viewMode.type}</span>
+        {selectedFile && (
+          <div className="monaco-editor">
+            <textarea className="inputarea" data-testid="editor-input" />
+          </div>
+        )}
       </div>
     ),
   }),
@@ -556,6 +567,115 @@ describe("EditorPaneV2", () => {
       });
       expect(treeContainer.classList.contains("hidden")).toBe(false);
       expect(editorContainer.classList.contains("hidden")).toBe(true);
+    });
+  });
+
+  // ===========================================================================
+  // Focus in a single layout
+  // ===========================================================================
+
+  describe("focus in a single layout", () => {
+    beforeEach(() => {
+      mockLayout.mockReturnValue("single");
+    });
+
+    const openFileFromTree = async (button = "select-file-button") => {
+      const treeButton = screen.getByTestId(button);
+      treeButton.focus();
+      fireEvent.click(treeButton);
+      await waitFor(() => {
+        expect(document.activeElement).toBe(screen.getByTestId("editor-input"));
+      });
+      return treeButton;
+    };
+
+    it("moves focus into the editor when a file opens from the tree", async () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      await openFileFromTree();
+
+      expect(document.activeElement).toBe(screen.getByTestId("editor-input"));
+    });
+
+    it("returns focus to where it was in the tree on back", async () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      const treeButton = await openFileFromTree();
+
+      const back = screen.getByTestId("back-button");
+      back.focus();
+      fireEvent.click(back);
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(treeButton);
+      });
+    });
+
+    it("returns focus to the row of a hover-only button that opened a commit", async () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      const viewCommit = screen.getByTestId("view-commit-button");
+      viewCommit.focus();
+      fireEvent.click(viewCommit);
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          screen.getByTestId("editor-container"),
+        );
+      });
+
+      // The pointer has left the row, which hides its buttons
+      viewCommit.style.display = "none";
+      const exit = screen.getByTestId("exit-commit-button");
+      exit.focus();
+      fireEvent.click(exit);
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(screen.getByTestId("commit-row"));
+      });
+    });
+
+    it("returns focus to the tree when the file it was in is committed away", async () => {
+      const modified = { path: "test.ts", status: "modified", staged: false };
+      const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
+      const clean = { files: new Map(), branch: "main" };
+      mockGit.getStatus.mockResolvedValue(dirty);
+
+      render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
+      await reportStatus(dirty);
+      const treeButton = await openFileFromTree("select-changes-file-button");
+
+      mockGit.getStatus.mockResolvedValue(clean);
+      await reportStatus(clean);
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(treeButton);
+      });
+    });
+
+    it("leaves focus alone when it isn't on the side that hid", async () => {
+      const outside = document.body.appendChild(
+        document.createElement("input"),
+      );
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      const treeButton = screen.getByTestId("select-file-button");
+      treeButton.focus();
+      outside.focus();
+
+      fireEvent.click(treeButton);
+      await waitFor(() => {
+        expect(screen.getByTestId("editor-input")).toBeDefined();
+      });
+
+      expect(document.activeElement).toBe(outside);
+      outside.remove();
+    });
+
+    it("doesn't take focus that the pane didn't have", async () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      fireEvent.click(screen.getByTestId("select-file-button"));
+      await waitFor(() => {
+        expect(screen.getByTestId("editor-input")).toBeDefined();
+      });
+
+      expect(document.activeElement).toBe(document.body);
     });
   });
 

@@ -63,6 +63,7 @@ import {
   useUnseenTracking,
 } from "./hooks";
 import { isImageFile } from "./hooks/useImagePreview";
+import { useFocusFollowsSide } from "./hooks/useFocusFollowsSide";
 import { MonacoModelRegistry, createModelKey } from "./registry";
 import type { FileNode, TreeViewMode, ViewMode } from "./types";
 import {
@@ -261,6 +262,7 @@ export function EditorPaneV2({
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const treePanelRef = useRef<HTMLDivElement>(null);
+  const editorPanelRef = useRef<HTMLDivElement>(null);
   const fileTreeRef = useRef<FileTreePanelHandle>(null);
 
   // ---------------------------------------------------------------------------
@@ -1476,6 +1478,16 @@ export function EditorPaneV2({
       : !isTreeCollapsed;
   const showEditor = hideFileTree || layout === "split" || showSingleEditor;
 
+  useFocusFollowsSide(
+    layout === "single" && !hideFileTree
+      ? showTree
+        ? "tree"
+        : "editor"
+      : null,
+    treePanelRef,
+    editorPanelRef,
+  );
+
   return (
     <FileDiffStatsProvider git={git} fs={fs}>
       <div
@@ -1493,7 +1505,7 @@ export function EditorPaneV2({
         <div
           ref={treePanelRef}
           className={cn(
-            "flex-shrink-0 h-full overflow-hidden",
+            "flex-shrink-0 h-full overflow-hidden outline-none",
             !showTree && "hidden",
           )}
           style={{
@@ -1571,11 +1583,13 @@ export function EditorPaneV2({
 
         {/* Editor View Panel */}
         <div
+          ref={editorPanelRef}
           className={cn(
-            "flex-1 min-w-0 h-full overflow-hidden",
+            "flex-1 min-w-0 h-full overflow-hidden outline-none",
             layout === "single" && !showEditor && "hidden",
           )}
           data-testid="editor-container"
+          tabIndex={-1}
         >
           <EditorPane
             editorId={editorId}
