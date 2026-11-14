@@ -4,13 +4,6 @@ vi.hoisted(() => {
   (window as any).conduit = { terminal: {} };
 });
 
-vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@features/terminal/client/xtermCache")
-  >()),
-  getTerminalSize: () => ({ cols: 120, rows: 40 }),
-}));
-
 import { launchAgents } from "@/agents/worktreeLauncher";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";

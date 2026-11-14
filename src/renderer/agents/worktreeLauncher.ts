@@ -125,7 +125,6 @@ export async function launchAgents(
     );
 
     const { openTabFromExistingSession } = await import("@/store/actions/tab");
-    // Its tab may be split for more instances, so no other pane's size fits.
     const firstTerminal = await api.terminal.create({
       cwd: firstCwd,
       command: firstCommand,

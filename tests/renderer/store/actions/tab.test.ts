@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use hoisted pattern to ensure all mocks are set up before modules load
-const { mockApi, getTerminalSize } = vi.hoisted(() => {
+const { mockApi } = vi.hoisted(() => {
   const mockApi = {
     terminal: {
       create: vi.fn(),
@@ -17,22 +17,12 @@ const { mockApi, getTerminalSize } = vi.hoisted(() => {
     conduit: mockApi,
   };
 
-  return {
-    mockApi,
-    getTerminalSize: vi.fn(),
-  };
+  return { mockApi };
 });
 
 // Mock focusTab action
 vi.mock("@/store/actions/focusMode", () => ({
   focusTab: vi.fn(),
-}));
-
-vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@features/terminal/client/xtermCache")
-  >()),
-  getTerminalSize,
 }));
 
 // Import after setting up mocks
@@ -122,7 +112,6 @@ describe("translateFilePath", () => {
 describe("duplicateTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getTerminalSize.mockReset();
     tabsAtom.set([]);
   });
 
@@ -249,64 +238,7 @@ describe("duplicateTab", () => {
     expect(Object.keys(newTabs[1].panes)).toHaveLength(2);
   });
 
-  it("starts each copied terminal at its source pane's size", async () => {
-    tabsAtom.set([
-      {
-        id: "tab-1",
-        name: "Split View",
-        activePaneId: "pane-1",
-        panes: {
-          "pane-1": {
-            id: "pane-1",
-            type: "terminal",
-            sessionId: "session-1",
-            cwd: "/home/user",
-            title: "zsh",
-          },
-          "pane-2": {
-            id: "pane-2",
-            type: "terminal",
-            sessionId: "session-2",
-            cwd: "/home/user",
-            title: "zsh",
-          },
-        },
-        layout: {
-          id: "layout-1",
-          type: "split",
-          direction: "row",
-          children: [
-            { id: "layout-2", type: "pane", paneId: "pane-1" },
-            { id: "layout-3", type: "pane", paneId: "pane-2" },
-          ],
-        },
-      },
-    ]);
-    getTerminalSize.mockImplementation((paneId: string) =>
-      paneId === "pane-1" ? { cols: 62, rows: 45 } : { cols: 61, rows: 44 },
-    );
-    mockApi.terminal.captureCommand.mockResolvedValue(null);
-    mockApi.terminal.create.mockResolvedValue({
-      sessionId: "session-3",
-      cwd: "/home/user",
-      title: "zsh",
-    });
-
-    await duplicateTab("tab-1");
-
-    expect(mockApi.terminal.create).toHaveBeenNthCalledWith(1, {
-      cwd: "/home/user",
-      cols: 62,
-      rows: 45,
-    });
-    expect(mockApi.terminal.create).toHaveBeenNthCalledWith(2, {
-      cwd: "/home/user",
-      cols: 61,
-      rows: 44,
-    });
-  });
-
-  it("starts a copied pane it can't measure, like a collapsed one, once the copy has fit", async () => {
+  it("starts every copied terminal once the copy has fit, with collapsed panes expanded", async () => {
     tabsAtom.set([
       {
         id: "tab-1",
@@ -339,9 +271,6 @@ describe("duplicateTab", () => {
         },
       },
     ]);
-    getTerminalSize.mockImplementation((paneId: string) =>
-      paneId === "pane-1" ? { cols: 127, rows: 45 } : undefined,
-    );
     mockApi.terminal.captureCommand.mockResolvedValue(null);
     mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-3",
@@ -353,8 +282,7 @@ describe("duplicateTab", () => {
 
     expect(mockApi.terminal.create).toHaveBeenNthCalledWith(1, {
       cwd: "/home/user",
-      cols: 127,
-      rows: 45,
+      waitForSize: true,
     });
     expect(mockApi.terminal.create).toHaveBeenNthCalledWith(2, {
       cwd: "/home/user",
@@ -938,7 +866,6 @@ describe("duplicateTab", () => {
 describe("openTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getTerminalSize.mockReset();
   });
 
   afterEach(() => {
@@ -946,44 +873,7 @@ describe("openTab", () => {
     activeTabIdAtom.set(null);
   });
 
-  it("starts the new terminal at the active pane's size", async () => {
-    tabsAtom.set([
-      {
-        id: "tab-1",
-        name: "Tab",
-        activePaneId: "pane-1",
-        panes: {
-          "pane-1": {
-            id: "pane-1",
-            type: "terminal",
-            sessionId: "session-1",
-            cwd: "/home/user",
-            title: "zsh",
-          },
-        },
-        layout: { id: "layout-1", type: "pane", paneId: "pane-1" },
-      },
-    ]);
-    activeTabIdAtom.set("tab-1");
-    getTerminalSize.mockImplementation((paneId: string) =>
-      paneId === "pane-1" ? { cols: 127, rows: 45 } : undefined,
-    );
-    mockApi.terminal.create.mockResolvedValue({
-      sessionId: "session-2",
-      cwd: "/home/user",
-      title: "zsh",
-    });
-
-    await openTab();
-
-    expect(mockApi.terminal.create).toHaveBeenCalledWith({
-      cwd: "/home/user",
-      cols: 127,
-      rows: 45,
-    });
-  });
-
-  it("starts the new terminal once it has fit when the active tab is split", async () => {
+  it("starts the new terminal in the active pane's folder once it has fit", async () => {
     const shell = (id: string) => ({
       id,
       type: "terminal" as const,
@@ -1009,7 +899,6 @@ describe("openTab", () => {
       },
     ]);
     activeTabIdAtom.set("tab-1");
-    getTerminalSize.mockReturnValue({ cols: 62, rows: 45 });
     mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-3",
       cwd: "/home/user",
@@ -1042,7 +931,6 @@ describe("openTab", () => {
 describe("openTabFromExistingAgentSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getTerminalSize.mockReset();
   });
 
   afterEach(() => {
@@ -1050,7 +938,7 @@ describe("openTabFromExistingAgentSession", () => {
     activeTabIdAtom.set(null);
   });
 
-  it("starts the worktree's terminal once its tab has fit when no pane can be measured", async () => {
+  it("starts the worktree's terminal once its tab has fit", async () => {
     mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-1",
       cwd: "/repo/.worktrees/fix",

@@ -1,32 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  createTerminal,
-  spawnAgentSession,
-  getTerminalCellWidth,
-  getTerminalSize,
-} = vi.hoisted(() => {
+const { createTerminal, spawnAgentSession } = vi.hoisted(() => {
   const createTerminal = vi.fn();
   const spawnAgentSession = vi.fn();
   (window as any).conduit = {
     terminal: { create: createTerminal },
     spawnAgentSession,
   };
-  return {
-    createTerminal,
-    spawnAgentSession,
-    getTerminalCellWidth: vi.fn(),
-    getTerminalSize: vi.fn(),
-  };
+  return { createTerminal, spawnAgentSession };
 });
-
-vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@features/terminal/client/xtermCache")
-  >()),
-  getTerminalCellWidth,
-  getTerminalSize,
-}));
 
 import {
   dropPane,
@@ -150,78 +132,11 @@ describe("splitPane", () => {
   beforeEach(() => {
     createTerminal.mockReset();
     createTerminal.mockResolvedValue({ sessionId: "new", title: "zsh" });
-    getTerminalSize.mockReset();
-    getTerminalSize.mockReturnValue({ cols: 127, rows: 45 });
-    // Menlo's advance at the default 13px font.
-    getTerminalCellWidth.mockReset();
-    getTerminalCellWidth.mockReturnValue(7.82);
   });
 
-  it("starts a right split a little narrower than half the pane", async () => {
-    setTab(leaf("a"), ["a"]);
-
-    await splitPane("tab-1", "a", "row");
-
-    expect(createTerminal).toHaveBeenCalledWith({
-      cwd: "/home/user",
-      cols: 61,
-      rows: 45,
-    });
-  });
-
-  it("starts a down split at half the pane's rows and its full width", async () => {
-    setTab(leaf("a"), ["a"]);
-
-    await splitPane("tab-1", "a", "column");
-
-    expect(createTerminal).toHaveBeenCalledWith({
-      cwd: "/home/user",
-      cols: 127,
-      rows: 22,
-    });
-  });
-
-  it("leaves more columns at small fonts, where the chrome spans more of them", async () => {
-    // Measured at 9px: a 184-column pane splits into two of 89.
-    setTab(leaf("a"), ["a"]);
-    getTerminalSize.mockReturnValue({ cols: 184, rows: 68 });
-    getTerminalCellWidth.mockReturnValue(5.42);
-
-    await splitPane("tab-1", "a", "row");
-
-    expect(createTerminal).toHaveBeenCalledWith({
-      cwd: "/home/user",
-      cols: 89,
-      rows: 68,
-    });
-  });
-
-  it("scales by the new pane's weight when it joins the pane's own row", async () => {
-    // "a" has 3/4 of the row, and the new pane will get 1/5 of it.
-    setTab(
-      {
-        id: "split",
-        type: "split",
-        direction: "row",
-        children: [{ ...leaf("a"), size: 3 }, leaf("b")],
-      },
-      ["a", "b"],
-    );
-    getTerminalSize.mockReturnValue({ cols: 120, rows: 45 });
-
-    await splitPane("tab-1", "a", "row");
-
-    expect(createTerminal).toHaveBeenCalledWith({
-      cwd: "/home/user",
-      cols: 29,
-      rows: 45,
-    });
-  });
-
-  it("starts a split in the visible tab once it has fit when the pane has no measured size", async () => {
+  it("starts a split in the visible tab once it has fit", async () => {
     setTab(leaf("a"), ["a"]);
     activeTabIdAtom.set("tab-1");
-    getTerminalSize.mockReturnValue(undefined);
 
     await splitPane("tab-1", "a", "row");
 
@@ -231,14 +146,16 @@ describe("splitPane", () => {
     });
   });
 
-  it("starts a split in a background tab right away when the pane has no measured size", async () => {
+  it("starts a split in a background tab right away", async () => {
     setTab(leaf("a"), ["a"]);
     activeTabIdAtom.set("tab-2");
-    getTerminalSize.mockReturnValue(undefined);
 
     await splitPane("tab-1", "a", "row");
 
-    expect(createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      waitForSize: false,
+    });
   });
 
   it("starts a split from an editor in the editor's folder and agent session", async () => {
@@ -261,7 +178,6 @@ describe("splitPane", () => {
       },
     ]);
     activeTabIdAtom.set("tab-1");
-    getTerminalSize.mockReturnValue(undefined);
 
     const pane = await splitPane("tab-1", "a", "row");
 

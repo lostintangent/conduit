@@ -74,9 +74,6 @@ export type xtermInstance = {
   serializer: SerializeAddon;
 
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
-
-  /** Whether a pane has fit the terminal, which also sizes its shell. */
-  hasFit: boolean;
   resize: (cols: number, rows: number) => void;
   dispose: () => void;
 };
@@ -340,14 +337,10 @@ export function getOrCreate(
       fit,
       search,
       serializer,
-      hasFit: false,
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
       },
-      resize: (cols, rows) => {
-        newInstance.hasFit = true;
-        api.terminal.resize(sessionId, cols, rows);
-      },
+      resize: (cols, rows) => api.terminal.resize(sessionId, cols, rows),
       dispose: () => {
         osc7Disposable.dispose();
         osc9Disposable.dispose();
@@ -377,33 +370,6 @@ export function getOrCreate(
   }
 
   return instance;
-}
-
-/**
- * The size a visible pane's terminal fits to, or undefined if it's hidden or
- * hasn't fit yet. New shells start at a size measured from an existing pane,
- * because a shell that starts wider than its pane and then shrinks leaves its
- * first prompt wrapped onto a stray line.
- */
-export function getTerminalSize(
-  paneId: string,
-): { cols: number; rows: number } | undefined {
-  const instance = xtermInstancesByPane.get(paneId);
-  // Hidden panes skip fitting, so their last size can be stale.
-  if (!instance?.hasFit || !instance.terminal.element?.clientWidth) {
-    return undefined;
-  }
-  const { cols, rows } = instance.terminal;
-  return { cols, rows };
-}
-
-/** The width of one column in a pane's terminal, in CSS pixels. */
-export function getTerminalCellWidth(paneId: string): number | undefined {
-  const terminal = xtermInstancesByPane.get(paneId)?.terminal;
-  // FitAddon reads the cell size from the same private dimensions.
-  const width: number | undefined = (terminal as any)?._core?._renderService
-    ?.dimensions?.css?.cell?.width;
-  return width || undefined;
 }
 
 export function attach(paneId: string, container: HTMLElement) {

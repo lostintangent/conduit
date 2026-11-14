@@ -24,8 +24,9 @@ export function createFitController({
     rows: entry.terminal.rows,
   };
 
-  // A shell can start at a measured size instead of the 80x24 that a new
-  // xterm assumes, so the first fit always sizes the PTY.
+  // The first fit always sizes the PTY, because a shell that waits for its
+  // size starts then, and a restored one starts at its saved size instead of
+  // the 80x24 that a new xterm assumes.
   let hasFit = false;
 
   // Animation frame and timeout IDs

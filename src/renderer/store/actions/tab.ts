@@ -10,10 +10,7 @@ import {
   trackSession,
   untrackSession,
 } from "@features/terminal/client/stateTracker";
-import {
-  disposeSession,
-  getTerminalSize,
-} from "@features/terminal/client/xtermCache";
+import { disposeSession } from "@features/terminal/client/xtermCache";
 import {
   detachPane,
   inheritAgentSession,
@@ -135,20 +132,6 @@ export function generateIncrementedTabTitle(
   return `${baseName} ${highestNumber}`;
 }
 
-/**
- * A new tab fills the same content area as a pane that has its tab to itself,
- * so it starts at that pane's size. Otherwise, as in a split tab or a fresh
- * window, the shell starts once the new tab has fit.
- */
-function getNewTabTerminalSize() {
-  const activeTab = activeTabAtom.get();
-  const size =
-    activeTab?.layout.type === "pane"
-      ? getTerminalSize(activeTab.activePaneId)
-      : undefined;
-  return size ?? { waitForSize: true };
-}
-
 export async function openTab(
   options?: NewTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
@@ -159,7 +142,7 @@ export async function openTab(
   const result = await api.terminal.create({
     cwd: cwd || undefined,
     command: options?.command,
-    ...getNewTabTerminalSize(),
+    waitForSize: true,
   });
   if (!result) {
     return null;
@@ -237,7 +220,7 @@ export async function openTabFromExistingAgentSession(
   // Create a new terminal session in the worktree
   const result = await api.terminal.create({
     cwd: session.worktreePath,
-    ...getNewTabTerminalSize(),
+    waitForSize: true,
   });
   if (!result) {
     return null;
@@ -546,10 +529,9 @@ export async function duplicateTab(
       const result = await api.terminal.create({
         cwd: cwdToUse ?? undefined,
         command: capturedCommand ?? undefined,
-        // The copy has the same layout, so each pane keeps its size. It's
-        // focused with every pane expanded, so a pane that can't be measured,
-        // as in a background tab, starts once its copy has fit.
-        ...(getTerminalSize(oldPaneId) ?? { waitForSize: true }),
+        // The copy is focused with every pane expanded, so each shell starts
+        // once its pane has fit.
+        waitForSize: true,
       });
       if (!result) {
         continue;
