@@ -1,5 +1,6 @@
 import * as monaco from "monaco-editor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockFiles } from "../files";
 
 // ============================================================================
 // Mocks - Using vi.hoisted for proper module hoisting
@@ -8,9 +9,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { mockFsApi, MockFileSystemV2API, mockFsService, mockFsServiceInstance } =
   vi.hoisted(() => {
     const mockFsApi = {
-      stat: vi.fn(),
-      readTextFile: vi.fn(),
-      writeTextFile: vi.fn(),
       onAnyFileContentChanged: vi.fn(() => vi.fn()),
       onAnyFileDeleted: vi.fn(() => vi.fn()),
       onAnyFileRenamed: vi.fn(() => vi.fn()),
@@ -106,6 +104,8 @@ import {
 // ============================================================================
 
 describe("MonacoModelRegistry", () => {
+  let files: ReturnType<typeof mockFiles>;
+
   beforeEach(() => {
     MonacoModelRegistry.resetInstance();
     mockFsService.resetInstance();
@@ -115,9 +115,9 @@ describe("MonacoModelRegistry", () => {
 
     // Default mock behavior
     // Include mtime so staleness check can skip re-reading unchanged files
-    mockFsApi.stat.mockResolvedValue({ size: 100, mtime: 1000 });
-    mockFsApi.readTextFile.mockResolvedValue("file content");
-    mockFsApi.writeTextFile.mockResolvedValue(undefined);
+    files = mockFiles();
+    files.stat.mockResolvedValue({ size: 100, mtime: 1000 });
+    files.readTextFile.mockResolvedValue("file content");
 
     // Reset model factory
     monacoMock.editor.createModel.mockImplementation(
@@ -165,7 +165,7 @@ describe("MonacoModelRegistry", () => {
 
       expect(model).toBeDefined();
       expect(registry.modelCount).toBe(1);
-      expect(mockFsApi.readTextFile).toHaveBeenCalledWith("/test/file.ts");
+      expect(files.readTextFile).toHaveBeenCalledWith("/test/file.ts");
     });
 
     it("should return existing model when called with same path", async () => {
@@ -178,7 +178,7 @@ describe("MonacoModelRegistry", () => {
       expect(registry.modelCount).toBe(1);
       // Note: readTextFile may be called more than once due to background staleness
       // check, but the model should only be created once (verified by modelCount)
-      expect(mockFsApi.readTextFile).toHaveBeenCalledWith("/test/file.ts");
+      expect(files.readTextFile).toHaveBeenCalledWith("/test/file.ts");
     });
 
     it("should create separate models for different paths", async () => {
@@ -332,9 +332,10 @@ describe("MonacoModelRegistry", () => {
 
       await registry.saveModel(uri);
 
-      expect(mockFsApi.writeTextFile).toHaveBeenCalledWith(
+      expect(files.writeFile).toHaveBeenCalledWith(
+        "/test",
         "/test/file.ts",
-        model.getValue(),
+        new TextEncoder().encode(model.getValue()),
       );
     });
 
@@ -375,7 +376,7 @@ describe("MonacoModelRegistry", () => {
       const uri = pathToUri("/test/file.ts");
 
       const model = await registry.getOrCreateModel("/test/file.ts", "/test");
-      mockFsApi.readTextFile.mockResolvedValue("new content");
+      files.readTextFile.mockResolvedValue("new content");
 
       await registry.reloadModel(uri);
 

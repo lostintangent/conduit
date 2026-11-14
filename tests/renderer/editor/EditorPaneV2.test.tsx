@@ -12,6 +12,7 @@ import { GlobalEditorContainer } from "../../../src/renderer/components/panes/ed
 import { TooltipProvider } from "../../../src/renderer/components/ui/tooltip";
 import { EditorPaneRegistry } from "../../../src/renderer/components/panes/editor/registry/EditorPaneRegistry";
 import { activeTabIdAtom, tabsAtom } from "../../../src/renderer/store/atoms";
+import { mockFiles } from "../files";
 import { mockGitReads, mockGitWrites } from "../git";
 import { render as renderWithQuery } from "../queryRender";
 
@@ -105,8 +106,6 @@ vi.mock("../../../src/renderer/commands/handlers", () => ({
 
 // Mock useFileSystemV2 hook
 const mockFs = {
-  readTextFile: vi.fn().mockResolvedValue("// test file content"),
-  readDirectory: vi.fn().mockResolvedValue([]),
   release: vi.fn(),
 };
 vi.mock("@features/files/components/useFileSystemV2", () => ({
@@ -124,11 +123,12 @@ vi.mock("@features/git/components/useGitV2", () => ({
   useGitV2: () => mockGit,
 }));
 
-// The IPC calls git reads make, mocked afresh for each test with an empty
-// status on main. findRoot is null so the pane reads no per-file diff stats,
-// which these tests don't cover.
+// The IPC calls file and git reads make, mocked afresh for each test with an
+// empty status on main. findRoot is null so the pane reads no per-file diff
+// stats, which these tests don't cover.
 let reads: ReturnType<typeof mockGitReads>;
 function mockReads() {
+  mockFiles();
   reads = mockGitReads();
   reads.getStatus.mockResolvedValue({ files: new Map(), branch: "main" });
   reads.getCurrentBranch.mockResolvedValue("main");
@@ -827,13 +827,8 @@ describe("EditorPaneV2", () => {
   // ===========================================================================
 
   describe("callback props", () => {
-    beforeEach(() => {
-      mockFs.readTextFile.mockClear();
-    });
-
     it("should call onFileChange with file content when file is selected", async () => {
       const onFileChange = vi.fn();
-      mockFs.readTextFile.mockResolvedValue("const x = 1;");
 
       render(<EditorPaneV2 pane={TEST_PANE} onFileChange={onFileChange} />);
 

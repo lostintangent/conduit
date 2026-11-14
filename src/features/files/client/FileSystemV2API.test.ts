@@ -7,15 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { files, listening, deliver } = vi.hoisted(() => {
   const handlers = new Map<string, Set<(payload: unknown) => void>>();
   const files = {
-    readDirectory: vi.fn(),
-    readFile: vi.fn(),
-    readTextFile: vi.fn(),
-    stat: vi.fn(),
-    exists: vi.fn(),
-    writeFile: vi.fn(),
-    delete: vi.fn(),
-    rename: vi.fn(),
-    createDirectory: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
     // Not a mock, so clearing mocks keeps the listeners the client adds once
@@ -73,221 +64,6 @@ describe("FileSystemV2API", () => {
     it("should create instance with cwd", () => {
       const api = new FileSystemV2API("/test/project");
       expect(api.cwd).toBe("/test/project");
-      api.release();
-    });
-
-    it("should not be released initially", () => {
-      const api = new FileSystemV2API("/test/project");
-      expect(api.isReleased).toBe(false);
-      api.release();
-    });
-  });
-
-  // ===========================================================================
-  // Read Operations
-  // ===========================================================================
-
-  describe("readDirectory", () => {
-    it("should call IPC with correct params", async () => {
-      const entries = [
-        { name: "file.txt", type: "file" as const },
-        { name: "folder", type: "directory" as const },
-      ];
-      files.readDirectory.mockResolvedValue(entries);
-
-      const api = new FileSystemV2API("/test/project");
-      const result = await api.readDirectory("/test/project/src");
-
-      expect(files.readDirectory).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/src",
-      );
-      expect(result).toEqual(entries);
-
-      api.release();
-    });
-
-    it("should throw if released", async () => {
-      const api = new FileSystemV2API("/test/project");
-      api.release();
-
-      await expect(api.readDirectory("/test")).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-    });
-  });
-
-  describe("readFile", () => {
-    it("should return binary data", async () => {
-      const content = new Uint8Array([72, 101, 108, 108, 111]); // "Hello"
-      files.readFile.mockResolvedValue(content);
-
-      const api = new FileSystemV2API("/test/project");
-      const result = await api.readFile("/test/project/file.txt");
-
-      expect(files.readFile).toHaveBeenCalledWith("/test/project/file.txt");
-      expect(result).toEqual(content);
-
-      api.release();
-    });
-  });
-
-  describe("readTextFile", () => {
-    it("should return text content directly", async () => {
-      files.readTextFile.mockResolvedValue("Hello, World!");
-
-      const api = new FileSystemV2API("/test/project");
-      const result = await api.readTextFile("/test/project/file.txt");
-
-      expect(result).toBe("Hello, World!");
-
-      api.release();
-    });
-  });
-
-  describe("stat", () => {
-    it("should return file stats", async () => {
-      const stats = {
-        type: "file" as const,
-        size: 1024,
-        mtime: Date.now(),
-        ctime: Date.now(),
-      };
-      files.stat.mockResolvedValue(stats);
-
-      const api = new FileSystemV2API("/test/project");
-      const result = await api.stat("/test/project/file.txt");
-
-      expect(result).toEqual(stats);
-
-      api.release();
-    });
-  });
-
-  describe("exists", () => {
-    it("should return true for existing path", async () => {
-      files.exists.mockResolvedValue(true);
-
-      const api = new FileSystemV2API("/test/project");
-      const result = await api.exists("/test/project/file.txt");
-
-      expect(result).toBe(true);
-
-      api.release();
-    });
-
-    it("should return false for non-existing path", async () => {
-      files.exists.mockResolvedValue(false);
-
-      const api = new FileSystemV2API("/test/project");
-      const result = await api.exists("/test/project/missing.txt");
-
-      expect(result).toBe(false);
-
-      api.release();
-    });
-  });
-
-  // ===========================================================================
-  // Write Operations
-  // ===========================================================================
-
-  describe("writeFile", () => {
-    it("should call IPC with correct params", async () => {
-      files.writeFile.mockResolvedValue(undefined);
-      const content = new Uint8Array([1, 2, 3]);
-
-      const api = new FileSystemV2API("/test/project");
-      await api.writeFile("/test/project/file.txt", content);
-
-      expect(files.writeFile).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/file.txt",
-        content,
-      );
-
-      api.release();
-    });
-  });
-
-  describe("writeTextFile", () => {
-    it("should encode string as UTF-8", async () => {
-      files.writeFile.mockResolvedValue(undefined);
-
-      const api = new FileSystemV2API("/test/project");
-      await api.writeTextFile("/test/project/file.txt", "Hello");
-
-      expect(files.writeFile).toHaveBeenCalled();
-      const [, , content] = files.writeFile.mock.calls[0];
-      expect(new TextDecoder().decode(content)).toBe("Hello");
-
-      api.release();
-    });
-  });
-
-  describe("delete", () => {
-    it("should call IPC with path", async () => {
-      files.delete.mockResolvedValue(undefined);
-
-      const api = new FileSystemV2API("/test/project");
-      await api.delete("/test/project/file.txt");
-
-      expect(files.delete).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/file.txt",
-        undefined,
-      );
-
-      api.release();
-    });
-
-    it("should pass recursive option", async () => {
-      files.delete.mockResolvedValue(undefined);
-
-      const api = new FileSystemV2API("/test/project");
-      await api.delete("/test/project/folder", { recursive: true });
-
-      expect(files.delete).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/folder",
-        {
-          recursive: true,
-        },
-      );
-
-      api.release();
-    });
-  });
-
-  describe("rename", () => {
-    it("should call IPC with old and new paths", async () => {
-      files.rename.mockResolvedValue(undefined);
-
-      const api = new FileSystemV2API("/test/project");
-      await api.rename("/test/project/old.txt", "/test/project/new.txt");
-
-      expect(files.rename).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/old.txt",
-        "/test/project/new.txt",
-      );
-
-      api.release();
-    });
-  });
-
-  describe("createDirectory", () => {
-    it("should call IPC with path", async () => {
-      files.createDirectory.mockResolvedValue(undefined);
-
-      const api = new FileSystemV2API("/test/project");
-      await api.createDirectory("/test/project/new-folder");
-
-      expect(files.createDirectory).toHaveBeenCalledWith(
-        "/test/project",
-        "/test/project/new-folder",
-      );
-
       api.release();
     });
   });
@@ -400,15 +176,6 @@ describe("FileSystemV2API", () => {
   // ===========================================================================
 
   describe("release", () => {
-    it("should mark instance as released", () => {
-      const api = new FileSystemV2API("/test/project");
-      expect(api.isReleased).toBe(false);
-
-      api.release();
-
-      expect(api.isReleased).toBe(true);
-    });
-
     it("should unsubscribe from main process", async () => {
       const api = new FileSystemV2API("/test/project");
 
@@ -432,32 +199,14 @@ describe("FileSystemV2API", () => {
       expect(files.unsubscribe).toHaveBeenCalledTimes(1);
     });
 
-    it("should prevent further operations", async () => {
+    it("should refuse new listeners", () => {
       const api = new FileSystemV2API("/test/project");
       api.release();
 
-      await expect(api.readDirectory("/test")).rejects.toThrow(
+      expect(() => api.onDirectoryListingChanged("/test", vi.fn())).toThrow(
         "FileSystemV2API has been released",
       );
-      await expect(api.readFile("/test")).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-      await expect(api.stat("/test")).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-      await expect(api.exists("/test")).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-      await expect(api.writeFile("/test", new Uint8Array())).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-      await expect(api.delete("/test")).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-      await expect(api.rename("/old", "/new")).rejects.toThrow(
-        "FileSystemV2API has been released",
-      );
-      await expect(api.createDirectory("/test")).rejects.toThrow(
+      expect(() => api.onAnyFileContentChanged(vi.fn())).toThrow(
         "FileSystemV2API has been released",
       );
     });
@@ -477,7 +226,6 @@ describe("FileSystemV2API", () => {
       // Release BEFORE the subscription completes - this is the race condition
       api.release();
 
-      expect(api.isReleased).toBe(true);
       // At this point, subscriptionId is still null because promise hasn't resolved
       expect(files.unsubscribe).not.toHaveBeenCalled();
 
@@ -548,18 +296,6 @@ describe("FileSystemV2API", () => {
   // ===========================================================================
 
   describe("error handling", () => {
-    it("should propagate IPC errors", async () => {
-      files.readFile.mockRejectedValue(new Error("File not found"));
-
-      const api = new FileSystemV2API("/test/project");
-
-      await expect(api.readFile("/test/missing")).rejects.toThrow(
-        "File not found",
-      );
-
-      api.release();
-    });
-
     it("should isolate listener errors", async () => {
       const api = new FileSystemV2API("/test/project");
       const consoleError = vi

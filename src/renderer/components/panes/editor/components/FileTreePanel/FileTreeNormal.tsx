@@ -339,7 +339,10 @@ export const FileTreeNormal = memo(
           const cacheKey = normalizePathForKey(dir);
           if (!directoryCache[cacheKey]) {
             try {
-              const entries = await fs.readDirectory(dir);
+              const entries = await window.conduit.files.readDirectory(
+                cwd,
+                dir,
+              );
               if (cancelled) return;
               setDirectoryCache((prev) => ({ ...prev, [cacheKey]: entries }));
             } catch {
@@ -358,7 +361,7 @@ export const FileTreeNormal = memo(
       };
       // Dependencies are intentionally minimal: we want event-driven behavior
       // (run once per selection change), not reactive (run when cache updates).
-      // fs, directoryCache, expandPathsToFile are read at runtime, not triggers.
+      // directoryCache, expandPathsToFile are read at runtime, not triggers.
     }, [selectedFile?.path, cwd]);
 
     // ---------------------------------------------------------------------------
@@ -372,7 +375,7 @@ export const FileTreeNormal = memo(
         setIsLoading(true);
         try {
           // Load root directory
-          const entries = await fs.readDirectory(cwd);
+          const entries = await window.conduit.files.readDirectory(cwd, cwd);
           if (!cancelled) {
             setDirectoryCache((prev) => ({
               ...prev,
@@ -392,7 +395,7 @@ export const FileTreeNormal = memo(
       return () => {
         cancelled = true;
       };
-    }, [fs, cwd]);
+    }, [cwd]);
 
     // ---------------------------------------------------------------------------
     // Directory Change Subscription
@@ -454,7 +457,7 @@ export const FileTreeNormal = memo(
         } else {
           // Expanding: load fresh directory contents
           try {
-            const entries = await fs.readDirectory(path);
+            const entries = await window.conduit.files.readDirectory(cwd, path);
             setDirectoryCache((cache) => ({ ...cache, [cacheKey]: entries }));
           } catch (error) {
             console.error(`Failed to load directory ${path}:`, error);
@@ -463,7 +466,7 @@ export const FileTreeNormal = memo(
 
         toggleExpanded(path);
       },
-      [fs, isPathExpanded, toggleExpanded],
+      [cwd, isPathExpanded, toggleExpanded],
     );
 
     // ---------------------------------------------------------------------------
@@ -572,7 +575,7 @@ export const FileTreeNormal = memo(
         const newPath = joinPath(parentDir, newName);
 
         try {
-          await fs.rename(renamingPath, newPath);
+          await window.conduit.files.rename(cwd, renamingPath, newPath);
 
           // Transfer seen status from old path to new path (handles folders and files)
           const oldRelative = getRelativePath(renamingPath, cwd);
@@ -616,7 +619,7 @@ export const FileTreeNormal = memo(
           setRenamingPath(null);
         }
       },
-      [renamingPath, fs, cwd, onPathRename],
+      [renamingPath, cwd, onPathRename],
     );
 
     /**
@@ -712,10 +715,14 @@ export const FileTreeNormal = memo(
         try {
           if (creatingType === "file") {
             // Create empty file
-            await fs.writeFile(newPath, new Uint8Array(0));
+            await window.conduit.files.writeFile(
+              cwd,
+              newPath,
+              new Uint8Array(0),
+            );
           } else {
             // Create directory
-            await fs.createDirectory(newPath);
+            await window.conduit.files.createDirectory(cwd, newPath);
           }
 
           // Optimistic update: add new entry to directory cache
@@ -760,7 +767,7 @@ export const FileTreeNormal = memo(
           setCreatingType(null);
         }
       },
-      [creatingInPath, creatingType, fs, onFileSelect],
+      [creatingInPath, creatingType, cwd, onFileSelect],
     );
 
     // ---------------------------------------------------------------------------
@@ -826,7 +833,9 @@ export const FileTreeNormal = memo(
 
       try {
         // Delete with recursive option for directories
-        await fs.delete(pathToDelete, { recursive: isDirectory });
+        await window.conduit.files.delete(cwd, pathToDelete, {
+          recursive: isDirectory,
+        });
 
         // Optimistic update: remove from cache immediately
         const parentDir = getParentPath(pathToDelete);
@@ -862,7 +871,7 @@ export const FileTreeNormal = memo(
         });
         setDeletingPath(null);
       }
-    }, [deletingPath, getEntryForPath, getNextFocusAfterDelete, fs]);
+    }, [deletingPath, getEntryForPath, getNextFocusAfterDelete, cwd]);
 
     // ---------------------------------------------------------------------------
     // Context Menu Command Handlers

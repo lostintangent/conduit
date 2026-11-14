@@ -546,7 +546,7 @@ export function EditorPaneV2({
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
 
-  // FileSystem API for reading file content (for callbacks)
+  // The cwd's file events, for the trees, diff stats and outside renames
   const fs = useFileSystemV2(currentCwd);
 
   // Auto-open file on mount (validates initial file, falls back to most recently modified)
@@ -555,7 +555,6 @@ export function EditorPaneV2({
     selectedFile,
     setSelectedFile,
     cwd: currentCwd,
-    fs,
     git,
     baseBranch,
     preferDiffForModified,
@@ -1252,7 +1251,9 @@ export function EditorPaneV2({
 
     const loadContent = async () => {
       try {
-        const content = await fs.readTextFile(selectedFile.path);
+        const content = await window.conduit.files.readTextFile(
+          selectedFile.path,
+        );
         if (!cancelled) {
           setPreviewContent(content);
         }
@@ -1269,7 +1270,7 @@ export function EditorPaneV2({
     return () => {
       cancelled = true;
     };
-  }, [viewMode.type, selectedFile, isPreviewSupported, fs]);
+  }, [viewMode.type, selectedFile, isPreviewSupported]);
 
   /**
    * Initialize preview mode from pane config if specified.

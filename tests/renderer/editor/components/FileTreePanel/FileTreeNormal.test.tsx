@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../queryRender";
 import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockFiles } from "../../../files";
 
 // ============================================================================
 // Mocks - MUST BE BEFORE COMPONENT IMPORT
@@ -60,30 +61,12 @@ vi.mock("@/store/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
 }));
 
-// Mock fs API - use stable references
-const mockReadDirectory = vi.fn();
+// The tree's listing subscription, passed as a prop
 const mockOnDirectoryListingChanged = vi.fn();
-const mockWriteFile = vi.fn();
-const mockCreateDirectory = vi.fn();
-const mockDelete = vi.fn();
-const mockRename = vi.fn();
-
-// Create stable fs API object (passed as prop)
 const mockFsAPI = {
   cwd: "/project",
-  isReleased: false,
-  readDirectory: mockReadDirectory,
   onDirectoryListingChanged: mockOnDirectoryListingChanged,
-  writeFile: mockWriteFile,
-  createDirectory: mockCreateDirectory,
-  delete: mockDelete,
-  rename: mockRename,
 };
-
-// Mock useFileSystemV2 hook
-vi.mock("@features/files/components/useFileSystemV2", () => ({
-  useFileSystemV2: () => mockFsAPI,
-}));
 
 // Mock useScrollPersistence
 vi.mock("@/components/panes/editor/hooks/useScrollPersistence", () => ({
@@ -122,12 +105,14 @@ const MOCK_GIT_STATUS = new Map([
 
 describe("FileTreeNormal", () => {
   const mockOnFileSelect = vi.fn();
+  let files: ReturnType<typeof mockFiles>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     // Default mock implementations
-    mockReadDirectory.mockResolvedValue(MOCK_DIRECTORY_ENTRIES);
+    files = mockFiles();
+    files.readDirectory.mockResolvedValue(MOCK_DIRECTORY_ENTRIES);
     mockOnDirectoryListingChanged.mockReturnValue(() => {});
   });
 
@@ -138,7 +123,7 @@ describe("FileTreeNormal", () => {
   describe("initial rendering", () => {
     it("should show loading state initially", () => {
       // Don't resolve the promise immediately
-      mockReadDirectory.mockReturnValue(new Promise(() => {}));
+      files.readDirectory.mockReturnValue(new Promise(() => {}));
 
       render(
         <FileTreeNormal
@@ -189,7 +174,7 @@ describe("FileTreeNormal", () => {
       );
 
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledWith(TEST_CWD);
+        expect(files.readDirectory).toHaveBeenCalledWith(TEST_CWD, TEST_CWD);
       });
     });
   });
@@ -200,7 +185,7 @@ describe("FileTreeNormal", () => {
 
   describe("directory sorting", () => {
     it("should show directories before files", async () => {
-      mockReadDirectory.mockResolvedValue([
+      files.readDirectory.mockResolvedValue([
         { name: "a.txt", type: "file" },
         { name: "src", type: "directory" },
       ]);
@@ -317,7 +302,10 @@ describe("FileTreeNormal", () => {
       fireEvent.click(toggleButton!);
 
       await waitFor(() => {
-        expect(mockReadDirectory).toHaveBeenCalledWith("/project/src");
+        expect(files.readDirectory).toHaveBeenCalledWith(
+          TEST_CWD,
+          "/project/src",
+        );
       });
     });
   });
@@ -401,7 +389,7 @@ describe("FileTreeNormal", () => {
 
   describe("error handling", () => {
     it("should handle readDirectory errors gracefully", async () => {
-      mockReadDirectory.mockRejectedValueOnce(new Error("Permission denied"));
+      files.readDirectory.mockRejectedValueOnce(new Error("Permission denied"));
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});

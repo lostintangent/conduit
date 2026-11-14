@@ -20,15 +20,9 @@ vi.mock("@/components/panes/editor/utils/fileSelectionHelpers", () => ({
 }));
 
 import { selectNextAvailableFile } from "@/components/panes/editor/utils/fileSelectionHelpers";
+import { mockFiles } from "../../files";
 import { mockGitReads } from "../../git";
 import { renderHook } from "../../queryRender";
-
-// Mock file system API
-function createMockFs(fileExists = true) {
-  return {
-    exists: vi.fn().mockResolvedValue(fileExists),
-  };
-}
 
 // Mock git API
 function createMockGit() {
@@ -41,9 +35,11 @@ function createMockGit() {
 
 describe("useAutoOpenFile", () => {
   let reads: ReturnType<typeof mockGitReads>;
+  let files: ReturnType<typeof mockFiles>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    files = mockFiles();
     reads = mockGitReads();
     reads.getStatus.mockResolvedValue({ files: new Map() });
   });
@@ -69,7 +65,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: null,
           setSelectedFile,
           cwd: "/project",
-          fs: createMockFs() as any,
           git: createMockGit() as any,
           baseBranch: null,
           preferDiffForModified: false,
@@ -109,7 +104,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: null,
           setSelectedFile,
           cwd: "/project",
-          fs: createMockFs() as any,
           git: mockGit as any,
           baseBranch: "main",
           preferDiffForModified: true,
@@ -151,7 +145,6 @@ describe("useAutoOpenFile", () => {
             selectedFile: null,
             setSelectedFile: vi.fn(),
             cwd: "/project",
-            fs: createMockFs() as any,
             git: mockGit as any,
             baseBranch: "main",
             preferDiffForModified: true,
@@ -186,7 +179,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: existingFile,
           setSelectedFile,
           cwd: "/project",
-          fs: createMockFs() as any,
           git: git as any,
           baseBranch: null,
           preferDiffForModified: false,
@@ -211,7 +203,6 @@ describe("useAutoOpenFile", () => {
       const setSelectedFile = vi.fn();
       const placeholderMarkSeen = vi.fn();
       const loadedMarkSeen = vi.fn();
-      const fs = createMockFs();
       const git = createMockGit();
 
       let resolveLookup!: (result: {
@@ -231,7 +222,6 @@ describe("useAutoOpenFile", () => {
             selectedFile: null,
             setSelectedFile,
             cwd: "/project",
-            fs: fs as any,
             git: git as any,
             baseBranch: null,
             preferDiffForModified: false,
@@ -263,7 +253,6 @@ describe("useAutoOpenFile", () => {
         type: "file",
       };
       const setSelectedFile = vi.fn();
-      const fs = createMockFs();
       const git = createMockGit();
 
       let resolveLookup!: (result: {
@@ -283,7 +272,6 @@ describe("useAutoOpenFile", () => {
             selectedFile,
             setSelectedFile,
             cwd: "/project",
-            fs: fs as any,
             git: git as any,
             baseBranch: null,
             preferDiffForModified: false,
@@ -320,7 +308,6 @@ describe("useAutoOpenFile", () => {
       };
       const setSelectedFile = vi.fn();
       const setViewMode = vi.fn();
-      const mockFs = createMockFs(true);
 
       renderHook(() =>
         useAutoOpenFile({
@@ -328,7 +315,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: initialFile,
           setSelectedFile,
           cwd: "/project",
-          fs: mockFs as any,
           git: createMockGit() as any,
           baseBranch: null,
           preferDiffForModified: false,
@@ -337,7 +323,7 @@ describe("useAutoOpenFile", () => {
       );
 
       await waitFor(() => {
-        expect(mockFs.exists).toHaveBeenCalledWith("/project/initial.ts");
+        expect(files.exists).toHaveBeenCalledWith("/project/initial.ts");
       });
 
       // Should not clear selection since file exists
@@ -352,7 +338,7 @@ describe("useAutoOpenFile", () => {
       };
       const setSelectedFile = vi.fn();
       const setViewMode = vi.fn();
-      const mockFs = createMockFs(false); // File doesn't exist
+      files.exists.mockResolvedValue(false);
 
       renderHook(() =>
         useAutoOpenFile({
@@ -360,7 +346,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: initialFile,
           setSelectedFile,
           cwd: "/project",
-          fs: mockFs as any,
           git: createMockGit() as any,
           baseBranch: null,
           preferDiffForModified: false,
@@ -369,7 +354,7 @@ describe("useAutoOpenFile", () => {
       );
 
       await waitFor(() => {
-        expect(mockFs.exists).toHaveBeenCalledWith("/project/missing.ts");
+        expect(files.exists).toHaveBeenCalledWith("/project/missing.ts");
       });
 
       // Should clear selection to trigger auto-open
@@ -378,7 +363,7 @@ describe("useAutoOpenFile", () => {
   });
 
   describe("error handling", () => {
-    it("should handle fs.exists errors gracefully", async () => {
+    it("should handle exists errors gracefully", async () => {
       const initialFile: FileNode = {
         name: "file.ts",
         path: "/project/file.ts",
@@ -386,9 +371,7 @@ describe("useAutoOpenFile", () => {
       };
       const setSelectedFile = vi.fn();
       const setViewMode = vi.fn();
-      const mockFs = {
-        exists: vi.fn().mockRejectedValue(new Error("FS error")),
-      };
+      files.exists.mockRejectedValue(new Error("FS error"));
 
       // Should not throw
       renderHook(() =>
@@ -397,7 +380,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: initialFile,
           setSelectedFile,
           cwd: "/project",
-          fs: mockFs as any,
           git: createMockGit() as any,
           baseBranch: null,
           preferDiffForModified: false,
@@ -406,7 +388,7 @@ describe("useAutoOpenFile", () => {
       );
 
       await waitFor(() => {
-        expect(mockFs.exists).toHaveBeenCalled();
+        expect(files.exists).toHaveBeenCalled();
       });
 
       // On error, should assume file exists and not clear selection
@@ -427,7 +409,6 @@ describe("useAutoOpenFile", () => {
           selectedFile: null,
           setSelectedFile,
           cwd: "/project",
-          fs: createMockFs() as any,
           git: createMockGit() as any,
           baseBranch: null,
           preferDiffForModified: false,

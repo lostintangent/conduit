@@ -434,9 +434,11 @@ export class MonacoModelRegistry {
     const content = entry.model.getValue();
     const versionAtSave = entry.model.getAlternativeVersionId();
 
-    const fsApi = this.getOrCreateFsApi(entry.cwd);
-
-    await fsApi.writeTextFile(filePath, content);
+    await window.conduit.files.writeFile(
+      entry.cwd,
+      filePath,
+      new TextEncoder().encode(content),
+    );
 
     // Update saved version to the version we captured, not current model version.
     // This correctly handles the case where user edits during the save.
@@ -477,10 +479,7 @@ export class MonacoModelRegistry {
       throw new Error(`Model not found: ${uri}`);
     }
 
-    const filePath = entry.filePath;
-    const fsApi = this.getOrCreateFsApi(entry.cwd);
-
-    const content = await fsApi.readTextFile(filePath);
+    const content = await window.conduit.files.readTextFile(entry.filePath);
 
     // Set isReloading to skip dirty detection during setValue()
     // (setValue triggers onDidChangeContent synchronously)
@@ -685,7 +684,7 @@ export class MonacoModelRegistry {
     // We check content size after reading instead
     let content: string;
     try {
-      content = await fsApi.readTextFile(filePath);
+      content = await window.conduit.files.readTextFile(filePath);
     } catch (readError) {
       // Handle specific file system errors
       const errorMessage =
@@ -891,8 +890,7 @@ export class MonacoModelRegistry {
       entry.isReloading = true;
       try {
         // Use entry.filePath directly for consistency (avoids uri conversion)
-        const fsApi = this.getOrCreateFsApi(entry.cwd);
-        const content = await fsApi.readTextFile(entry.filePath);
+        const content = await window.conduit.files.readTextFile(entry.filePath);
 
         // Re-check isDirty after async read - user may have typed while loading
         if (entry.isDirty) {
@@ -953,10 +951,8 @@ export class MonacoModelRegistry {
     // Run check in background (don't await)
     (async () => {
       try {
-        const fsApi = this.getOrCreateFsApi(entry.cwd);
-
         // First, check mtime to avoid reading file content unnecessarily
-        const stat = await fsApi.stat(entry.filePath);
+        const stat = await window.conduit.files.stat(entry.filePath);
         const currentMtime = stat.mtime;
 
         // If mtime hasn't changed since last check, file is unchanged
@@ -968,7 +964,9 @@ export class MonacoModelRegistry {
         }
 
         // Mtime changed (or first check) - read content to verify
-        const diskContent = await fsApi.readTextFile(entry.filePath);
+        const diskContent = await window.conduit.files.readTextFile(
+          entry.filePath,
+        );
         const modelContent = entry.model.getValue();
 
         // Update last checked mtime

@@ -356,7 +356,6 @@ export const FileTreePanel = memo(
               <FileTreeChanges
                 paneId={paneId}
                 cwd={cwd}
-                fs={fs}
                 git={git}
                 selectedFile={selectedFile}
                 selectedMapKey={selectedMapKey}

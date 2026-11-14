@@ -4,15 +4,11 @@
  * flowing until it's suspended or released.
  *
  * Instances for the same cwd are shared through `FileSystemV2APIService`.
+ * Reads and writes don't need one, and go to `window.conduit.files`.
  */
 
 import type { Events } from "@shared/rpc";
-import type {
-  Cleanup,
-  DeleteOptions,
-  DirectoryEntry,
-  FileStat,
-} from "../model";
+import type { Cleanup, DirectoryEntry } from "../model";
 import { normalizePathForKey } from "@/utils/pathUtils";
 
 // ============================================================================
@@ -161,156 +157,6 @@ export class FileSystemV2API {
   }
 
   // ---------------------------------------------------------------------------
-  // Read Operations
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Read contents of a directory.
-   *
-   * @param dirPath - Absolute path to directory
-   * @returns Array of directory entries (sorted: directories first, then files)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the directory does not exist or is not accessible
-   */
-  async readDirectory(dirPath: string): Promise<DirectoryEntry[]> {
-    this.ensureNotReleased();
-    return window.conduit.files.readDirectory(this.cwd, dirPath);
-  }
-
-  /**
-   * Read file contents as binary data.
-   *
-   * @param filePath - Absolute path to file
-   * @returns File contents as Uint8Array
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the file does not exist or is not accessible
-   */
-  async readFile(filePath: string): Promise<Uint8Array> {
-    this.ensureNotReleased();
-    return window.conduit.files.readFile(filePath);
-  }
-
-  /**
-   * Read file contents as text (UTF-8).
-   *
-   * Convenience method for text files that avoids the need for
-   * TextDecoder on the caller side. The main benefit is eliminating
-   * duplicate file reads - Monaco model registry uses this directly.
-   *
-   * Note: Only use for known text files. Binary files will have invalid
-   * UTF-8 bytes replaced with the Unicode replacement character (U+FFFD).
-   *
-   * @param filePath - Absolute path to file
-   * @returns File contents as string
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the file does not exist or is not accessible
-   */
-  async readTextFile(filePath: string): Promise<string> {
-    this.ensureNotReleased();
-    return window.conduit.files.readTextFile(filePath);
-  }
-
-  /**
-   * Get file or directory metadata.
-   *
-   * @param path - Absolute path to file/directory
-   * @returns File stats
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the path does not exist or is not accessible
-   */
-  async stat(path: string): Promise<FileStat> {
-    this.ensureNotReleased();
-    return window.conduit.files.stat(path);
-  }
-
-  /**
-   * Check if a path exists.
-   *
-   * @param path - Absolute path to check
-   * @returns true if path exists
-   * @throws {Error} If the API has been released
-   */
-  async exists(path: string): Promise<boolean> {
-    this.ensureNotReleased();
-    return window.conduit.files.exists(path);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Write Operations
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Write binary content to a file.
-   *
-   * Creates the file if it doesn't exist.
-   * Creates parent directories if they don't exist.
-   *
-   * @param filePath - Absolute path to file
-   * @param content - File contents as Uint8Array
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the write fails (permission denied, disk full, etc.)
-   */
-  async writeFile(filePath: string, content: Uint8Array): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.files.writeFile(this.cwd, filePath, content);
-  }
-
-  /**
-   * Write text content to a file.
-   *
-   * Convenience method that encodes the string as UTF-8.
-   *
-   * @param filePath - Absolute path to file
-   * @param content - File contents as string
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the write fails (permission denied, disk full, etc.)
-   */
-  async writeTextFile(filePath: string, content: string): Promise<void> {
-    const data = new TextEncoder().encode(content);
-    return this.writeFile(filePath, data);
-  }
-
-  /**
-   * Delete a file or directory.
-   *
-   * @param path - Absolute path to delete
-   * @param options - Delete options (recursive for directories)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the path does not exist or cannot be deleted
-   */
-  async delete(path: string, options?: DeleteOptions): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.files.delete(this.cwd, path, options);
-  }
-
-  /**
-   * Rename or move a file/directory.
-   *
-   * @param oldPath - Current absolute path
-   * @param newPath - New absolute path
-   * @throws {Error} If the API has been released
-   * @throws {Error} If the source does not exist or rename fails
-   */
-  async rename(oldPath: string, newPath: string): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.files.rename(this.cwd, oldPath, newPath);
-  }
-
-  /**
-   * Create a directory.
-   *
-   * Creates parent directories if they don't exist.
-   *
-   * @param dirPath - Absolute path to create
-   * @throws {Error} If the API has been released
-   * @throws {Error} If directory creation fails (permission denied, etc.)
-   */
-  async createDirectory(dirPath: string): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.files.createDirectory(this.cwd, dirPath);
-  }
-
-  // ---------------------------------------------------------------------------
   // Event Subscriptions
   // ---------------------------------------------------------------------------
 
@@ -374,13 +220,6 @@ export class FileSystemV2API {
     this.released = true;
     this.unsubscribe();
     this.listeners.clear();
-  }
-
-  /**
-   * Check if this instance has been released.
-   */
-  get isReleased(): boolean {
-    return this.released;
   }
 
   // ---------------------------------------------------------------------------

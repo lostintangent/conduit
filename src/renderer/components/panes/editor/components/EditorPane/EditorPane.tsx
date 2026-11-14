@@ -662,7 +662,7 @@ export const EditorPane = memo(function EditorPane({
         ) : viewMode.type === "preview" ? (
           // Preview - shows rendered markdown or image
           isImageFile(filePath) ? (
-            <ImagePreview filePath={filePath} cwd={cwd} />
+            <ImagePreview filePath={filePath} />
           ) : (
             <LazyMarkdownPreview content={previewContent} />
           )

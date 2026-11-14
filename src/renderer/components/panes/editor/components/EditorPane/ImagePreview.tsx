@@ -18,15 +18,13 @@ import { useImagePreview } from "../../hooks/useImagePreview";
 export interface ImagePreviewProps {
   /** Full path to the image file */
   filePath: string;
-  /** Working directory for file operations */
-  cwd: string;
 }
 
 /**
  * Image preview component.
  */
-export function ImagePreview({ filePath, cwd }: ImagePreviewProps) {
-  const { imageUrl, isLoading, error } = useImagePreview(filePath, cwd);
+export function ImagePreview({ filePath }: ImagePreviewProps) {
+  const { imageUrl, isLoading, error } = useImagePreview(filePath);
 
   // Render loading state
   if (isLoading) {

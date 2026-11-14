@@ -16,7 +16,6 @@
  *   selectedFile,
  *   setSelectedFile,
  *   cwd: currentCwd,
- *   fs,
  *   git,
  *   baseBranch,
  *   preferDiffForModified,
@@ -29,7 +28,6 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
 import type { GitV2API } from "@features/git/client/GitV2API";
-import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
 import type { FileNode, ViewMode } from "../types";
 import { selectNextAvailableFile } from "../utils/fileSelectionHelpers";
 
@@ -45,9 +43,6 @@ export interface UseAutoOpenFileOptions {
 
   /** Current working directory */
   cwd: string;
-
-  /** FileSystem API for checking file existence */
-  fs: FileSystemV2API;
 
   /** Git API for finding recently modified files */
   git: GitV2API;
@@ -78,7 +73,6 @@ export function useAutoOpenFile({
   selectedFile,
   setSelectedFile,
   cwd,
-  fs,
   git,
   baseBranch,
   preferDiffForModified,
@@ -104,7 +98,7 @@ export function useAutoOpenFile({
 
     const validateInitialFile = async () => {
       try {
-        const exists = await fs.exists(initialFilePath);
+        const exists = await window.conduit.files.exists(initialFilePath);
         if (cancelled) return;
 
         initialFileValidatedRef.current = true;
@@ -121,7 +115,7 @@ export function useAutoOpenFile({
     return () => {
       cancelled = true;
     };
-  }, [initialFilePath, selectedFile, fs, setSelectedFile]);
+  }, [initialFilePath, selectedFile, setSelectedFile]);
 
   // Step 2: Auto-open most recently modified file if no valid selection.
   // Finishing the open reads the latest callbacks and settings without making

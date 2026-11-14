@@ -49,6 +49,8 @@ vi.mock("./FileSystemV2API", () => ({
 // Import after mocks are set up
 import { FileSystemV2APIService } from "./FileSystemV2APIService";
 
+const isReleased = (api: unknown) =>
+  (api as InstanceType<typeof MockFileSystemV2API>).isReleased;
 const isSuspended = (api: unknown) =>
   (api as InstanceType<typeof MockFileSystemV2API>).isSuspended;
 
@@ -191,7 +193,7 @@ describe("FileSystemV2APIService", () => {
       // Suspended, but kept rather than released
       expect(service.hasInstance("/test/project")).toBe(true);
       expect(isSuspended(api)).toBe(true);
-      expect(api.isReleased).toBe(false);
+      expect(isReleased(api)).toBe(false);
     });
 
     it("should not suspend the instance if re-acquired during grace period", () => {
@@ -356,8 +358,8 @@ describe("FileSystemV2APIService", () => {
 
       FileSystemV2APIService.resetInstance();
 
-      expect(api1.isReleased).toBe(true);
-      expect(api2.isReleased).toBe(true);
+      expect(isReleased(api1)).toBe(true);
+      expect(isReleased(api2)).toBe(true);
     });
 
     it("should clear all pending suspensions on reset", () => {
@@ -373,7 +375,7 @@ describe("FileSystemV2APIService", () => {
       vi.advanceTimersByTime(10000);
 
       // API should have been released during reset, not by timer
-      expect(api.isReleased).toBe(true);
+      expect(isReleased(api)).toBe(true);
     });
   });
 });

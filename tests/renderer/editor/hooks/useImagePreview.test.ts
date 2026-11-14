@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
+import { mockFiles } from "../../files";
 import {
   useImagePreview,
   isBinaryImage,
@@ -7,19 +8,6 @@ import {
   getMimeType,
   uint8ArrayToBase64,
 } from "../../../../src/renderer/components/panes/editor/hooks/useImagePreview";
-
-// ============================================================================
-// Mocks
-// ============================================================================
-
-const mockFs = {
-  readFile: vi.fn(),
-  readTextFile: vi.fn(),
-};
-
-vi.mock("@features/files/components/useFileSystemV2", () => ({
-  useFileSystemV2: () => mockFs,
-}));
 
 // ============================================================================
 // Helper Function Tests
@@ -136,8 +124,10 @@ describe("uint8ArrayToBase64", () => {
 // ============================================================================
 
 describe("useImagePreview", () => {
+  let mockFs: ReturnType<typeof mockFiles>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    mockFs = mockFiles();
   });
 
   afterEach(() => {
@@ -153,7 +143,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockReturnValue(new Promise(() => {})); // Never resolves
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/image.png", "/cwd"),
+        useImagePreview("/path/to/image.png"),
       );
 
       expect(result.current.isLoading).toBe(true);
@@ -173,7 +163,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockResolvedValue(pngData);
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/image.png", "/cwd"),
+        useImagePreview("/path/to/image.png"),
       );
 
       await waitFor(() => {
@@ -190,7 +180,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockResolvedValue(jpgData);
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/photo.jpg", "/cwd"),
+        useImagePreview("/path/to/photo.jpg"),
       );
 
       await waitFor(() => {
@@ -205,7 +195,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockResolvedValue(gifData);
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/animation.gif", "/cwd"),
+        useImagePreview("/path/to/animation.gif"),
       );
 
       await waitFor(() => {
@@ -226,9 +216,7 @@ describe("useImagePreview", () => {
         '<svg xmlns="http://www.w3.org/2000/svg"><circle r="50"/></svg>';
       mockFs.readTextFile.mockResolvedValue(svgContent);
 
-      const { result } = renderHook(() =>
-        useImagePreview("/path/to/icon.svg", "/cwd"),
-      );
+      const { result } = renderHook(() => useImagePreview("/path/to/icon.svg"));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -246,7 +234,7 @@ describe("useImagePreview", () => {
       mockFs.readTextFile.mockResolvedValue(svgContent);
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/unicode.svg", "/cwd"),
+        useImagePreview("/path/to/unicode.svg"),
       );
 
       await waitFor(() => {
@@ -267,7 +255,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockRejectedValue(new Error("File not found"));
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/missing.png", "/cwd"),
+        useImagePreview("/path/to/missing.png"),
       );
 
       await waitFor(() => {
@@ -282,7 +270,7 @@ describe("useImagePreview", () => {
       mockFs.readTextFile.mockRejectedValue(new Error("Permission denied"));
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/protected.svg", "/cwd"),
+        useImagePreview("/path/to/protected.svg"),
       );
 
       await waitFor(() => {
@@ -294,9 +282,7 @@ describe("useImagePreview", () => {
     });
 
     it("should handle unsupported image format", async () => {
-      const { result } = renderHook(() =>
-        useImagePreview("/path/to/file.txt", "/cwd"),
-      );
+      const { result } = renderHook(() => useImagePreview("/path/to/file.txt"));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
@@ -310,7 +296,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockRejectedValue("String error");
 
       const { result } = renderHook(() =>
-        useImagePreview("/path/to/image.png", "/cwd"),
+        useImagePreview("/path/to/image.png"),
       );
 
       await waitFor(() => {
@@ -335,7 +321,7 @@ describe("useImagePreview", () => {
         .mockResolvedValueOnce(gifData);
 
       const { result, rerender } = renderHook(
-        ({ filePath }) => useImagePreview(filePath, "/cwd"),
+        ({ filePath }) => useImagePreview(filePath),
         { initialProps: { filePath: "/path/to/image.png" } },
       );
 
@@ -359,7 +345,7 @@ describe("useImagePreview", () => {
       mockFs.readFile.mockResolvedValue(new Uint8Array([137, 80, 78, 71]));
 
       const { result, rerender } = renderHook(
-        ({ filePath }) => useImagePreview(filePath, "/cwd"),
+        ({ filePath }) => useImagePreview(filePath),
         { initialProps: { filePath: "/path/to/first.png" } },
       );
 

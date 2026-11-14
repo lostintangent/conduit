@@ -157,7 +157,10 @@ describe("useFileSystemV2", () => {
     it("should not be released initially", () => {
       const { result } = renderHook(() => useFileSystemV2("/test/project"));
 
-      expect(result.current.isReleased).toBe(false);
+      expect(
+        (result.current as unknown as InstanceType<typeof MockFileSystemV2API>)
+          .isReleased,
+      ).toBe(false);
     });
   });
 

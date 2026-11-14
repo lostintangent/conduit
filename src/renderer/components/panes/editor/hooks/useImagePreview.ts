@@ -6,8 +6,8 @@
  *
  * @example
  * ```tsx
- * function ImageViewer({ filePath, cwd }: Props) {
- *   const { imageUrl, isLoading, error } = useImagePreview(filePath, cwd);
+ * function ImageViewer({ filePath }: Props) {
+ *   const { imageUrl, isLoading, error } = useImagePreview(filePath);
  *
  *   if (isLoading) return <div>Loading...</div>;
  *   if (error) return <div>Error: {error}</div>;
@@ -16,7 +16,6 @@
  * ```
  */
 
-import { useFileSystemV2 } from "@features/files/components/useFileSystemV2";
 import { useEffect, useState } from "react";
 
 /** Image extensions that are binary (not text-based) */
@@ -94,18 +93,12 @@ export interface UseImagePreviewResult {
  * Hook to load and convert an image file to a data URL.
  *
  * @param filePath - Absolute path to the image file
- * @param cwd - Working directory for file operations
  * @returns The image URL, loading state, and any error
  */
-export function useImagePreview(
-  filePath: string,
-  cwd: string,
-): UseImagePreviewResult {
+export function useImagePreview(filePath: string): UseImagePreviewResult {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const fs = useFileSystemV2(cwd);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,14 +114,14 @@ export function useImagePreview(
         if (isSvg(filePath)) {
           // SVG: read as text and encode as data URL
           // Using data URL ensures consistent rendering regardless of SVG attributes
-          const content = await fs.readTextFile(filePath);
+          const content = await window.conduit.files.readTextFile(filePath);
           if (!cancelled) {
             const base64 = btoa(unescape(encodeURIComponent(content)));
             setImageUrl(`data:${mimeType};base64,${base64}`);
           }
         } else if (isBinaryImage(filePath)) {
           // Binary image: read as Uint8Array and convert to data URL
-          const data = await fs.readFile(filePath);
+          const data = await window.conduit.files.readFile(filePath);
           if (!cancelled) {
             const base64 = uint8ArrayToBase64(data);
             setImageUrl(`data:${mimeType};base64,${base64}`);
@@ -152,7 +145,7 @@ export function useImagePreview(
     return () => {
       cancelled = true;
     };
-  }, [filePath, fs]);
+  }, [filePath]);
 
   return { imageUrl, isLoading, error };
 }

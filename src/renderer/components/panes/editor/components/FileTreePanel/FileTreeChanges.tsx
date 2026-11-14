@@ -33,7 +33,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
 import { gitMutations, gitQueries } from "@features/git/client/queries";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import {
@@ -76,8 +75,6 @@ export interface FileTreeChangesProps {
   paneId: string;
   /** Working directory */
   cwd: string;
-  /** FileSystem API instance (shared from parent) - required for rename/delete */
-  fs: FileSystemV2API;
   /** Git API instance (shared from parent) */
   git: GitV2API;
   /** Currently selected file (null if none) */
@@ -295,7 +292,6 @@ function useChangesViewState() {
 export function FileTreeChanges({
   paneId,
   cwd,
-  fs,
   git,
   selectedFile: _selectedFile,
   selectedMapKey,
@@ -717,7 +713,11 @@ export function FileTreeChanges({
       const newAbsolutePath = joinCwdPath(cwd, newPath);
 
       try {
-        await fs.rename(oldAbsolutePath, newAbsolutePath);
+        await window.conduit.files.rename(
+          cwd,
+          oldAbsolutePath,
+          newAbsolutePath,
+        );
 
         // Transfer seen status from old path to new path
         // This works for both files and folders (handles nested files too)
@@ -734,7 +734,7 @@ export function FileTreeChanges({
         setRenamingPath(null);
       }
     },
-    [renamingPath, cwd, fs, onPathRename],
+    [renamingPath, cwd, onPathRename],
   );
 
   /**
@@ -779,7 +779,7 @@ export function FileTreeChanges({
 
     try {
       // Use recursive: true to handle both files and folders
-      await fs.delete(absolutePath, { recursive: true });
+      await window.conduit.files.delete(cwd, absolutePath, { recursive: true });
       setDeletingPath(null);
     } catch (error) {
       enqueueNotification({
@@ -789,7 +789,7 @@ export function FileTreeChanges({
       });
       setDeletingPath(null);
     }
-  }, [deletingPath, cwd, fs]);
+  }, [deletingPath, cwd]);
 
   /**
    * Cancel delete operation.
@@ -852,11 +852,11 @@ export function FileTreeChanges({
 
       try {
         if (creatingType === "file") {
-          await fs.writeTextFile(newPath, "");
+          await window.conduit.files.writeFile(cwd, newPath, new Uint8Array(0));
           // Queue the file for selection once git detects it
           setPendingSelectPath(newPath);
         } else {
-          await fs.createDirectory(newPath);
+          await window.conduit.files.createDirectory(cwd, newPath);
         }
         setCreatingInPath(null);
         setCreatingType(null);
@@ -868,7 +868,7 @@ export function FileTreeChanges({
         });
       }
     },
-    [creatingInPath, creatingType, fs],
+    [creatingInPath, creatingType, cwd],
   );
 
   // ---------------------------------------------------------------------------
