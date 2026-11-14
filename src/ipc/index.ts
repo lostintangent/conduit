@@ -19,10 +19,6 @@ import {
   initializeGitV2Handlers,
 } from "./git/handlers";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
-import {
-  cleanupUpdateHandlers,
-  initializeUpdateHandlers,
-} from "@features/updates/main";
 
 async function ensureConduitDirectory(): Promise<string> {
   const homeDir = app.getPath("home");
@@ -50,10 +46,7 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 
   initializeDotfiles(conduitStateDirectory, app.getPath("home"), window);
 
-  const { refreshMenu } = await initializeUserSettings(
-    window,
-    conduitStateDirectory,
-  );
+  await initializeUserSettings(window, conduitStateDirectory);
 
   stopFeatures = await startFeatures();
 
@@ -66,8 +59,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   // Initialize filesystem and git handlers (v2)
   initializeFileSystemV2Handlers();
   initializeGitV2Handlers();
-
-  initializeUpdateHandlers(sendToRenderer, refreshMenu);
 
   // Clean up providers when window closes
   // Capture windowId now since webContents won't be accessible in "closed" event
@@ -83,12 +74,10 @@ const SHUTDOWN_TIMEOUT_MS = 2000;
 
 /**
  * Release everything the window's session left running: file watchers, the
- * CLI server, the update timer, and each feature's startup disposer (the
- * terminal's PTYs and prompt processes).
+ * CLI server, and each feature's startup disposer (the terminal's PTYs and
+ * prompt processes, and the update timer).
  */
 async function shutdownIpcHandlers(): Promise<void> {
-  cleanupUpdateHandlers();
-
   await Promise.race([
     Promise.allSettled([unwatchAll(), shutdownCliServer(), stopFeatures?.()]),
     delay(SHUTDOWN_TIMEOUT_MS),

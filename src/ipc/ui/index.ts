@@ -46,15 +46,9 @@ export async function initializeUserSettings(
     await saveSettings(userSettings);
   }
 
-  const refreshMenu = async () =>
+  refreshMenuCallback = async () =>
     updateApplicationMenu(window, requireUserSettings(), saveSettings);
-
-  refreshMenuCallback = refreshMenu;
-  await refreshMenu();
-
-  return {
-    refreshMenu,
-  };
+  await refreshMenuCallback();
 }
 
 export async function refreshApplicationMenu() {

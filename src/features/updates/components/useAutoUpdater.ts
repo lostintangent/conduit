@@ -10,8 +10,8 @@ export function useAutoUpdater() {
   const currentNotificationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = updates.onStatusChanged(({ status, releaseName }) => {
-      if (status !== "downloaded") return;
+    const unsubscribe = updates.on("statusChanged", (state) => {
+      if (state.status !== "downloaded") return;
 
       // Dismiss the previous notification if it exists
       if (currentNotificationIdRef.current) {
@@ -22,7 +22,7 @@ export function useAutoUpdater() {
       // notify the user to see if they want to install it.
       const availableNotification = enqueueNotification({
         kind: "success",
-        message: `Update available (${releaseName})`,
+        message: `Update available (${state.releaseName})`,
         persistent: true,
         actions: [
           {
@@ -38,7 +38,7 @@ export function useAutoUpdater() {
                 persistent: true,
               });
 
-              updates.installAndRestart();
+              updates.install();
             },
           },
         ],

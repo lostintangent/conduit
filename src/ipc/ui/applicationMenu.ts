@@ -1,6 +1,7 @@
 import { BrowserWindow, Menu, app, autoUpdater } from "electron";
-import type { UpdateStatus, UserSettings, Workspace } from "../../shared/types";
-import { getUpdateStatus } from "@features/updates/main";
+import type { UserSettings, Workspace } from "../../shared/types";
+import { getUpdateStatus } from "@features/updates/main/startup";
+import type { UpdateStatus } from "@features/updates/model";
 import { getWorkspaces } from "@features/workspaces/main/service";
 
 function getUpdateMenuLabel(status: UpdateStatus) {

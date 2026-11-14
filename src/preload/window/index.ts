@@ -17,7 +17,6 @@ import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import fsModule from "./modules/fs";
 import gitModule from "./modules/git";
-import configureUpdatesModule from "./modules/updates";
 import { createFeatureApis } from "./features";
 import { createEventListener } from "./utils";
 
@@ -158,7 +157,6 @@ const conduitAPI = {
 
   browser: configureBrowserModule,
   cli: configureCliModule,
-  updates: configureUpdatesModule,
   fs: fsModule,
   git: gitModule,
 };

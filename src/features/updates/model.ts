@@ -12,3 +12,9 @@ export type UpdateState = {
   releaseName?: string;
   releaseNotes?: string;
 };
+
+declare module "@shared/rpc" {
+  interface Events {
+    updates: { statusChanged: UpdateState };
+  }
+}
