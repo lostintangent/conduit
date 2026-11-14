@@ -1002,8 +1002,8 @@ export class DiskGitProvider implements GitProvider {
    * To get the actual changes, we explicitly compare to the first parent using
    * `commit^1 commit` syntax. This works for both regular and merge commits.
    *
-   * For root commits (no parent), we fall back to the single-commit syntax which
-   * compares against an empty tree.
+   * For root commits (no parent), we fall back to the single-commit syntax with
+   * --root, which compares against an empty tree.
    */
   async getCommitFiles(commitId: string): Promise<CommitFile[]> {
     try {
@@ -1037,10 +1037,11 @@ export class DiskGitProvider implements GitProvider {
           commitId,
         ]);
       } catch {
-        // Root commits have no parent - fall back to single-commit syntax
-        // which compares against an empty tree
+        // Root commits have no parent. Without --root, diff-tree prints nothing
+        // for them, so compare against the empty tree.
         result = await this.git.raw([
           "diff-tree",
+          "--root",
           "--no-commit-id",
           "--name-status",
           "-r",
@@ -1051,6 +1052,7 @@ export class DiskGitProvider implements GitProvider {
 
         numstatResult = await this.git.raw([
           "diff-tree",
+          "--root",
           "--no-commit-id",
           "--numstat",
           "-r",
