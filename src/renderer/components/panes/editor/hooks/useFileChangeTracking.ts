@@ -429,10 +429,11 @@ export function useFileChangeTracking(): FileChangeTrackingResult {
             // Skip old paths - they're being transferred
             continue;
           }
-          if (transfers.has(path)) {
+          const transferred = transfers.get(path);
+          if (transferred !== undefined) {
             // This path matches a transfer target - use the transferred metadata
             // (handles race condition where git added new path before rename completed)
-            next.set(path, transfers.get(path)!);
+            next.set(path, transferred);
             transfers.delete(path); // Mark as handled
           } else {
             // Keep other paths as-is

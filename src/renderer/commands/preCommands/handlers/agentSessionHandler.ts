@@ -3,11 +3,9 @@ import type { AgentSessionInfo } from "@shared/types";
 /**
  * Result of agent session creation
  */
-export interface AgentSessionHandlerResult {
-  success: boolean;
-  session?: AgentSessionInfo;
-  error?: string;
-}
+export type AgentSessionHandlerResult =
+  | { success: true; session: AgentSessionInfo }
+  | { success: false; error: string };
 
 /**
  * Create an agent session (git worktree) for isolated development

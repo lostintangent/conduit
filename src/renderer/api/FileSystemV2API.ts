@@ -71,6 +71,24 @@ export type FileRenamedCallback = (oldPath: string, newPath: string) => void;
 // Re-export Cleanup from shared types for convenience
 export type { Cleanup };
 
+/** Adds a listener under a key, and drops the key when its last listener leaves. */
+function addKeyedListener<T>(
+  listenersByKey: Map<string, Set<T>>,
+  key: string,
+  listener: T,
+): Cleanup {
+  const listeners = listenersByKey.get(key) ?? new Set<T>();
+  listenersByKey.set(key, listeners);
+  listeners.add(listener);
+
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      listenersByKey.delete(key);
+    }
+  };
+}
+
 // ============================================================================
 // FileSystemV2API Class
 // ============================================================================
@@ -305,20 +323,11 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    const key = normalizePathForKey(path);
-    let listeners = this.directoryListeners.get(key);
-    if (!listeners) {
-      listeners = new Set();
-      this.directoryListeners.set(key, listeners);
-    }
-    listeners.add(callback);
-
-    return () => {
-      listeners!.delete(callback);
-      if (listeners!.size === 0) {
-        this.directoryListeners.delete(key);
-      }
-    };
+    return addKeyedListener(
+      this.directoryListeners,
+      normalizePathForKey(path),
+      callback,
+    );
   }
 
   /**
@@ -356,20 +365,11 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    const key = normalizePathForKey(path);
-    let listeners = this.fileListeners.get(key);
-    if (!listeners) {
-      listeners = new Set();
-      this.fileListeners.set(key, listeners);
-    }
-    listeners.add(callback);
-
-    return () => {
-      listeners!.delete(callback);
-      if (listeners!.size === 0) {
-        this.fileListeners.delete(key);
-      }
-    };
+    return addKeyedListener(
+      this.fileListeners,
+      normalizePathForKey(path),
+      callback,
+    );
   }
 
   /**
@@ -402,20 +402,11 @@ export class FileSystemV2API {
     this.ensureNotReleased();
     this.ensureSubscribed();
 
-    const key = normalizePathForKey(path);
-    let listeners = this.deleteListeners.get(key);
-    if (!listeners) {
-      listeners = new Set();
-      this.deleteListeners.set(key, listeners);
-    }
-    listeners.add(callback);
-
-    return () => {
-      listeners!.delete(callback);
-      if (listeners!.size === 0) {
-        this.deleteListeners.delete(key);
-      }
-    };
+    return addKeyedListener(
+      this.deleteListeners,
+      normalizePathForKey(path),
+      callback,
+    );
   }
 
   /**
@@ -447,21 +438,11 @@ export class FileSystemV2API {
   onFileRenamed(path: string, callback: FileRenamedCallback): Cleanup {
     this.ensureNotReleased();
     this.ensureSubscribed();
-    const key = normalizePathForKey(path);
-
-    let listeners = this.renameListeners.get(key);
-    if (!listeners) {
-      listeners = new Set();
-      this.renameListeners.set(key, listeners);
-    }
-    listeners.add(callback);
-
-    return () => {
-      listeners!.delete(callback);
-      if (listeners!.size === 0) {
-        this.renameListeners.delete(key);
-      }
-    };
+    return addKeyedListener(
+      this.renameListeners,
+      normalizePathForKey(path),
+      callback,
+    );
   }
 
   /**

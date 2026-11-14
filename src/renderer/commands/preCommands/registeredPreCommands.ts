@@ -89,7 +89,7 @@ export const createAgentSession: PreCommand = {
       paneOptions: {
         agentSession: result.session,
         terminalOptions: {
-          cwd: result.session!.worktreePath,
+          cwd: result.session.worktreePath,
         },
       },
     };

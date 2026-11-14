@@ -21,10 +21,9 @@ export class MenuRegistry {
     };
 
     // Add to registry
-    if (!this.items.has(contribution.id)) {
-      this.items.set(contribution.id, []);
-    }
-    this.items.get(contribution.id)!.push(item);
+    const items = this.items.get(contribution.id) ?? [];
+    this.items.set(contribution.id, items);
+    items.push(item);
   }
 
   /**

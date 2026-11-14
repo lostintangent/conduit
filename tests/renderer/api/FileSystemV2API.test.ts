@@ -348,6 +348,38 @@ describe("FileSystemV2API", () => {
       api.release();
     });
 
+    it("stops calling a callback after its cleanup, and keeps the path's other callbacks", async () => {
+      let directoryListener = null as ((payload: unknown) => void) | null;
+      mockFs.onDirectoryListingChanged.mockImplementation(
+        (listener: (payload: unknown) => void) => {
+          directoryListener = listener;
+          return vi.fn();
+        },
+      );
+
+      const api = new FileSystemV2API("/test/project");
+      const removed = vi.fn();
+      const kept = vi.fn();
+      const cleanup = api.onDirectoryListingChanged(
+        "/test/project/src",
+        removed,
+      );
+      api.onDirectoryListingChanged("/test/project/src", kept);
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      cleanup();
+      directoryListener?.({
+        subscriptionId: "test-sub-id",
+        path: "/test/project/src",
+        entries: [],
+      });
+
+      expect(removed).not.toHaveBeenCalled();
+      expect(kept).toHaveBeenCalledWith([]);
+
+      api.release();
+    });
+
     it("should filter events by subscription ID", async () => {
       let directoryListener = null as ((payload: unknown) => void) | null;
       mockFs.onDirectoryListingChanged.mockImplementation(

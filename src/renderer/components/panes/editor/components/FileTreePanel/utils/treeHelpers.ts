@@ -22,60 +22,45 @@ export function buildFolderTree(
     // Use actual file path for folder navigation and display
     const actualPath = status.path;
     const parts = actualPath.split("/");
-    const fileName = parts.pop()!;
+    const fileName = parts.pop() ?? actualPath;
 
     // Navigate/create folder structure
+    let parentFolder: FolderNode | undefined;
     let currentLevel = rootFolders;
     let currentPath = "";
 
     for (const folderName of parts) {
       currentPath = currentPath ? `${currentPath}/${folderName}` : folderName;
-
-      if (!currentLevel.has(folderName)) {
-        currentLevel.set(folderName, {
-          name: folderName,
-          path: currentPath,
-          files: [],
-          folders: new Map(),
-        });
-      }
-
-      const folder = currentLevel.get(folderName)!;
-      currentLevel = folder.folders;
+      parentFolder = getOrCreateFolder(currentLevel, folderName, currentPath);
+      currentLevel = parentFolder.folders;
     }
 
+    // Root level files go in a virtual "root" folder
+    parentFolder ??= getOrCreateFolder(rootFolders, "", "");
+
     // Create file entry with both mapKey and actual path
-    const fileEntry = {
+    parentFolder.files.push({
       mapKey,
       path: actualPath,
       name: fileName,
       status,
-    };
-
-    // Add file to appropriate location
-    if (parts.length === 0) {
-      // Root level file - create a virtual "root" folder
-      if (!rootFolders.has("")) {
-        rootFolders.set("", {
-          name: "",
-          path: "",
-          files: [],
-          folders: new Map(),
-        });
-      }
-      rootFolders.get("")!.files.push(fileEntry);
-    } else {
-      // Navigate back to the correct folder and add file
-      let parentLevel = rootFolders;
-      for (let i = 0; i < parts.length - 1; i++) {
-        parentLevel = parentLevel.get(parts[i])!.folders;
-      }
-      const parentFolder = parentLevel.get(parts[parts.length - 1])!;
-      parentFolder.files.push(fileEntry);
-    }
+    });
   }
 
   return rootFolders;
+}
+
+function getOrCreateFolder(
+  folders: Map<string, FolderNode>,
+  name: string,
+  path: string,
+): FolderNode {
+  let folder = folders.get(name);
+  if (!folder) {
+    folder = { name, path, files: [], folders: new Map() };
+    folders.set(name, folder);
+  }
+  return folder;
 }
 
 /**
