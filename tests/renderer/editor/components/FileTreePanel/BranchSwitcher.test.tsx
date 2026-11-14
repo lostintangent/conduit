@@ -373,6 +373,7 @@ describe("BranchSwitcher", () => {
       });
 
       const input = await screen.findByTestId("create-branch-input");
+      await waitFor(() => expect(document.activeElement).toBe(input));
       await act(async () => {
         fireEvent.change(input, { target: { value: "feature/new-feature" } });
         fireEvent.keyDown(input, { key: "Enter" });

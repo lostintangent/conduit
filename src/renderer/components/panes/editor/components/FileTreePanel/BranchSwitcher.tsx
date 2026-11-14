@@ -82,7 +82,7 @@ export function BranchSwitcher({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Create branch hook
-  const createBranch = useCreateBranch(git, {
+  const { inputRef, ...createBranch } = useCreateBranch(git, {
     isOpen,
     onBranchCreated: (branchName) => {
       setIsOpen(false);
@@ -291,7 +291,7 @@ export function BranchSwitcher({
           {createBranch.isCreating ? (
             <div className="px-2 py-1.5">
               <input
-                ref={createBranch.inputRef}
+                ref={inputRef}
                 type="text"
                 value={createBranch.branchName}
                 onChange={(e) => createBranch.setBranchName(e.target.value)}
