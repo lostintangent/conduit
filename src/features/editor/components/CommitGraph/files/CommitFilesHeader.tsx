@@ -24,7 +24,6 @@
  * ```
  */
 
-import { memo, useMemo } from "react";
 import { cn } from "@/utils";
 import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";
 
@@ -53,7 +52,7 @@ export interface CommitFilesHeaderProps {
 /**
  * Header showing file change statistics.
  */
-function CommitFilesHeaderComponent({
+export function CommitFilesHeader({
   fileCount,
   totalAdditions,
   totalDeletions,
@@ -63,13 +62,10 @@ function CommitFilesHeaderComponent({
   const filesText = fileCount === 1 ? "file" : "files";
 
   // Stats for DiffStatsDisplay
-  const diffStats = useMemo(
-    () => ({
-      added: totalAdditions,
-      removed: totalDeletions,
-    }),
-    [totalAdditions, totalDeletions],
-  );
+  const diffStats = {
+    added: totalAdditions,
+    removed: totalDeletions,
+  };
   const hasStats = totalAdditions > 0 || totalDeletions > 0;
 
   return (
@@ -96,5 +92,3 @@ function CommitFilesHeaderComponent({
     </div>
   );
 }
-
-export const CommitFilesHeader = memo(CommitFilesHeaderComponent);

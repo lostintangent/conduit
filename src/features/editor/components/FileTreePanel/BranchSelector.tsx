@@ -23,7 +23,7 @@
  */
 
 import { clearPressedKeys } from "@/commands/keybindings/parser";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { GitBranch } from "lucide-react";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import {
@@ -84,12 +84,10 @@ export function BranchSelector({
   // Filtered Branches
   // ---------------------------------------------------------------------------
 
-  const filteredBranches = useMemo(() => {
-    return filterBranchesByQuery(branches, filter, {
-      excludeHead: true,
-      limit: 15,
-    });
-  }, [branches, filter]);
+  const filteredBranches = filterBranchesByQuery(branches, filter, {
+    excludeHead: true,
+    limit: 15,
+  });
 
   // Total options = 1 (HEAD) + filtered branches
   const totalOptions = 1 + filteredBranches.length;
@@ -128,55 +126,43 @@ export function BranchSelector({
   // Handlers
   // ---------------------------------------------------------------------------
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        clearPressedKeys();
-        onOpenChange(false);
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % totalOptions);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + totalOptions) % totalOptions);
-      } else if (e.key === "Enter") {
-        e.preventDefault();
-        if (selectedIndex === 0) {
-          // HEAD option selected
-          onSelectBranch(null);
-        } else {
-          // Branch selected
-          const branch = filteredBranches[selectedIndex - 1];
-          if (branch) {
-            onSelectBranch(branch.name);
-          }
-        }
-      }
-    },
-    [
-      onSelectBranch,
-      onOpenChange,
-      selectedIndex,
-      totalOptions,
-      filteredBranches,
-    ],
-  );
-
-  const handleOptionClick = useCallback(
-    (index: number) => {
-      setSelectedIndex(index);
-      if (index === 0) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      clearPressedKeys();
+      onOpenChange(false);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % totalOptions);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + totalOptions) % totalOptions);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex === 0) {
+        // HEAD option selected
         onSelectBranch(null);
       } else {
-        const branch = filteredBranches[index - 1];
+        // Branch selected
+        const branch = filteredBranches[selectedIndex - 1];
         if (branch) {
           onSelectBranch(branch.name);
         }
       }
-    },
-    [onSelectBranch, filteredBranches],
-  );
+    }
+  };
+
+  const handleOptionClick = (index: number) => {
+    setSelectedIndex(index);
+    if (index === 0) {
+      onSelectBranch(null);
+    } else {
+      const branch = filteredBranches[index - 1];
+      if (branch) {
+        onSelectBranch(branch.name);
+      }
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Render

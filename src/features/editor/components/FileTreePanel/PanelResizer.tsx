@@ -21,7 +21,7 @@
  */
 
 import { useOnHide } from "@/hooks/useOnHide";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export interface PanelResizerProps {
   /** Callback when height changes during drag */
@@ -63,19 +63,16 @@ export function PanelResizer({
   /**
    * Handle mouse down to start resize.
    */
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setIsResizing(true);
-      onResizeStart?.();
-    },
-    [onResizeStart],
-  );
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    onResizeStart?.();
+  };
 
-  const endResize = useCallback(() => {
+  const endResize = () => {
     setIsResizing(false);
     onResizeEnd?.();
-  }, [onResizeEnd]);
+  };
 
   // A hidden tab gets no mouseup, so end the resize when it hides.
   useOnHide(() => {

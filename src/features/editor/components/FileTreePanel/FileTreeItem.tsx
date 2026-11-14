@@ -36,7 +36,7 @@ import {
   FolderOpen,
   FolderSymlink,
 } from "lucide-react";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { GitBadge, getStatusConfig } from "../shared/GitBadge";
 import { aggregateFolderStatus } from "../shared/gitFolderAggregation";
 import { FileTreeItemRename } from "./FileTreeItemRename";
@@ -167,48 +167,39 @@ export const FileTreeItem = memo(function FileTreeItem({
   // Handle click on the item row
   // - For directories: toggle expand/collapse (like v1)
   // - For files: select the file
-  const handleRowClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (isDirectory) {
-        onToggleExpand?.(path);
-      } else {
-        onSelect(path, entry.type);
-      }
-    },
-    [path, entry.type, isDirectory, onSelect, onToggleExpand],
-  );
+  const handleRowClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isDirectory) {
+      onToggleExpand?.(path);
+    } else {
+      onSelect(path, entry.type);
+    }
+  };
 
   // Handle "change to this directory" click
-  const handleChangeCwd = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onDirectoryChange?.(path);
-    },
-    [path, onDirectoryChange],
-  );
+  const handleChangeCwd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDirectoryChange?.(path);
+  };
 
   // Handle right-click context menu
-  const handleRightClick = useCallback(
-    (e: React.MouseEvent) => {
-      onContextMenu?.(path, e);
-    },
-    [path, onContextMenu],
-  );
+  const handleRightClick = (e: React.MouseEvent) => {
+    onContextMenu?.(path, e);
+  };
 
   // Handle mouse enter for prefetching (files only)
-  const handleMouseEnter = useCallback(() => {
+  const handleMouseEnter = () => {
     if (!isDirectory && onFileHover) {
       onFileHover(path);
     }
-  }, [isDirectory, onFileHover, path]);
+  };
 
   // Handle mouse leave to cancel prefetch
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = () => {
     if (!isDirectory && onFileHoverEnd) {
       onFileHoverEnd(path);
     }
-  }, [isDirectory, onFileHoverEnd, path]);
+  };
 
   // Choose appropriate icon
   const Icon = isDirectory
@@ -224,6 +215,10 @@ export const FileTreeItem = memo(function FileTreeItem({
   // ---------------------------------------------------------------------------
   // Git Status Styling
   // ---------------------------------------------------------------------------
+
+  // These stay useMemos because the React Compiler treats a memo's result as
+  // frozen. As plain values they stay mutable until the JSX below, and the
+  // compiler folds every element of the row into one cache entry.
 
   // For files: get text color class from git status
   const fileStatusConfig = useMemo(() => {

@@ -25,7 +25,6 @@ import { Toggle } from "@/ui/toggle";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/utils";
 import { RefreshCw } from "lucide-react";
-import { memo } from "react";
 
 // =============================================================================
 // Types
@@ -57,7 +56,7 @@ export interface CommitGraphHeaderProps {
  * - Refresh button with loading state
  * - Tooltip for refresh button
  */
-function CommitGraphHeaderComponent({
+export function CommitGraphHeader({
   onRefresh,
   isRefreshing = false,
   title = "Commits",
@@ -109,5 +108,3 @@ function CommitGraphHeaderComponent({
     </div>
   );
 }
-
-export const CommitGraphHeader = memo(CommitGraphHeaderComponent);

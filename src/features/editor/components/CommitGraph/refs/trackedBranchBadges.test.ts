@@ -7,6 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
+  buildCommitRefBadges,
   buildTrackedBranchBadges,
   isSameBranch,
 } from "@features/editor/components/CommitGraph/refs/trackedBranchBadges";
@@ -247,5 +248,41 @@ describe("buildTrackedBranchBadges", () => {
       expect(result[1].colorHint).toBe("upstream");
       expect(result[2].colorHint).toBe("base");
     });
+  });
+});
+
+// =============================================================================
+// buildCommitRefBadges Tests
+// =============================================================================
+
+describe("buildCommitRefBadges", () => {
+  const refs = ["HEAD -> main", "origin/main", "origin/other", "tag: v1.0"];
+
+  it("should prefer tracked branch badges over the commit's own refs", () => {
+    const trackedBranches: TrackedBranchInfo = {
+      current: trackedBranch("current", "main", "abc123"),
+      upstream: null,
+      base: null,
+    };
+
+    const result = buildCommitRefBadges("abc123", refs, true, trackedBranches);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].colorHint).toBe("current");
+  });
+
+  it("should fall back to the commit's displayable refs without color hints", () => {
+    const result = buildCommitRefBadges("abc123", refs, true, null);
+
+    expect(result.map(({ ref }) => `${ref.type}:${ref.name}`)).toEqual([
+      "head:main",
+      "remote:main",
+      "tag:v1.0",
+    ]);
+    expect(result.every(({ colorHint }) => colorHint === undefined)).toBe(true);
+  });
+
+  it("should return no badges for a commit without refs", () => {
+    expect(buildCommitRefBadges("abc123", undefined, false, null)).toEqual([]);
   });
 });

@@ -27,14 +27,7 @@ import { useSettings } from "@features/settings/client/queries";
 import type { EditorPane as EditorPaneType } from "@features/workbench/model";
 import type { ChangesViewMode } from "@shared/types";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
-import {
-  startTransition,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { BranchSelector } from "./FileTreePanel/BranchSelector";
 import { EditorPanel } from "./EditorPanel/EditorPanel";
 import { FileDiffStatsProvider } from "./FileDiffStats/FileDiffStatsContext";
@@ -237,19 +230,19 @@ export function EditorPane({
   });
 
   // Wrap the base handlers to check for required values
-  const handleCompleteAgentSession = useCallback(async () => {
+  const handleCompleteAgentSession = async () => {
     if (!agentSessionId || !tabId) {
       return;
     }
     await handleCompleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, tabId, handleCompleteAgentSessionBase]);
+  };
 
-  const handleDeleteAgentSession = useCallback(async () => {
+  const handleDeleteAgentSession = async () => {
     if (!agentSessionId || !tabId) {
       return;
     }
     await handleDeleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, tabId, handleDeleteAgentSessionBase]);
+  };
 
   // Preference for showing diff vs regular editor for git-modified files
   // This is session-local state (like changesViewMode), not persisted
@@ -335,13 +328,10 @@ export function EditorPane({
   }, [paneChangesViewMode]);
 
   // Wrapper to call both internal state setter and external callback
-  const setChangesViewMode = useCallback(
-    (mode: ChangesViewMode) => {
-      setChangesViewModeInternal(mode);
-      onChangesViewModeChange?.(mode);
-    },
-    [onChangesViewModeChange],
-  );
+  const setChangesViewMode = (mode: ChangesViewMode) => {
+    setChangesViewModeInternal(mode);
+    onChangesViewModeChange?.(mode);
+  };
 
   // Base branch for comparison (null = compare against HEAD)
   const [baseBranch, setBaseBranch] = useState<string | null>(
@@ -377,13 +367,10 @@ export function EditorPane({
   const showEditor = hideFileTree || layout === "split" || !showTree;
 
   /** Shows or hides the tree, the way the pane's layout does */
-  const setTreeShown = useCallback(
-    (shown: boolean) => {
-      if (layout === "single") setPanelView(shown ? "tree" : "editor");
-      else setIsTreeCollapsed(!shown);
-    },
-    [layout],
-  );
+  const setTreeShown = (shown: boolean) => {
+    if (layout === "single") setPanelView(shown ? "tree" : "editor");
+    else setIsTreeCollapsed(!shown);
+  };
 
   // ---------------------------------------------------------------------------
   // Prop → State Sync
@@ -486,17 +473,10 @@ export function EditorPane({
   });
 
   // Derived from gitStatus: changed paths and staged count (branch status entries are never staged)
-  const gitChangedFiles = useMemo(
-    () => new Set<string>(gitStatus?.keys()),
-    [gitStatus],
-  );
-  const stagedCount = useMemo(() => {
-    let staged = 0;
-    for (const fileStatus of gitStatus?.values() ?? []) {
-      if (fileStatus.staged) staged++;
-    }
-    return staged;
-  }, [gitStatus]);
+  const gitChangedFiles = new Set<string>(gitStatus?.keys());
+  const stagedCount = Array.from(gitStatus?.values() ?? []).filter(
+    (fileStatus) => fileStatus.staged,
+  ).length;
 
   // Unseen file change tracking (consolidated hook)
   // Handles state, subscriptions, and read triggers
@@ -529,6 +509,9 @@ export function EditorPane({
    * This is the single source of truth for the selected entry's git state.
    * Returns null if no entry is selected or it doesn't exist in gitStatus.
    */
+  // Kept as a useMemo because the React Compiler treats a memo's result as
+  // frozen. As a plain lookup it stays mutable through the uses below, and the
+  // compiler stops caching the effect and handlers that read it.
   const selectedGitStatus = useMemo(() => {
     if (!selectedMapKey) return null;
     return gitStatus?.get(selectedMapKey) ?? null;
@@ -544,7 +527,7 @@ export function EditorPane({
   }, [headStatus]);
 
   // Generate stable editor ID from pane ID
-  const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
+  const editorId = `editor-${pane.id}`;
 
   // The cwd's file events, for the trees, diff stats and outside renames
   const fs = useFileSystemSubscription(currentCwd);
@@ -605,83 +588,70 @@ export function EditorPane({
    *                 staged vs unstaged entries of the same file). Pass null for
    *                 normal "files" mode selections.
    */
-  const handleFileSelect = useCallback(
-    async (file: FileNode, mapKey: string | null) => {
-      // Look up the actual staged status from gitStatus using the mapKey
-      // (can't derive from mapKey suffix alone - that only works for partially staged files)
-      const fileStatusFromMap = mapKey ? gitStatus?.get(mapKey) : undefined;
-      const isStaged = fileStatusFromMap?.staged;
-      const relativePath = getRelativePath(file.path, currentCwd);
-      const fileStatus = getFileStatusForEntry(
-        gitStatus,
-        relativePath,
-        isStaged === false ? false : undefined,
-      );
-
-      // Use startTransition to make the file selection render non-blocking.
-      // This allows IPC responses to be processed during the render, significantly
-      // reducing perceived latency when loading file content.
-      startTransition(() => {
-        setSelectedFile(file);
-        setSelectedMapKey(mapKey);
-
-        // In single layout, switch to editor view when file is selected
-        if (layout === "single") {
-          setPanelView("editor");
-        }
-
-        // Update view mode, but preserve review mode if active
-        // (review mode handles file selection by scrolling to the file)
-        setViewModePreservingReview(() => {
-          // Image files should default to preview mode
-          if (isImageFile(file.name)) {
-            return { type: "preview" };
-          }
-          // Diffable files (modified/renamed) get diff view if preferred
-          if (isDiffableStatus(fileStatus) && preferDiffForModified) {
-            return {
-              type: "diff",
-              filePath: file.path,
-              baseBranch: baseBranch ?? undefined,
-            };
-          }
-          return { type: "editor" };
-        });
-      });
-
-      // Mark file as seen (if unseen tracking is enabled)
-      if (trackUnseenChanges) {
-        markSeen(relativePath);
-      }
-
-      // Notify parent of file selection (skip for deleted files - they don't exist on disk)
-      // Note: We no longer read file content here - Monaco model registry handles that.
-      // This eliminates a duplicate file read that was causing ~300ms latency.
-      // The pane owns the selection either way, so it isn't reported later.
-      ownFilePathRef.current = file.path;
-      if (
-        onFileChange &&
-        file.type === "file" &&
-        fileStatus?.status !== "deleted"
-      ) {
-        onFileChange({
-          file: file.path,
-          language: detectLanguage(file.path),
-        });
-      }
-    },
-    [
-      layout,
-      onFileChange,
+  const handleFileSelect = async (file: FileNode, mapKey: string | null) => {
+    // Look up the actual staged status from gitStatus using the mapKey
+    // (can't derive from mapKey suffix alone - that only works for partially staged files)
+    const fileStatusFromMap = mapKey ? gitStatus?.get(mapKey) : undefined;
+    const isStaged = fileStatusFromMap?.staged;
+    const relativePath = getRelativePath(file.path, currentCwd);
+    const fileStatus = getFileStatusForEntry(
       gitStatus,
-      baseBranch,
-      currentCwd,
-      preferDiffForModified,
-      setViewModePreservingReview,
-      markSeen,
-      trackUnseenChanges,
-    ],
-  );
+      relativePath,
+      isStaged === false ? false : undefined,
+    );
+
+    // Use startTransition to make the file selection render non-blocking.
+    // This allows IPC responses to be processed during the render, significantly
+    // reducing perceived latency when loading file content.
+    startTransition(() => {
+      setSelectedFile(file);
+      setSelectedMapKey(mapKey);
+
+      // In single layout, switch to editor view when file is selected
+      if (layout === "single") {
+        setPanelView("editor");
+      }
+
+      // Update view mode, but preserve review mode if active
+      // (review mode handles file selection by scrolling to the file)
+      setViewModePreservingReview(() => {
+        // Image files should default to preview mode
+        if (isImageFile(file.name)) {
+          return { type: "preview" };
+        }
+        // Diffable files (modified/renamed) get diff view if preferred
+        if (isDiffableStatus(fileStatus) && preferDiffForModified) {
+          return {
+            type: "diff",
+            filePath: file.path,
+            baseBranch: baseBranch ?? undefined,
+          };
+        }
+        return { type: "editor" };
+      });
+    });
+
+    // Mark file as seen (if unseen tracking is enabled)
+    if (trackUnseenChanges) {
+      markSeen(relativePath);
+    }
+
+    // Notify parent of file selection (skip for deleted files - they don't exist on disk)
+    // Note: We no longer read file content here - Monaco model registry handles that.
+    // This eliminates a duplicate file read that was causing ~300ms latency.
+    // The pane owns the selection either way, so it isn't reported later.
+    ownFilePathRef.current = file.path;
+    if (
+      onFileChange &&
+      file.type === "file" &&
+      fileStatus?.status !== "deleted"
+    ) {
+      onFileChange({
+        file: file.path,
+        language: detectLanguage(file.path),
+      });
+    }
+  };
 
   /**
    * Handle file or folder rename.
@@ -689,40 +659,37 @@ export function EditorPane({
    * Updates selectedFile if the renamed path matches the currently open file,
    * and also updates unseen tracking if enabled.
    */
-  const handlePathRename = useCallback(
-    (oldPath: string, newPath: string) => {
-      // Update unseen tracking if enabled
-      if (trackUnseenChanges) {
-        unseenTracking.handlePathRename(oldPath, newPath);
-      }
+  const handlePathRename = (oldPath: string, newPath: string) => {
+    // Update unseen tracking if enabled
+    if (trackUnseenChanges) {
+      unseenTracking.handlePathRename(oldPath, newPath);
+    }
 
-      // The callback receives relative paths, but selectedFile.path is absolute
-      // Convert relative paths to absolute for comparison
-      const oldAbsolute = oldPath.startsWith("/")
-        ? oldPath
-        : `${currentCwd}/${oldPath}`;
-      const newAbsolute = newPath.startsWith("/")
-        ? newPath
-        : `${currentCwd}/${newPath}`;
+    // The callback receives relative paths, but selectedFile.path is absolute
+    // Convert relative paths to absolute for comparison
+    const oldAbsolute = oldPath.startsWith("/")
+      ? oldPath
+      : `${currentCwd}/${oldPath}`;
+    const newAbsolute = newPath.startsWith("/")
+      ? newPath
+      : `${currentCwd}/${newPath}`;
 
-      // Update selectedFile if the renamed file is currently open
-      if (selectedFile && selectedFile.path === oldAbsolute) {
-        const newName = newAbsolute.split("/").pop() ?? "";
-        setSelectedFile({
-          ...selectedFile,
-          path: newAbsolute,
-          name: newName,
-        });
-      }
-    },
-    [selectedFile, trackUnseenChanges, unseenTracking, currentCwd],
-  );
+    // Update selectedFile if the renamed file is currently open
+    if (selectedFile && selectedFile.path === oldAbsolute) {
+      const newName = newAbsolute.split("/").pop() ?? "";
+      setSelectedFile({
+        ...selectedFile,
+        path: newAbsolute,
+        name: newName,
+      });
+    }
+  };
 
   /**
    * Exit any commit mode (diff or review) and return to previous view.
    * In single layout, the commit replaced the tree, and exiting goes back to it.
    */
-  const handleExitCommitMode = useCallback(() => {
+  const handleExitCommitMode = () => {
     // Return to previous view mode (or editor mode as fallback)
     if (previousViewModeRef.current) {
       setViewMode(previousViewModeRef.current);
@@ -733,7 +700,7 @@ export function EditorPane({
     if (layout === "single") {
       setPanelView("tree");
     }
-  }, [layout, setViewMode]);
+  };
 
   /**
    * Handle tree view mode changes.
@@ -744,62 +711,51 @@ export function EditorPane({
    *
    * Also exits commit review modes when switching away from "changes".
    */
-  const handleTreeViewModeChange = useCallback(
-    (mode: TreeViewMode) => {
-      setTreeViewMode(mode);
+  const handleTreeViewModeChange = (mode: TreeViewMode) => {
+    setTreeViewMode(mode);
 
-      // Update selectedMapKey for the new mode
-      if (selectedFile) {
-        if (mode === "changes") {
-          // Compute which entry to select (prefer unstaged if it exists)
-          const relativePath = getRelativePath(selectedFile.path, currentCwd);
-          const preferStaged = computeStagedForChangesMode(
-            gitStatus,
-            relativePath,
-          );
-          if (preferStaged === true) {
-            setSelectedMapKey(makeMapKey(relativePath, true));
-          } else if (preferStaged === false) {
-            setSelectedMapKey(makeMapKey(relativePath, false));
-          } else {
-            // File not in changes - clear selection
-            setSelectedMapKey(null);
-          }
+    // Update selectedMapKey for the new mode
+    if (selectedFile) {
+      if (mode === "changes") {
+        // Compute which entry to select (prefer unstaged if it exists)
+        const relativePath = getRelativePath(selectedFile.path, currentCwd);
+        const preferStaged = computeStagedForChangesMode(
+          gitStatus,
+          relativePath,
+        );
+        if (preferStaged === true) {
+          setSelectedMapKey(makeMapKey(relativePath, true));
+        } else if (preferStaged === false) {
+          setSelectedMapKey(makeMapKey(relativePath, false));
         } else {
-          // Exiting changes mode - clear map key
+          // File not in changes - clear selection
           setSelectedMapKey(null);
         }
+      } else {
+        // Exiting changes mode - clear map key
+        setSelectedMapKey(null);
       }
+    }
 
-      // Persist to localStorage
-      localStorage.setItem("editor:treeViewMode", mode);
+    // Persist to localStorage
+    localStorage.setItem("editor:treeViewMode", mode);
 
-      // Notify parent - map internal mode to external format
-      onTreeModeChange?.(mode === "changes" ? "changes" : "all");
+    // Notify parent - map internal mode to external format
+    onTreeModeChange?.(mode === "changes" ? "changes" : "all");
 
-      // Handle review mode transitions (exit/restore)
-      handleTreeViewModeTransition(mode);
+    // Handle review mode transitions (exit/restore)
+    handleTreeViewModeTransition(mode);
 
-      // Also exit commit modes when switching to "files" mode
-      if (mode === "files") {
-        if (
-          viewMode.type === "commitReview" ||
-          viewMode.type === "commitFileDiff"
-        ) {
-          handleExitCommitMode();
-        }
+    // Also exit commit modes when switching to "files" mode
+    if (mode === "files") {
+      if (
+        viewMode.type === "commitReview" ||
+        viewMode.type === "commitFileDiff"
+      ) {
+        handleExitCommitMode();
       }
-    },
-    [
-      selectedFile,
-      currentCwd,
-      gitStatus,
-      onTreeModeChange,
-      handleTreeViewModeTransition,
-      viewMode,
-      handleExitCommitMode,
-    ],
-  );
+    }
+  };
 
   /**
    * Effect: Sync selectedMapKey when git status changes.
@@ -932,34 +888,34 @@ export function EditorPane({
   /**
    * Handle tree width resize.
    */
-  const handleTreeResize = useCallback((width: number) => {
+  const handleTreeResize = (width: number) => {
     setTreeWidth(width);
 
     // Persist to localStorage
     localStorage.setItem("editor:treeWidth", width.toString());
-  }, []);
+  };
 
   /**
    * Handle base branch change for comparison mode.
    * Called when a branch is selected from the BranchSelector dialog.
    */
-  const handleBranchSelect = useCallback((branch: string | null) => {
+  const handleBranchSelect = (branch: string | null) => {
     setBaseBranch(branch);
     setIsBranchSelectorOpen(false);
-  }, []);
+  };
 
   /**
    * Open the branch selector dialog.
    */
-  const handleOpenBranchPicker = useCallback(() => {
+  const handleOpenBranchPicker = () => {
     setIsBranchSelectorOpen(true);
-  }, []);
+  };
 
   /**
    * Handle navigation to parent directory.
    * Clears the selected file and updates the working directory.
    */
-  const handleNavigateUp = useCallback(() => {
+  const handleNavigateUp = () => {
     const parentDir = getParentDirectory(currentCwd);
     if (!parentDir) return;
 
@@ -973,16 +929,16 @@ export function EditorPane({
 
     // Notify parent of cwd change
     onCwdChange?.(parentDir);
-  }, [currentCwd, onClearFile, onCwdChange]);
+  };
 
   /**
    * Handle commit action.
    */
-  const handleCommit = useCallback(() => {
+  const handleCommit = () => {
     const message = commitMessage.trim();
     if (!message || stagedCount === 0) return;
     commit(message, { onSuccess: () => setCommitMessage("") });
-  }, [commitMessage, stagedCount, commit]);
+  };
 
   /**
    * Handle branch switch callback.
@@ -991,16 +947,13 @@ export function EditorPane({
    * the git query bridge's branchChanged events. This callback is for any
    * additional actions needed when the user explicitly switches branches.
    */
-  const handleBranchSwitch = useCallback(
-    (_newBranch: string) => {
-      // Clear comparison mode when switching branches
-      // (comparison to old base branch doesn't make sense on new branch)
-      if (baseBranch !== null) {
-        setBaseBranch(null);
-      }
-    },
-    [baseBranch],
-  );
+  const handleBranchSwitch = (_newBranch: string) => {
+    // Clear comparison mode when switching branches
+    // (comparison to old base branch doesn't make sense on new branch)
+    if (baseBranch !== null) {
+      setBaseBranch(null);
+    }
+  };
 
   /**
    * Whether navigation up is possible.
@@ -1011,144 +964,136 @@ export function EditorPane({
    * Check if a file has unsaved changes in the editor.
    * Used to prevent staging files with unsaved changes.
    */
-  const isFileDirty = useCallback((filePath: string): boolean => {
+  const isFileDirty = (filePath: string): boolean => {
     const registry = MonacoModelRegistry.getInstance();
     const modelKey = createModelKey(filePath);
     const state = registry.getModelState(modelKey);
     return state?.isDirty ?? false;
-  }, []);
+  };
 
   /**
    * Toggle the tree. It stays while the editor side has nothing to show
    * instead.
    */
-  const handleToggleTree = useCallback(() => {
+  const handleToggleTree = () => {
     if (!isEditorSideEmpty) setTreeShown(!showTree);
-  }, [isEditorSideEmpty, setTreeShown, showTree]);
+  };
 
   /**
    * Handle toggling between diff and edit modes for git-modified files.
    * Updates both the current view mode AND the session preference.
    */
-  const handleToggleDiffMode = useCallback(
-    (isDiff: boolean) => {
-      // Update the view mode for the current file
-      if (isDiff && selectedFile) {
-        setViewMode({
-          type: "diff",
-          filePath: selectedFile.path,
-          baseBranch: baseBranch ?? undefined,
-        });
-      } else {
-        setViewMode({ type: "editor" });
-      }
+  const handleToggleDiffMode = (isDiff: boolean) => {
+    // Update the view mode for the current file
+    if (isDiff && selectedFile) {
+      setViewMode({
+        type: "diff",
+        filePath: selectedFile.path,
+        baseBranch: baseBranch ?? undefined,
+      });
+    } else {
+      setViewMode({ type: "editor" });
+    }
 
-      // Update the preference for future file selections (session-local)
-      setPreferDiffForModified(isDiff);
-    },
-    [selectedFile, baseBranch, setViewMode],
-  );
+    // Update the preference for future file selections (session-local)
+    setPreferDiffForModified(isDiff);
+  };
 
   /**
    * Handle entering changes review mode.
    * Switches the view mode to show all changes with inline diffs.
    * In single layout, review replaces the tree, and exiting goes back to it.
    */
-  const handleReviewChanges = useCallback(() => {
+  const handleReviewChanges = () => {
     enterReviewMode(baseBranch ?? undefined);
     if (layout === "single") {
       setPanelView("editor");
     }
-  }, [baseBranch, enterReviewMode, layout]);
+  };
 
-  const handleExitReview = useCallback(() => {
+  const handleExitReview = () => {
     exitReviewMode();
     if (layout === "single") {
       setPanelView("tree");
     }
-  }, [exitReviewMode, layout]);
+  };
 
   /**
    * Handle file selection from commit graph.
    * Opens the historical diff view for the selected file.
    */
-  const handleCommitFileSelect = useCallback(
-    (event: CommitFileSelectEvent) => {
-      // Only save previous view mode if not already in a commit mode
-      // This prevents building a stack when clicking multiple files
-      if (
-        viewMode.type !== "commitFileDiff" &&
-        viewMode.type !== "commitReview"
-      ) {
-        previousViewModeRef.current = viewMode;
-      }
+  const handleCommitFileSelect = (event: CommitFileSelectEvent) => {
+    // Only save previous view mode if not already in a commit mode
+    // This prevents building a stack when clicking multiple files
+    if (
+      viewMode.type !== "commitFileDiff" &&
+      viewMode.type !== "commitReview"
+    ) {
+      previousViewModeRef.current = viewMode;
+    }
 
-      // Convert relative path to absolute path
-      const absolutePath = currentCwd.endsWith("/")
-        ? `${currentCwd}${event.file.path}`
-        : `${currentCwd}/${event.file.path}`;
+    // Convert relative path to absolute path
+    const absolutePath = currentCwd.endsWith("/")
+      ? `${currentCwd}${event.file.path}`
+      : `${currentCwd}/${event.file.path}`;
 
-      // Set view mode to commit file diff
-      setViewMode({
-        type: "commitFileDiff",
-        filePath: absolutePath,
-        commitId: event.commitId,
-        parentCommitId: event.parentCommitId,
-        fileStatus: event.file.status,
-        originalPath: event.file.originalPath,
-      });
+    // Set view mode to commit file diff
+    setViewMode({
+      type: "commitFileDiff",
+      filePath: absolutePath,
+      commitId: event.commitId,
+      parentCommitId: event.parentCommitId,
+      fileStatus: event.file.status,
+      originalPath: event.file.originalPath,
+    });
 
-      // In single layout, switch to editor view
-      if (layout === "single") {
-        setPanelView("editor");
-      }
-    },
-    [viewMode, currentCwd, layout, setViewMode],
-  );
+    // In single layout, switch to editor view
+    if (layout === "single") {
+      setPanelView("editor");
+    }
+  };
 
   /**
    * Handle "view all" on a commit from commit graph.
    * Opens the commit review pane showing all files changed in that commit.
    */
-  const handleViewCommit = useCallback(
-    (event: CommitViewEvent) => {
-      // Only save previous view mode if not already in a commit mode
-      // This prevents building a stack when switching between commit views
-      if (
-        viewMode.type !== "commitFileDiff" &&
-        viewMode.type !== "commitReview"
-      ) {
-        previousViewModeRef.current = viewMode;
-      }
+  const handleViewCommit = (event: CommitViewEvent) => {
+    // Only save previous view mode if not already in a commit mode
+    // This prevents building a stack when switching between commit views
+    if (
+      viewMode.type !== "commitFileDiff" &&
+      viewMode.type !== "commitReview"
+    ) {
+      previousViewModeRef.current = viewMode;
+    }
 
-      // Set view mode to commit review
-      setViewMode({
-        type: "commitReview",
-        commitId: event.commitId,
-        parentCommitId: event.parentCommitId,
-      });
+    // Set view mode to commit review
+    setViewMode({
+      type: "commitReview",
+      commitId: event.commitId,
+      parentCommitId: event.parentCommitId,
+    });
 
-      // In single layout, switch to editor view
-      if (layout === "single") {
-        setPanelView("editor");
-      }
-    },
-    [viewMode, layout, setViewMode],
-  );
+    // In single layout, switch to editor view
+    if (layout === "single") {
+      setPanelView("editor");
+    }
+  };
+
+  // The current file's git status entry, looked up by its path. Reusing
+  // currentlyOpenFile here would stretch its mutable range across the hooks in
+  // between, and the React Compiler would drop every cache that depends on it.
+  const openFileGitStatus = selectedFile
+    ? gitStatus?.get(getRelativePath(selectedFile.path, currentCwd))
+    : undefined;
 
   /**
    * Determine if the current file is deleted (needs special viewer).
    */
-  const isCurrentFileDeleted = useMemo(() => {
-    if (!selectedFile) return false;
-    const relativePath = getRelativePath(selectedFile.path, currentCwd);
-    const fileStatus = gitStatus?.get(relativePath);
-    return fileStatus?.status === "deleted";
-  }, [selectedFile, currentCwd, gitStatus]);
+  const isCurrentFileDeleted = openFileGitStatus?.status === "deleted";
 
   /**
    * Determine if the current file is selected as a staged entry.
-   * Uses the memoized selectedGitStatus for efficiency.
    *
    * Only true when:
    * 1. The file's actual staged property is true
@@ -1158,19 +1103,21 @@ export function EditorPane({
    * previously selected as staged. This matches the expectation that normal file
    * browsing always edits the working directory version.
    */
-  const isCurrentFileStaged = useMemo(() => {
-    if (!selectedFile || !selectedGitStatus) return false;
-    return selectedGitStatus.staged === true && treeViewMode === "changes";
-  }, [selectedFile, selectedGitStatus, treeViewMode]);
+  const isCurrentFileStaged =
+    !!selectedFile &&
+    selectedGitStatus?.staged === true &&
+    treeViewMode === "changes";
 
   /**
    * Label for changes mode: "Staged" or "Unstaged".
    * Only shown when in "changes" mode to indicate which version is being viewed.
    */
-  const changesViewLabel = useMemo(() => {
-    if (treeViewMode !== "changes" || !selectedGitStatus) return undefined;
-    return selectedGitStatus.staged ? "Staged" : "Unstaged";
-  }, [treeViewMode, selectedGitStatus]);
+  const changesViewLabel =
+    treeViewMode === "changes" && selectedGitStatus
+      ? selectedGitStatus.staged
+        ? "Staged"
+        : "Unstaged"
+      : undefined;
 
   /**
    * Determine if the current file has changes in the git index.
@@ -1184,34 +1131,24 @@ export function EditorPane({
    * In "files" mode, we always want HEAD → Working Directory comparison,
    * so this returns false to ensure that behavior.
    */
-  const currentFileHasIndexChanges = useMemo(() => {
-    // Only applies in changes mode when viewing an unstaged entry
-    if (treeViewMode !== "changes") return false;
-    if (!selectedFile || !selectedGitStatus) return false;
-
+  const currentFileHasIndexChanges =
+    treeViewMode === "changes" &&
+    !!selectedFile &&
     // Only show Index → Working Directory for unstaged entries
     // (staged entries show HEAD → Index instead)
-    if (selectedGitStatus.staged) return false;
-
+    selectedGitStatus !== null &&
+    !selectedGitStatus.staged &&
     // Check if there are staged changes to compare against
-    const relativePath = getRelativePath(selectedFile.path, currentCwd);
-    const baseEntry = gitStatus?.get(relativePath);
-    return baseEntry?.hasIndexChanges ?? false;
-  }, [selectedFile, selectedGitStatus, treeViewMode, currentCwd, gitStatus]);
+    (openFileGitStatus?.hasIndexChanges ?? false);
 
   /**
    * Git status for the current file (for toolbar badge).
    * In "changes" mode, uses selectedGitStatus from the map key.
    * In "files" mode, looks up by relative path.
    */
-  const currentFileGitStatus = useMemo(() => {
-    if (!selectedFile) return undefined;
-    // In changes mode, use the entry from selectedMapKey
-    if (selectedGitStatus) return selectedGitStatus;
-    // In files mode, look up by relative path
-    const relativePath = getRelativePath(selectedFile.path, currentCwd);
-    return gitStatus?.get(relativePath) ?? undefined;
-  }, [selectedFile, selectedGitStatus, currentCwd, gitStatus]);
+  const currentFileGitStatus = selectedFile
+    ? (selectedGitStatus ?? openFileGitStatus)
+    : undefined;
 
   /**
    * Determine if the current file can show a diff view.
@@ -1222,16 +1159,13 @@ export function EditorPane({
   /**
    * Determine if the current file supports preview mode (e.g., markdown files, images).
    */
-  const isPreviewSupported = useMemo(() => {
-    if (!selectedFile) return false;
-    const fileName = selectedFile.name.toLowerCase();
-    // Markdown files
-    if (fileName.endsWith(".md") || fileName.endsWith(".markdown")) {
-      return true;
-    }
-    // Image files (binary and SVG)
-    return isImageFile(fileName);
-  }, [selectedFile]);
+  const lowerFileName = selectedFile?.name.toLowerCase();
+  const isPreviewSupported =
+    lowerFileName !== undefined &&
+    // Markdown files, then images (binary and SVG)
+    (lowerFileName.endsWith(".md") ||
+      lowerFileName.endsWith(".markdown") ||
+      isImageFile(lowerFileName));
 
   /**
    * Preview content for markdown files.
@@ -1309,42 +1243,36 @@ export function EditorPane({
   /**
    * Handle toggling between preview and editor modes.
    */
-  const handleTogglePreviewMode = useCallback(
-    (isPreview: boolean) => {
-      if (isPreview) {
-        setViewMode({ type: "preview" });
-      } else {
-        setViewMode({ type: "editor" });
-      }
-    },
-    [setViewMode],
-  );
+  const handleTogglePreviewMode = (isPreview: boolean) => {
+    if (isPreview) {
+      setViewMode({ type: "preview" });
+    } else {
+      setViewMode({ type: "editor" });
+    }
+  };
 
   /**
    * Handle changing the current working directory to a specific folder.
    * Similar to navigateUp but navigates to the clicked directory instead.
    */
-  const handleDirectoryChange = useCallback(
-    (path: string) => {
-      // Clear selected file when changing directory
-      setSelectedFile(null);
-      ownFilePathRef.current = undefined;
-      onClearFile?.();
+  const handleDirectoryChange = (path: string) => {
+    // Clear selected file when changing directory
+    setSelectedFile(null);
+    ownFilePathRef.current = undefined;
+    onClearFile?.();
 
-      // Update current working directory
-      setCurrentCwd(path);
+    // Update current working directory
+    setCurrentCwd(path);
 
-      // Notify parent of cwd change
-      onCwdChange?.(path);
-    },
-    [onClearFile, onCwdChange],
-  );
+    // Notify parent of cwd change
+    onCwdChange?.(path);
+  };
 
   /**
    * Reveal and focus the currently selected file in the file tree.
    * Expands parent directories if needed and focuses the file item.
    */
-  const handleRevealActiveFile = useCallback(() => {
+  const handleRevealActiveFile = () => {
     // Ensure tree is visible first
     setTreeShown(true);
 
@@ -1352,7 +1280,7 @@ export function EditorPane({
     requestAnimationFrame(() => {
       fileTreeRef.current?.revealActiveFile();
     });
-  }, [setTreeShown]);
+  };
 
   // ---------------------------------------------------------------------------
   // Command Registration

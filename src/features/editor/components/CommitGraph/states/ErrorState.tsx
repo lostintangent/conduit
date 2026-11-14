@@ -14,7 +14,6 @@
  * ```
  */
 
-import { memo, useCallback } from "react";
 import { AlertTriangle, RefreshCcw } from "lucide-react";
 import { Button } from "@/ui/button";
 import { cn } from "@/utils";
@@ -44,14 +43,11 @@ export interface ErrorStateProps {
  * Displays the error with an icon and optional retry button.
  * Uses compact styling suitable for a panel component.
  */
-function ErrorStateComponent({ error, onRetry, className }: ErrorStateProps) {
-  const handleRetry = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      onRetry?.();
-    },
-    [onRetry],
-  );
+export function ErrorState({ error, onRetry, className }: ErrorStateProps) {
+  const handleRetry = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onRetry?.();
+  };
 
   return (
     <div
@@ -94,5 +90,3 @@ function ErrorStateComponent({ error, onRetry, className }: ErrorStateProps) {
     </div>
   );
 }
-
-export const ErrorState = memo(ErrorStateComponent);

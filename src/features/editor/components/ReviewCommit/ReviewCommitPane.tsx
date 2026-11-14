@@ -23,7 +23,7 @@
 import type { CommitFile } from "@features/git/model";
 import { cn } from "@/utils";
 import { GitCommit } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FileEditor } from "../shared/FileEditor";
 import { ReviewCommitPaneFooter } from "./ReviewCommitPaneFooter";
 import { ReviewCommitPaneHeader } from "./ReviewCommitPaneHeader";
@@ -88,7 +88,9 @@ export function ReviewCommitPane({
   error = null,
   onClose,
 }: ReviewCommitPaneProps) {
-  // Sort files alphabetically
+  // Sort files alphabetically. Kept as a useMemo because the React Compiler
+  // treats a memo's result as frozen. As a plain array it stays mutable through
+  // the JSX below, and the header re-renders whenever a file is collapsed.
   const sortedFiles = useMemo(() => {
     return [...files].sort((a, b) => a.path.localeCompare(b.path));
   }, [files]);
@@ -100,7 +102,7 @@ export function ReviewCommitPane({
   );
 
   // Toggle file expansion
-  const toggleFile = useCallback((path: string) => {
+  const toggleFile = (path: string) => {
     setCollapsedFiles((prev) => {
       const next = new Set(prev);
       if (next.has(path)) {
@@ -110,7 +112,7 @@ export function ReviewCommitPane({
       }
       return next;
     });
-  }, []);
+  };
 
   return (
     <div

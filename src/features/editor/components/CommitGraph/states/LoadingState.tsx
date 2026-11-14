@@ -14,7 +14,6 @@
  * ```
  */
 
-import { memo } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -39,7 +38,7 @@ export interface LoadingStateProps {
  *
  * Centered display with spinner and message.
  */
-function LoadingStateComponent({
+export function LoadingState({
   message = "Loading commits...",
   className,
 }: LoadingStateProps) {
@@ -59,5 +58,3 @@ function LoadingStateComponent({
     </div>
   );
 }
-
-export const LoadingState = memo(LoadingStateComponent);

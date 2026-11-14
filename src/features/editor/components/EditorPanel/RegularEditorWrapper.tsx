@@ -40,7 +40,7 @@
  */
 
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
 import { useEditorTheme } from "../hooks/useEditorTheme";
 import { useGitContent } from "../hooks/useGitContent";
@@ -256,50 +256,47 @@ export function RegularEditorWrapper({
    * - Reads filePath from ref at execution time (not capture time)
    * - Verifies filePath hasn't changed when debounced save fires
    */
-  const saveViewState = useCallback(
-    (immediate = false) => {
-      // Skip ViewState for git sources - they're read-only and immutable
-      if (isGitSourceMode) return;
+  const saveViewState = (immediate = false) => {
+    // Skip ViewState for git sources - they're read-only and immutable
+    if (isGitSourceMode) return;
 
-      const editor = editorRef.current;
+    const editor = editorRef.current;
 
-      if (!editor) return;
+    if (!editor) return;
 
-      // Clear any pending debounced save
-      if (saveViewStateDebounceRef.current) {
-        clearTimeout(saveViewStateDebounceRef.current);
-        saveViewStateDebounceRef.current = null;
+    // Clear any pending debounced save
+    if (saveViewStateDebounceRef.current) {
+      clearTimeout(saveViewStateDebounceRef.current);
+      saveViewStateDebounceRef.current = null;
+    }
+
+    // Capture the file path at the time of the call for comparison
+    const filePathAtCallTime = previousFilePathRef.current;
+    if (!filePathAtCallTime) return;
+
+    const doSave = () => {
+      // Re-read the current file path at execution time
+      const currentFilePath = previousFilePathRef.current;
+
+      // Verify file hasn't changed since the save was scheduled
+      // This prevents saving ViewState for the wrong file after rapid switches
+      if (currentFilePath !== filePathAtCallTime) {
+        return;
       }
 
-      // Capture the file path at the time of the call for comparison
-      const filePathAtCallTime = previousFilePathRef.current;
-      if (!filePathAtCallTime) return;
+      const viewStateRegistry = ViewStateRegistry.getInstance();
+      viewStateRegistry.save(editorId, currentFilePath, editor);
+    };
 
-      const doSave = () => {
-        // Re-read the current file path at execution time
-        const currentFilePath = previousFilePathRef.current;
-
-        // Verify file hasn't changed since the save was scheduled
-        // This prevents saving ViewState for the wrong file after rapid switches
-        if (currentFilePath !== filePathAtCallTime) {
-          return;
-        }
-
-        const viewStateRegistry = ViewStateRegistry.getInstance();
-        viewStateRegistry.save(editorId, currentFilePath, editor);
-      };
-
-      if (immediate) {
-        doSave();
-      } else {
-        saveViewStateDebounceRef.current = setTimeout(
-          doSave,
-          VIEWSTATE_SAVE_DEBOUNCE_MS,
-        );
-      }
-    },
-    [editorId, isGitSourceMode],
-  );
+    if (immediate) {
+      doSave();
+    } else {
+      saveViewStateDebounceRef.current = setTimeout(
+        doSave,
+        VIEWSTATE_SAVE_DEBOUNCE_MS,
+      );
+    }
+  };
 
   // ---------------------------------------------------------------------------
   // Editor Setup
@@ -582,11 +579,11 @@ export function RegularEditorWrapper({
   // Prevent browser's automatic scroll-into-view when clicking the editor
   usePreventFocusScroll(containerRef);
 
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+  const handleContainerClick = (e: React.MouseEvent) => {
     // Don't steal focus from Monaco's overlay widgets (find widget, etc.)
     if ((e.target as HTMLElement).closest(".overlayWidgets")) return;
     editorRef.current?.focus();
-  }, []);
+  };
 
   return (
     <div ref={autoSizeRef} className={autoSize ? "" : "h-full w-full"}>

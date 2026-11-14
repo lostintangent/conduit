@@ -15,7 +15,6 @@
  * ```
  */
 
-import { memo } from "react";
 import { useFileDiffStats } from "./FileDiffStatsContext";
 import { DiffStatsDisplay } from "./DiffStatsDisplay";
 
@@ -42,7 +41,7 @@ export interface FileDiffStatsProps {
  * Automatically fetches stats from FileDiffStatsContext.
  * Returns null if no stats available or if both values are 0 (unless showZero is true).
  */
-export const FileDiffStats = memo(function FileDiffStats({
+export function FileDiffStats({
   filePath,
   staged,
   className,
@@ -64,4 +63,4 @@ export const FileDiffStats = memo(function FileDiffStats({
   return (
     <DiffStatsDisplay stats={stats} className={className} isUnseen={isUnseen} />
   );
-});
+}

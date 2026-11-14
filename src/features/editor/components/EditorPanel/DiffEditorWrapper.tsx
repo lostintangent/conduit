@@ -26,13 +26,7 @@
  */
 
 import * as monaco from "monaco-editor";
-import {
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
 import { useDiffContent } from "../hooks/useDiffContent";
 import { useEditorTheme } from "../hooks/useEditorTheme";
@@ -554,11 +548,11 @@ export function DiffEditorWrapper({
   // Prevent browser's automatic scroll-into-view when clicking the editor
   usePreventFocusScroll(containerRef);
 
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
+  const handleContainerClick = (e: React.MouseEvent) => {
     // Don't steal focus from Monaco's overlay widgets (find widget, etc.)
     if ((e.target as HTMLElement).closest(".overlayWidgets")) return;
     diffEditorRef.current?.getModifiedEditor().focus();
-  }, []);
+  };
 
   return (
     <div

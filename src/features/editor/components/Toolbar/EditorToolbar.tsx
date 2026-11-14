@@ -32,7 +32,7 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { ModelState } from "../../model";
 import { formatRelativeTime } from "@/utils/time";
 import { EditorActionButtons } from "../shared/EditorActionButtons";
@@ -209,41 +209,29 @@ export function EditorToolbar({
     ? pathToShow
     : (pathToShow.split("/").pop() ?? pathToShow);
 
-  const handleCopyPath = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation(); // Don't trigger onClick in inline mode
-      if (pathToShow && navigator.clipboard) {
-        navigator.clipboard.writeText(pathToShow);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }
-    },
-    [pathToShow],
-  );
+  const handleCopyPath = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Don't trigger onClick in inline mode
+    if (pathToShow && navigator.clipboard) {
+      navigator.clipboard.writeText(pathToShow);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
-  const handleStage = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onStage?.();
-    },
-    [onStage],
-  );
+  const handleStage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStage?.();
+  };
 
-  const handleUnstage = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onUnstage?.();
-    },
-    [onUnstage],
-  );
+  const handleUnstage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUnstage?.();
+  };
 
-  const handleRevert = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onRevert?.();
-    },
-    [onRevert],
-  );
+  const handleRevert = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRevert?.();
+  };
 
   // Common button class matching v1
   const buttonClass =

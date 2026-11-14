@@ -16,7 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { useSettings } from "@features/settings/client/queries";
 import { formatHomePath } from "@/utils/pathUtils";
 import { FolderUp, PanelLeftClose } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 export interface FileTreeToolbarProps {
   /** Current working directory */
@@ -59,13 +59,13 @@ export function FileTreeToolbar({
   const canGoUp = canNavigateUp && !isRoot;
   const [copied, setCopied] = useState(false);
 
-  const handleCopyPath = useCallback(() => {
+  const handleCopyPath = () => {
     if (cwd) {
       navigator.clipboard.writeText(cwd);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }
-  }, [cwd]);
+  };
 
   // Common button class matching v1
   const buttonClass =

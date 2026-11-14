@@ -16,7 +16,6 @@
  * ```
  */
 
-import { memo } from "react";
 import { Eye } from "lucide-react";
 import { Button } from "@/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
@@ -47,7 +46,7 @@ export interface ViewAllButtonProps {
  * Uses ghost styling to be subtle until hovered, matching the
  * overall design of the commit row.
  */
-function ViewAllButtonComponent({
+export function ViewAllButton({
   onClick,
   className,
   disabled = false,
@@ -84,9 +83,3 @@ function ViewAllButtonComponent({
     </Tooltip>
   );
 }
-
-/**
- * Memoized ViewAllButton component.
- * Re-renders only when props change.
- */
-export const ViewAllButton = memo(ViewAllButtonComponent);

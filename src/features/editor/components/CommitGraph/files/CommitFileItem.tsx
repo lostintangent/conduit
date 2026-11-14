@@ -23,7 +23,7 @@
  * ```
  */
 
-import { memo, useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { FileText } from "lucide-react";
 import { cn } from "@/utils";
 import type { GitFileStatus } from "@features/git/model";
@@ -101,7 +101,7 @@ function toGitFileStatus(file: CommitFile): GitFileStatus {
  * - Line statistics (+/-)
  * - Status badge
  */
-function CommitFileItemComponent({
+export function CommitFileItem({
   file,
   isSelected = false,
   onClick,
@@ -109,33 +109,30 @@ function CommitFileItemComponent({
 }: CommitFileItemProps) {
   const { fileName, folderPath, tooltip } = formatDisplayPath(file);
 
-  // Convert to GitFileStatus for shared components
+  // Convert to GitFileStatus for shared components. Kept as a useMemo because
+  // the React Compiler treats a memo's result as frozen. As a plain value it
+  // stays mutable through the JSX below, so it's rebuilt with the whole row and
+  // GitBadge re-renders whenever the selection changes.
   const gitFileStatus = useMemo(() => toGitFileStatus(file), [file]);
   const statusConfig = getStatusConfig(gitFileStatus);
 
   // Stats for DiffStatsDisplay
-  const diffStats = useMemo(
-    () => ({
-      added: file.additions ?? 0,
-      removed: file.deletions ?? 0,
-    }),
-    [file.additions, file.deletions],
-  );
+  const diffStats = {
+    added: file.additions ?? 0,
+    removed: file.deletions ?? 0,
+  };
   const hasStats = diffStats.added > 0 || diffStats.removed > 0;
 
-  const handleClick = useCallback(() => {
+  const handleClick = () => {
     onClick?.(file);
-  }, [onClick, file]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onClick?.(file);
-      }
-    },
-    [onClick, file],
-  );
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick?.(file);
+    }
+  };
 
   return (
     <li>
@@ -193,5 +190,3 @@ function CommitFileItemComponent({
     </li>
   );
 }
-
-export const CommitFileItem = memo(CommitFileItemComponent);

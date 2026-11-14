@@ -37,7 +37,6 @@
  * ```
  */
 
-import { memo, useCallback } from "react";
 import { cn } from "@/utils";
 import type { CommitGraphNode, GraphRenderConfig, CommitFile } from "./types";
 import type { TrackedBranchInfo } from "@features/git/model";
@@ -161,7 +160,7 @@ function calculateFilesPanelHeight(
  * - Variable height when expanded
  * - Keyboard focus styling
  */
-function CommitGraphRowComponent({
+export function CommitGraphRow({
   node,
   isExpanded,
   config,
@@ -174,30 +173,57 @@ function CommitGraphRowComponent({
   className,
 }: CommitGraphRowProps) {
   // Handle row click
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Don't toggle if clicking on interactive elements
-      if ((e.target as HTMLElement).closest("button")) return;
-      onToggle?.();
-    },
-    [onToggle],
-  );
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't toggle if clicking on interactive elements
+    if ((e.target as HTMLElement).closest("button")) return;
+    onToggle?.();
+  };
 
   // Handle keyboard activation
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onToggle?.();
-      }
-    },
-    [onToggle],
-  );
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggle?.();
+    }
+  };
 
-  // Calculate the height of the expanded files section
-  const filesPanelHeight = isExpanded
-    ? calculateFilesPanelHeight(node.files, node.isLoadingFiles ?? false)
-    : 0;
+  // Expanded section - graph continuation + files panel, no hover. Built in
+  // an if block rather than inline `isExpanded && (...)` so the React Compiler
+  // caches the graph and the files panel separately, and selecting a file
+  // doesn't re-render the graph.
+  let expandedSection: React.ReactNode = null;
+  if (isExpanded) {
+    const filesPanelHeight = calculateFilesPanelHeight(
+      node.files,
+      node.isLoadingFiles ?? false,
+    );
+    expandedSection = (
+      <div className="flex items-stretch">
+        {/* Graph continuation - just the lines going down */}
+        <div className="flex-shrink-0 pr-2">
+          <GraphCell
+            node={node}
+            height={filesPanelHeight}
+            config={config}
+            hideCircle
+          />
+        </div>
+
+        {/* Files panel - pr-2 to match commit summary row (no left padding) */}
+        <div
+          className="flex-1 min-w-0 pr-2 pb-2"
+          data-testid="expanded-content"
+        >
+          <CommitFilesPanel
+            files={node.files}
+            isLoading={node.isLoadingFiles}
+            selectedFilePath={selectedFilePath}
+            onFileSelect={onFileSelect}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -254,44 +280,7 @@ function CommitGraphRowComponent({
         </div>
       </CommitTooltip>
 
-      {/* Expanded section - graph continuation + files panel, no hover */}
-      {isExpanded && (
-        <div className="flex items-stretch">
-          {/* Graph continuation - just the lines going down */}
-          <div className="flex-shrink-0 pr-2">
-            <GraphCell
-              node={node}
-              height={filesPanelHeight}
-              config={config}
-              hideCircle
-            />
-          </div>
-
-          {/* Files panel - pr-2 to match commit summary row (no left padding) */}
-          <div
-            className="flex-1 min-w-0 pr-2 pb-2"
-            data-testid="expanded-content"
-          >
-            <CommitFilesPanel
-              files={node.files}
-              isLoading={node.isLoadingFiles}
-              selectedFilePath={selectedFilePath}
-              onFileSelect={onFileSelect}
-            />
-          </div>
-        </div>
-      )}
+      {expandedSection}
     </div>
   );
 }
-
-/**
- * Memoized CommitGraphRow component.
- *
- * The memoization compares props shallowly, which works correctly because:
- * - node is replaced (not mutated) when data changes
- * - isExpanded is a primitive
- * - config is typically a constant
- * - callbacks should be stable (using useCallback in parent)
- */
-export const CommitGraphRow = memo(CommitGraphRowComponent);

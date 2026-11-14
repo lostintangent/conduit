@@ -18,7 +18,6 @@
  * ```
  */
 
-import { memo } from "react";
 import { GitBranch, Tag } from "lucide-react";
 import { cn } from "@/utils";
 import type { GitRef } from "../types";
@@ -70,7 +69,7 @@ export interface RefBadgeProps {
  * Uses compact styling to fit inline with commit messages.
  * Color and icon vary based on ref type, with optional colorHint override.
  */
-function RefBadgeComponent({
+export function RefBadge({
   gitRef,
   colorHint,
   iconOnly = false,
@@ -149,8 +148,6 @@ function RefBadgeComponent({
   );
 }
 
-export const RefBadge = memo(RefBadgeComponent);
-
 // =============================================================================
 // RefBadgeList Component
 // =============================================================================
@@ -211,7 +208,7 @@ function normalizeRefItem(item: GitRef | RefWithColorHint): {
  *
  * When there are more refs than maxVisible, shows a "+N more" indicator.
  */
-function RefBadgeListComponent({
+export function RefBadgeList({
   refs,
   maxVisible = 3,
   className,
@@ -258,5 +255,3 @@ function RefBadgeListComponent({
     </span>
   );
 }
-
-export const RefBadgeList = memo(RefBadgeListComponent);

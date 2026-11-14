@@ -12,6 +12,7 @@
 
 import type { TrackedBranchInfo } from "@features/git/model";
 import type { GitRef } from "../types";
+import { filterRefsForDisplay, parseRefs } from "./parseRefs";
 import type { RefWithColorHint } from "./RefBadge";
 
 // =============================================================================
@@ -124,4 +125,28 @@ export function buildTrackedBranchBadges(
   }
 
   return badges;
+}
+
+/**
+ * Build the badges a commit shows: its tracked branch badges when it has any
+ * (VS Code style), otherwise its own refs, filtered for display and without
+ * color hints.
+ */
+export function buildCommitRefBadges(
+  commitId: string,
+  refs: string[] | undefined,
+  isHead: boolean,
+  trackedBranches: TrackedBranchInfo | null | undefined,
+  options: BuildTrackedBadgesOptions = {},
+): RefWithColorHint[] {
+  const trackedBadges = buildTrackedBranchBadges(
+    commitId,
+    isHead,
+    trackedBranches,
+    options,
+  );
+  if (trackedBadges.length > 0) {
+    return trackedBadges;
+  }
+  return filterRefsForDisplay(parseRefs(refs)).map((ref) => ({ ref }));
 }

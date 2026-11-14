@@ -31,7 +31,7 @@
  * ```
  */
 
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -227,13 +227,13 @@ export function GitBranchToolbar({
    * Handle commit button click.
    * Focuses input if no message, otherwise commits.
    */
-  const handleCommitClick = useCallback(() => {
+  const handleCommitClick = () => {
     if (!commitMessage.trim()) {
       commitInputRef.current?.focus();
       return;
     }
     onCommit?.();
-  }, [commitMessage, onCommit]);
+  };
 
   // ---------------------------------------------------------------------------
   // Early Return

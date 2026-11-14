@@ -12,7 +12,6 @@
  * ```
  */
 
-import { memo } from "react";
 import { GitCommitHorizontal } from "lucide-react";
 import { cn } from "@/utils";
 
@@ -41,7 +40,7 @@ export interface EmptyStateProps {
  * Shown when there are no commits to display.
  * Provides helpful guidance about getting started.
  */
-function EmptyStateComponent({
+export function EmptyState({
   title = "No commits yet",
   description = "This repository doesn't have any commits. Create your first commit to see the history.",
   className,
@@ -68,5 +67,3 @@ function EmptyStateComponent({
     </div>
   );
 }
-
-export const EmptyState = memo(EmptyStateComponent);

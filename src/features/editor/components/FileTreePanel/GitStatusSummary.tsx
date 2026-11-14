@@ -19,7 +19,6 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import { useMemo } from "react";
 import { GitBadge, getStatusConfig } from "../shared/GitBadge";
 
 export interface GitStatusSummaryProps {
@@ -50,35 +49,23 @@ export function GitStatusSummary({
 }: GitStatusSummaryProps) {
   const showExpanded = isExpanded || isHovered;
 
-  /**
-   * Calculate unique status types and their counts.
-   */
-  const { statusCounts, uniqueStatuses } = useMemo(() => {
-    const counts = new Map<string, number>();
-    const statuses: GitFileStatus[] = [];
-
-    if (gitStatus) {
-      for (const status of gitStatus.values()) {
-        // Count each status type
-        const statusCode = status.status;
-        counts.set(statusCode, (counts.get(statusCode) || 0) + 1);
-
-        // Track unique status types
-        if (!statuses.some((s) => s.status === statusCode)) {
-          statuses.push(status);
-        }
-      }
+  // Count each status type and keep one file per type
+  const statusCounts = new Map<string, number>();
+  const uniqueStatuses: GitFileStatus[] = [];
+  for (const status of gitStatus?.values() ?? []) {
+    const statusCode = status.status;
+    statusCounts.set(statusCode, (statusCounts.get(statusCode) || 0) + 1);
+    if (!uniqueStatuses.some((s) => s.status === statusCode)) {
+      uniqueStatuses.push(status);
     }
+  }
 
-    // Sort statuses by weight (priority) - highest first
-    statuses.sort((a, b) => {
-      const configA = getStatusConfig(a);
-      const configB = getStatusConfig(b);
-      return (configB?.weight || 0) - (configA?.weight || 0);
-    });
-
-    return { statusCounts: counts, uniqueStatuses: statuses };
-  }, [gitStatus]);
+  // Sort statuses by weight (priority) - highest first
+  uniqueStatuses.sort((a, b) => {
+    const configA = getStatusConfig(a);
+    const configB = getStatusConfig(b);
+    return (configB?.weight || 0) - (configA?.weight || 0);
+  });
 
   // Show "0" with grey dot when no changes
   if (changedFilesCount === 0) {

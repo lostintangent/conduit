@@ -23,7 +23,7 @@
  * ```
  */
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { GitBranch, ChevronDown, Check, Plus } from "lucide-react";
 import { gitMutations } from "@features/git/client/queries";
@@ -102,42 +102,39 @@ export function BranchSwitcher({
    * Attempt to checkout a branch.
    * If there are uncommitted changes, shows the conflict dialog.
    */
-  const handleSelectBranch = useCallback(
-    async (branch: string) => {
-      if (branch === currentBranch) return;
+  const handleSelectBranch = async (branch: string) => {
+    if (branch === currentBranch) return;
 
-      setCheckoutError(null);
+    setCheckoutError(null);
 
-      try {
-        // Try normal checkout first
-        await checkout({ branch });
-        setIsOpen(false);
-        onBranchSwitch?.(branch);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
+    try {
+      // Try normal checkout first
+      await checkout({ branch });
+      setIsOpen(false);
+      onBranchSwitch?.(branch);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
 
-        // Check if the error is about local changes being overwritten
-        if (
-          errorMessage.includes("local changes") ||
-          errorMessage.includes("overwritten") ||
-          errorMessage.includes("uncommitted") ||
-          errorMessage.includes("would be overwritten")
-        ) {
-          // Show conflict dialog
-          setPendingBranch(branch);
-          setShowConflictDialog(true);
-        } else {
-          setCheckoutError(`Failed to checkout: ${errorMessage}`);
-        }
+      // Check if the error is about local changes being overwritten
+      if (
+        errorMessage.includes("local changes") ||
+        errorMessage.includes("overwritten") ||
+        errorMessage.includes("uncommitted") ||
+        errorMessage.includes("would be overwritten")
+      ) {
+        // Show conflict dialog
+        setPendingBranch(branch);
+        setShowConflictDialog(true);
+      } else {
+        setCheckoutError(`Failed to checkout: ${errorMessage}`);
       }
-    },
-    [checkout, currentBranch, onBranchSwitch],
-  );
+    }
+  };
 
   /**
    * Handle "Stash & Checkout" - stash changes, checkout, pop stash.
    */
-  const handleStashAndCheckout = useCallback(async () => {
+  const handleStashAndCheckout = async () => {
     if (!pendingBranch) return;
 
     setCheckoutError(null);
@@ -152,12 +149,12 @@ export function BranchSwitcher({
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckoutError(`Failed to stash and checkout: ${errorMessage}`);
     }
-  }, [checkout, pendingBranch, onBranchSwitch]);
+  };
 
   /**
    * Handle "Force Checkout" - discard local changes and checkout.
    */
-  const handleForceCheckout = useCallback(async () => {
+  const handleForceCheckout = async () => {
     if (!pendingBranch) return;
 
     setCheckoutError(null);
@@ -172,15 +169,15 @@ export function BranchSwitcher({
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckoutError(`Failed to force checkout: ${errorMessage}`);
     }
-  }, [checkout, pendingBranch, onBranchSwitch]);
+  };
 
   /**
    * Handle "Cancel" - close the conflict dialog.
    */
-  const handleCancelConflict = useCallback(() => {
+  const handleCancelConflict = () => {
     setShowConflictDialog(false);
     setPendingBranch(null);
-  }, []);
+  };
 
   // ---------------------------------------------------------------------------
   // Render

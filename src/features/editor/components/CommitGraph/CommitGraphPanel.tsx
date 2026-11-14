@@ -44,7 +44,7 @@
 
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { cn } from "@/utils";
-import { memo, useCallback, useState } from "react";
+import { useState } from "react";
 import { CommitGraphHeader } from "./CommitGraphHeader";
 import { CommitGraphList } from "./CommitGraphList";
 import { useCommitGraph } from "../hooks/useCommitGraph";
@@ -98,7 +98,7 @@ export interface CommitGraphPanelProps {
  * - State handling (loading, error, empty)
  * - Keyboard navigation
  */
-function CommitGraphPanelComponent({
+export function CommitGraphPanel({
   git,
   headCommitId,
   onFileSelect,
@@ -138,77 +138,68 @@ function CommitGraphPanelComponent({
   /**
    * Handle refresh button click.
    */
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = () => {
     refresh();
     setSelectedCommitId(null);
     setSelectedFilePath(undefined);
-  }, [refresh]);
+  };
 
   /**
    * Handle commit row toggle (expand/collapse).
    * Also selects the commit when clicked.
    */
-  const handleToggleExpand = useCallback(
-    (commitId: string) => {
-      toggleExpand(commitId);
-      // Select the commit when clicking on it
-      setSelectedCommitId(commitId);
-      // Clear file selection when toggling
-      setSelectedFilePath(undefined);
-    },
-    [toggleExpand],
-  );
+  const handleToggleExpand = (commitId: string) => {
+    toggleExpand(commitId);
+    // Select the commit when clicking on it
+    setSelectedCommitId(commitId);
+    // Clear file selection when toggling
+    setSelectedFilePath(undefined);
+  };
 
   /**
    * Handle "view all" button click on a commit.
    */
-  const handleViewAll = useCallback(
-    (commitId: string) => {
-      if (!onViewCommit) return;
+  const handleViewAll = (commitId: string) => {
+    if (!onViewCommit) return;
 
-      const node = nodes.find((n) => n.commit.id === commitId);
-      if (!node) return;
+    const node = nodes.find((n) => n.commit.id === commitId);
+    if (!node) return;
 
-      const parentCommitId = node.commit.parentIds[0] ?? "";
+    const parentCommitId = node.commit.parentIds[0] ?? "";
 
-      onViewCommit({
-        commitId,
-        parentCommitId,
-        commit: node.commit,
-      });
-    },
-    [nodes, onViewCommit],
-  );
+    onViewCommit({
+      commitId,
+      parentCommitId,
+      commit: node.commit,
+    });
+  };
 
   /**
    * Handle file selection within an expanded commit.
    */
-  const handleFileSelect = useCallback(
-    (file: CommitFile, commitId: string) => {
-      setSelectedFilePath(file.path);
+  const handleFileSelect = (file: CommitFile, commitId: string) => {
+    setSelectedFilePath(file.path);
 
-      if (!onFileSelect) return;
+    if (!onFileSelect) return;
 
-      const node = nodes.find((n) => n.commit.id === commitId);
-      if (!node) return;
+    const node = nodes.find((n) => n.commit.id === commitId);
+    if (!node) return;
 
-      const parentCommitId = node.commit.parentIds[0] ?? "";
+    const parentCommitId = node.commit.parentIds[0] ?? "";
 
-      onFileSelect({
-        file,
-        commitId,
-        parentCommitId,
-      });
-    },
-    [nodes, onFileSelect],
-  );
+    onFileSelect({
+      file,
+      commitId,
+      parentCommitId,
+    });
+  };
 
   /**
    * Handle selection change from keyboard navigation.
    */
-  const handleSelectionChange = useCallback((commitId: string | null) => {
+  const handleSelectionChange = (commitId: string | null) => {
     setSelectedCommitId(commitId);
-  }, []);
+  };
 
   // ---------------------------------------------------------------------------
   // Render
@@ -257,5 +248,3 @@ function CommitGraphPanelComponent({
     </div>
   );
 }
-
-export const CommitGraphPanel = memo(CommitGraphPanelComponent);

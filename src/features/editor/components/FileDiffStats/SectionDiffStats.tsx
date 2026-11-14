@@ -11,7 +11,6 @@
  * ```
  */
 
-import { memo } from "react";
 import { useSectionTotalStats } from "./FileDiffStatsContext";
 import { DiffStatsDisplay } from "./DiffStatsDisplay";
 
@@ -28,10 +27,7 @@ export interface SectionDiffStatsProps {
  * Automatically fetches pre-computed totals from FileDiffStatsContext.
  * Returns null if no stats available or if the section is empty.
  */
-export const SectionDiffStats = memo(function SectionDiffStats({
-  staged,
-  className,
-}: SectionDiffStatsProps) {
+export function SectionDiffStats({ staged, className }: SectionDiffStatsProps) {
   const stats = useSectionTotalStats(staged);
 
   // Don't render if no stats available
@@ -45,4 +41,4 @@ export const SectionDiffStats = memo(function SectionDiffStats({
   }
 
   return <DiffStatsDisplay stats={stats} className={className} />;
-});
+}

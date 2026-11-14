@@ -298,6 +298,31 @@ export function isGitSource(source: ContentSource): boolean {
 }
 
 /**
+ * Choose the diff sides for a working-tree file.
+ *
+ * - Against a base branch: base branch → working directory
+ * - Staged: HEAD → index
+ * - Unstaged in a partially staged file: index → working directory
+ * - Unstaged: HEAD → working directory
+ */
+export function getWorkingDiffSources(
+  baseBranch: string | undefined,
+  staged: boolean | undefined,
+  hasIndexChanges: boolean | undefined,
+): { originalSource: ContentSource; modifiedSource: ContentSource } {
+  if (baseBranch && baseBranch !== "HEAD") {
+    return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
+  }
+  if (staged) {
+    return { originalSource: "head", modifiedSource: "index" };
+  }
+  if (hasIndexChanges) {
+    return { originalSource: "index", modifiedSource: "workingDirectory" };
+  }
+  return { originalSource: "head", modifiedSource: "workingDirectory" };
+}
+
+/**
  * Convert a ContentSource to the git ref string used by git commands.
  *
  * - 'head' → 'HEAD'

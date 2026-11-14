@@ -52,7 +52,7 @@ import type { CommitFile, GitFileStatus } from "@features/git/model";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useMutation } from "@tanstack/react-query";
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDiffModeTransition } from "../hooks/useDiffModeTransition";
 import { useEditorActions } from "../hooks/useEditorActions";
 import { useEditorSaveKeybinding } from "../hooks/useEditorSaveKeybinding";
@@ -61,7 +61,7 @@ import {
   MonacoModelRegistry,
   createModelKey,
 } from "../../client/MonacoModelRegistry";
-import type { ContentSource } from "../../model";
+import { getWorkingDiffSources, type ContentSource } from "../../model";
 import { canStageFile } from "../utils/stagingHelpers";
 import { commitFileToFileChange } from "../utils/gitStatusHelpers";
 import { joinCwdPath } from "../utils/pathUtils";
@@ -256,24 +256,12 @@ export function FileEditor(props: FileEditorProps) {
     markFileSeenRef.current = markFileSeen;
   }, [markFileSeen]);
 
-  const fileName = useMemo(() => {
-    return filePath.split("/").pop() ?? filePath;
-  }, [filePath]);
+  const fileName = filePath.split("/").pop() ?? filePath;
 
-  const fullFilePath = useMemo(() => {
-    return joinCwdPath(cwd, filePath);
-  }, [cwd, filePath]);
+  const fullFilePath = joinCwdPath(cwd, filePath);
 
   // Get file status code for display
-  const fileStatus = useMemo(() => {
-    if (isWorkingContext && status) {
-      return status.status;
-    }
-    if (isCommitContext && commitFile) {
-      return commitFile.status;
-    }
-    return "modified";
-  }, [isWorkingContext, isCommitContext, status, commitFile]);
+  const fileStatus = status?.status ?? commitFile?.status ?? "modified";
 
   // Is this file staged (only relevant in working context)
   const isStaged = isWorkingContext && status?.staged;
@@ -284,55 +272,31 @@ export function FileEditor(props: FileEditorProps) {
     : commitFile?.originalPath;
 
   // Editor ID - unique per file and context
-  const editorId = useMemo(() => {
-    if (isWorkingContext) {
-      const stageSuffix = isStaged ? "-staged" : "-unstaged";
-      return `file-editor-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}${stageSuffix}`;
-    }
-    if (isCommitContext) {
-      return `file-editor-commit-${commitId?.slice(0, 7)}-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}`;
-    }
-    return `file-editor-${filePath.replace(/[^a-zA-Z0-9]/g, "-")}`;
-  }, [isWorkingContext, isCommitContext, filePath, isStaged, commitId]);
+  const fileIdPart = filePath.replace(/[^a-zA-Z0-9]/g, "-");
+  const editorId = isWorkingContext
+    ? `file-editor-${fileIdPart}${isStaged ? "-staged" : "-unstaged"}`
+    : isCommitContext
+      ? `file-editor-commit-${commitId?.slice(0, 7)}-${fileIdPart}`
+      : `file-editor-${fileIdPart}`;
 
   // ---------------------------------------------------------------------------
   // Content Source Calculation
   // ---------------------------------------------------------------------------
 
-  const { originalSource, modifiedSource } = useMemo((): {
-    originalSource: ContentSource;
-    modifiedSource: ContentSource;
-  } => {
-    // Only a commit context has commit ids
-    if (parentCommitId !== undefined && commitId !== undefined) {
-      return { originalSource: parentCommitId, modifiedSource: commitId };
-    }
-
-    if (isNormalContext) {
-      const source = normalSource ?? "workingDirectory";
-      return { originalSource: "head", modifiedSource: source };
-    }
-
-    // Working context
-    if (baseBranch && baseBranch !== "HEAD") {
-      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
-    }
-
-    if (status?.staged) {
-      return { originalSource: "head", modifiedSource: "index" };
-    } else if (status?.hasIndexChanges) {
-      return { originalSource: "index", modifiedSource: "workingDirectory" };
-    } else {
-      return { originalSource: "head", modifiedSource: "workingDirectory" };
-    }
-  }, [
-    isNormalContext,
-    normalSource,
-    baseBranch,
-    status,
-    parentCommitId,
-    commitId,
-  ]);
+  // Only a commit context has commit ids
+  const { originalSource, modifiedSource } =
+    parentCommitId !== undefined && commitId !== undefined
+      ? { originalSource: parentCommitId, modifiedSource: commitId }
+      : isNormalContext
+        ? {
+            originalSource: "head",
+            modifiedSource: normalSource ?? "workingDirectory",
+          }
+        : getWorkingDiffSources(
+            baseBranch,
+            status?.staged,
+            status?.hasIndexChanges,
+          );
 
   // ---------------------------------------------------------------------------
   // Read-only Detection
@@ -340,20 +304,10 @@ export function FileEditor(props: FileEditorProps) {
 
   // Editor is readonly when the content source is not workingDirectory
   // This includes: commit context, deleted files, staged files, explicit readonly
-  const isReadOnly = useMemo(() => {
-    // Deleted files show original content which is readonly
-    if (fileStatus === "deleted") {
-      return true;
-    }
-
-    // Normal context with explicit readonly prop
-    if (isNormalContext && props.readOnly) {
-      return true;
-    }
-
-    // Check if modified source is editable (only workingDirectory is editable)
-    return modifiedSource !== "workingDirectory";
-  }, [fileStatus, isNormalContext, props, modifiedSource]);
+  const isReadOnly =
+    fileStatus === "deleted" ||
+    (isNormalContext && props.readOnly) ||
+    modifiedSource !== "workingDirectory";
 
   // ---------------------------------------------------------------------------
   // Editor Controls State
@@ -363,12 +317,10 @@ export function FileEditor(props: FileEditorProps) {
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [controlsActivated, setControlsActivated] = useState(false);
 
-  // Show diff toggle for modified files (not for added/deleted/untracked/readonly)
+  // Show diff toggle for modified files (not for added/untracked/readonly, and
+  // deleted files are always readonly)
   const showDiffToggle =
-    !isReadOnly &&
-    fileStatus !== "untracked" &&
-    fileStatus !== "added" &&
-    fileStatus !== "deleted";
+    !isReadOnly && fileStatus !== "untracked" && fileStatus !== "added";
 
   const { isDiffMode, setIsDiffMode } = useDiffModeTransition();
 
@@ -385,12 +337,12 @@ export function FileEditor(props: FileEditorProps) {
     }
   }, [isDirty, controlsActivated]);
 
-  // Show editor controls when dirty or previously activated (not for deleted/read-only)
-  const _showEditorControls =
-    !isReadOnly && fileStatus !== "deleted" && (isDirty || controlsActivated);
+  // Show editor controls when dirty or previously activated (not for read-only,
+  // which includes deleted files)
+  const _showEditorControls = !isReadOnly && (isDirty || controlsActivated);
 
   // Save handler
-  const handleSave = useCallback(async () => {
+  const handleSave = async () => {
     if (isReadOnly || !fullFilePath) return;
 
     try {
@@ -399,7 +351,7 @@ export function FileEditor(props: FileEditorProps) {
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [isReadOnly, fullFilePath]);
+  };
 
   const { registerSaveKeybinding } = useEditorSaveKeybinding(
     handleSave,
@@ -409,62 +361,55 @@ export function FileEditor(props: FileEditorProps) {
   const editorActions = useEditorActions(editor, modelState, handleSave);
 
   // Handle editor mount
-  const handleEditorMount = useCallback(
-    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
-      setEditor(mountedEditor);
-      if (!isReadOnly) {
-        registerSaveKeybinding(mountedEditor);
-      }
-      mountedEditor.onDidFocusEditorText(() => {
-        markFileSeenRef.current?.();
-      });
-    },
-    [isReadOnly, registerSaveKeybinding],
-  );
+  const handleEditorMount = (
+    mountedEditor: monaco.editor.IStandaloneCodeEditor,
+  ) => {
+    setEditor(mountedEditor);
+    if (!isReadOnly) {
+      registerSaveKeybinding(mountedEditor);
+    }
+    mountedEditor.onDidFocusEditorText(() => {
+      markFileSeenRef.current?.();
+    });
+  };
 
-  const handleDiffEditorMount = useCallback(
-    (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
-      const modifiedEditor = diffEditor.getModifiedEditor();
-      setEditor(modifiedEditor);
-      if (!isReadOnly) {
-        registerSaveKeybinding(modifiedEditor);
-      }
-      modifiedEditor.onDidFocusEditorText(() => {
-        markFileSeenRef.current?.();
-      });
-      diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
-        markFileSeenRef.current?.();
-      });
-    },
-    [isReadOnly, registerSaveKeybinding],
-  );
+  const handleDiffEditorMount = (
+    diffEditor: monaco.editor.IStandaloneDiffEditor,
+  ) => {
+    const modifiedEditor = diffEditor.getModifiedEditor();
+    setEditor(modifiedEditor);
+    if (!isReadOnly) {
+      registerSaveKeybinding(modifiedEditor);
+    }
+    modifiedEditor.onDidFocusEditorText(() => {
+      markFileSeenRef.current?.();
+    });
+    diffEditor.getOriginalEditor().onDidFocusEditorText(() => {
+      markFileSeenRef.current?.();
+    });
+  };
 
-  const handleToggle = useCallback(() => {
+  const handleToggle = () => {
     if (isWorkingContext) {
       markSeen?.(filePath);
     }
     onToggle?.();
-  }, [isWorkingContext, markSeen, filePath, onToggle]);
+  };
 
   // ---------------------------------------------------------------------------
   // Badge status for GitBadge
   // ---------------------------------------------------------------------------
 
-  const badgeStatus = useMemo(() => {
-    if (isWorkingContext && status) {
-      return status;
-    }
-    if (isCommitContext && commitFile) {
-      const fileChange = commitFileToFileChange(commitFile);
-      return {
-        path: commitFile.path,
-        status: fileChange.status,
-        staged: true as const,
-        originalPath: commitFile.originalPath,
-      };
-    }
-    return null;
-  }, [isWorkingContext, isCommitContext, status, commitFile]);
+  const badgeStatus =
+    status ??
+    (commitFile
+      ? {
+          path: commitFile.path,
+          status: commitFileToFileChange(commitFile).status,
+          staged: true as const,
+          originalPath: commitFile.originalPath,
+        }
+      : null);
 
   // ---------------------------------------------------------------------------
   // Render Editor Content
@@ -536,7 +481,7 @@ export function FileEditor(props: FileEditorProps) {
     git ? gitMutations.revert(git.cwd) : {},
   );
 
-  const handleToolbarStage = useCallback(() => {
+  const handleToolbarStage = () => {
     if (!isWorkingContext || !git) return;
 
     if (!canStageFile(fullFilePath, isFileDirty)) {
@@ -545,24 +490,16 @@ export function FileEditor(props: FileEditorProps) {
 
     markSeen?.(filePath);
     stage([filePath]);
-  }, [
-    isWorkingContext,
-    git,
-    stage,
-    filePath,
-    fullFilePath,
-    markSeen,
-    isFileDirty,
-  ]);
+  };
 
-  const handleToolbarUnstage = useCallback(() => {
+  const handleToolbarUnstage = () => {
     if (!isWorkingContext || !git) return;
 
     markSeen?.(filePath);
     unstage([filePath]);
-  }, [isWorkingContext, git, unstage, filePath, markSeen]);
+  };
 
-  const handleToolbarRevert = useCallback(() => {
+  const handleToolbarRevert = () => {
     if (!isWorkingContext || !git) return;
 
     const confirmed = window.confirm(
@@ -573,7 +510,7 @@ export function FileEditor(props: FileEditorProps) {
 
     markSeen?.(filePath);
     revert([filePath]);
-  }, [isWorkingContext, git, revert, filePath, markSeen]);
+  };
 
   // ---------------------------------------------------------------------------
   // Render Toolbar using EditorToolbar

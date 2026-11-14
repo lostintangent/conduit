@@ -19,7 +19,7 @@
  * ```
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/utils";
 
 /**
@@ -116,7 +116,7 @@ export function FileTreeItemRename({
    * Validate and commit the rename if valid.
    * Returns true if committed, false if validation failed.
    */
-  const tryCommit = useCallback((): boolean => {
+  const tryCommit = (): boolean => {
     if (isCommittingRef.current) return false;
 
     const trimmedValue = value.trim();
@@ -144,24 +144,21 @@ export function FileTreeItemRename({
     isCommittingRef.current = true;
     onCommit(trimmedValue);
     return true;
-  }, [value, initialName, onCommit, onCancel, checkNameConflict]);
+  };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        tryCommit();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onCancel();
-      }
-    },
-    [tryCommit, onCancel],
-  );
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      tryCommit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onCancel();
+    }
+  };
 
-  const handleBlur = useCallback(() => {
+  const handleBlur = () => {
     // On blur, try to commit. If validation fails, cancel instead.
     if (!tryCommit()) {
       // If tryCommit returned false due to validation error,
@@ -170,17 +167,17 @@ export function FileTreeItemRename({
         onCancel();
       }
     }
-  }, [tryCommit, onCancel]);
+  };
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);
     setError(null); // Clear error on change
-  }, []);
+  };
 
   // Prevent click from propagating to parent (which would trigger selection)
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-  }, []);
+  };
 
   return (
     <div className="flex-1 min-w-0 flex items-center">

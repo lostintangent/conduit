@@ -30,7 +30,7 @@
 import type { GitFileStatus } from "@features/git/model";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import * as monaco from "monaco-editor";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCommitDetails } from "../hooks/useCommitDetails";
 import { useEditorActions } from "../hooks/useEditorActions";
 import { useEditorSaveKeybinding } from "../hooks/useEditorSaveKeybinding";
@@ -41,11 +41,11 @@ import {
   createModelKey,
   MonacoModelRegistry,
 } from "../../client/MonacoModelRegistry";
-import type {
-  ContentSource,
-  FileNode,
-  ModelState,
-  ViewMode,
+import {
+  getWorkingDiffSources,
+  type FileNode,
+  type ModelState,
+  type ViewMode,
 } from "../../model";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
 import { ReviewCommitPane } from "../ReviewCommit/ReviewCommitPane";
@@ -199,10 +199,8 @@ export interface EditorPanelProps {
  * - `preview`: Shows MarkdownPreview (for .md files) or ImagePreview (for images)
  * - `diff`: Shows DiffEditorWrapper
  * - `changesReview`: Shows multi-file diff view (TODO: Phase 4+)
- *
- * Memoized to prevent re-renders from parent state changes that don't affect this component.
  */
-export const EditorPanel = memo(function EditorPanel({
+export function EditorPanel({
   editorId,
   cwd,
   git,
@@ -267,55 +265,22 @@ export const EditorPanel = memo(function EditorPanel({
   } = useCommitDetails(commitReviewId, git);
 
   // Convert commit data to metadata format expected by ReviewCommitPane
-  const commitMetadata = useMemo(() => {
-    if (!commitData) return undefined;
-    return {
-      subject: commitData.subject,
-      author: commitData.author,
-      // Convert milliseconds to seconds for formatRelativeTime
-      timestamp: Math.floor(commitData.timestamp / 1000),
-      shortId: commitData.shortId,
-      fullId: commitData.id,
-    };
-  }, [commitData]);
+  const commitMetadata = commitData
+    ? {
+        subject: commitData.subject,
+        author: commitData.author,
+        // Convert milliseconds to seconds for formatRelativeTime
+        timestamp: Math.floor(commitData.timestamp / 1000),
+        shortId: commitData.shortId,
+        fullId: commitData.id,
+      }
+    : undefined;
 
-  // ---------------------------------------------------------------------------
-  // Content Source Calculation
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Calculate content sources for diff view based on staging status.
-   *
-   * For normal staged/unstaged view (no baseBranch or baseBranch === 'HEAD'):
-   * - Staged changes: HEAD → Index (comparing what was committed vs what's staged)
-   * - Unstaged with index changes: Index → Working Directory (partially staged file)
-   * - Unstaged without index changes: HEAD → Working Directory (normal unstaged)
-   *
-   * For branch comparison mode (baseBranch !== 'HEAD'):
-   * - All files compared against the base branch
-   */
-  const { originalSource, modifiedSource } = useMemo((): {
-    originalSource: ContentSource;
-    modifiedSource: ContentSource;
-  } => {
-    // Branch comparison mode: compare against the specified branch
-    if (baseBranch && baseBranch !== "HEAD") {
-      return { originalSource: baseBranch, modifiedSource: "workingDirectory" };
-    }
-
-    // Normal staged/unstaged view
-    if (isFileStaged) {
-      // Staged changes: show HEAD → Index (read-only on both sides conceptually,
-      // but modified side shows what's staged)
-      return { originalSource: "head", modifiedSource: "index" };
-    } else if (hasIndexChanges) {
-      // Unstaged changes for a partially staged file: show Index → Working Directory
-      return { originalSource: "index", modifiedSource: "workingDirectory" };
-    } else {
-      // Normal unstaged changes: show HEAD → Working Directory
-      return { originalSource: "head", modifiedSource: "workingDirectory" };
-    }
-  }, [baseBranch, isFileStaged, hasIndexChanges]);
+  const { originalSource, modifiedSource } = getWorkingDiffSources(
+    baseBranch,
+    isFileStaged,
+    hasIndexChanges,
+  );
 
   // ---------------------------------------------------------------------------
   // Mode Transition Handling
@@ -375,7 +340,7 @@ export const EditorPanel = memo(function EditorPanel({
   /**
    * Handle save action - saves the model and notifies parent.
    */
-  const handleSave = useCallback(async () => {
+  const handleSave = async () => {
     if (!filePath) return;
 
     try {
@@ -385,7 +350,7 @@ export const EditorPanel = memo(function EditorPanel({
     } catch (error) {
       console.error("Failed to save file:", error);
     }
-  }, [filePath, onSave]);
+  };
 
   // ---------------------------------------------------------------------------
   // Editor Keybindings
@@ -416,32 +381,30 @@ export const EditorPanel = memo(function EditorPanel({
   /**
    * Handle editor mount - store editor for actions hook and register keybindings.
    */
-  const handleEditorMount = useCallback(
-    (mountedEditor: monaco.editor.IStandaloneCodeEditor) => {
-      setEditor(mountedEditor);
-      registerSaveKeybinding(mountedEditor);
-    },
-    [registerSaveKeybinding],
-  );
+  const handleEditorMount = (
+    mountedEditor: monaco.editor.IStandaloneCodeEditor,
+  ) => {
+    setEditor(mountedEditor);
+    registerSaveKeybinding(mountedEditor);
+  };
 
   /**
    * Handle diff editor mount - store modified editor and register keybindings.
    */
-  const handleDiffEditorMount = useCallback(
-    (diffEditor: monaco.editor.IStandaloneDiffEditor) => {
-      // For diff editor, we need to get the modified (right side) editor
-      const modifiedEditor = diffEditor.getModifiedEditor();
-      setEditor(modifiedEditor);
-      registerSaveKeybinding(modifiedEditor);
-    },
-    [registerSaveKeybinding],
-  );
+  const handleDiffEditorMount = (
+    diffEditor: monaco.editor.IStandaloneDiffEditor,
+  ) => {
+    // For diff editor, we need to get the modified (right side) editor
+    const modifiedEditor = diffEditor.getModifiedEditor();
+    setEditor(modifiedEditor);
+    registerSaveKeybinding(modifiedEditor);
+  };
 
   /**
    * Handle reload from disk.
    * Discards local changes and loads current disk content.
    */
-  const handleReload = useCallback(async () => {
+  const handleReload = async () => {
     if (!filePath) return;
 
     try {
@@ -450,18 +413,18 @@ export const EditorPanel = memo(function EditorPanel({
     } catch (error) {
       console.error("Failed to reload file:", error);
     }
-  }, [filePath]);
+  };
 
   /**
    * Handle keep changes - user acknowledges external changes but wants to keep editing.
    * Clears the hasExternalChanges flag so the warning disappears.
    */
-  const handleKeepChanges = useCallback(() => {
+  const handleKeepChanges = () => {
     if (!filePath) return;
 
     const registry = MonacoModelRegistry.getInstance();
     registry.clearExternalChanges(createModelKey(filePath));
-  }, [filePath]);
+  };
 
   // Changes review mode - render full-height pane with its own toolbar
   // This is checked first because review mode doesn't require a selected file
@@ -691,4 +654,4 @@ export const EditorPanel = memo(function EditorPanel({
       </div>
     </div>
   );
-});
+}

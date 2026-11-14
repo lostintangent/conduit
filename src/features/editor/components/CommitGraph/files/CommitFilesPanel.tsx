@@ -32,7 +32,6 @@
  * ```
  */
 
-import { memo, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/utils";
 import type { CommitFile } from "../types";
@@ -129,7 +128,7 @@ function EmptyState() {
  * Handles loading, empty, and populated states.
  * File items are clickable to view the file diff.
  */
-function CommitFilesPanelComponent({
+export function CommitFilesPanel({
   files,
   isLoading = false,
   selectedFilePath,
@@ -137,10 +136,7 @@ function CommitFilesPanelComponent({
   className,
 }: CommitFilesPanelProps) {
   // Calculate totals for the header
-  const { totalAdditions, totalDeletions } = useMemo(
-    () => calculateTotals(files ?? []),
-    [files],
-  );
+  const { totalAdditions, totalDeletions } = calculateTotals(files ?? []);
 
   // Loading state
   if (isLoading) {
@@ -189,5 +185,3 @@ function CommitFilesPanelComponent({
     </div>
   );
 }
-
-export const CommitFilesPanel = memo(CommitFilesPanelComponent);

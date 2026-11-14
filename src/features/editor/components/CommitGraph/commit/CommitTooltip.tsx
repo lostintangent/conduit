@@ -18,15 +18,14 @@
  * ```
  */
 
-import { memo, useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { User, Clock, GitCommit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import type { HistoryCommit } from "../types";
 import type { TrackedBranchInfo } from "@features/git/model";
 import { formatRelativeTime } from "@/utils/time";
-import { parseRefs, filterRefsForDisplay } from "../refs/parseRefs";
-import { RefBadgeList, type RefWithColorHint } from "../refs/RefBadge";
-import { buildTrackedBranchBadges } from "../refs/trackedBranchBadges";
+import { RefBadgeList } from "../refs/RefBadge";
+import { buildCommitRefBadges } from "../refs/trackedBranchBadges";
 
 // =============================================================================
 // Types
@@ -101,7 +100,7 @@ function parseCommitMessage(message: string): {
 // Component
 // =============================================================================
 
-function CommitTooltipComponent({
+export function CommitTooltip({
   commit,
   isHead = false,
   trackedBranches,
@@ -116,26 +115,13 @@ function CommitTooltipComponent({
   const relativeTime = formatRelativeTime(timestampSeconds);
   const fullDate = formatFullDate(timestampSeconds);
 
-  // Build refs with color hints (matching the commit list badges)
-  const refs = useMemo(() => {
-    // Try to build colored badges from tracked branches first
-    // Don't use iconOnly - show full text in tooltip
-    const trackedBadges = buildTrackedBranchBadges(
-      commit.id,
-      isHead,
-      trackedBranches,
-    );
-
-    if (trackedBadges.length > 0) {
-      return trackedBadges;
-    }
-
-    // Fallback: parse refs from commit without color hints
-    if (!commit.refs?.length) return [];
-    return filterRefsForDisplay(parseRefs(commit.refs)).map(
-      (ref): RefWithColorHint => ({ ref }),
-    );
-  }, [commit.id, commit.refs, isHead, trackedBranches]);
+  // Full-text badges, matching the commit list's badges
+  const refs = buildCommitRefBadges(
+    commit.id,
+    commit.refs,
+    isHead,
+    trackedBranches,
+  );
 
   return (
     <Tooltip delayDuration={delayDuration}>
@@ -184,5 +170,3 @@ function CommitTooltipComponent({
     </Tooltip>
   );
 }
-
-export const CommitTooltip = memo(CommitTooltipComponent);

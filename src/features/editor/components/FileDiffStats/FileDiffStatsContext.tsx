@@ -32,13 +32,7 @@
  * ```
  */
 
-import {
-  createContext,
-  useContext,
-  useCallback,
-  useMemo,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { gitKeys, gitQueries } from "@features/git/client/queries";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
@@ -86,6 +80,18 @@ const FileDiffStatsContext = createContext<FileDiffStatsContextValue | null>(
 // Provider
 // =============================================================================
 
+function sumStats(map: Map<string, FileDiffStat>): FileDiffStat | undefined {
+  if (map.size === 0) return undefined;
+
+  let added = 0;
+  let removed = 0;
+  for (const fileStat of map.values()) {
+    added += fileStat.added;
+    removed += fileStat.removed;
+  }
+  return { added, removed };
+}
+
 export interface FileDiffStatsProviderProps {
   /** Git subscription for fetching diff stats */
   git: GitSubscription;
@@ -125,63 +131,40 @@ export function FileDiffStatsProvider({
     });
   });
 
-  // Memoized getter function for per-file stats
-  const getStats = useCallback(
-    (filePath: string, staged?: boolean): FileDiffStat | undefined => {
-      if (!stats) return undefined;
+  // Getter for per-file stats
+  const getStats = (
+    filePath: string,
+    staged?: boolean,
+  ): FileDiffStat | undefined => {
+    if (!stats) return undefined;
 
-      // If staged is specified, only look in that section
-      if (staged === true) {
-        return stats.staged.get(filePath);
-      }
-      if (staged === false) {
-        return stats.unstaged.get(filePath);
-      }
-
-      // If staged is undefined, combine stats for partially staged files
-      // (backward compatible behavior for contexts that don't track staging)
-      const stagedStat = stats.staged.get(filePath);
-      const unstagedStat = stats.unstaged.get(filePath);
-
-      if (stagedStat && unstagedStat) {
-        return {
-          added: stagedStat.added + unstagedStat.added,
-          removed: stagedStat.removed + unstagedStat.removed,
-        };
-      }
-
-      return stagedStat || unstagedStat;
-    },
-    [stats],
-  );
-
-  // Pre-compute section totals (calculated once when stats change, not on every access)
-  const sectionTotals = useMemo((): SectionTotals => {
-    if (!stats) {
-      return { staged: undefined, unstaged: undefined };
+    // If staged is specified, only look in that section
+    if (staged === true) {
+      return stats.staged.get(filePath);
+    }
+    if (staged === false) {
+      return stats.unstaged.get(filePath);
     }
 
-    const calculateTotal = (
-      map: Map<string, FileDiffStat>,
-    ): FileDiffStat | undefined => {
-      if (map.size === 0) return undefined;
+    // If staged is undefined, combine stats for partially staged files
+    // (backward compatible behavior for contexts that don't track staging)
+    const stagedStat = stats.staged.get(filePath);
+    const unstagedStat = stats.unstaged.get(filePath);
 
-      let totalAdded = 0;
-      let totalRemoved = 0;
+    if (stagedStat && unstagedStat) {
+      return {
+        added: stagedStat.added + unstagedStat.added,
+        removed: stagedStat.removed + unstagedStat.removed,
+      };
+    }
 
-      for (const fileStat of map.values()) {
-        totalAdded += fileStat.added;
-        totalRemoved += fileStat.removed;
-      }
+    return stagedStat || unstagedStat;
+  };
 
-      return { added: totalAdded, removed: totalRemoved };
-    };
-
-    return {
-      staged: calculateTotal(stats.staged),
-      unstaged: calculateTotal(stats.unstaged),
-    };
-  }, [stats]);
+  const sectionTotals: SectionTotals = {
+    staged: stats ? sumStats(stats.staged) : undefined,
+    unstaged: stats ? sumStats(stats.unstaged) : undefined,
+  };
 
   const value: FileDiffStatsContextValue = {
     getStats,

@@ -12,7 +12,7 @@
  * ```
  */
 
-import { memo, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/utils";
 import type { FileDiffStat } from "./FileDiffStatsContext";
 
@@ -41,7 +41,7 @@ type FlashState = "idle" | "bright" | "fading";
  * - Flashes brighter for 2s when stats change, then fades back
  * - Supports isUnseen to bold text for unread changes
  */
-export const DiffStatsDisplay = memo(function DiffStatsDisplay({
+export function DiffStatsDisplay({
   stats,
   className,
   isUnseen = false,
@@ -144,4 +144,4 @@ export const DiffStatsDisplay = memo(function DiffStatsDisplay({
       )}
     </span>
   );
-});
+}

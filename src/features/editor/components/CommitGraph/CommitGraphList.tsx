@@ -36,7 +36,7 @@
  * ```
  */
 
-import { memo, useCallback, useRef } from "react";
+import { useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/ui/button";
 import { cn } from "@/utils";
@@ -106,7 +106,7 @@ export interface CommitGraphListProps {
  * - Keyboard navigation support (arrow keys, Home/End)
  * - Scroll container for overflow
  */
-function CommitGraphListComponent({
+export function CommitGraphList({
   nodes,
   expandedCommits,
   hasMore = false,
@@ -125,100 +125,88 @@ function CommitGraphListComponent({
   const listRef = useRef<HTMLDivElement>(null);
 
   // Handle keyboard navigation
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (nodes.length === 0) return;
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (nodes.length === 0) return;
 
-      const currentIndex = selectedCommitId
-        ? nodes.findIndex((n) => n.commit.id === selectedCommitId)
-        : -1;
+    const currentIndex = selectedCommitId
+      ? nodes.findIndex((n) => n.commit.id === selectedCommitId)
+      : -1;
 
-      let newIndex: number | null = null;
+    let newIndex: number | null = null;
 
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          if (currentIndex === -1) {
-            newIndex = 0;
-          } else if (currentIndex < nodes.length - 1) {
-            newIndex = currentIndex + 1;
-          }
-          break;
-
-        case "ArrowUp":
-          e.preventDefault();
-          if (currentIndex > 0) {
-            newIndex = currentIndex - 1;
-          }
-          break;
-
-        case "Home":
-          e.preventDefault();
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        if (currentIndex === -1) {
           newIndex = 0;
-          break;
+        } else if (currentIndex < nodes.length - 1) {
+          newIndex = currentIndex + 1;
+        }
+        break;
 
-        case "End":
+      case "ArrowUp":
+        e.preventDefault();
+        if (currentIndex > 0) {
+          newIndex = currentIndex - 1;
+        }
+        break;
+
+      case "Home":
+        e.preventDefault();
+        newIndex = 0;
+        break;
+
+      case "End":
+        e.preventDefault();
+        newIndex = nodes.length - 1;
+        break;
+
+      case "Enter":
+      case " ":
+        if (selectedCommitId && !e.shiftKey) {
           e.preventDefault();
-          newIndex = nodes.length - 1;
-          break;
+          onToggleExpand?.(selectedCommitId);
+        }
+        break;
 
-        case "Enter":
-        case " ":
-          if (selectedCommitId && !e.shiftKey) {
-            e.preventDefault();
-            onToggleExpand?.(selectedCommitId);
-          }
-          break;
+      case "v":
+      case "V":
+        if (selectedCommitId && (e.metaKey || e.ctrlKey)) {
+          // Cmd/Ctrl+V might conflict with paste, skip
+        } else if (selectedCommitId) {
+          e.preventDefault();
+          onViewAll?.(selectedCommitId);
+        }
+        break;
+    }
 
-        case "v":
-        case "V":
-          if (selectedCommitId && (e.metaKey || e.ctrlKey)) {
-            // Cmd/Ctrl+V might conflict with paste, skip
-          } else if (selectedCommitId) {
-            e.preventDefault();
-            onViewAll?.(selectedCommitId);
-          }
-          break;
-      }
+    if (newIndex !== null && newIndex >= 0 && newIndex < nodes.length) {
+      const newCommitId = nodes[newIndex].commit.id;
+      onSelectionChange?.(newCommitId);
 
-      if (newIndex !== null && newIndex >= 0 && newIndex < nodes.length) {
-        const newCommitId = nodes[newIndex].commit.id;
-        onSelectionChange?.(newCommitId);
-
-        listRef.current
-          ?.querySelector(`[data-commit-id="${newCommitId}"]`)
-          ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      }
-    },
-    [nodes, selectedCommitId, onToggleExpand, onViewAll, onSelectionChange],
-  );
+      listRef.current
+        ?.querySelector(`[data-commit-id="${newCommitId}"]`)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  };
 
   // Handle load more click
-  const handleLoadMore = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      if (!isLoadingMore) {
-        onLoadMore?.();
-      }
-    },
-    [isLoadingMore, onLoadMore],
-  );
+  const handleLoadMore = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!isLoadingMore) {
+      onLoadMore?.();
+    }
+  };
 
   // Create row handlers with commit ID context
-  const createToggleHandler = useCallback(
-    (commitId: string) => () => onToggleExpand?.(commitId),
-    [onToggleExpand],
-  );
+  const createToggleHandler = (commitId: string) => () =>
+    onToggleExpand?.(commitId);
 
-  const createViewAllHandler = useCallback(
-    (commitId: string) => () => onViewAll?.(commitId),
-    [onViewAll],
-  );
+  const createViewAllHandler = (commitId: string) => () =>
+    onViewAll?.(commitId);
 
-  const createFileSelectHandler = useCallback(
-    (commitId: string) => (file: CommitFile) => onFileSelect?.(file, commitId),
-    [onFileSelect],
-  );
+  const createFileSelectHandler = (commitId: string) => (file: CommitFile) =>
+    onFileSelect?.(file, commitId);
 
   return (
     <div
@@ -294,5 +282,3 @@ function CommitGraphListComponent({
     </div>
   );
 }
-
-export const CommitGraphList = memo(CommitGraphListComponent);

@@ -8,9 +8,6 @@
  * - Outgoing lines to child lanes
  * - Pass-through lines for branches that continue past this commit
  *
- * The component is memoized to prevent unnecessary re-renders when
- * the commit data hasn't changed.
- *
  * @example
  * ```tsx
  * <GraphCell
@@ -21,7 +18,6 @@
  * ```
  */
 
-import { memo, useMemo } from "react";
 import type {
   CommitGraphNode,
   GraphRenderConfig,
@@ -159,11 +155,12 @@ function GraphCircleElement({ circle, strokeWidth }: GraphCircleElementProps) {
  *
  * ## Performance
  *
- * The component is memoized and uses useMemo for the expensive
- * calculateGraphCell computation. It only re-renders when:
- * - The node changes (commit data, swimlanes)
- * - The height changes (expanded/collapsed)
- * - The config changes (layout constants)
+ * The React Compiler caches the calculateGraphCell result and the SVG,
+ * recomputing them only when one of these changes:
+ * - The node (commit data, swimlanes)
+ * - The height (expanded/collapsed)
+ * - The config (layout constants)
+ * - The className or hideCircle props
  *
  * ## Accessibility
  *
@@ -171,7 +168,7 @@ function GraphCircleElement({ circle, strokeWidth }: GraphCircleElementProps) {
  * is visual decoration accompanying the text content. Screen readers
  * should focus on the commit message and metadata instead.
  */
-function GraphCellComponent({
+export function GraphCell({
   node,
   height,
   config,
@@ -180,13 +177,9 @@ function GraphCellComponent({
 }: GraphCellProps) {
   // Calculate all render data
   // Use different renderer for expanded section (just continuation lines)
-  const renderData = useMemo(
-    () =>
-      hideCircle
-        ? calculateExpandedSection(node, height, config)
-        : calculateGraphCell(node, height, config),
-    [node, height, config, hideCircle],
-  );
+  const renderData = hideCircle
+    ? calculateExpandedSection(node, height, config)
+    : calculateGraphCell(node, height, config);
 
   return (
     <svg
@@ -215,13 +208,3 @@ function GraphCellComponent({
     </svg>
   );
 }
-
-/**
- * Memoized GraphCell component.
- *
- * The memoization compares props shallowly, which works well because:
- * - node is replaced (not mutated) when data changes
- * - height is a primitive
- * - config is typically a constant
- */
-export const GraphCell = memo(GraphCellComponent);

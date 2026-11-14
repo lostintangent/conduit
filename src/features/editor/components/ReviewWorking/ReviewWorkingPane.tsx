@@ -32,7 +32,7 @@ import type { GitFileStatus } from "@features/git/model";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, GitCommit, Minus } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DISABLED_UNSEEN_TRACKING,
   type UnseenTrackingResult,
@@ -134,14 +134,17 @@ export function ReviewWorkingPane({
 
   const [sortByLastEdited, setSortByLastEdited] = useState(false);
 
-  const toggleSortOrder = useCallback(() => {
+  const toggleSortOrder = () => {
     setSortByLastEdited((prev) => !prev);
-  }, []);
+  };
 
   // ---------------------------------------------------------------------------
   // Computed: File Lists
   // ---------------------------------------------------------------------------
 
+  // Kept as a useMemo because the React Compiler treats a memo's result as
+  // frozen. As plain arrays these stay mutable through the hooks below, and
+  // the compiler stops caching everything that reads them.
   const { stagedFiles, unstagedFiles, allFilePaths } = useMemo((): {
     stagedFiles: Array<[string, GitFileStatus]>;
     unstagedFiles: Array<[string, GitFileStatus]>;
@@ -201,25 +204,19 @@ export function ReviewWorkingPane({
   // ---------------------------------------------------------------------------
 
   // Sort files by modification time (most recent first) when sortByLastEdited is true
-  const sortedStagedFiles = useMemo(
-    () => (sortByLastEdited ? sortByTimestamp(stagedFiles) : stagedFiles),
-    [sortByTimestamp, stagedFiles, sortByLastEdited],
-  );
+  const sortedStagedFiles = sortByLastEdited
+    ? sortByTimestamp(stagedFiles)
+    : stagedFiles;
 
-  const sortedUnstagedFiles = useMemo(
-    () => (sortByLastEdited ? sortByTimestamp(unstagedFiles) : unstagedFiles),
-    [sortByTimestamp, unstagedFiles, sortByLastEdited],
-  );
+  const sortedUnstagedFiles = sortByLastEdited
+    ? sortByTimestamp(unstagedFiles)
+    : unstagedFiles;
 
   // Get unseen counts for each section
-  const stagedUnseenCount = useMemo(
-    () => getUnseenCount(stagedFiles.map(([path]) => path)),
-    [getUnseenCount, stagedFiles],
-  );
+  const stagedUnseenCount = getUnseenCount(stagedFiles.map(([path]) => path));
 
-  const unstagedUnseenCount = useMemo(
-    () => getUnseenCount(unstagedFiles.map(([path]) => path)),
-    [getUnseenCount, unstagedFiles],
+  const unstagedUnseenCount = getUnseenCount(
+    unstagedFiles.map(([path]) => path),
   );
 
   // ---------------------------------------------------------------------------
@@ -241,7 +238,7 @@ export function ReviewWorkingPane({
   // Handlers: Commit
   // ---------------------------------------------------------------------------
 
-  const handleCommit = useCallback(() => {
+  const handleCommit = () => {
     const message = commitMessage.trim();
     if (!message || stagedFiles.length === 0) {
       return;
@@ -252,13 +249,13 @@ export function ReviewWorkingPane({
       onSuccess: () => setCommitMessage(""),
       onError: (err) => setError(`Failed to commit: ${err.message}`),
     });
-  }, [commit, commitMessage, stagedFiles.length]);
+  };
 
   // ---------------------------------------------------------------------------
   // Handlers: Bulk Stage/Unstage
   // ---------------------------------------------------------------------------
 
-  const handleStageAll = useCallback(() => {
+  const handleStageAll = () => {
     if (unstagedFiles.length === 0) return;
 
     // Filter out dirty files (files with unsaved changes in editor)
@@ -277,53 +274,47 @@ export function ReviewWorkingPane({
     stage(paths, {
       onError: (err) => setError(`Failed to stage files: ${err.message}`),
     });
-  }, [stage, cwd, unstagedFiles, isFileDirty]);
+  };
 
-  const handleUnstageAll = useCallback(() => {
+  const handleUnstageAll = () => {
     const paths = stagedFiles.map(([path]) => path);
     if (paths.length === 0) return;
 
     unstage(paths, {
       onError: (err) => setError(`Failed to unstage files: ${err.message}`),
     });
-  }, [unstage, stagedFiles]);
+  };
 
   // ---------------------------------------------------------------------------
   // Handlers: Error
   // ---------------------------------------------------------------------------
 
-  const handleDismissError = useCallback(() => {
+  const handleDismissError = () => {
     setError(null);
-  }, []);
+  };
 
   // ---------------------------------------------------------------------------
   // Section-Specific Expand/Collapse Handlers
   // ---------------------------------------------------------------------------
 
-  const stagedFilePaths = useMemo(
-    () => stagedFiles.map(([path]) => path),
-    [stagedFiles],
-  );
-  const unstagedFilePaths = useMemo(
-    () => unstagedFiles.map(([path]) => path),
-    [unstagedFiles],
-  );
+  const stagedFilePaths = stagedFiles.map(([path]) => path);
+  const unstagedFilePaths = unstagedFiles.map(([path]) => path);
 
-  const handleExpandAllStaged = useCallback(() => {
+  const handleExpandAllStaged = () => {
     expandFiles(stagedFilePaths);
-  }, [expandFiles, stagedFilePaths]);
+  };
 
-  const handleCollapseAllStaged = useCallback(() => {
+  const handleCollapseAllStaged = () => {
     collapseFiles(stagedFilePaths);
-  }, [collapseFiles, stagedFilePaths]);
+  };
 
-  const handleExpandAllUnstaged = useCallback(() => {
+  const handleExpandAllUnstaged = () => {
     expandFiles(unstagedFilePaths);
-  }, [expandFiles, unstagedFilePaths]);
+  };
 
-  const handleCollapseAllUnstaged = useCallback(() => {
+  const handleCollapseAllUnstaged = () => {
     collapseFiles(unstagedFilePaths);
-  }, [collapseFiles, unstagedFilePaths]);
+  };
 
   // ---------------------------------------------------------------------------
   // Render

@@ -23,14 +23,12 @@
  * ```
  */
 
-import { memo, useMemo } from "react";
 import { cn } from "@/utils";
 import type { HistoryCommit } from "../types";
 import type { TrackedBranchInfo } from "@features/git/model";
 import { ViewAllButton } from "./ViewAllButton";
-import { parseRefs, filterRefsForDisplay } from "../refs/parseRefs";
-import { RefBadgeList, type RefWithColorHint } from "../refs/RefBadge";
-import { buildTrackedBranchBadges } from "../refs/trackedBranchBadges";
+import { RefBadgeList } from "../refs/RefBadge";
+import { buildCommitRefBadges } from "../refs/trackedBranchBadges";
 
 // =============================================================================
 // Props
@@ -68,33 +66,21 @@ export interface CommitSummaryProps {
  * Uses CSS grid so author truncates first, then subject.
  * Matches VS Code's compact git graph style for visual consistency.
  */
-function CommitSummaryComponent({
+export function CommitSummary({
   commit,
   isHead = false,
   trackedBranches,
   onViewAll,
   className,
 }: CommitSummaryProps) {
-  // Build refs with color hints for tracked branches
-  const refsWithColorHints = useMemo(() => {
-    // Get tracked branch badges (with color hints)
-    // Use iconOnly for compact display in the list
-    const trackedBadges = buildTrackedBranchBadges(
-      commit.id,
-      isHead,
-      trackedBranches,
-      { useIconOnly: true },
-    );
-
-    // If we have tracked branch badges, use only those (VS Code style)
-    if (trackedBadges.length > 0) {
-      return trackedBadges;
-    }
-
-    // Fallback: parse refs from commit and show as regular badges (no color hints)
-    const parsedRefs = filterRefsForDisplay(parseRefs(commit.refs));
-    return parsedRefs.map((ref): RefWithColorHint => ({ ref }));
-  }, [commit.id, commit.refs, isHead, trackedBranches]);
+  // Icon-only badges keep the compact list from repeating branch names
+  const refsWithColorHints = buildCommitRefBadges(
+    commit.id,
+    commit.refs,
+    isHead,
+    trackedBranches,
+    { useIconOnly: true },
+  );
 
   const hasRefBadges = refsWithColorHints.length > 0;
 
@@ -146,11 +132,3 @@ function CommitSummaryComponent({
     </div>
   );
 }
-
-/**
- * Memoized CommitSummary component.
- *
- * The memoization compares props shallowly. Since commit objects
- * are replaced (not mutated) when data changes, this works correctly.
- */
-export const CommitSummary = memo(CommitSummaryComponent);
