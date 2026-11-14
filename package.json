@@ -28,7 +28,7 @@
     "@types/react-dom": "^19.3.0",
     "bun-types": "canary",
     "electron": "^45.3.2",
-    "jsdom": "^27.4.0",
+    "happy-dom": "^21.0.4",
     "tailwindcss": "^4.3.5"
   },
   "dependencies": {

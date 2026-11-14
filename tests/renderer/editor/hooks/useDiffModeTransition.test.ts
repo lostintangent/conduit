@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useDiffModeTransition } from "../../../../src/renderer/components/panes/editor/hooks/useDiffModeTransition";

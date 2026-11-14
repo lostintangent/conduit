@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useAutoSizeEditor } from "../../../../src/renderer/components/panes/editor/hooks/useAutoSizeEditor";

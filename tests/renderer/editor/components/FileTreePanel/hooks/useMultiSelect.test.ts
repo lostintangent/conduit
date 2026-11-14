@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useMultiSelect } from "../../../../../../src/renderer/components/panes/editor/components/FileTreePanel/hooks/useMultiSelect";

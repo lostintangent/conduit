@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { waitFor } from "@testing-library/react";
 import { renderHook } from "../queryRender";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

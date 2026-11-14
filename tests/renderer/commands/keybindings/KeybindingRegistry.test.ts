@@ -1,4 +1,3 @@
-/** @vitest-environment jsdom */
 import { describe, it, expect, beforeEach } from "vitest";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import type { KeybindingDescriptor } from "@/commands/keybindings/types";

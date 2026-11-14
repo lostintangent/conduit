@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { gitKeys } from "@/api/gitQueries";

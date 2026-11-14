@@ -1,7 +1,5 @@
 // @ts-nocheck
 /**
- * @vitest-environment jsdom
- *
  * EditorPaneRegistry Tests
  *
  * Tests the global registry for EditorPaneV2 instances, including:

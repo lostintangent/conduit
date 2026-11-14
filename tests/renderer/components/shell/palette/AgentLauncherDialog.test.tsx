@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
@@ -434,7 +431,7 @@ describe("AgentLauncherDialog", () => {
       const textarea = screen.getByPlaceholderText(/Describe what you want/);
       fireEvent.change(textarea, { target: { value: "Implement feature" } });
 
-      const launchButton = screen.getByText("Launch");
+      const launchButton = screen.getByRole("button", { name: "Launch" });
       fireEvent.click(launchButton);
 
       await waitFor(() => {
@@ -468,7 +465,7 @@ describe("AgentLauncherDialog", () => {
       const textarea = screen.getByPlaceholderText(/Describe what you want/);
       fireEvent.change(textarea, { target: { value: "Test task" } });
 
-      const launchButton = screen.getByText("Launch");
+      const launchButton = screen.getByRole("button", { name: "Launch" });
       fireEvent.click(launchButton);
 
       await waitFor(() => {

@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MarkdownPreview } from "../../../../../src/renderer/components/panes/editor/components/EditorPane/MarkdownPreview";

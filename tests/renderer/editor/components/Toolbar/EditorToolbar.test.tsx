@@ -1,7 +1,4 @@
 // @ts-nocheck
-/**
- * @vitest-environment jsdom
- */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { EditorToolbar } from "../../../../../src/renderer/components/panes/editor/components/Toolbar/EditorToolbar";
@@ -14,12 +11,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe("EditorToolbar", () => {
   beforeEach(() => {
-    // Mock clipboard API
-    Object.assign(navigator, {
-      clipboard: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-      },
-    });
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
   });
 
   describe("standalone mode", () => {

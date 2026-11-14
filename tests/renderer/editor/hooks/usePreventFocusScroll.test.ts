@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { usePreventFocusScroll } from "../../../../src/renderer/components/panes/editor/hooks/usePreventFocusScroll";

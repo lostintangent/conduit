@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { describe, it, expect, beforeEach, type Mock, vi } from "vitest";
 
 // Mock window.conduit before importing modules that use it

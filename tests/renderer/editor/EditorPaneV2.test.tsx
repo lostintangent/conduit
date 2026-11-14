@@ -1,7 +1,4 @@
 // @ts-nocheck
-/**
- * @vitest-environment jsdom
- */
 import { applyGitStatus } from "@/api/gitQueries";
 import { createQueryClient } from "@/query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";

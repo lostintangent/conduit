@@ -1,7 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
-
 import type { Workspace, WorkspaceState } from "@shared/types";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

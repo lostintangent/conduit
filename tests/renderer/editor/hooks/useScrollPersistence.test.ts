@@ -1,7 +1,5 @@
 // @ts-nocheck
 /**
- * @vitest-environment jsdom
- *
  * useScrollPersistence Hook Tests
  *
  * Tests the scroll persistence hook that registers scroll containers

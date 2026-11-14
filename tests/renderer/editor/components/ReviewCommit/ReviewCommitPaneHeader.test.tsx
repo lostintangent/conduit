@@ -1,7 +1,4 @@
 // @ts-nocheck
-/**
- * @vitest-environment jsdom
- */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReviewCommitPaneHeader } from "../../../../../src/renderer/components/panes/editor/components/ReviewCommit/ReviewCommitPaneHeader";

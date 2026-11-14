@@ -1,32 +1,6 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { automation } from "../../../src/preload/webview/api/automation";
 import { describeElement } from "../../../src/preload/webview/api/selectors";
-
-// Bun's jsdom globals reject `view: window` and lack CSS.escape, both of
-// which the webview's Chromium provides.
-const {
-  MouseEvent: DomMouseEvent,
-  PointerEvent: DomPointerEvent,
-  CSS: DomCSS,
-} = globalThis;
-beforeAll(() => {
-  globalThis.MouseEvent = class extends DomMouseEvent {
-    constructor(type: string, { view: _, ...init }: MouseEventInit = {}) {
-      super(type, init);
-    }
-  };
-  globalThis.PointerEvent = class extends DomPointerEvent {
-    constructor(type: string, { view: _, ...init }: PointerEventInit = {}) {
-      super(type, init);
-    }
-  };
-  globalThis.CSS = { escape: (value: string) => value } as typeof CSS;
-});
-afterAll(() => {
-  globalThis.MouseEvent = DomMouseEvent;
-  globalThis.PointerEvent = DomPointerEvent;
-  globalThis.CSS = DomCSS;
-});
 
 function handleFor(element: Element) {
   const descriptor = describeElement(element);

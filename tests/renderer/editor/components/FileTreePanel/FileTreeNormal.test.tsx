@@ -1,24 +1,6 @@
 // @ts-nocheck
-/**
- * @vitest-environment jsdom
- */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-// ============================================================================
-// Polyfills for jsdom
-// ============================================================================
-
-// CSS.escape is not available in jsdom
-if (typeof CSS === "undefined") {
-  (globalThis as any).CSS = {};
-}
-if (typeof CSS.escape !== "function") {
-  CSS.escape = (str: string) => str.replace(/([^\w-])/g, "\\$1");
-}
-
-// scrollIntoView is not available in jsdom
-Element.prototype.scrollIntoView = vi.fn();
 
 // ============================================================================
 // Mocks - MUST BE BEFORE COMPONENT IMPORT

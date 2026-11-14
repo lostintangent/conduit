@@ -4,6 +4,6 @@
 plugins = ["./build/bun.tailwind.ts", "./build/bun.dev-csp.ts"]
 
 [test]
-environment = "jsdom"
+environment = "happy-dom"
 globals = "vitest"
 preload = ["./tests/setup/bun-preload.ts"]

@@ -1,6 +1,3 @@
-/**
- * @vitest-environment jsdom
- */
 import { getCommandRegistry, getKeybindingRegistry } from "@/commands";
 import type { Disposable } from "@/commands/core/types";
 import {

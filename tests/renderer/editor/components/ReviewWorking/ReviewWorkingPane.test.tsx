@@ -1,7 +1,4 @@
 // @ts-nocheck
-/**
- * @vitest-environment jsdom
- */
 import {
   act,
   fireEvent,
@@ -121,8 +118,8 @@ describe("FileEditor (inline working mode)", () => {
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
     mockRevert.mockResolvedValue(undefined);
-    // Mock window.confirm for revert confirmation
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    // happy-dom has no window.confirm, so tests provide the revert confirmation
+    window.confirm = vi.fn(() => true);
   });
 
   const defaultProps = {
