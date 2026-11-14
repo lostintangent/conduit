@@ -185,6 +185,52 @@ describe("editor", () => {
     expect(faces.every((status) => status === "loaded")).toBe(true);
   });
 
+  it("shows a changed row's git actions to keyboard focus, not to a click", async () => {
+    await app.page.getByRole("button", { name: "Back to file tree" }).click();
+    const changedOnly = app.page.getByTestId("filter-toggle");
+    await changedOnly.click();
+    const changes = app.page.getByRole("button", { name: /^Changes/ });
+    const button = (name: string | RegExp) =>
+      app.page.getByRole("button", { name, exact: true });
+    const focused = (name: string | RegExp) =>
+      button(name).and(app.page.locator(":focus")).count();
+    // Hidden actions stay focusable, so only a hit test tells if they show
+    const shown = (name: string) =>
+      button(name).evaluateAll(
+        (els) =>
+          els.filter((el) => {
+            const box = el.getBoundingClientRect();
+            const hit = document.elementFromPoint(
+              box.x + box.width / 2,
+              box.y + box.height / 2,
+            );
+            return hit && el.contains(hit);
+          }).length,
+      );
+
+    // Clicking a button focuses it, so a click that collapses and re-expands
+    // the section leaves focus in its header, with the mouse moved away
+    await changes.click();
+    await changes.click();
+    await app.page.mouse.move(0, 0);
+    expect(await focused(/^Changes/)).toBe(1);
+    expect(await shown("Stage All")).toBe(0);
+    expect(await shown("Stage")).toBe(0);
+
+    await app.page.keyboard.press("Tab");
+    expect(await focused("Stage All")).toBe(1);
+    expect(await shown("Stage All")).toBe(1);
+    await app.page.keyboard.press("Tab");
+    expect(await focused(/^b\.txt/)).toBe(1);
+    expect(await shown("Stage All")).toBe(0);
+    expect(await shown("Stage")).toBe(1);
+    await app.page.keyboard.press("Tab");
+    expect(await focused("Stage")).toBe(1);
+    expect(await shown("Stage")).toBe(1);
+
+    await changedOnly.click();
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

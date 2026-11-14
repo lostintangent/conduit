@@ -184,7 +184,7 @@ export function ChangeFileItem({
 
                 {/* Diff stats / Action buttons - mutually exclusive via display:none/block */}
                 {/* Stats: shown by default, hidden on hover */}
-                <div className="flex-shrink-0 block group-hover:hidden">
+                <div className="flex-shrink-0 block group-hover:hidden group-has-[:focus-visible]:hidden">
                   <FileDiffStats
                     filePath={filePath}
                     staged={isStaged}
@@ -192,8 +192,9 @@ export function ChangeFileItem({
                   />
                 </div>
               </button>
-              {/* Action buttons: hidden by default, shown on hover */}
-              <div className="flex-shrink-0 hidden group-hover:block">
+              {/* Action buttons: shown on hover or keyboard focus. At rest they're
+                  only visually hidden, since Tab can't move focus to a hidden button */}
+              <div className="flex-shrink-0 sr-only group-hover:not-sr-only group-has-[:focus-visible]:not-sr-only">
                 <ActionButtons
                   isStaged={isStaged}
                   canRevert={canRevert}

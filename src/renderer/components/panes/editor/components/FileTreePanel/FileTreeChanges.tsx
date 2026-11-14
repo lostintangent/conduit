@@ -157,13 +157,15 @@ function Section({
         {/* Stats: shown by default, hidden on hover */}
         {/* Right margin aligns with file stats (accounts for GitBadge 14px + gap 6px) */}
         {isStaged !== undefined && (
-          <div className="block group-hover:hidden mr-5">
+          <div className="block group-hover:hidden group-has-[:focus-visible]:hidden mr-5">
             <SectionDiffStats staged={isStaged} />
           </div>
         )}
-        {/* Actions: hidden by default, shown on hover (no margin - stays at hard right) */}
+        {/* Actions: shown on hover or keyboard focus (no margin - stays at hard right) */}
         {actions && (
-          <div className="hidden group-hover:flex items-center">{actions}</div>
+          <div className="flex items-center sr-only group-hover:not-sr-only group-has-[:focus-visible]:not-sr-only">
+            {actions}
+          </div>
         )}
       </div>
       {isExpanded && <ul className="ml-2 pb-2">{children}</ul>}

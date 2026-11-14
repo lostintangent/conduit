@@ -200,9 +200,9 @@ export function NestedFolderItem({
           </button>
         )}
 
-        {/* Action buttons (visible on hover, hidden when renaming) */}
+        {/* Action buttons (visible on hover or keyboard focus, hidden when renaming) */}
         {!isFolderRenaming && (
-          <div className="flex-shrink-0 hidden group-hover:block">
+          <div className="flex-shrink-0 sr-only group-hover:not-sr-only group-has-[:focus-visible]:not-sr-only">
             <ActionButtons
               isStaged={isStaged}
               canRevert={!isStaged}
