@@ -19,7 +19,7 @@ export interface UseCommitGraphOptions {
   headCommitId?: string;
 }
 
-export interface CommitGraphState {
+interface CommitGraphState {
   /** Computed graph nodes with swimlane positions */
   nodes: CommitGraphNode[];
 
@@ -42,7 +42,7 @@ export interface CommitGraphState {
   trackedBranches: TrackedBranchInfo | null;
 }
 
-export interface CommitGraphActions {
+interface CommitGraphActions {
   /** Re-read the history and tracked branches. */
   refresh: () => void;
 

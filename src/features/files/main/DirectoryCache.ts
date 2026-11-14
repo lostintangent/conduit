@@ -38,7 +38,7 @@ import type { DirectoryEntry, Disposable } from "../model";
 /**
  * A cached directory entry with metadata for cache management.
  */
-export interface CacheEntry {
+interface CacheEntry {
   /** The cached directory entries */
   entries: DirectoryEntry[];
 
@@ -63,10 +63,7 @@ export interface CacheEntry {
 /**
  * Listener callback for cache change notifications.
  */
-export type CacheChangeListener = (
-  path: string,
-  entry: CacheEntry | null,
-) => void;
+type CacheChangeListener = (path: string, entry: CacheEntry | null) => void;
 
 // ============================================================================
 // Implementation

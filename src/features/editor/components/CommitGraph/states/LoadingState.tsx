@@ -61,5 +61,3 @@ function LoadingStateComponent({
 }
 
 export const LoadingState = memo(LoadingStateComponent);
-
-export default LoadingState;

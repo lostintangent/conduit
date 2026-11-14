@@ -82,13 +82,6 @@ function pathToUri(filePath: string): string {
 }
 
 /**
- * Convert a Monaco URI string back to a file path.
- */
-function uriToPath(uri: string): string {
-  return monaco.Uri.parse(uri).fsPath;
-}
-
-/**
  * Create a model key that uniquely identifies a model.
  *
  * @param filePath - Absolute path to the file
@@ -1165,4 +1158,4 @@ export class MonacoModelRegistry {
 // Utility Exports
 // ============================================================================
 
-export { createModelKey, pathToUri, uriToPath };
+export { createModelKey, pathToUri };

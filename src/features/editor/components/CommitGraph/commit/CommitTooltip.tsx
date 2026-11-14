@@ -186,5 +186,3 @@ function CommitTooltipComponent({
 }
 
 export const CommitTooltip = memo(CommitTooltipComponent);
-
-export default CommitTooltip;

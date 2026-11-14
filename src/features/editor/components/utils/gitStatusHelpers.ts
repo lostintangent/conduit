@@ -47,34 +47,17 @@ export function makeMapKey(path: string, staged: boolean): MapKey {
 }
 
 /**
- * Parse a MapKey into its component parts.
- *
- * @returns Object with path (FilePath) and staged (boolean)
- */
-export function parseMapKey(mapKey: MapKey | string): {
-  path: FilePath;
-  staged: boolean;
-} {
-  if (mapKey.endsWith(UNSTAGED_KEY_SUFFIX)) {
-    return {
-      path: asFilePath(mapKey.slice(0, -UNSTAGED_KEY_SUFFIX.length)),
-      staged: false,
-    };
-  }
-  return {
-    path: asFilePath(mapKey),
-    staged: true,
-  };
-}
-
-/**
  * Extract the file path from a MapKey, stripping any suffix.
  *
  * Use this when you need the actual file path for git operations,
  * file system access, or display purposes.
  */
 export function mapKeyToPath(mapKey: MapKey | string): FilePath {
-  return parseMapKey(mapKey).path;
+  return asFilePath(
+    mapKey.endsWith(UNSTAGED_KEY_SUFFIX)
+      ? mapKey.slice(0, -UNSTAGED_KEY_SUFFIX.length)
+      : mapKey,
+  );
 }
 
 /**

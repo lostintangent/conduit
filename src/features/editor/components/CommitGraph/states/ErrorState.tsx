@@ -96,5 +96,3 @@ function ErrorStateComponent({ error, onRetry, className }: ErrorStateProps) {
 }
 
 export const ErrorState = memo(ErrorStateComponent);
-
-export default ErrorState;

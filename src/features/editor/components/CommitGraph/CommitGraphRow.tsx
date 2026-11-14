@@ -295,5 +295,3 @@ function CommitGraphRowComponent({
  * - callbacks should be stable (using useCallback in parent)
  */
 export const CommitGraphRow = memo(CommitGraphRowComponent);
-
-export default CommitGraphRow;

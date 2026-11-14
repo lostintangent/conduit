@@ -98,5 +98,3 @@ function CommitFilesHeaderComponent({
 }
 
 export const CommitFilesHeader = memo(CommitFilesHeaderComponent);
-
-export default CommitFilesHeader;

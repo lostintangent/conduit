@@ -191,5 +191,3 @@ function CommitFilesPanelComponent({
 }
 
 export const CommitFilesPanel = memo(CommitFilesPanelComponent);
-
-export default CommitFilesPanel;

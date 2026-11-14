@@ -111,5 +111,3 @@ function CommitGraphHeaderComponent({
 }
 
 export const CommitGraphHeader = memo(CommitGraphHeaderComponent);
-
-export default CommitGraphHeader;

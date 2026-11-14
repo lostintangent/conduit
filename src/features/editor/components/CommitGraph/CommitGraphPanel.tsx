@@ -259,5 +259,3 @@ function CommitGraphPanelComponent({
 }
 
 export const CommitGraphPanel = memo(CommitGraphPanelComponent);
-
-export default CommitGraphPanel;

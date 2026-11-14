@@ -17,12 +17,3 @@ import { usePooledSubscription } from "@/services/SubscriptionPool";
 export function useFileSystemSubscription(cwd: string): FileSystemSubscription {
   return usePooledSubscription(FileSystemSubscriptionPool.getInstance(), cwd);
 }
-
-export type {
-  Cleanup,
-  FileContentChangedCallback,
-  FileDeletedCallback,
-  FileRenamedCallback,
-} from "../client/FileSystemSubscription";
-
-export { FileSystemSubscription } from "../client/FileSystemSubscription";

@@ -16,7 +16,7 @@ import {
   TooltipProvider,
 } from "@/ui/tooltip";
 import { GitBadge, getStatusConfig } from "../../shared/GitBadge";
-import { getDirectoryPath } from "../../utils/pathUtils";
+import { getParentPath } from "../../utils/pathUtils";
 import { FileDiffStats } from "../../FileDiffStats/FileDiffStats";
 import { ActionButtons } from "./ActionButtons";
 import { FileTreeItemRename } from "../FileTreeItemRename";
@@ -81,7 +81,7 @@ export function ChangeFileItem({
   onCancelRename,
 }: ChangeFileItemProps) {
   const fileName = filePath.split("/").pop() ?? filePath;
-  const folderPath = nested ? "" : getDirectoryPath(filePath);
+  const folderPath = nested ? "" : getParentPath(filePath);
   const testId = `${nested ? "nested-file" : "change-item"}-${fileName}`;
   const indent = nested && <div style={{ width: 12 }} />;
 

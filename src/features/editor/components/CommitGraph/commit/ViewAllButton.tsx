@@ -90,5 +90,3 @@ function ViewAllButtonComponent({
  * Re-renders only when props change.
  */
 export const ViewAllButton = memo(ViewAllButtonComponent);
-
-export default ViewAllButton;

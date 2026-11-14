@@ -79,7 +79,7 @@ export interface UseFileTreeChangesContextMenuOptions {
   onNewFolder: (parentPath: string) => void;
 }
 
-export interface ShowContextMenuOptions {
+interface ShowContextMenuOptions {
   /** Absolute path of the file/folder */
   path: string;
 

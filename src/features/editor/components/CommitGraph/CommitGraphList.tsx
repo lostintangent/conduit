@@ -296,5 +296,3 @@ function CommitGraphListComponent({
 }
 
 export const CommitGraphList = memo(CommitGraphListComponent);
-
-export default CommitGraphList;

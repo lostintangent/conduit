@@ -32,7 +32,7 @@ import { getColorCss } from "../graph/colors";
  * Color hint for tracked branch badges.
  * Used to override the default styling for VS Code-style coloring.
  */
-export type RefBadgeColorHint = "current" | "upstream" | "base";
+type RefBadgeColorHint = "current" | "upstream" | "base";
 
 export interface RefBadgeProps {
   /** The git reference to display */
@@ -260,5 +260,3 @@ function RefBadgeListComponent({
 }
 
 export const RefBadgeList = memo(RefBadgeListComponent);
-
-export default RefBadge;

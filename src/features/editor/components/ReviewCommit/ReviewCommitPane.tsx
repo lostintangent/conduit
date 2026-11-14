@@ -32,7 +32,7 @@ import { ReviewCommitPaneHeader } from "./ReviewCommitPaneHeader";
 // Types
 // ============================================================================
 
-export interface CommitMetadata {
+interface CommitMetadata {
   /** Short commit hash (7 characters) */
   shortId: string;
   /** Full commit hash */

@@ -54,9 +54,6 @@ export function getFileName(filePath: string): string {
  * Get the immediate parent directory path for a file.
  * Returns empty string for root-level files.
  *
- * Also aliased as getDirectoryPath for semantic clarity when
- * specifically working with directory paths vs parent traversal.
- *
  * @param filePath - The file path (relative or absolute)
  * @returns The parent directory path, or empty string if file is at root
  *
@@ -68,12 +65,6 @@ export function getParentPath(filePath: string): string {
   const lastSlash = filePath.lastIndexOf("/");
   return lastSlash === -1 ? "" : filePath.slice(0, lastSlash);
 }
-
-/**
- * Alias for getParentPath - use when extracting directory from a file path.
- * Semantically clearer in contexts where you're displaying folder paths.
- */
-export const getDirectoryPath = getParentPath;
 
 /**
  * Get all parent directory paths for a file path.

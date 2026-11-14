@@ -13,7 +13,7 @@ export interface SelectableItem {
 }
 
 /** A file entry with its status */
-export interface FileEntry {
+interface FileEntry {
   /**
    * Map key used for tracking in the git status Map.
    * For partially staged files, this may include a suffix (e.g., "foo.ts\0unstaged").

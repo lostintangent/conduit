@@ -30,7 +30,7 @@ import type { GitFileStatus } from "@features/git/model";
 import type { CommitFile } from "../types";
 import { GitBadge, getStatusConfig } from "../../shared/GitBadge";
 import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";
-import { getFileName, getDirectoryPath } from "../../utils/pathUtils";
+import { getFileName, getParentPath } from "../../utils/pathUtils";
 
 // =============================================================================
 // Types
@@ -63,7 +63,7 @@ function formatDisplayPath(file: CommitFile): {
   tooltip: string;
 } {
   const fileName = getFileName(file.path);
-  const folderPath = getDirectoryPath(file.path);
+  const folderPath = getParentPath(file.path);
 
   let tooltip = file.path;
   if (
@@ -195,5 +195,3 @@ function CommitFileItemComponent({
 }
 
 export const CommitFileItem = memo(CommitFileItemComponent);
-
-export default CommitFileItem;

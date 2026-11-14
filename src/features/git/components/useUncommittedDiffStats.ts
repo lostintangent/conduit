@@ -30,7 +30,7 @@ import { useFileSystemSubscription } from "@features/files/components/useFileSys
 import { useGitSubscription } from "./useGitSubscription";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-export interface UncommittedDiffStats {
+interface UncommittedDiffStats {
   added: number;
   removed: number;
   files: number;

@@ -7,21 +7,7 @@
 
 import type * as monaco from "monaco-editor";
 import type { GitFileStatusCode } from "@features/git/model";
-
-// ============================================================================
-// Common Types
-// ============================================================================
-
-// Defined locally to avoid barrel file import issues
-
-/**
- * Disposable - An object that can be disposed to clean up resources.
- *
- * Common pattern for cleanup in VS Code-style APIs.
- */
-export interface Disposable {
-  dispose(): void;
-}
+import type { Disposable } from "@shared/types";
 
 // ============================================================================
 // Model State Types
@@ -240,7 +226,6 @@ export type TreeViewMode = "files" | "changes";
  *
  * Use the helpers in gitStatusHelpers.ts to create and parse MapKeys:
  * - makeMapKey(path, staged) - create a MapKey
- * - parseMapKey(mapKey) - extract path and staged boolean
  * - mapKeyToPath(mapKey) - get just the path
  *
  * @example

@@ -70,5 +70,3 @@ function EmptyStateComponent({
 }
 
 export const EmptyState = memo(EmptyStateComponent);
-
-export default EmptyState;

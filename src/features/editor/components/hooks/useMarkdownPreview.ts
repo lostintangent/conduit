@@ -25,7 +25,7 @@ import { useCallback, useMemo, useRef } from "react";
 /**
  * Mermaid configuration for Streamdown.
  */
-export interface MermaidConfig {
+interface MermaidConfig {
   config: {
     theme: "dark" | "default";
   };

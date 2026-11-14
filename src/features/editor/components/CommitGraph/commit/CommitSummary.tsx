@@ -154,5 +154,3 @@ function CommitSummaryComponent({
  * are replaced (not mutated) when data changes, this works correctly.
  */
 export const CommitSummary = memo(CommitSummaryComponent);
-
-export default CommitSummary;

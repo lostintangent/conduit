@@ -225,6 +225,3 @@ function GraphCellComponent({
  * - config is typically a constant
  */
 export const GraphCell = memo(GraphCellComponent);
-
-// Also export as default for convenient importing
-export default GraphCell;

@@ -97,11 +97,7 @@ const monacoMock = monaco as unknown as {
 };
 
 // Import after mocks are set up
-import {
-  MonacoModelRegistry,
-  pathToUri,
-  uriToPath,
-} from "./MonacoModelRegistry";
+import { MonacoModelRegistry, pathToUri } from "./MonacoModelRegistry";
 
 // ============================================================================
 // Tests
@@ -460,11 +456,6 @@ describe("MonacoModelRegistry", () => {
       const uri = pathToUri("/test/file.ts");
       expect(uri).toContain("file://");
       expect(uri).toContain("/test/file.ts");
-    });
-
-    it("uriToPath should convert URI back to path", () => {
-      const path = uriToPath("file:///test/file.ts");
-      expect(path).toBe("/test/file.ts");
     });
   });
 

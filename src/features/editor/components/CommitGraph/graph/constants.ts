@@ -67,7 +67,7 @@ export const STROKE_WIDTH = 1;
  *
  * VS Code has a small gap between lines and circles.
  */
-export const LINE_GAP = 2;
+const LINE_GAP = 2;
 
 // =============================================================================
 // Derived Constants
