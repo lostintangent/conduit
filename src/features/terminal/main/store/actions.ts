@@ -44,6 +44,13 @@ const LINE_EDITOR_TIMEOUT_MS = 3_000;
 const HIGH_WATERMARK = 100_000;
 const LOW_WATERMARK = 5_000;
 
+/**
+ * A paused shell can exit with its last line still in the pty, which node-pty
+ * closes 200 ms after the exit, read or not. So a paused shell is checked on
+ * this often, and once it's gone, its pty is read to the end.
+ */
+const EXIT_CHECK_MS = 50;
+
 const COALESCE_MS = 5;
 
 export async function createTerminal(options?: TerminalCreateOptions) {
@@ -143,6 +150,7 @@ function setupTerminalListeners(terminal: TerminalInstance) {
 
   pty.onExit(({ exitCode, signal }) => {
     clearTimeout(coalescing);
+    clearInterval(terminal.exitCheck);
     if (pending) emit("data", { sessionId: id, data: pending });
     removeTerminal(id);
 
@@ -157,7 +165,13 @@ function setupTerminalListeners(terminal: TerminalInstance) {
 function emitOutput(terminal: TerminalInstance, data: string) {
   emit("data", { sessionId: terminal.id, data });
   terminal.unacknowledged += data.length;
-  if (terminal.unacknowledged > HIGH_WATERMARK) terminal.pty.pause();
+  if (
+    terminal.unacknowledged > HIGH_WATERMARK &&
+    !terminal.exitCheck &&
+    !terminal.hasExited
+  ) {
+    pause(terminal);
+  }
 }
 
 /** The renderer has parsed this many more characters of a shell's output. */
@@ -165,7 +179,34 @@ export function acknowledgeTerminalOutput(terminalId: string, chars: number) {
   const terminal = getTerminal(terminalId);
   if (!terminal) return;
   terminal.unacknowledged = Math.max(0, terminal.unacknowledged - chars);
-  if (terminal.unacknowledged < LOW_WATERMARK) terminal.pty.resume();
+  if (terminal.exitCheck && terminal.unacknowledged < LOW_WATERMARK) {
+    resume(terminal);
+  }
+}
+
+function pause(terminal: TerminalInstance) {
+  terminal.pty.pause();
+  terminal.exitCheck = setInterval(() => {
+    if (isRunning(terminal.pty.pid)) return;
+    terminal.hasExited = true;
+    resume(terminal);
+  }, EXIT_CHECK_MS);
+}
+
+function resume(terminal: TerminalInstance) {
+  clearInterval(terminal.exitCheck);
+  terminal.exitCheck = undefined;
+  terminal.pty.resume();
+}
+
+function isRunning(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // Like a shell replaced by `sudo`, which still has the pty.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
 }
 
 function bufferOutput(terminal: TerminalInstance, data: string) {

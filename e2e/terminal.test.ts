@@ -20,6 +20,16 @@ interface Watching {
 }
 type SubscriptionEvent = { subscriptionId: string };
 
+/** Every shell's output since a test started recording it. */
+interface Output {
+  conduit: {
+    terminal: {
+      on(event: "data", listener: (event: { data: string }) => void): void;
+    };
+  };
+  output: string;
+}
+
 describe("terminal and CLI", () => {
   let app: Conduit;
   let terminal: Terminal;
@@ -58,6 +68,45 @@ describe("terminal and CLI", () => {
     expect(fs.existsSync(flooded)).toBe(false);
     await terminal.waitForText(/^E2E-FLOODED$/m, 30_000);
   });
+
+  for (const where of ["shown", "hidden"]) {
+    it(`sends the last line a paused shell prints before it exits, in a ${where} tab`, async () => {
+      // The tab closes with its shell, so this listens to the shell's output.
+      await app.page.evaluate(() => {
+        const scope = window as unknown as Output;
+        if (scope.output !== undefined) return;
+        scope.output = "";
+        scope.conduit.terminal.on("data", ({ data }) => {
+          scope.output += data;
+        });
+      });
+      await terminal.type(`conduit tab-new --title E2E-EXIT-${where}\n`);
+      const tab = app.page.getByRole("tab", {
+        name: new RegExp(`E2E-EXIT-${where}`),
+      });
+      await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
+      const shell = await app.terminal();
+
+      // 93,000 characters stay under the 100,000 that pause a shell, even with
+      // the few thousand the page hasn't acknowledged yet. The next 7,500 go
+      // over, and are read before the pause since they're one burst. So the
+      // last line waits in the pty when the shell exits.
+      await shell.type(
+        `sleep 1; head -c 93000 /dev/zero | tr '\\0' x; sleep 0.2; head -c 7500 /dev/zero | tr '\\0' y; sleep 0.3; printf 'E2E-%s\\n' TAIL-${where}; exit\n`,
+      );
+      if (where === "hidden") await app.page.getByRole("tab").first().click();
+      // node-pty closes a pty 200 ms after its shell exits, read or not.
+      await app.page.evaluate(() => {
+        const end = Date.now() + 3_000;
+        while (Date.now() < end) continue;
+      });
+      await count(tab, 0, `E2E-EXIT-${where} tabs once its shell exits`);
+      const output = await app.page.evaluate(
+        () => (window as unknown as Output).output,
+      );
+      expect(output).toContain(`E2E-TAIL-${where}\r\n`);
+    });
+  }
 
   it("puts a conduit CLI on the PATH that controls this window", async () => {
     expect(await terminal.run("conduit --help | head -3")).toBe(0);

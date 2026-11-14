@@ -26,6 +26,7 @@ const PROMPT = "\x1b]7;file://host/work\x07~ % \x1b[K\x1b[?2004h";
 
 function fakePty() {
   return {
+    pid: 1234,
     process: "zsh",
     onData: vi.fn(),
     onExit: vi.fn(),
@@ -241,6 +242,7 @@ describe("a terminal's output", () => {
   afterEach(() => {
     getAllTerminals().clear();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("sends a burst's first read right away and the rest every 5 ms as one message", async () => {
@@ -292,6 +294,29 @@ describe("a terminal's output", () => {
     expect(pty.resume).not.toHaveBeenCalled();
     acknowledgeTerminalOutput(id, 1_000);
     expect(pty.resume).toHaveBeenCalled();
+  });
+
+  // node-pty closes a pty 200 ms after its shell exits, read or not.
+  it("reads a paused shell's pty to the end once the shell exits", async () => {
+    const kill = vi.spyOn(process, "kill").mockReturnValue(true);
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+    output("x".repeat(100_001));
+    expect(pty.pause).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(50);
+    expect(kill).toHaveBeenCalledWith(1234, 0);
+    expect(pty.resume).not.toHaveBeenCalled();
+
+    kill.mockImplementation(() => {
+      throw Object.assign(new Error("kill ESRCH"), { code: "ESRCH" });
+    });
+    vi.advanceTimersByTime(50);
+    expect(pty.resume).toHaveBeenCalled();
+
+    output("x");
+    vi.advanceTimersByTime(5);
+    expect(pty.pause).toHaveBeenCalledTimes(1);
   });
 
   // node-pty's `process` asks the kernel, which cost most of main's CPU in a flood.
