@@ -11,7 +11,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
+import type { GitFileStatus } from "@features/git/client/GitV2API";
 import { cn } from "@/utils";
 
 export interface GitBadgeProps {

@@ -2,7 +2,7 @@
  * Shared types for FileTreePanel components.
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
+import type { GitFileStatus } from "@features/git/client/GitV2API";
 
 /** Represents a selectable item (file or folder) in the tree */
 export interface SelectableItem {

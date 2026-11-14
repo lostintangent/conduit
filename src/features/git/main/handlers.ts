@@ -69,7 +69,7 @@ import type {
   GitStatus,
   HistoryCommit,
   TrackedBranchInfo,
-} from "./types";
+} from "../model";
 
 /**
  * Serialized git status for IPC transport.

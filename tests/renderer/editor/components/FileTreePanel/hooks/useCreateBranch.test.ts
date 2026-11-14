@@ -10,7 +10,7 @@ import { act, waitFor } from "@testing-library/react";
 import { mockGitWrites } from "../../../../gitWrites";
 import { renderHook } from "../../../../queryRender";
 import { useCreateBranch } from "@/components/panes/editor/components/FileTreePanel/hooks/useCreateBranch";
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 
 // ============================================================================
 // Mock Git API

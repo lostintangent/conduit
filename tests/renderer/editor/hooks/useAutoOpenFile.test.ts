@@ -9,7 +9,7 @@
 import { act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { gitKeys } from "@/api/gitQueries";
+import { gitKeys } from "@features/git/client/queries";
 import { createQueryClient } from "@/query";
 import { useAutoOpenFile } from "@/components/panes/editor/hooks/useAutoOpenFile";
 import type { FileNode, ViewMode } from "@/components/panes/editor/types";

@@ -27,8 +27,8 @@
 
 import { useEffect, useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { gitQueries } from "@/api/gitQueries";
-import type { GitV2API } from "@/api/GitV2API";
+import { gitQueries } from "@features/git/client/queries";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, ViewMode } from "../types";
 import { selectNextAvailableFile } from "../utils/fileSelectionHelpers";

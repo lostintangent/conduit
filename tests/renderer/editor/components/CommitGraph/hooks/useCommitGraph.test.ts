@@ -27,7 +27,7 @@ vi.mock(
 
 import { useCommitGraph } from "@/components/panes/editor/hooks/useCommitGraph";
 import { computeSwimlanes } from "@/components/panes/editor/components/CommitGraph/graph/swimlanes";
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import type {
   CommitGraphNode,
   HistoryCommit,

@@ -5,8 +5,8 @@
  * different branches with conflict handling.
  */
 
-import type { GitBranch } from "@/api/GitV2API";
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitBranch } from "@features/git/client/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { BranchSwitcher } from "@/components/panes/editor/components/FileTreePanel/BranchSwitcher";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { mockGitWrites } from "../../../gitWrites";

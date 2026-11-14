@@ -31,8 +31,8 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { gitMutations } from "@/api/gitQueries";
-import type { GitV2API } from "@/api/GitV2API";
+import { gitMutations } from "@features/git/client/queries";
+import type { GitV2API } from "@features/git/client/GitV2API";
 
 export interface UseCreateBranchOptions {
   /** Whether the parent container (e.g., dropdown) is open */

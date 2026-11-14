@@ -17,11 +17,11 @@
  * ```
  */
 
-import { gitMutations, gitQueries } from "@/api/gitQueries";
+import { gitMutations, gitQueries } from "@features/git/client/queries";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
-import { useGitV2 } from "@/hooks/useGitV2";
+import { useGitV2 } from "@features/git/components/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";

@@ -1,5 +1,5 @@
 import { waitFor } from "@testing-library/react";
-import { renderHook } from "../queryRender";
+import { renderHook } from "../../../../tests/renderer/queryRender";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
@@ -55,7 +55,7 @@ function createMockFsAPI(cwd: string): MockFsAPI {
 }
 
 // Mock useGitV2
-vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
+vi.mock("./useGitV2", () => ({
   useGitV2: vi.fn((cwd: string) => {
     let api = mockGitInstances.get(cwd);
     if (!api) {
@@ -67,7 +67,7 @@ vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
 }));
 
 // Mock useFileSystemV2
-vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
+vi.mock("@/hooks/useFileSystemV2", () => ({
   useFileSystemV2: vi.fn((cwd: string) => {
     let api = mockFsInstances.get(cwd);
     if (!api) {
@@ -83,7 +83,7 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
 // ============================================================================
 
 import { createQueryClient } from "@/query";
-import { useUncommittedDiffStats } from "../../../src/renderer/hooks/useUncommittedDiffStats";
+import { useUncommittedDiffStats } from "./useUncommittedDiffStats";
 
 // ============================================================================
 // Tests

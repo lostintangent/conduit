@@ -36,13 +36,13 @@ const { mockGit, emit } = vi.hoisted(() => {
   };
 });
 
-import { GitV2API } from "@/api/GitV2API";
+import { GitV2API } from "./GitV2API";
 import {
   gitKeys,
   gitMutations,
   gitQueries,
   installGitQueryBridge,
-} from "@/api/gitQueries";
+} from "./queries";
 import { createQueryClient } from "@/query";
 import {
   InfiniteQueryObserver,
@@ -51,7 +51,7 @@ import {
   QueryClient,
   QueryObserver,
 } from "@tanstack/react-query";
-import { mockGitWrites } from "../gitWrites";
+import { mockGitWrites } from "../../../../tests/renderer/gitWrites";
 
 const serializedStatus = (branch: string, files: string[] = []) => ({
   branch,

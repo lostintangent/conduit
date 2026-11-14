@@ -23,11 +23,11 @@
  * ```
  */
 
-import { gitKeys, gitQueries } from "@/api/gitQueries";
-import type { GitFileStatus } from "@/api/GitV2API";
+import { gitKeys, gitQueries } from "../client/queries";
+import type { GitFileStatus } from "../client/GitV2API";
 import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
-import { useGitV2 } from "@/hooks/useGitV2";
+import { useGitV2 } from "./useGitV2";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface UncommittedDiffStats {

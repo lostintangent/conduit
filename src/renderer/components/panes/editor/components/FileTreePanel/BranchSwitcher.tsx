@@ -26,8 +26,8 @@
 import { useState, useCallback } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { GitBranch, ChevronDown, Check, Plus } from "lucide-react";
-import { gitMutations } from "@/api/gitQueries";
-import type { GitV2API } from "@/api/GitV2API";
+import { gitMutations } from "@features/git/client/queries";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { cn } from "@/utils";
 import {
   DropdownMenu,

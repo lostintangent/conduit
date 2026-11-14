@@ -91,7 +91,7 @@ vi.mock("@/hooks/useFileSystemV2", () => ({
 }));
 
 // Mock useGitAvailable hook
-vi.mock("@/hooks/useGitAvailable", () => ({
+vi.mock("@features/git/components/useGitAvailable", () => ({
   useGitAvailable: () => ({
     isAvailable: true,
     isLoading: false,

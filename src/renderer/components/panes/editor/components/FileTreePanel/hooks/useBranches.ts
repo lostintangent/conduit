@@ -19,9 +19,9 @@
 
 import { useMemo } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { gitKeys, gitQueries } from "@/api/gitQueries";
-import type { GitV2API } from "@/api/GitV2API";
-import type { GitBranch } from "@/api/GitV2API";
+import { gitKeys, gitQueries } from "@features/git/client/queries";
+import type { GitV2API } from "@features/git/client/GitV2API";
+import type { GitBranch } from "@features/git/client/GitV2API";
 
 export interface UseBranchesOptions {
   /** Whether to fetch branches (useful for lazy loading when dropdown opens) */

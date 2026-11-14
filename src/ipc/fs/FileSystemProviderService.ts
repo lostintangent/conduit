@@ -23,7 +23,7 @@
  */
 
 import * as fs from "node:fs";
-import { GitProviderService } from "../git/GitProviderService";
+import { GitProviderService } from "@features/git/main/GitProviderService";
 import { ProviderPool } from "../ProviderPool";
 import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
 

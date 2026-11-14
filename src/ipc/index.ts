@@ -16,7 +16,7 @@ import {
   cleanupGitV2Handlers,
   initializeGitV2Handlers,
   releaseGitSubscriptions,
-} from "./git/handlers";
+} from "@features/git/main/handlers";
 import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
 
 async function ensureConduitDirectory() {

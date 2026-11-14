@@ -39,7 +39,7 @@ function createMockWatcherInstance(): MockWatcherInstance {
   };
 }
 
-vi.mock("../../../src/ipc/fs/ParcelFileWatcher", () => ({
+vi.mock("../../../ipc/fs/ParcelFileWatcher", () => ({
   ParcelFileWatcher: class MockParcelFileWatcher {
     watch: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;
@@ -110,12 +110,8 @@ vi.mock("node:fs/promises", async () => {
 // Import after mocks
 // ============================================================================
 
-import { DiskGitProvider } from "../../../src/ipc/git/DiskGitProvider";
-import type {
-  GitFileStatus,
-  GitStatus,
-  GitStatusChangedEvent,
-} from "../../../src/ipc/git/types";
+import { DiskGitProvider } from "./DiskGitProvider";
+import type { GitFileStatus, GitStatus, GitStatusChangedEvent } from "../model";
 
 // ============================================================================
 // Test Helpers

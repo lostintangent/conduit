@@ -47,8 +47,12 @@
  * ```
  */
 
-import { gitMutations } from "@/api/gitQueries";
-import type { CommitFile, GitFileStatus, GitV2API } from "@/api/GitV2API";
+import { gitMutations } from "@features/git/client/queries";
+import type {
+  CommitFile,
+  GitFileStatus,
+  GitV2API,
+} from "@features/git/client/GitV2API";
 import { useMutation } from "@tanstack/react-query";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

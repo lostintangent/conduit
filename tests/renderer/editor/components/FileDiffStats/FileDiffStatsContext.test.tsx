@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { gitKeys } from "@/api/gitQueries";
+import { gitKeys } from "@features/git/client/queries";
 import {
   FileDiffStatsProvider,
   useFileDiffStats,

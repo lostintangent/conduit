@@ -6,8 +6,8 @@ vi.mock("@/store/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
 }));
 
-import { gitMutations } from "@/api/gitQueries";
-import type { GitV2API } from "@/api/GitV2API";
+import { gitMutations } from "@features/git/client/queries";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { useGitSync } from "@/components/panes/editor/hooks/useGitSync";
 import { getFriendlyGitError } from "@/components/panes/editor/utils/gitErrorMessages";
 import { enqueueNotification } from "@/store/actions/notifications";

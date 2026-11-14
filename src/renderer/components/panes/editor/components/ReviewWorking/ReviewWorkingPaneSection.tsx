@@ -25,8 +25,8 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";

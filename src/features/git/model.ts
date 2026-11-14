@@ -13,7 +13,7 @@
  * @see docs/architecture/filesystem-provider-design-narrative.md
  */
 
-import type { Event } from "../fs/types";
+import type { Event } from "../../ipc/fs/types";
 
 // ============================================================================
 // Git File Status Types

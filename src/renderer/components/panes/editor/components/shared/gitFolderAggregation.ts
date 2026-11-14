@@ -5,7 +5,7 @@
  * from child files and determine the folder's overall status.
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
+import type { GitFileStatus } from "@features/git/client/GitV2API";
 import { getStatusConfig, type StatusConfig } from "./GitBadge";
 
 /**

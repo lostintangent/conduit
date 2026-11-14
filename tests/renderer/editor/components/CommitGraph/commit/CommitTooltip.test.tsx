@@ -13,7 +13,7 @@ import { act, render, screen, within } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitTooltip } from "@/components/panes/editor/components/CommitGraph/commit/CommitTooltip";
 import type { HistoryCommit } from "@/components/panes/editor/components/CommitGraph/types";
-import type { TrackedBranchInfo } from "@/api/GitV2API";
+import type { TrackedBranchInfo } from "@features/git/client/GitV2API";
 import { trackedBranch } from "../fixtures";
 
 // =============================================================================

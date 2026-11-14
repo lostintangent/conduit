@@ -3,7 +3,7 @@ import {
   selectNextAvailableFile,
   relativePathToFileNode,
 } from "../../../../src/renderer/components/panes/editor/utils/fileSelectionHelpers";
-import type { GitV2API } from "../../../../src/renderer/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 
 // Create a minimal mock GitV2API
 function createMockGit(overrides: Partial<GitV2API> = {}): GitV2API {

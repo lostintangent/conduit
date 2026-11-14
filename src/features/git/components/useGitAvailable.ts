@@ -23,7 +23,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { GitV2API } from "../api/GitV2API";
+import { GitV2API } from "../client/GitV2API";
 
 /**
  * Result of the useGitAvailable hook.

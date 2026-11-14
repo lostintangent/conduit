@@ -10,9 +10,9 @@
  * ```
  */
 
-import { GitV2API } from "../api/GitV2API";
-import { GitV2APIService } from "../services/GitV2APIService";
-import { useSharedAPI } from "../services/SharedAPIPool";
+import { GitV2API } from "../client/GitV2API";
+import { GitV2APIService } from "../client/GitV2APIService";
+import { useSharedAPI } from "@/services/SharedAPIPool";
 
 export function useGitV2(cwd: string): GitV2API {
   return useSharedAPI(GitV2APIService.getInstance(), cwd);
@@ -24,6 +24,6 @@ export type {
   CommitCreatedCallback,
   HeadChangedCallback,
   StatusChangedCallback,
-} from "../api/GitV2API";
+} from "../client/GitV2API";
 
-export { GitV2API } from "../api/GitV2API";
+export { GitV2API } from "../client/GitV2API";

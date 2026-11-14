@@ -1,7 +1,7 @@
 import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { gitMutations, gitQueries } from "@/api/gitQueries";
-import type { GitV2API } from "@/api/GitV2API";
+import { gitMutations, gitQueries } from "@features/git/client/queries";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { getFriendlyGitError } from "../utils/gitErrorMessages";
 
 const notifyOnError = { errorMessage: getFriendlyGitError };

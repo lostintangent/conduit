@@ -24,7 +24,7 @@ import {
   useCommand,
   getCommandDisplayTitle,
 } from "@/commands/hooks/useCommand";
-import { useUncommittedDiffStats } from "@/hooks/useUncommittedDiffStats";
+import { useUncommittedDiffStats } from "@features/git/components/useUncommittedDiffStats";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import { ApplicationCommands } from "@shared/commands";
 import { memo, useCallback, useState } from "react";

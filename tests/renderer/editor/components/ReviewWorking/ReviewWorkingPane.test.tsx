@@ -8,8 +8,8 @@ import {
 } from "@testing-library/react";
 import type { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { gitKeys } from "@/api/gitQueries";
-import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
+import { gitKeys } from "@features/git/client/queries";
+import type { GitFileStatus, GitStatus } from "@features/git/client/GitV2API";
 import { createQueryClient } from "@/query";
 import { ReviewWorkingPane } from "../../../../../src/renderer/components/panes/editor/components/ReviewWorking/ReviewWorkingPane";
 import { FileEditor } from "../../../../../src/renderer/components/panes/editor/components/shared/FileEditor";

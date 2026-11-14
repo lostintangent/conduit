@@ -53,12 +53,12 @@ const { MockGitV2API } = vi.hoisted(() => {
 });
 
 // Mock the GitV2API class
-vi.mock("../../../src/renderer/api/GitV2API", () => ({
+vi.mock("./GitV2API", () => ({
   GitV2API: MockGitV2API,
 }));
 
 // Import after mocks are set up
-import { GitV2APIService } from "../../../src/renderer/services/GitV2APIService";
+import { GitV2APIService } from "./GitV2APIService";
 
 // ============================================================================
 // Tests

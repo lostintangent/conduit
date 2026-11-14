@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { applyGitStatus } from "@/api/gitQueries";
+import { applyGitStatus } from "@features/git/client/queries";
 import { createQueryClient } from "@/query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
@@ -131,7 +131,7 @@ const mockGit = {
   getChangedFilesFromBranch: vi.fn().mockResolvedValue([]),
   hasUpstream: vi.fn().mockResolvedValue(true),
 };
-vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
+vi.mock("@features/git/components/useGitV2", () => ({
   useGitV2: () => mockGit,
 }));
 

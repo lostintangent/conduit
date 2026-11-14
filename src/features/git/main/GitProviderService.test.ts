@@ -17,7 +17,7 @@ interface MockProviderInstance {
 
 const createdInstances: MockProviderInstance[] = [];
 
-vi.mock("../../../src/ipc/git/DiskGitProvider", () => {
+vi.mock("./DiskGitProvider", () => {
   return {
     DiskGitProvider: class MockDiskGitProvider {
       gitRoot: string;
@@ -54,7 +54,7 @@ vi.mock("node:fs", async () => {
 // Import after mocks
 // ============================================================================
 
-import { GitProviderService } from "../../../src/ipc/git/GitProviderService";
+import { GitProviderService } from "./GitProviderService";
 
 // ============================================================================
 // Tests

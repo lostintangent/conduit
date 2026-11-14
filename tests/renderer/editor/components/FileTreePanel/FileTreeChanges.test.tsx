@@ -107,7 +107,7 @@ globalThis.window.conduit.git = {
 };
 
 // Mock useGitAvailable hook
-vi.mock("@/hooks/useGitAvailable", () => ({
+vi.mock("@features/git/components/useGitAvailable", () => ({
   useGitAvailable: () => ({
     isAvailable: true,
     isLoading: false,

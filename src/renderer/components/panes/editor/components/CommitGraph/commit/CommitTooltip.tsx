@@ -26,7 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { HistoryCommit } from "../types";
-import type { TrackedBranchInfo } from "@/api/GitV2API";
+import type { TrackedBranchInfo } from "@features/git/client/GitV2API";
 import { formatRelativeTime } from "../../../utils";
 import {
   parseRefs,

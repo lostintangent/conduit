@@ -1,6 +1,6 @@
 import * as os from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
-import { createGit } from "../../../src/ipc/git/createGit";
+import { createGit } from "./createGit";
 
 const shellEnv = {
   GIT_AUTHOR_NAME: "Shell Author",

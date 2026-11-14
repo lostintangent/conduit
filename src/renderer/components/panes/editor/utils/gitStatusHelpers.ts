@@ -13,7 +13,7 @@
  * Use the branded types (MapKey, FilePath) from types.ts for type safety.
  */
 
-import type { CommitFile, GitFileStatus } from "@/api/GitV2API";
+import type { CommitFile, GitFileStatus } from "@features/git/client/GitV2API";
 import {
   type FileChangeDisplay,
   type FilePath,

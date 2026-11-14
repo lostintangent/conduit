@@ -33,7 +33,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useGitV2 } from "../../../../hooks/useGitV2";
+import { useGitV2 } from "@features/git/components/useGitV2";
 import { MonacoModelRegistry, createModelKey } from "../registry";
 import { type ContentSource, contentSourceToGitRef } from "../types";
 import { isBinaryContent } from "../utils";

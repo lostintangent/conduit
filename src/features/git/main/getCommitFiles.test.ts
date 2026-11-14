@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { DiskGitProvider } from "../../../src/ipc/git/DiskGitProvider";
+import { DiskGitProvider } from "./DiskGitProvider";
 
 describe("DiskGitProvider.getCommitFiles", () => {
   let repo: string;

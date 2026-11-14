@@ -44,7 +44,7 @@ const { mockGit } = vi.hoisted(() => {
 });
 
 // Import after mocks are set up
-import { GitV2API } from "../../../src/renderer/api/GitV2API";
+import { GitV2API } from "./GitV2API";
 
 // ============================================================================
 // Tests

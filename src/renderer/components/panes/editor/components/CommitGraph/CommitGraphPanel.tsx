@@ -42,7 +42,7 @@
  * ```
  */
 
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { cn } from "@/utils";
 import { memo, useCallback, useState } from "react";
 import { CommitGraphHeader } from "./CommitGraphHeader";

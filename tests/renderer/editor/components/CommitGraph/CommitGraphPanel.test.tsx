@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { render } from "../../../queryRender";
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { CommitGraphPanel } from "@/components/panes/editor/components/CommitGraph/CommitGraphPanel";
 
 // =============================================================================

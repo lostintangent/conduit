@@ -5,7 +5,7 @@
  * current file is no longer available (deleted, reverted, etc.).
  */
 
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import type { FileNode } from "../types";
 
 /**

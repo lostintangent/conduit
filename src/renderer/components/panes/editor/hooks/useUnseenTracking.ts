@@ -40,7 +40,7 @@
  * ```
  */
 
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { FileSystemV2APIService } from "@/services/FileSystemV2APIService";
 import { normalizePathForKey } from "@/utils/pathUtils";
 import { useEffect, useRef } from "react";

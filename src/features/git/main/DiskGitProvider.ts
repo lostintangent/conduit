@@ -25,9 +25,9 @@ import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import type { SimpleGit, StatusResult } from "simple-git";
 
-import { EventEmitter } from "../../shared/EventEmitter";
-import { ParcelFileWatcher } from "../fs/ParcelFileWatcher";
-import type { Disposable, Event } from "../fs/types";
+import { EventEmitter } from "@shared/EventEmitter";
+import { ParcelFileWatcher } from "../../../ipc/fs/ParcelFileWatcher";
+import type { Disposable, Event } from "../../../ipc/fs/types";
 import type {
   CommitFile,
   CommitHistoryResult,
@@ -48,7 +48,7 @@ import type {
   HistoryCommit,
   TrackedBranch,
   TrackedBranchInfo,
-} from "./types";
+} from "../model";
 import { createGit } from "./createGit";
 
 // ============================================================================

@@ -8,7 +8,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Mock useUncommittedDiffStats
 const mockUseUncommittedDiffStats = vi.fn();
-vi.mock("@/hooks/useUncommittedDiffStats", () => ({
+vi.mock("@features/git/components/useUncommittedDiffStats", () => ({
   useUncommittedDiffStats: (...args: unknown[]) =>
     mockUseUncommittedDiffStats(...args),
 }));

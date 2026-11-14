@@ -20,7 +20,7 @@ import type {
   GitCommitOptions,
   GitFileStatus,
   TrackedBranchInfo,
-} from "../../../ipc/git/types";
+} from "@features/git/model";
 import { createEventListener } from "../utils";
 
 // ============================================================================

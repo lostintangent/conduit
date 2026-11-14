@@ -2,7 +2,7 @@
  * Tree building and manipulation utilities for FileTreePanel.
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
+import type { GitFileStatus } from "@features/git/client/GitV2API";
 import type { FolderNode, SelectableItem } from "./types";
 
 /**

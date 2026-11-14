@@ -37,7 +37,7 @@
  * ```
  */
 
-import type { Cleanup } from "../../ipc/fs/types";
+import type { Cleanup } from "../../../ipc/fs/types";
 import type {
   CommitFile,
   CommitHistoryResult,
@@ -56,7 +56,7 @@ import type {
   PerFileDiffStats,
   SplitPerFileDiffStats,
   TrackedBranchInfo,
-} from "../../ipc/git/types";
+} from "../model";
 import type {
   BranchChangedPayload,
   CommitCreatedPayload,
@@ -68,7 +68,7 @@ import type {
   SerializedHistoryCommit,
   SerializedSplitPerFileDiffStats,
   StatusChangedPayload,
-} from "../../preload/window/modules/git";
+} from "../../../preload/window/modules/git";
 
 // ============================================================================
 // Types
@@ -126,7 +126,7 @@ export type {
   TrackedBranch,
   TrackedBranchInfo,
   TrackedBranchType,
-} from "../../ipc/git/types";
+} from "../model";
 
 // ============================================================================
 // Deserialization Helpers

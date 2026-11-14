@@ -1,5 +1,5 @@
-import { GitV2API } from "../api/GitV2API";
-import { createSharedAPIPool } from "./SharedAPIPool";
+import { GitV2API } from "./GitV2API";
+import { createSharedAPIPool } from "@/services/SharedAPIPool";
 
 /**
  * Shared GitV2API instances, one per cwd. Keyed by the cwd passed to acquire,

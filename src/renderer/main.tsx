@@ -1,5 +1,5 @@
 import { App } from "@/app";
-import { installGitQueryBridge } from "@/api/gitQueries";
+import { installGitQueryBridge } from "@features/git/client/queries";
 import { preloadMarkdownPreview } from "@/components/panes/editor/components/EditorPane/LazyMarkdownPreview";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";

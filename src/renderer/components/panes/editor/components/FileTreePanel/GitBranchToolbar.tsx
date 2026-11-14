@@ -60,8 +60,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { GitFileStatus } from "@/api/GitV2API";
-import type { GitV2API } from "@/api/GitV2API";
+import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import { GitStatusSummary } from "./GitStatusSummary";
 import { BranchSwitcher } from "./BranchSwitcher";
 
