@@ -1,81 +1,23 @@
 /**
  * useCommitGraph Hook
  *
- * Central state management hook for the commit graph feature.
- * Manages commit data, swimlane computation, expansion state, and pagination.
- *
- * Features:
- * - Fetches commit history from Git API
- * - Computes swimlane positions using graph algorithm
- * - Manages loading and error states
- * - Supports pagination (load more commits)
- * - Tracks expanded commits with lazy file loading
- * - Provides refresh functionality
- *
- * @example
- * ```tsx
- * function CommitGraphPanel({ git, headCommitId }) {
- *   const {
- *     nodes,
- *     isLoading,
- *     error,
- *     refresh,
- *     loadMore,
- *     toggleExpand,
- *   } = useCommitGraph(git, { headCommitId });
- *
- *   if (isLoading) return <LoadingState />;
- *   if (error) return <ErrorState message={error} onRetry={refresh} />;
- *
- *   return nodes.map(node => (
- *     <CommitRow key={node.commit.id} node={node} />
- *   ));
- * }
- * ```
+ * State for the commit graph: history pages and tracked branches from the
+ * query cache (kept current by the git query bridge), swimlane layout, and
+ * which commits are expanded, with their files loaded on first expand.
  */
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import type {
-  GitV2API,
-  HistoryCommit,
-  TrackedBranchInfo,
-} from "@/api/GitV2API";
-import type {
-  CommitGraphNode,
-  CommitFile,
-} from "../components/CommitGraph/types";
+import { useCallback, useMemo, useState } from "react";
+import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
+import { gitQueries } from "@/api/gitQueries";
+import type { GitV2API, TrackedBranchInfo } from "@/api/GitV2API";
+import type { CommitGraphNode } from "../components/CommitGraph/types";
 import { computeSwimlanes } from "../components/CommitGraph/graph/swimlanes";
 
-// =============================================================================
-// Types
-// =============================================================================
-
-/**
- * Options for the useCommitGraph hook.
- */
 export interface UseCommitGraphOptions {
-  /**
-   * The current HEAD commit ID.
-   * Used to mark HEAD commits in the graph.
-   */
+  /** The current HEAD commit ID. Defaults to the newest commit loaded. */
   headCommitId?: string;
-
-  /**
-   * Number of commits to load per page.
-   * @default 50
-   */
-  pageSize?: number;
-
-  /**
-   * Whether to load commits on mount.
-   * @default true
-   */
-  loadOnMount?: boolean;
 }
 
-/**
- * State for the commit graph.
- */
 export interface CommitGraphState {
   /** Computed graph nodes with swimlane positions */
   nodes: CommitGraphNode[];
@@ -83,7 +25,7 @@ export interface CommitGraphState {
   /** Whether more commits are available */
   hasMore: boolean;
 
-  /** True during initial load */
+  /** True while the history is being read, but not while loading more */
   isLoading: boolean;
 
   /** True while loading more commits */
@@ -95,52 +37,23 @@ export interface CommitGraphState {
   /** Set of expanded commit IDs */
   expandedCommitIds: Set<string>;
 
-  /** Set of commit IDs currently loading files */
-  loadingFilesIds: Set<string>;
-
-  /**
-   * Tracked branch information for VS Code-style coloring.
-   * Contains current branch, upstream, and base branch with their commit IDs.
-   */
+  /** Current branch, upstream and base, for VS Code-style coloring */
   trackedBranches: TrackedBranchInfo | null;
 }
 
-/**
- * Actions available from the hook.
- */
 export interface CommitGraphActions {
-  /**
-   * Refresh the commit list from scratch.
-   */
-  refresh: () => Promise<void>;
+  /** Re-read the history and tracked branches. */
+  refresh: () => void;
 
-  /**
-   * Load more commits (pagination).
-   */
-  loadMore: () => Promise<void>;
+  /** Load the next page of commits. */
+  loadMore: () => void;
 
-  /**
-   * Toggle expansion of a commit.
-   * When expanding, lazy-loads files if not already loaded.
-   */
-  toggleExpand: (commitId: string) => Promise<void>;
+  /** Expand or collapse a commit, loading its files the first time. */
+  toggleExpand: (commitId: string) => void;
 }
 
-/**
- * Return type for the useCommitGraph hook.
- */
 export interface UseCommitGraphResult
   extends CommitGraphState, CommitGraphActions {}
-
-// =============================================================================
-// Constants
-// =============================================================================
-
-const DEFAULT_PAGE_SIZE = 50;
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 /**
  * Extract user-friendly error message from various error types.
@@ -167,294 +80,84 @@ function getErrorMessage(error: unknown): string {
   return "An unknown error occurred";
 }
 
-// =============================================================================
-// Hook
-// =============================================================================
-
-/**
- * Hook for managing commit graph state.
- *
- * @param git - GitV2API instance for fetching data
- * @param options - Configuration options
- * @returns State and actions for the commit graph
- */
 export function useCommitGraph(
   git: GitV2API,
-  options: UseCommitGraphOptions = {},
+  { headCommitId: providedHeadCommitId }: UseCommitGraphOptions = {},
 ): UseCommitGraphResult {
-  const {
-    headCommitId: providedHeadCommitId,
-    pageSize = DEFAULT_PAGE_SIZE,
-    loadOnMount = true,
-  } = options;
+  const history = useInfiniteQuery(gitQueries.commitHistory(git));
+  const trackedBranchesQuery = useQuery(gitQueries.trackedBranches(git));
+  const trackedBranches = trackedBranchesQuery.data ?? null;
 
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
-
-  // Raw commits from Git API
-  const [commits, setCommits] = useState<HistoryCommit[]>([]);
-
-  // Pagination state
-  const [hasMore, setHasMore] = useState(false);
-  const [currentSkip, setCurrentSkip] = useState(0);
-
-  // Loading states
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  // Error state
-  const [error, setError] = useState<string | null>(null);
-
-  // Expansion state
   const [expandedCommitIds, setExpandedCommitIds] = useState<Set<string>>(
     () => new Set(),
   );
-  const [loadingFilesIds, setLoadingFilesIds] = useState<Set<string>>(
-    () => new Set(),
+  const expandedIds = [...expandedCommitIds];
+  const expandedFiles = useQueries({
+    queries: expandedIds.map((id) => gitQueries.commitFiles(git, id)),
+  });
+
+  const commits = useMemo(
+    () => history.data?.pages.flatMap((page) => page.commits) ?? [],
+    [history.data],
   );
 
-  // Tracked branches for VS Code-style coloring
-  const [trackedBranches, setTrackedBranches] =
-    useState<TrackedBranchInfo | null>(null);
-
-  // Files cache: commitId -> files
-  const filesCache = useRef<Map<string, CommitFile[]>>(new Map());
-
-  // Track if initial load has happened
-  const hasLoadedRef = useRef(false);
-
-  // HEAD commit ID: use provided value, or assume first commit is HEAD
-  // (commits are loaded in topological order starting from HEAD)
+  // Commits are in topological order from HEAD, so the first one is HEAD
   const headCommitId = providedHeadCommitId ?? commits[0]?.id;
 
-  // ---------------------------------------------------------------------------
-  // Computed State: Swimlane Nodes
-  // ---------------------------------------------------------------------------
-
-  // Memoize the expensive swimlane computation separately.
-  // This only recomputes when commits or tracking info changes.
   const graphNodes = useMemo<CommitGraphNode[]>(() => {
     if (commits.length === 0) {
       return [];
     }
 
-    // Compute swimlane positions with tracked branch info for segment coloring
     return computeSwimlanes(commits, {
       headCommitId,
       trackedBranches: trackedBranches ?? undefined,
     });
   }, [commits, headCommitId, trackedBranches]);
 
-  // Enrich nodes with files and loading state.
-  // This runs on every render but is cheap (O(n) lookups).
-  // Kept outside useMemo to avoid:
-  // 1. Set<string> in dependency array (reference equality issues)
-  // 2. Accessing mutable ref (filesCache.current) inside useMemo
-  const nodes: CommitGraphNode[] = graphNodes.map((node) => {
-    const files = filesCache.current.get(node.commit.id);
-    const isLoadingFiles = loadingFilesIds.has(node.commit.id);
-
+  const nodes = graphNodes.map((node) => {
+    const files = expandedFiles[expandedIds.indexOf(node.commit.id)];
     return {
       ...node,
-      files,
-      isLoadingFiles,
+      files: files?.data,
+      isLoadingFiles: files?.isLoading ?? false,
     };
   });
 
-  // ---------------------------------------------------------------------------
-  // Actions
-  // ---------------------------------------------------------------------------
+  const { refetch: refetchHistory } = history;
+  const { refetch: refetchTrackedBranches } = trackedBranchesQuery;
+  const refresh = useCallback(() => {
+    void refetchHistory();
+    void refetchTrackedBranches();
+  }, [refetchHistory, refetchTrackedBranches]);
 
-  // Error Handling Strategy:
-  // -------------------------
-  // This hook uses two error handling patterns based on failure criticality:
-  //
-  // 1. Critical failures (loadCommits): Set error state, let UI handle display.
-  //    The error state causes the UI to show an error message with retry option.
-  //
-  // 2. Optional failures (loadTrackedBranches): Log warning, provide fallback.
-  //    The graph still works without segment coloring, so we don't fail the load.
-  //
-  // Neither pattern throws to the caller - all errors are handled internally
-  // and exposed through the `error` state for the UI to display.
+  const { hasNextPage, isFetching, fetchNextPage } = history;
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetching) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
-  /**
-   * Load commits from the Git API.
-   *
-   * Critical operation - failure sets error state for UI display.
-   */
-  const loadCommits = useCallback(
-    async (skip: number, append: boolean) => {
-      try {
-        const result = await git.getCommitHistory({
-          limit: pageSize,
-          skip,
-        });
-
-        const newCommits = result.commits;
-
-        if (append) {
-          setCommits((prev) => [...prev, ...newCommits]);
-        } else {
-          setCommits(newCommits);
-        }
-
-        setHasMore(result.hasMore);
-        setCurrentSkip(skip + newCommits.length);
-        setError(null);
-      } catch (err) {
-        setError(getErrorMessage(err));
-        // Don't re-throw - error state is set for UI to display
+  const toggleExpand = useCallback((commitId: string) => {
+    setExpandedCommitIds((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(commitId)) {
+        next.add(commitId);
       }
-    },
-    [git, pageSize],
-  );
+      return next;
+    });
+  }, []);
 
-  /**
-   * Load tracked branch information.
-   *
-   * Optional operation - failure logs warning and provides null fallback.
-   * The graph will work without segment coloring if this fails.
-   */
-  const loadTrackedBranches = useCallback(async () => {
-    try {
-      const branches = await git.getTrackedBranches();
-      setTrackedBranches(branches);
-    } catch (err) {
-      // Optional feature - log and continue with null fallback
-      console.warn("Failed to load tracked branches:", err);
-      setTrackedBranches(null);
-    }
-  }, [git]);
-
-  /**
-   * Refresh the commit list from scratch.
-   */
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Load commits and tracked branches in parallel
-      await Promise.all([loadCommits(0, false), loadTrackedBranches()]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [loadCommits, loadTrackedBranches]);
-
-  /**
-   * Load more commits (pagination).
-   */
-  const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) {
-      return;
-    }
-
-    setIsLoadingMore(true);
-
-    try {
-      await loadCommits(currentSkip, true);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [loadCommits, currentSkip, hasMore, isLoadingMore]);
-
-  /**
-   * Load files for a commit.
-   */
-  const loadFilesForCommit = useCallback(
-    async (commitId: string) => {
-      // Check cache first
-      if (filesCache.current.has(commitId)) {
-        return;
-      }
-
-      // Mark as loading
-      setLoadingFilesIds((prev) => new Set(prev).add(commitId));
-
-      try {
-        const files = await git.getCommitFiles(commitId);
-        filesCache.current.set(commitId, files);
-      } catch (err) {
-        // Log error but don't fail the whole operation
-        console.error(`Failed to load files for commit ${commitId}:`, err);
-      } finally {
-        // Remove from loading set
-        setLoadingFilesIds((prev) => {
-          const next = new Set(prev);
-          next.delete(commitId);
-          return next;
-        });
-      }
-    },
-    [git],
-  );
-
-  /**
-   * Toggle expansion of a commit.
-   */
-  const toggleExpand = useCallback(
-    async (commitId: string) => {
-      const isCurrentlyExpanded = expandedCommitIds.has(commitId);
-
-      if (isCurrentlyExpanded) {
-        // Collapse
-        setExpandedCommitIds((prev) => {
-          const next = new Set(prev);
-          next.delete(commitId);
-          return next;
-        });
-      } else {
-        // Expand and load files if needed
-        setExpandedCommitIds((prev) => new Set(prev).add(commitId));
-
-        // Lazy load files
-        await loadFilesForCommit(commitId);
-      }
-    },
-    [expandedCommitIds, loadFilesForCommit],
-  );
-
-  // ---------------------------------------------------------------------------
-  // Effects
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Load commits on mount (if enabled).
-   *
-   * Uses a ref to track if initial load has happened. This pattern prevents
-   * double-loading in React strict mode (which mounts/unmounts twice in dev)
-   * while still allowing the effect to properly list its dependencies.
-   *
-   * Alternative patterns considered:
-   * - Empty dependency array: Would suppress the lint warning but wouldn't
-   *   reload if loadOnMount changes from false to true
-   * - No ref guard: Would cause double-load in strict mode
-   */
-  useEffect(() => {
-    if (loadOnMount && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
-      refresh();
-    }
-  }, [loadOnMount, refresh]);
-
-  // ---------------------------------------------------------------------------
-  // Return
-  // ---------------------------------------------------------------------------
+  const isLoading = history.isFetching && !history.isFetchingNextPage;
 
   return {
-    // State
     nodes,
-    hasMore,
+    hasMore: hasNextPage,
     isLoading,
-    isLoadingMore,
-    error,
+    isLoadingMore: history.isFetchingNextPage,
+    error: history.error && !isLoading ? getErrorMessage(history.error) : null,
     expandedCommitIds,
-    loadingFilesIds,
     trackedBranches,
-
-    // Actions
     refresh,
     loadMore,
     toggleExpand,

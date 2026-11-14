@@ -5,13 +5,12 @@
  * - Automatic filtering (local branches only by default)
  * - Sorting by last commit date (most recent first)
  * - Loading and error states
- * - Manual refresh capability
  *
  * Used by both BranchSwitcher (checkout) and BranchSelector (comparison).
  *
  * @example
  * ```tsx
- * const { branches, isLoading, error, refresh } = useBranches(git, {
+ * const { branches, isLoading, error } = useBranches(git, {
  *   enabled: isDropdownOpen,
  *   includeRemote: false,
  * });
@@ -50,9 +49,6 @@ export interface UseBranchesResult {
 
   /** Error message if loading failed */
   error: string | null;
-
-  /** Manually refresh the branch list */
-  refresh: () => Promise<void>;
 }
 
 const NO_BRANCHES: GitBranch[] = [];
@@ -108,9 +104,6 @@ export function useBranches(
     allBranches,
     isLoading: query.isLoading,
     error: query.isError ? "Failed to load branches" : null,
-    refresh: async () => {
-      await query.refetch();
-    },
   };
 }
 

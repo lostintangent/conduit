@@ -5,7 +5,8 @@
  * This is the top-level component that integrates all commit graph functionality.
  *
  * Features:
- * - Fetches and displays commit history with graph visualization
+ * - Displays commit history with graph visualization, kept current by the
+ *   git query bridge
  * - Handles loading, error, and empty states
  * - Supports commit expansion to view files
  * - Provides refresh and load more functionality
@@ -43,7 +44,7 @@
 
 import type { GitV2API } from "@/api/GitV2API";
 import { cn } from "@/utils";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { CommitGraphHeader } from "./CommitGraphHeader";
 import { CommitGraphList } from "./CommitGraphList";
 import { useCommitGraph } from "./hooks";
@@ -67,12 +68,6 @@ export interface CommitGraphPanelProps {
    * Used to mark HEAD commits in the graph.
    */
   headCommitId?: string;
-
-  /**
-   * Number of commits to load per page.
-   * @default 50
-   */
-  pageSize?: number;
 
   /**
    * Called when a file is selected within an expanded commit.
@@ -104,7 +99,6 @@ export interface CommitGraphPanelProps {
 function CommitGraphPanelComponent({
   git,
   headCommitId,
-  pageSize = 50,
   onFileSelect,
   onViewCommit,
   className,
@@ -125,10 +119,7 @@ function CommitGraphPanelComponent({
     refresh,
     loadMore,
     toggleExpand,
-  } = useCommitGraph(git, {
-    headCommitId,
-    pageSize,
-  });
+  } = useCommitGraph(git, { headCommitId });
 
   // Selected commit for keyboard navigation
   const [selectedCommitId, setSelectedCommitId] = useState<string | null>(null);
@@ -137,73 +128,6 @@ function CommitGraphPanelComponent({
   const [selectedFilePath, setSelectedFilePath] = useState<string | undefined>(
     undefined,
   );
-
-  // ---------------------------------------------------------------------------
-  // Effects
-  // ---------------------------------------------------------------------------
-
-  // Track ahead/behind/upstream for push detection
-  const lastStatusRef = useRef<{
-    ahead: number;
-    behind: number;
-    upstream: string | undefined;
-  } | null>(null);
-
-  /**
-   * Auto-refresh commit list when HEAD changes.
-   *
-   * This catches commits, pulls, and fetches that change HEAD.
-   */
-  useEffect(() => {
-    const cleanup = git.onHeadChanged(() => {
-      refresh();
-    });
-
-    return cleanup;
-  }, [git, refresh]);
-
-  /**
-   * Auto-refresh commit list when branch changes.
-   *
-   * This catches branch switches where HEAD commit stays the same
-   * (e.g., switching to a branch that points to the same commit).
-   * The graph needs to refresh to show the correct current branch indicator.
-   */
-  useEffect(() => {
-    const cleanup = git.onBranchChanged(() => {
-      refresh();
-    });
-
-    return cleanup;
-  }, [git, refresh]);
-
-  /**
-   * Also refresh when ahead/behind/upstream changes (catches push).
-   *
-   * Push doesn't change HEAD, but it does change the ahead count.
-   * New branch publish changes the upstream from undefined to the remote branch.
-   * We track these values to avoid refreshing on file edits.
-   */
-  useEffect(() => {
-    const cleanup = git.onStatusChanged((event) => {
-      const { ahead, behind, upstream } = event.status;
-      const last = lastStatusRef.current;
-
-      // Check what changed
-      const aheadBehindChanged =
-        last !== null && (last.ahead !== ahead || last.behind !== behind);
-      const upstreamChanged = last !== null && last.upstream !== upstream;
-
-      lastStatusRef.current = { ahead, behind, upstream };
-
-      // Refresh if ahead/behind changed (push/pull) or upstream changed (new branch publish)
-      if (aheadBehindChanged || upstreamChanged) {
-        refresh();
-      }
-    });
-
-    return cleanup;
-  }, [git, refresh]);
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -315,7 +239,7 @@ function CommitGraphPanelComponent({
             nodes={nodes}
             expandedCommits={expandedCommitIds}
             hasMore={hasMore}
-            isLoadingMore={isLoadingMore}
+            isLoadingMore={isLoadingMore || isLoading}
             selectedCommitId={selectedCommitId}
             selectedFilePath={selectedFilePath}
             trackedBranches={trackedBranches}

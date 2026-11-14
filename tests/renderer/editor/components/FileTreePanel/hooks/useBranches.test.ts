@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { waitFor, act } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
 import { renderHook } from "../../../../queryRender";
 import {
   useBranches,
@@ -197,30 +197,6 @@ describe("useBranches", () => {
 
       const localBranches = result.current.branches.filter((b) => !b.isRemote);
       expect(localBranches[0].name).toBe("main");
-    });
-  });
-
-  describe("refresh", () => {
-    it("should provide refresh function", async () => {
-      const mockGit = createMockGitAPI();
-
-      const { result } = renderHook(() =>
-        useBranches(mockGit, { enabled: true }),
-      );
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(typeof result.current.refresh).toBe("function");
-
-      // Call refresh
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Should have called getBranches twice (initial + refresh)
-      expect(mockGit.getBranches).toHaveBeenCalledTimes(2);
     });
   });
 });

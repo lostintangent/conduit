@@ -1,4 +1,8 @@
-import { type QueryClient, queryOptions } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  type QueryClient,
+  queryOptions,
+} from "@tanstack/react-query";
 import {
   cwdForGitSubscription,
   deserializeGitStatus,
@@ -8,6 +12,8 @@ import {
 } from "./GitV2API";
 
 type ChangedFiles = Map<string, GitFileStatus>;
+
+const COMMIT_PAGE_SIZE = 50;
 
 /**
  * Query keys for a cwd's git data, by the cwd it was subscribed with. The
@@ -27,6 +33,14 @@ export const gitKeys = {
     baseBranch === undefined
       ? ([...gitKeys.all(cwd), "statusFromBranch"] as const)
       : ([...gitKeys.all(cwd), "statusFromBranch", baseBranch] as const),
+  commitHistory: (cwd: string) =>
+    [...gitKeys.all(cwd), "commitHistory"] as const,
+  trackedBranches: (cwd: string) =>
+    [...gitKeys.all(cwd), "trackedBranches"] as const,
+  commit: (cwd: string, commitId: string) =>
+    [...gitKeys.all(cwd), "commit", commitId] as const,
+  commitFiles: (cwd: string, commitId: string) =>
+    [...gitKeys.all(cwd), "commitFiles", commitId] as const,
 };
 
 /** Wait for the watcher before reading, so no change lands in between unseen. */
@@ -121,6 +135,47 @@ export const gitQueries = {
         : gitQueries.statusFromBranch(git, baseBranch)),
       select: toChangedFiles,
     }),
+
+  /**
+   * History in pages, newest first. HEAD, branch, ahead/behind and upstream
+   * changes invalidate it. Refs that move without any of those, like a base
+   * branch fetched, fire nothing, so it's also re-read on mount.
+   */
+  commitHistory: (git: GitV2API) =>
+    infiniteQueryOptions({
+      queryKey: gitKeys.commitHistory(git.cwd),
+      queryFn: ({ pageParam }) =>
+        read(git, () =>
+          git.getCommitHistory({ limit: COMMIT_PAGE_SIZE, skip: pageParam }),
+        )(),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, pages) =>
+        lastPage.hasMore
+          ? pages.reduce((count, page) => count + page.commits.length, 0)
+          : undefined,
+    }),
+
+  /** The refs the commit graph colors by. Invalidated with commitHistory. */
+  trackedBranches: (git: GitV2API) =>
+    queryOptions({
+      queryKey: gitKeys.trackedBranches(git.cwd),
+      queryFn: read(git, () => git.getTrackedBranches()),
+    }),
+
+  /** A commit, re-read on mount since the refs pointing at it can move. */
+  commit: (git: GitV2API, commitId: string) =>
+    queryOptions({
+      queryKey: gitKeys.commit(git.cwd, commitId),
+      queryFn: () => git.getCommit(commitId),
+    }),
+
+  /** The files a commit changed, which never change. */
+  commitFiles: (git: GitV2API, commitId: string) =>
+    queryOptions({
+      queryKey: gitKeys.commitFiles(git.cwd, commitId),
+      queryFn: () => git.getCommitFiles(commitId),
+      staleTime: Infinity,
+    }),
 };
 
 function toChangedFiles(
@@ -151,17 +206,37 @@ export function applyGitStatus(
   });
 }
 
+function invalidateHistory(queryClient: QueryClient, cwd: string): void {
+  void queryClient.invalidateQueries({ queryKey: gitKeys.commitHistory(cwd) });
+  void queryClient.invalidateQueries({
+    queryKey: gitKeys.trackedBranches(cwd),
+  });
+}
+
 /**
  * Write git watcher events into the cache. Call once at startup: a single
  * listener per event routes each one by its subscription id to the cwd
  * GitV2API subscribed with.
  */
 export function installGitQueryBridge(queryClient: QueryClient): () => void {
+  // A push, pull or publish changes these, and the commit graph shows them.
+  // They're compared with the last event rather than the cache, since a status
+  // re-read (after publishing, say) can write the change before its event.
+  const reportedRefs = new Map<string, string>();
+
   const cleanups = [
     window.conduit.git.onStatusChanged((payload) => {
       const cwd = cwdForGitSubscription(payload.subscriptionId);
-      if (cwd !== undefined) {
-        applyGitStatus(queryClient, cwd, deserializeGitStatus(payload.status));
+      if (cwd === undefined) return;
+
+      const status = deserializeGitStatus(payload.status);
+      applyGitStatus(queryClient, cwd, status);
+
+      const refs = [status.ahead, status.behind, status.upstream].join(" ");
+      const previous = reportedRefs.get(cwd);
+      reportedRefs.set(cwd, refs);
+      if (previous !== undefined && previous !== refs) {
+        invalidateHistory(queryClient, cwd);
       }
     }),
 
@@ -172,6 +247,14 @@ export function installGitQueryBridge(queryClient: QueryClient): () => void {
           gitKeys.currentBranch(cwd),
           payload.currentBranch,
         );
+        invalidateHistory(queryClient, cwd);
+      }
+    }),
+
+    window.conduit.git.onHeadChanged((payload) => {
+      const cwd = cwdForGitSubscription(payload.subscriptionId);
+      if (cwd !== undefined) {
+        invalidateHistory(queryClient, cwd);
       }
     }),
   ];

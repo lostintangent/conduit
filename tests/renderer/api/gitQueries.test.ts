@@ -18,6 +18,8 @@ const { mockGit, emit } = vi.hoisted(() => {
     getStatusFromBranch: vi.fn(),
     getUncommittedDiffStats: vi.fn(),
     getPerFileDiffStats: vi.fn(),
+    getCommitHistory: vi.fn(),
+    getTrackedBranches: vi.fn(),
     onStatusChanged: on("status"),
     onBranchChanged: on("branch"),
     onCommitCreated: on("commit"),
@@ -28,7 +30,7 @@ const { mockGit, emit } = vi.hoisted(() => {
 
   return {
     mockGit: git,
-    emit: (channel: "status" | "branch", payload: unknown) => {
+    emit: (channel: "status" | "branch" | "head", payload: unknown) => {
       for (const listener of listeners.get(channel) ?? []) listener(payload);
     },
   };
@@ -37,7 +39,12 @@ const { mockGit, emit } = vi.hoisted(() => {
 import { GitV2API } from "@/api/GitV2API";
 import { gitKeys, gitQueries, installGitQueryBridge } from "@/api/gitQueries";
 import { createQueryClient } from "@/query";
-import { keepPreviousData, QueryObserver } from "@tanstack/react-query";
+import {
+  InfiniteQueryObserver,
+  keepPreviousData,
+  QueryClient,
+  QueryObserver,
+} from "@tanstack/react-query";
 
 const serializedStatus = (branch: string, files: string[] = []) => ({
   branch,
@@ -49,10 +56,14 @@ const serializedStatus = (branch: string, files: string[] = []) => ({
   ),
 });
 
-const statusEvent = (subscriptionId: string, branch: string) => ({
+const statusEvent = (
+  subscriptionId: string,
+  branch: string,
+  overrides: { ahead?: number; upstream?: string } = {},
+) => ({
   subscriptionId,
   gitRoot: "/repo",
-  status: serializedStatus(branch, ["changed.ts"]),
+  status: { ...serializedStatus(branch, ["changed.ts"]), ...overrides },
   added: ["changed.ts"],
   modified: [] as string[],
   removed: [] as string[],
@@ -83,7 +94,25 @@ beforeEach(() => {
     files: 1,
   });
   mockGit.getPerFileDiffStats.mockResolvedValue({ staged: {}, unstaged: {} });
+  mockGit.getCommitHistory.mockResolvedValue({ commits: [], hasMore: false });
+  mockGit.getTrackedBranches.mockResolvedValue({});
 });
+
+/** Observe the commit graph's queries, resolving once both have loaded. */
+async function observeHistory(queryClient: QueryClient, git: GitV2API) {
+  const observers = [
+    new InfiniteQueryObserver(queryClient, gitQueries.commitHistory(git)),
+    new QueryObserver(queryClient, gitQueries.trackedBranches(git)),
+  ];
+  const unsubscribes = observers.map((observer) =>
+    observer.subscribe(() => {}),
+  );
+  await vi.waitFor(() => {
+    expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(1);
+    expect(mockGit.getTrackedBranches).toHaveBeenCalledTimes(1);
+  });
+  return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+}
 
 afterEach(() => {
   uninstall?.();
@@ -164,6 +193,58 @@ describe("installGitQueryBridge", () => {
       expect(mockGit.getPerFileDiffStats).toHaveBeenCalledTimes(2);
     });
     for (const unsubscribe of unsubscribes) unsubscribe();
+  });
+
+  it.each([
+    ["head", { previousHead: "a", currentHead: "b", isBranchSwitch: false }],
+    ["branch", { previousBranch: "main", currentBranch: "feature" }],
+  ] as const)(
+    "re-reads the observed commit history when a %s event arrives",
+    async (channel, payload) => {
+      const queryClient = createQueryClient();
+      uninstall = installGitQueryBridge(queryClient);
+      const git = await watch("/repo");
+      const unobserve = await observeHistory(queryClient, git);
+
+      emit(channel, { subscriptionId: "sub-1", gitRoot: "/repo", ...payload });
+
+      await vi.waitFor(() => {
+        expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(2);
+        expect(mockGit.getTrackedBranches).toHaveBeenCalledTimes(2);
+      });
+      unobserve();
+    },
+  );
+
+  it("re-reads the commit history only when ahead, behind or upstream changes from the last event", async () => {
+    const queryClient = createQueryClient();
+    uninstall = installGitQueryBridge(queryClient);
+    const git = await watch("/repo");
+    const unobserve = await observeHistory(queryClient, git);
+
+    emit("status", statusEvent("sub-1", "main"));
+    emit("status", statusEvent("sub-1", "main"));
+    expect(queryClient.isFetching()).toBe(0);
+    expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(1);
+
+    emit("status", statusEvent("sub-1", "main", { ahead: 1 }));
+    await vi.waitFor(() =>
+      expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(2),
+    );
+
+    // Publishing re-reads status, so the cache sees the upstream before the event
+    queryClient.setQueryData(gitKeys.status("/repo"), {
+      ...queryClient.getQueryData(gitKeys.status("/repo"))!,
+      upstream: "origin/published",
+    });
+    emit(
+      "status",
+      statusEvent("sub-1", "main", { ahead: 1, upstream: "origin/published" }),
+    );
+    await vi.waitFor(() =>
+      expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(3),
+    );
+    unobserve();
   });
 });
 

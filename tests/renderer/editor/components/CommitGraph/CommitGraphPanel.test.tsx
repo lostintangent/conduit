@@ -9,8 +9,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { render } from "../../../queryRender";
 import type { GitV2API } from "@/api/GitV2API";
 import { CommitGraphPanel } from "@/components/panes/editor/components/CommitGraph/CommitGraphPanel";
 
@@ -18,16 +19,13 @@ import { CommitGraphPanel } from "@/components/panes/editor/components/CommitGra
 // Test Helpers
 // =============================================================================
 
-function TestWrapper({ children }: { children: React.ReactNode }) {
-  return <TooltipProvider>{children}</TooltipProvider>;
-}
-
 function renderWithProvider(ui: React.ReactElement) {
-  return render(ui, { wrapper: TestWrapper });
+  return render(<TooltipProvider>{ui}</TooltipProvider>);
 }
 
 function createMockGitApi(): GitV2API {
   return {
+    whenReady: vi.fn().mockResolvedValue(undefined),
     getCommitHistory: vi
       .fn()
       .mockResolvedValue({ commits: [], hasMore: false }),
@@ -57,9 +55,6 @@ function createMockGitApi(): GitV2API {
       upstream: null,
       base: null,
     }),
-    onStatusChanged: vi.fn().mockReturnValue(() => {}),
-    onHeadChanged: vi.fn().mockReturnValue(() => {}),
-    onBranchChanged: vi.fn().mockReturnValue(() => {}),
     cwd: "/test/cwd",
   } as unknown as GitV2API;
 }
@@ -134,67 +129,55 @@ describe("CommitGraphPanel", () => {
         renderWithProvider(<CommitGraphPanel git={git} />);
       });
 
-      // Default mock state has empty nodes, should show empty state
-      expect(screen.getByTestId("commit-graph-empty")).toBeTruthy();
+      expect(await screen.findByTestId("commit-graph-empty")).toBeTruthy();
       expect(screen.getByText("No commits yet")).toBeTruthy();
     });
   });
 
-  describe("auto-refresh", () => {
-    it("should subscribe to onHeadChanged for commit/pull detection", async () => {
+  describe("load more", () => {
+    it("is busy while the history refreshes, since a click then would be ignored", async () => {
       const git = createMockGitApi();
+      const page = {
+        commits: [
+          {
+            id: "abc1234",
+            shortId: "abc1234",
+            subject: "First",
+            message: "First",
+            author: "Test Author",
+            authorEmail: "test@example.com",
+            timestamp: 1_700_000_000_000,
+            parentIds: [] as string[],
+          },
+        ],
+        hasMore: true,
+      };
+      let finishRefresh!: (value: typeof page) => void;
+      vi.mocked(git.getCommitHistory)
+        .mockResolvedValueOnce(page)
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            finishRefresh = resolve;
+          }),
+        );
 
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
+      renderWithProvider(<CommitGraphPanel git={git} />);
+      const loadMore = await screen.findByTestId("load-more-button");
+      expect(loadMore.hasAttribute("disabled")).toBe(false);
 
-      expect(git.onHeadChanged).toHaveBeenCalled();
-    });
-
-    it("should subscribe to onBranchChanged for branch switch detection", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      expect(git.onBranchChanged).toHaveBeenCalled();
-    });
-
-    it("should subscribe to onStatusChanged for push/upstream detection", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      expect(git.onStatusChanged).toHaveBeenCalled();
-    });
-
-    it("should cleanup all subscriptions on unmount", async () => {
-      const git = createMockGitApi();
-      const headCleanup = vi.fn();
-      const branchCleanup = vi.fn();
-      const statusCleanup = vi.fn();
-      (git.onHeadChanged as ReturnType<typeof vi.fn>).mockReturnValue(
-        headCleanup,
-      );
-      (git.onBranchChanged as ReturnType<typeof vi.fn>).mockReturnValue(
-        branchCleanup,
-      );
-      (git.onStatusChanged as ReturnType<typeof vi.fn>).mockReturnValue(
-        statusCleanup,
+      fireEvent.click(screen.getByTestId("refresh-button"));
+      await waitFor(() =>
+        expect(
+          screen.getByTestId("load-more-button").hasAttribute("disabled"),
+        ).toBe(true),
       );
 
-      const { unmount } = await act(async () => {
-        return renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      unmount();
-
-      expect(headCleanup).toHaveBeenCalled();
-      expect(branchCleanup).toHaveBeenCalled();
-      expect(statusCleanup).toHaveBeenCalled();
+      await act(async () => finishRefresh(page));
+      await waitFor(() =>
+        expect(
+          screen.getByTestId("load-more-button").hasAttribute("disabled"),
+        ).toBe(false),
+      );
     });
   });
 });

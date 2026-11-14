@@ -1,26 +1,17 @@
 /**
- * Tests for the useCommitGraph hook.
- *
- * These tests verify the state management, data fetching,
- * expansion behavior, and pagination of the commit graph.
- *
- * @vitest-environment jsdom
+ * Tests for the useCommitGraph hook: history pages, tracked branches and
+ * commit files read through the query cache.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { act, waitFor } from "@testing-library/react";
+import { renderHook } from "../../../../queryRender";
 
-// =============================================================================
-// Mocks
-// =============================================================================
-
-// Mock the swimlanes computation
 vi.mock(
-  "../../../../../../src/renderer/components/panes/editor/components/CommitGraph/graph/swimlanes",
+  "@/components/panes/editor/components/CommitGraph/graph/swimlanes",
   () => ({
     computeSwimlanes: vi.fn(
       (commits: HistoryCommit[], options?: { headCommitId?: string }) =>
-        // Simple mock that returns nodes with basic swimlane data
         commits.map((commit): CommitGraphNode => ({
           commit,
           laneIndex: 0,
@@ -34,786 +25,294 @@ vi.mock(
   }),
 );
 
-// Create mock Git API
-function createMockGitAPI() {
-  return {
-    getCommitHistory: vi.fn(),
-    getCommitFiles: vi.fn(),
-    getTrackedBranches: vi.fn().mockResolvedValue({
-      current: null,
-      upstream: null,
-      base: null,
-    }),
-  };
-}
-
-// Import hook after mocks are set up
-// Hook was moved from CommitGraph/hooks to editor/hooks
-import { useCommitGraph } from "../../../../../../src/renderer/components/panes/editor/hooks/useCommitGraph";
-import type { GitV2API } from "../../../../../../src/renderer/api/GitV2API";
+import { useCommitGraph } from "@/components/panes/editor/hooks/useCommitGraph";
+import { computeSwimlanes } from "@/components/panes/editor/components/CommitGraph/graph/swimlanes";
+import type { GitV2API } from "@/api/GitV2API";
 import type {
   CommitGraphNode,
   HistoryCommit,
-} from "../../../../../../src/renderer/components/panes/editor/components/CommitGraph/types";
+} from "@/components/panes/editor/components/CommitGraph/types";
 
-// =============================================================================
-// Test Data
-// =============================================================================
-
-function createMockCommit(
-  id: string,
-  overrides: Partial<HistoryCommit> = {},
-): HistoryCommit {
+function commit(id: string): HistoryCommit {
   return {
     id,
     shortId: id.slice(0, 7),
-    subject: `Commit ${id.slice(0, 7)}`,
-    message: `Commit ${id.slice(0, 7)}\n\nDetailed message`,
+    subject: `Commit ${id}`,
+    message: `Commit ${id}`,
     author: "Test Author",
     authorEmail: "test@example.com",
-    timestamp: Math.floor(Date.now() / 1000) - 3600,
+    timestamp: 1_700_000_000_000,
     parentIds: [],
-    ...overrides,
   };
 }
 
-function createMockFile(path: string, status = "modified") {
-  return {
-    path,
-    status,
-    additions: 10,
-    deletions: 5,
-  };
+const file = (path: string) => ({
+  path,
+  status: "modified",
+  additions: 1,
+  deletions: 0,
+  isBinary: false,
+});
+
+const page = (ids: string[], hasMore = false) => ({
+  commits: ids.map(commit),
+  hasMore,
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
-// =============================================================================
-// Tests
-// =============================================================================
+let mockGit: {
+  cwd: string;
+  whenReady: ReturnType<typeof vi.fn>;
+  getCommitHistory: ReturnType<typeof vi.fn>;
+  getTrackedBranches: ReturnType<typeof vi.fn>;
+  getCommitFiles: ReturnType<typeof vi.fn>;
+};
+
+function renderGraph(headCommitId?: string) {
+  return renderHook(() =>
+    useCommitGraph(mockGit as unknown as GitV2API, { headCommitId }),
+  );
+}
+
+async function renderLoaded() {
+  const rendered = renderGraph();
+  await waitFor(() => expect(rendered.result.current.isLoading).toBe(false));
+  return rendered;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockGit = {
+    cwd: "/repo",
+    whenReady: vi.fn().mockResolvedValue(undefined),
+    getCommitHistory: vi.fn().mockResolvedValue(page(["abc123"])),
+    getTrackedBranches: vi.fn().mockResolvedValue({
+      current: { name: "main", commitId: "abc123" },
+      upstream: null,
+      base: null,
+    }),
+    getCommitFiles: vi.fn().mockResolvedValue([file("a.ts")]),
+  };
+});
 
 describe("useCommitGraph", () => {
-  let mockGit: ReturnType<typeof createMockGitAPI>;
+  it("loads the first page and tracked branches, with the newest commit as HEAD", async () => {
+    mockGit.getCommitHistory.mockResolvedValue(page(["abc123", "def456"]));
+    const { result } = renderGraph();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockGit = createMockGitAPI();
+    expect(result.current.isLoading).toBe(true);
+    await waitFor(() => expect(result.current.nodes).toHaveLength(2));
+    await waitFor(() =>
+      expect(result.current.trackedBranches?.current?.name).toBe("main"),
+    );
+
+    expect(mockGit.getCommitHistory).toHaveBeenCalledWith({
+      limit: 50,
+      skip: 0,
+    });
+    expect(result.current.nodes.map((node) => node.isHead)).toEqual([
+      true,
+      false,
+    ]);
+    expect(vi.mocked(computeSwimlanes)).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        trackedBranches: expect.objectContaining({
+          current: { name: "main", commitId: "abc123" },
+        }),
+      }),
+    );
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  it("marks the given HEAD instead of the newest commit", async () => {
+    mockGit.getCommitHistory.mockResolvedValue(page(["abc123", "def456"]));
+    const { result } = renderGraph("def456");
+
+    await waitFor(() => expect(result.current.nodes).toHaveLength(2));
+    expect(result.current.nodes.map((node) => node.isHead)).toEqual([
+      false,
+      true,
+    ]);
   });
 
-  // ===========================================================================
-  // Initial State
-  // ===========================================================================
+  it("shows an empty graph when there are no commits", async () => {
+    mockGit.getCommitHistory.mockResolvedValue(page([]));
+    const { result } = await renderLoaded();
 
-  describe("initial state", () => {
-    it("should start with empty nodes", () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [],
-        hasMore: false,
-      });
+    expect(result.current.nodes).toEqual([]);
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
 
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
+  describe("errors", () => {
+    it.each([
+      ["fatal: not a git repository", "Not a git repository"],
+      ["fatal: bad revision 'x'", "Invalid branch or commit reference"],
+      ["something broke", "something broke"],
+    ])("reports %s as %s", async (message, expected) => {
+      mockGit.getCommitHistory.mockRejectedValue(new Error(message));
+      const { result } = renderGraph();
 
-      expect(result.current.nodes).toEqual([]);
-      expect(result.current.isLoading).toBe(false);
+      await waitFor(() => expect(result.current.error).toBe(expected));
+    });
+
+    it("hides the error while refreshing and clears it once a read succeeds", async () => {
+      mockGit.getCommitHistory.mockRejectedValueOnce(new Error("busy"));
+      const { result } = renderGraph();
+      await waitFor(() => expect(result.current.error).toBe("busy"));
+
+      const retry = deferred<ReturnType<typeof page>>();
+      mockGit.getCommitHistory.mockReturnValueOnce(retry.promise);
+      act(() => result.current.refresh());
+      await waitFor(() => expect(result.current.isLoading).toBe(true));
       expect(result.current.error).toBeNull();
-    });
 
-    it("should have empty expanded set initially", () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [],
-        hasMore: false,
-      });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      expect(result.current.expandedCommitIds.size).toBe(0);
-    });
-
-    it("should have empty loading files set initially", () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [],
-        hasMore: false,
-      });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      expect(result.current.loadingFilesIds.size).toBe(0);
-    });
-  });
-
-  // ===========================================================================
-  // Load on Mount
-  // ===========================================================================
-
-  describe("load on mount", () => {
-    it("should load commits automatically when loadOnMount is true", async () => {
-      const commits = [createMockCommit("abc123")];
-      mockGit.getCommitHistory.mockResolvedValue({ commits, hasMore: false });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: true }),
-      );
-
-      // Should be loading initially
-      expect(result.current.isLoading).toBe(true);
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.nodes.length).toBe(1);
-      expect(mockGit.getCommitHistory).toHaveBeenCalledWith({
-        limit: 50,
-        skip: 0,
-      });
-    });
-
-    it("should not load commits when loadOnMount is false", () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [],
-        hasMore: false,
-      });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      expect(result.current.isLoading).toBe(false);
-      expect(mockGit.getCommitHistory).not.toHaveBeenCalled();
-    });
-
-    it("should use custom pageSize", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [],
-        hasMore: false,
-      });
-
-      renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, {
-          loadOnMount: true,
-          pageSize: 25,
-        }),
-      );
-
-      await waitFor(() => {
-        expect(mockGit.getCommitHistory).toHaveBeenCalledWith({
-          limit: 25,
-          skip: 0,
-        });
-      });
-    });
-  });
-
-  // ===========================================================================
-  // Refresh
-  // ===========================================================================
-
-  describe("refresh", () => {
-    it("should fetch commits from scratch", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [],
-        hasMore: false,
-      });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      expect(mockGit.getCommitHistory).toHaveBeenCalledWith({
-        limit: 50,
-        skip: 0,
-      });
-    });
-
-    it("should set isLoading while fetching", async () => {
-      let resolvePromise: (value: any) => void;
-      mockGit.getCommitHistory.mockReturnValue(
-        new Promise((resolve) => {
-          resolvePromise = resolve;
-        }),
-      );
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      // Start refresh without waiting
-      act(() => {
-        result.current.refresh();
-      });
-
-      expect(result.current.isLoading).toBe(true);
-
-      // Resolve the promise
-      await act(async () => {
-        resolvePromise!({ commits: [], hasMore: false });
-      });
-
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    it("should update nodes after successful fetch", async () => {
-      const commits = [createMockCommit("abc123"), createMockCommit("def456")];
-      mockGit.getCommitHistory.mockResolvedValue({ commits, hasMore: false });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      expect(result.current.nodes.length).toBe(2);
-      expect(result.current.nodes[0].commit.id).toBe("abc123");
-      expect(result.current.nodes[1].commit.id).toBe("def456");
-    });
-
-    it("should clear previous error on refresh", async () => {
-      // First call fails
-      mockGit.getCommitHistory.mockRejectedValueOnce(
-        new Error("Network error"),
-      );
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        try {
-          await result.current.refresh();
-        } catch {
-          // Expected
-        }
-      });
-
-      expect(result.current.error).toBe("Network error");
-
-      // Second call succeeds
-      mockGit.getCommitHistory.mockResolvedValueOnce({
-        commits: [],
-        hasMore: false,
-      });
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
+      await act(async () => retry.resolve(page(["abc123"])));
+      await waitFor(() => expect(result.current.nodes).toHaveLength(1));
       expect(result.current.error).toBeNull();
     });
   });
 
-  // ===========================================================================
-  // Error Handling
-  // ===========================================================================
-
-  describe("error handling", () => {
-    it("should set error on fetch failure", async () => {
-      mockGit.getCommitHistory.mockRejectedValue(new Error("Failed to fetch"));
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        try {
-          await result.current.refresh();
-        } catch {
-          // Expected
-        }
-      });
-
-      expect(result.current.error).toBe("Failed to fetch");
-    });
-
-    it("should handle 'not a git repository' error", async () => {
-      mockGit.getCommitHistory.mockRejectedValue(
-        new Error("fatal: not a git repository"),
-      );
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        try {
-          await result.current.refresh();
-        } catch {
-          // Expected
-        }
-      });
-
-      expect(result.current.error).toBe("Not a git repository");
-    });
-
-    it("should handle 'bad revision' error", async () => {
-      mockGit.getCommitHistory.mockRejectedValue(
-        new Error("fatal: bad revision 'nonexistent'"),
-      );
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        try {
-          await result.current.refresh();
-        } catch {
-          // Expected
-        }
-      });
-
-      expect(result.current.error).toBe("Invalid branch or commit reference");
-    });
-  });
-
-  // ===========================================================================
-  // Load More (Pagination)
-  // ===========================================================================
-
-  describe("loadMore", () => {
-    it("should load more commits with correct skip", async () => {
-      const firstPage = [createMockCommit("abc123")];
-      const secondPage = [createMockCommit("def456")];
-
+  describe("pages", () => {
+    it("loads the next page after the commits already loaded", async () => {
+      const next = deferred<ReturnType<typeof page>>();
       mockGit.getCommitHistory
-        .mockResolvedValueOnce({ commits: firstPage, hasMore: true })
-        .mockResolvedValueOnce({ commits: secondPage, hasMore: false });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      // Load first page
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      expect(result.current.nodes.length).toBe(1);
+        .mockResolvedValueOnce(page(["abc123", "bcd234"], true))
+        .mockReturnValueOnce(next.promise);
+      const { result } = await renderLoaded();
       expect(result.current.hasMore).toBe(true);
 
-      // Load more
-      await act(async () => {
-        await result.current.loadMore();
-      });
-
-      expect(result.current.nodes.length).toBe(2);
-      expect(result.current.hasMore).toBe(false);
-      expect(mockGit.getCommitHistory).toHaveBeenLastCalledWith({
-        limit: 50,
-        skip: 1,
-      });
-    });
-
-    it("should set isLoadingMore while fetching more", async () => {
-      let resolveSecond: (value: any) => void;
-
-      mockGit.getCommitHistory
-        .mockResolvedValueOnce({
-          commits: [createMockCommit("abc123")],
-          hasMore: true,
-        })
-        .mockReturnValueOnce(
-          new Promise((resolve) => {
-            resolveSecond = resolve;
-          }),
-        );
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Start loadMore without waiting
-      act(() => {
-        result.current.loadMore();
-      });
-
-      expect(result.current.isLoadingMore).toBe(true);
+      act(() => result.current.loadMore());
+      await waitFor(() => expect(result.current.isLoadingMore).toBe(true));
       expect(result.current.isLoading).toBe(false);
 
-      await act(async () => {
-        resolveSecond!({ commits: [], hasMore: false });
+      await act(async () => next.resolve(page(["def456"])));
+      await waitFor(() => expect(result.current.nodes).toHaveLength(3));
+      expect(mockGit.getCommitHistory).toHaveBeenLastCalledWith({
+        limit: 50,
+        skip: 2,
       });
-
+      expect(result.current.hasMore).toBe(false);
       expect(result.current.isLoadingMore).toBe(false);
     });
 
-    it("should not load more when hasMore is false", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
+    it("doesn't load more when there's nothing more", async () => {
+      const { result } = await renderLoaded();
 
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
+      act(() => result.current.loadMore());
 
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      await act(async () => {
-        await result.current.loadMore();
-      });
-
-      // Should only have called once (for refresh)
+      expect(result.current.isLoadingMore).toBe(false);
       expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(1);
     });
 
-    it("should not load more when already loading more", async () => {
-      let resolveSecond: (value: any) => void;
+    it("re-reads every loaded page and the tracked branches on refresh", async () => {
+      mockGit.getCommitHistory
+        .mockResolvedValueOnce(page(["abc123"], true))
+        .mockResolvedValueOnce(page(["def456"]));
+      const { result } = await renderLoaded();
+      act(() => result.current.loadMore());
+      await waitFor(() => expect(result.current.nodes).toHaveLength(2));
 
       mockGit.getCommitHistory
-        .mockResolvedValueOnce({
-          commits: [createMockCommit("abc123")],
-          hasMore: true,
-        })
-        .mockReturnValueOnce(
-          new Promise((resolve) => {
-            resolveSecond = resolve;
-          }),
-        );
+        .mockResolvedValueOnce(page(["new789", "abc123"], true))
+        .mockResolvedValueOnce(page(["def456"]));
+      act(() => result.current.refresh());
 
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
+      await waitFor(() =>
+        expect(result.current.nodes.map((node) => node.commit.id)).toEqual([
+          "new789",
+          "abc123",
+          "def456",
+        ]),
       );
-
-      await act(async () => {
-        await result.current.refresh();
+      expect(mockGit.getCommitHistory).toHaveBeenLastCalledWith({
+        limit: 50,
+        skip: 2,
       });
-
-      // Start first loadMore
-      act(() => {
-        result.current.loadMore();
-      });
-
-      // Try to start second loadMore
-      act(() => {
-        result.current.loadMore();
-      });
-
-      // Should only have called getCommitHistory twice (refresh + one loadMore)
-      expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(2);
-
-      await act(async () => {
-        resolveSecond!({ commits: [], hasMore: false });
-      });
+      expect(mockGit.getTrackedBranches).toHaveBeenCalledTimes(2);
     });
   });
 
-  // ===========================================================================
-  // Expand/Collapse
-  // ===========================================================================
+  describe("expanding commits", () => {
+    it("loads a commit's files the first time it's expanded", async () => {
+      const files = deferred<ReturnType<typeof file>[]>();
+      mockGit.getCommitFiles.mockReturnValueOnce(files.promise);
+      const { result } = await renderLoaded();
 
-  describe("toggleExpand", () => {
-    it("should expand a commit", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockResolvedValue([]);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
+      act(() => result.current.toggleExpand("abc123"));
       expect(result.current.expandedCommitIds.has("abc123")).toBe(true);
-    });
-
-    it("should collapse an expanded commit", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockResolvedValue([]);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
+      await waitFor(() =>
+        expect(result.current.nodes[0].isLoadingFiles).toBe(true),
       );
 
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Expand
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      expect(result.current.expandedCommitIds.has("abc123")).toBe(true);
-
-      // Collapse
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      expect(result.current.expandedCommitIds.has("abc123")).toBe(false);
-    });
-
-    it("should load files when expanding", async () => {
-      const files = [
-        createMockFile("src/index.ts"),
-        createMockFile("README.md"),
-      ];
-
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockResolvedValue(files);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
+      await act(async () => files.resolve([file("a.ts"), file("b.ts")]));
+      await waitFor(() =>
+        expect(result.current.nodes[0].files?.map((f) => f.path)).toEqual([
+          "a.ts",
+          "b.ts",
+        ]),
       );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
+      expect(result.current.nodes[0].isLoadingFiles).toBe(false);
       expect(mockGit.getCommitFiles).toHaveBeenCalledWith("abc123");
-      expect(result.current.nodes[0].files?.length).toBe(2);
     });
 
-    it("should not reload files when re-expanding", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockResolvedValue([
-        createMockFile("src/index.ts"),
-      ]);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
+    it("collapses, and re-expands without reading the files again", async () => {
+      const { result } = await renderLoaded();
+      act(() => result.current.toggleExpand("abc123"));
+      await waitFor(() =>
+        expect(result.current.nodes[0].files).toHaveLength(1),
       );
 
-      await act(async () => {
-        await result.current.refresh();
-      });
+      act(() => result.current.toggleExpand("abc123"));
+      expect(result.current.expandedCommitIds.size).toBe(0);
+      expect(result.current.nodes[0].files).toBeUndefined();
 
-      // Expand
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      // Collapse
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      // Re-expand
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      // Should only have loaded files once
+      act(() => result.current.toggleExpand("abc123"));
+      expect(result.current.nodes[0].files).toHaveLength(1);
       expect(mockGit.getCommitFiles).toHaveBeenCalledTimes(1);
     });
 
-    it("should set isLoadingFiles while loading files", async () => {
-      let resolveFiles: (value: any) => void;
+    it("stops loading without files when they can't be read", async () => {
+      mockGit.getCommitFiles.mockRejectedValue(new Error("gone"));
+      const { result } = await renderLoaded();
 
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockReturnValue(
-        new Promise((resolve) => {
-          resolveFiles = resolve;
-        }),
+      act(() => result.current.toggleExpand("abc123"));
+
+      await waitFor(() =>
+        expect(mockGit.getCommitFiles).toHaveBeenCalledTimes(1),
       );
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
+      await waitFor(() =>
+        expect(result.current.nodes[0].isLoadingFiles).toBe(false),
       );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Start expanding without waiting
-      act(() => {
-        result.current.toggleExpand("abc123");
-      });
-
-      expect(result.current.loadingFilesIds.has("abc123")).toBe(true);
-      expect(result.current.nodes[0].isLoadingFiles).toBe(true);
-
-      await act(async () => {
-        resolveFiles!([]);
-      });
-
-      expect(result.current.loadingFilesIds.has("abc123")).toBe(false);
-      expect(result.current.nodes[0].isLoadingFiles).toBe(false);
+      expect(result.current.nodes[0].files).toBeUndefined();
+      expect(result.current.error).toBeNull();
     });
 
-    it("should handle file loading errors gracefully", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123")],
-        hasMore: false,
-      });
-      mockGit.getCommitFiles.mockRejectedValue(new Error("File load failed"));
-
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      // Should still be expanded even if files failed to load
-      expect(result.current.expandedCommitIds.has("abc123")).toBe(true);
-      // Should not be loading anymore
-      expect(result.current.loadingFilesIds.has("abc123")).toBe(false);
-      // Should have logged error
-      expect(consoleError).toHaveBeenCalled();
-
-      consoleError.mockRestore();
-    });
-  });
-
-  // ===========================================================================
-  // HEAD Commit
-  // ===========================================================================
-
-  describe("head commit", () => {
-    it("should mark HEAD commit in nodes", async () => {
-      mockGit.getCommitHistory.mockResolvedValue({
-        commits: [createMockCommit("abc123"), createMockCommit("def456")],
-        hasMore: false,
-      });
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, {
-          loadOnMount: false,
-          headCommitId: "abc123",
-        }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      expect(result.current.nodes[0].isHead).toBe(true);
-      expect(result.current.nodes[1].isHead).toBe(false);
-    });
-  });
-
-  // ===========================================================================
-  // Expansion State Preservation
-  // ===========================================================================
-
-  describe("expansion state preservation", () => {
-    it("should preserve expanded commits after loadMore", async () => {
+    it("keeps expanded commits and their files when more commits load", async () => {
       mockGit.getCommitHistory
-        .mockResolvedValueOnce({
-          commits: [createMockCommit("abc123")],
-          hasMore: true,
-        })
-        .mockResolvedValueOnce({
-          commits: [createMockCommit("def456")],
-          hasMore: false,
-        });
-      mockGit.getCommitFiles.mockResolvedValue([]);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
+        .mockResolvedValueOnce(page(["abc123"], true))
+        .mockResolvedValueOnce(page(["def456"]));
+      const { result } = await renderLoaded();
+      act(() => result.current.toggleExpand("abc123"));
+      await waitFor(() =>
+        expect(result.current.nodes[0].files).toHaveLength(1),
       );
 
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Expand a commit
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
+      act(() => result.current.loadMore());
+      await waitFor(() => expect(result.current.nodes).toHaveLength(2));
 
       expect(result.current.expandedCommitIds.has("abc123")).toBe(true);
-
-      // Load more
-      await act(async () => {
-        await result.current.loadMore();
-      });
-
-      // Expansion should be preserved
-      expect(result.current.expandedCommitIds.has("abc123")).toBe(true);
-      expect(result.current.nodes.length).toBe(2);
-    });
-
-    it("should preserve files cache after loadMore", async () => {
-      const files = [createMockFile("src/index.ts")];
-
-      mockGit.getCommitHistory
-        .mockResolvedValueOnce({
-          commits: [createMockCommit("abc123")],
-          hasMore: true,
-        })
-        .mockResolvedValueOnce({
-          commits: [createMockCommit("def456")],
-          hasMore: false,
-        });
-      mockGit.getCommitFiles.mockResolvedValue(files);
-
-      const { result } = renderHook(() =>
-        useCommitGraph(mockGit as unknown as GitV2API, { loadOnMount: false }),
-      );
-
-      await act(async () => {
-        await result.current.refresh();
-      });
-
-      // Expand and load files
-      await act(async () => {
-        await result.current.toggleExpand("abc123");
-      });
-
-      expect(result.current.nodes[0].files?.length).toBe(1);
-
-      // Load more
-      await act(async () => {
-        await result.current.loadMore();
-      });
-
-      // Files should still be attached
-      expect(result.current.nodes[0].files?.length).toBe(1);
+      expect(result.current.nodes[0].files).toHaveLength(1);
+      expect(mockGit.getCommitFiles).toHaveBeenCalledTimes(1);
     });
   });
 });
