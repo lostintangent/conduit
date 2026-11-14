@@ -1,22 +1,56 @@
-import { spawn } from "node:child_process";
+import { ChildProcess } from "node:child_process";
+
+type OnExit = (...args: unknown[]) => void;
 
 /**
- * Works around a Bun bug. Under load, a spawn early in a young `bun test`
- * worker can be slow enough that a fast child like `git var` exits before
- * spawn() returns. Bun's node:child_process then emits exit and close, and
- * drains stdout, before simple-git can listen, so the call never settles.
- * This pays that slow spawn on `cat`, which can't exit until its stdin closes
- * after spawn() has returned.
+ * Works around a Bun bug on macOS (oven-sh/bun#45483). Under load, Bun.spawn
+ * can be slow enough that a fast child like `git var` exits before it returns.
+ * Bun then runs its exit callback and drains the tick queue inside spawn(),
+ * so node:child_process emits exit and close, and drops stdout, before
+ * simple-git can listen, and the call never settles. Node never runs a tick
+ * inside spawn().
  *
- * Call it from `beforeAll` in each file that runs real git through
- * simple-git: the same warm-up in the test preload doesn't help. To check
- * whether a Bun upgrade fixed the bug, drop it from createGit.test.ts and run
- * that file alone 1,000 times, 12 at a time. It used to hang about once per
- * 100 runs.
+ * This holds an exit that arrives while spawn() is running until it returns,
+ * like Node. spawn.test.ts forces the bug, so it fails if a Bun upgrade stops
+ * passing spawn() through here.
+ *
+ * To check whether a Bun upgrade fixed the bug, drop the call from the preload
+ * and spawn.test.ts, and run `bun run test` 100 times. createGit.test.ts or
+ * getCommitFiles.test.ts timed out in about 1 of 40 runs on 1.4.5 canary.
  */
-export async function warmUpSpawn() {
-  const cat = spawn("cat");
-  const closed = new Promise((resolve) => cat.on("close", resolve));
-  cat.stdin.end();
-  await closed;
+export function holdEarlyChildExits() {
+  const childProcess = ChildProcess.prototype as unknown as {
+    spawn: (this: ChildProcess, options: unknown) => unknown;
+  };
+  const { Bun: bun } = globalThis as unknown as {
+    Bun: { spawn: (options: { onExit?: OnExit }) => unknown };
+  };
+  const spawnChild = childProcess.spawn;
+
+  childProcess.spawn = function (options) {
+    const bunSpawn = bun.spawn;
+    let spawning = true;
+    let heldExit: (() => void) | undefined;
+
+    bun.spawn = (spawnOptions) => {
+      const { onExit } = spawnOptions;
+      return bunSpawn.call(bun, {
+        ...spawnOptions,
+        onExit:
+          onExit &&
+          ((...args: unknown[]) => {
+            if (spawning) heldExit = () => onExit(...args);
+            else onExit(...args);
+          }),
+      });
+    };
+
+    try {
+      return spawnChild.call(this, options);
+    } finally {
+      bun.spawn = bunSpawn;
+      spawning = false;
+      heldExit?.();
+    }
+  };
 }

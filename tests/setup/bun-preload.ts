@@ -2,6 +2,7 @@ import type { Window as HappyDOMWindow } from "happy-dom";
 import path from "node:path";
 import { plugin } from "bun";
 import { afterAll, beforeEach } from "bun:test";
+import { holdEarlyChildExits } from "./spawn";
 
 // Monaco doesn't load in happy-dom, so tests get these mocks instead:
 // monaco-mock.ts for the package itself and monaco-esm-mock.ts for any subpath
@@ -25,6 +26,9 @@ plugin({
 (
   window as unknown as HappyDOMWindow
 ).happyDOM.settings.handleDisabledFileLoadingAsSuccess = true;
+
+// See spawn.ts: a Bun bug can lose a fast child's exit and output.
+holdEarlyChildExits();
 
 // Mocks and module state leak between files that share a global, so each file
 // needs its own. `bun run test` gets that from --parallel, but plain `bun test`

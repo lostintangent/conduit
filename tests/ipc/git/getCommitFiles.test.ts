@@ -4,7 +4,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { DiskGitProvider } from "../../../src/ipc/git/DiskGitProvider";
-import { warmUpSpawn } from "../../setup/spawn";
 
 describe("DiskGitProvider.getCommitFiles", () => {
   let repo: string;
@@ -31,7 +30,6 @@ describe("DiskGitProvider.getCommitFiles", () => {
     for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) {
       delete process.env[key];
     }
-    return warmUpSpawn();
   });
 
   beforeEach(() => {
