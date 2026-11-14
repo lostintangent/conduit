@@ -1,5 +1,5 @@
 {
-  "plugins": ["react", "vitest"],
+  "plugins": ["react", "typescript", "vitest"],
   "categories": {
     "correctness": "error",
     "perf": "warn"
@@ -88,6 +88,13 @@
             ]
           }
         ]
+      }
+    },
+    {
+      // Tests still assert non-null on fixtures they build.
+      "files": ["src/**"],
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "error"
       }
     },
     {
