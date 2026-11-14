@@ -5,22 +5,24 @@ import { killTerminal } from "./store/actions";
 
 /** Shells and prompt processes would outlive the app, so they close with it. */
 export default function startTerminal() {
-  return async () => {
-    cleanupPromptRequests();
-    await closeTerminals();
-  };
+  return closeTerminals;
 }
 
 /** How long shells get to exit on SIGHUP before quit sends SIGKILL. */
 const HANGUP_GRACE_MS = 500;
 
 /**
- * Kill every PTY and wait for its exit callback. node-pty delivers exits on a
- * native thread, and one that lands while Node is tearing down aborts the
- * process (microsoft/node-pty#904). Teardown also joins that thread, so a
- * shell that survives SIGHUP would hang quit, and those get SIGKILL.
+ * Close every shell and prompt process, for quit and for a renderer reload,
+ * whose new page never reattaches to the old page's shells.
+ *
+ * Each PTY gets SIGHUP, and this waits for its exit callback. node-pty
+ * delivers exits on a native thread, and one that lands while Node is tearing
+ * down aborts the process (microsoft/node-pty#904). Teardown also joins that
+ * thread, so a shell that survives SIGHUP would hang quit, and those get
+ * SIGKILL.
  */
-async function closeTerminals() {
+export async function closeTerminals() {
+  cleanupPromptRequests();
   const running = new Set(getAllTerminals().values());
   const exits = Array.from(
     running,

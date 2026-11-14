@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { closeTerminals } from "@features/terminal/main/startup";
 import { initializeAgentHandlers } from "./agent";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { startFeatures } from "./features";
@@ -53,6 +54,19 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   window.on("closed", () => {
     handleFsWindowClose(windowId);
     handleGitWindowClose(windowId);
+  });
+
+  // A reloaded page starts its own shells and never reattaches to the old
+  // page's, which would otherwise run unseen until quit. Navigations that
+  // `will-navigate` blocks never commit, so they don't count.
+  let hasLoaded = false;
+  window.webContents.on("did-navigate", () => {
+    if (hasLoaded) {
+      closeTerminals().catch((error) =>
+        console.error("Failed to close the reloaded page's terminals", error),
+      );
+    }
+    hasLoaded = true;
   });
 }
 

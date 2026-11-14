@@ -88,8 +88,28 @@ describe("terminal and CLI", () => {
     expect(await copy.locator.count()).toBe(0);
   });
 
+  it("closes the page's shells when it reloads", async () => {
+    const shell = await app.terminal();
+    expect(await shell.run("echo pid-$$")).toBe(0);
+    const pid = Number((await shell.text()).match(/^pid-(\d+)$/m)?.[1]);
+    expect(isRunning(pid)).toBe(true);
+
+    await app.page.reload();
+    await app.terminal();
+    await until(() => !isRunning(pid), "the old page's shell to exit");
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);
   });
 });
+
+function isRunning(pid: number) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}

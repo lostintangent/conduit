@@ -96,7 +96,9 @@ export async function updateApplicationMenu(window: BrowserWindow) {
     {
       label: "View",
       submenu: [
-        { role: "reload" },
+        // A reload closes every shell, which would lose running agents, so
+        // only development builds offer it.
+        ...(app.isPackaged ? [] : [{ role: "reload" }]),
         { role: "toggleDevTools" },
         { type: "separator" },
         { role: "resetZoom" },
