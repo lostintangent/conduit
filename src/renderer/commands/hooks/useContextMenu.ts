@@ -10,7 +10,10 @@ import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
 import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
 import { MenuId } from "@/commands/menus/types";
 import { tabsAtom } from "@features/workbench/client/atoms";
-import { ApplicationCommands } from "@shared/commands";
+import {
+  ApplicationCommands,
+  type ContextMenuItemData,
+} from "@shared/commands";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -19,15 +22,6 @@ type UseContextMenuParams = {
 };
 
 const api = window.conduit;
-
-export interface ContextMenuItemData {
-  commandId: string;
-  title: string;
-  group: string;
-  enabled: boolean;
-  submenuLabel?: string;
-  keybinding?: string;
-}
 
 export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
   const [hasGitRepoCache, setHasGitRepoCache] = useState<

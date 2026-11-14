@@ -1,19 +1,5 @@
+import type { ContextMenuItemData, ContextMenuOptions } from "@shared/commands";
 import { BrowserWindow, Menu, type MenuItemConstructorOptions } from "electron";
-
-export interface ContextMenuItemData {
-  commandId: string;
-  title: string;
-  group: string;
-  enabled: boolean;
-  keybinding?: string;
-  submenuLabel?: string;
-}
-
-export interface ContextMenuOptions {
-  tabId: string;
-  paneId?: string;
-  menuItems: ContextMenuItemData[];
-}
 
 /**
  * Parse a group string into parent group and submenu segment

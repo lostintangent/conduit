@@ -1,9 +1,9 @@
 import { Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ContextMenuItemData } from "@shared/commands";
 import {
   closeContextMenu,
   showContextMenu,
-  type ContextMenuItemData,
 } from "../../../src/ipc/ui/contextMenu";
 
 // Mock Electron modules

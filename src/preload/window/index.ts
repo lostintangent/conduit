@@ -1,5 +1,6 @@
 import type { BackgroundCommandRequest } from "@features/terminal/model";
 import type { Workspace } from "@features/workspaces/model";
+import type { ContextMenuOptions } from "@shared/commands";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";
@@ -32,17 +33,8 @@ const conduitAPI = {
 
   /* UI-related methods (UI->main) */
 
-  showContextMenu: (options: {
-    tabId: string;
-    paneId?: string;
-    menuItems: Array<{
-      commandId: string;
-      title: string;
-      group: string;
-      enabled: boolean;
-      keybinding?: string;
-    }>;
-  }) => ipcRenderer.send("ui:show-context-menu", options),
+  showContextMenu: (options: ContextMenuOptions) =>
+    ipcRenderer.send("ui:show-context-menu", options),
 
   runBackgroundCommand: (options: BackgroundCommandRequest) =>
     ipcRenderer.invoke("ui:run-background-command", options) as Promise<void>,

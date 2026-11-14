@@ -91,3 +91,19 @@ export const ApplicationCommands = {
   EDITOR_FOCUS_SIDEBAR: "editor.focusSidebar",
   EDITOR_QUICK_OPEN: "editor.quickOpen",
 } as const;
+
+/** A command the renderer offers in a native context menu */
+export interface ContextMenuItemData {
+  commandId: string;
+  title: string;
+  group: string;
+  enabled: boolean;
+  keybinding?: string;
+  submenuLabel?: string;
+}
+
+export interface ContextMenuOptions {
+  tabId: string;
+  paneId?: string;
+  menuItems: ContextMenuItemData[];
+}
