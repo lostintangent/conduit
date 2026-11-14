@@ -307,6 +307,32 @@ describe("ReviewWorkingPane", () => {
         expect(screen.getByText("No changes to review")).toBeDefined();
       });
     });
+
+    it.each([
+      ["loading", () => new Promise(() => {}), "Loading changes..."],
+      [
+        "empty",
+        () => Promise.resolve(createMockStatus([])),
+        "No changes to review",
+      ],
+    ])("keeps the exit button while %s", async (_, getStatus, text) => {
+      mockGetStatus.mockImplementation(getStatus);
+      const onExitReview = vi.fn();
+
+      renderWithProviders(
+        <ReviewWorkingPane
+          cwd={TEST_CWD}
+          git={mockGitApi as any}
+          onExitReview={onExitReview}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(text)).toBeDefined();
+      });
+      fireEvent.click(screen.getByTestId("exit-review-button"));
+      expect(onExitReview).toHaveBeenCalledOnce();
+    });
   });
 
   describe("listing changed files", () => {
@@ -324,7 +350,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       // Check files are listed
@@ -369,7 +395,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       // Files should auto-expand on mount
@@ -398,7 +424,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       // Files start expanded
@@ -434,7 +460,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       // All files should auto-expand on mount
@@ -488,7 +514,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       fireEvent.click(screen.getByTestId("stage-button"));
@@ -510,7 +536,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       fireEvent.click(screen.getByTestId("unstage-button"));
@@ -664,7 +690,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByTestId("changes-list")).toBeDefined();
       });
 
       fireEvent.click(screen.getByTestId("stage-button"));

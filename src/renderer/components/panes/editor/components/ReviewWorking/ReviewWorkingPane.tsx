@@ -370,47 +370,18 @@ export function ReviewWorkingPane({
   }, [collapseFiles, unstagedFilePaths]);
 
   // ---------------------------------------------------------------------------
-  // Render: Loading State
-  // ---------------------------------------------------------------------------
-
-  if (isLoading) {
-    return (
-      <div
-        className="flex items-center justify-center h-full text-muted-foreground text-sm"
-        data-testid="changes-review-pane-loading"
-      >
-        Loading changes...
-      </div>
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Render: Empty State
+  // Render
   // ---------------------------------------------------------------------------
 
   const hasChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
-
-  if (!hasChanges) {
-    return (
-      <div
-        className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2"
-        data-testid="changes-review-pane-empty"
-      >
-        <GitCommit className="w-8 h-8 opacity-50" />
-        <span>No changes to review</span>
-      </div>
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Render: Main Content
-  // ---------------------------------------------------------------------------
 
   const canCommit =
     commitMessage.trim().length > 0 && stagedFiles.length > 0 && !isCommitting;
 
   const totalCount = stagedFiles.length + unstagedFiles.length;
 
+  // The header stays while loading and once everything is committed, so a
+  // narrow pane can always exit and push
   return (
     <div
       className="flex flex-col h-full overflow-hidden"
@@ -441,69 +412,90 @@ export function ReviewWorkingPane({
         onMarkAllSeen={markAllSeen}
       />
 
-      {/* Scrollable File List */}
-      <div
-        ref={scrollContainerRef}
-        className="flex-1 overflow-auto"
-        data-testid="changes-list"
-      >
-        {/* Staged Changes Section */}
-        <ReviewWorkingPaneSection
-          title="Staged Changes"
-          files={sortedStagedFiles}
-          icon={<Check className="w-3.5 h-3.5" />}
-          iconColorClass="text-green-500"
-          isExpanded={stagedSectionExpanded}
-          onToggle={() => setStagedSectionExpanded(!stagedSectionExpanded)}
-          bulkActionLabel="Unstage all"
-          onBulkAction={handleUnstageAll}
-          cwd={cwd}
-          git={git}
-          baseBranch={baseBranch}
-          expandedFiles={expandedFiles}
-          onToggleFile={toggleFile}
-          onExpandAll={handleExpandAllStaged}
-          onCollapseAll={handleCollapseAllStaged}
-          // Unseen tracking props (always active)
-          unseenCount={stagedUnseenCount}
-          isFileUnseen={isUnseen}
-          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
-          markSeen={markSeen}
-        />
+      {isLoading ? (
+        <div
+          className="flex flex-1 items-center justify-center text-muted-foreground text-sm"
+          data-testid="changes-review-pane-loading"
+        >
+          Loading changes...
+        </div>
+      ) : !hasChanges ? (
+        <div
+          className="flex flex-1 flex-col items-center justify-center text-muted-foreground text-sm gap-2"
+          data-testid="changes-review-pane-empty"
+        >
+          <GitCommit className="w-8 h-8 opacity-50" />
+          <span>No changes to review</span>
+        </div>
+      ) : (
+        <>
+          {/* Scrollable File List */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-auto"
+            data-testid="changes-list"
+          >
+            {/* Staged Changes Section */}
+            <ReviewWorkingPaneSection
+              title="Staged Changes"
+              files={sortedStagedFiles}
+              icon={<Check className="w-3.5 h-3.5" />}
+              iconColorClass="text-green-500"
+              isExpanded={stagedSectionExpanded}
+              onToggle={() => setStagedSectionExpanded(!stagedSectionExpanded)}
+              bulkActionLabel="Unstage all"
+              onBulkAction={handleUnstageAll}
+              cwd={cwd}
+              git={git}
+              baseBranch={baseBranch}
+              expandedFiles={expandedFiles}
+              onToggleFile={toggleFile}
+              onExpandAll={handleExpandAllStaged}
+              onCollapseAll={handleCollapseAllStaged}
+              // Unseen tracking props (always active)
+              unseenCount={stagedUnseenCount}
+              isFileUnseen={isUnseen}
+              getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+              markSeen={markSeen}
+            />
 
-        {/* Unstaged Changes Section */}
-        <ReviewWorkingPaneSection
-          title="Changes"
-          files={sortedUnstagedFiles}
-          icon={<Minus className="w-3.5 h-3.5" />}
-          iconColorClass="text-yellow-500"
-          isExpanded={unstagedSectionExpanded}
-          onToggle={() => setUnstagedSectionExpanded(!unstagedSectionExpanded)}
-          bulkActionLabel="Stage all"
-          onBulkAction={handleStageAll}
-          cwd={cwd}
-          git={git}
-          baseBranch={baseBranch}
-          expandedFiles={expandedFiles}
-          onToggleFile={toggleFile}
-          onExpandAll={handleExpandAllUnstaged}
-          onCollapseAll={handleCollapseAllUnstaged}
-          // Unseen tracking props (always active)
-          unseenCount={unstagedUnseenCount}
-          isFileUnseen={isUnseen}
-          getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
-          markSeen={markSeen}
-          // Dirty file checking (for preventing staging unsaved files)
-          isFileDirty={isFileDirty}
-        />
-      </div>
+            {/* Unstaged Changes Section */}
+            <ReviewWorkingPaneSection
+              title="Changes"
+              files={sortedUnstagedFiles}
+              icon={<Minus className="w-3.5 h-3.5" />}
+              iconColorClass="text-yellow-500"
+              isExpanded={unstagedSectionExpanded}
+              onToggle={() =>
+                setUnstagedSectionExpanded(!unstagedSectionExpanded)
+              }
+              bulkActionLabel="Stage all"
+              onBulkAction={handleStageAll}
+              cwd={cwd}
+              git={git}
+              baseBranch={baseBranch}
+              expandedFiles={expandedFiles}
+              onToggleFile={toggleFile}
+              onExpandAll={handleExpandAllUnstaged}
+              onCollapseAll={handleCollapseAllUnstaged}
+              // Unseen tracking props (always active)
+              unseenCount={unstagedUnseenCount}
+              isFileUnseen={isUnseen}
+              getFileTimestamp={sortByLastEdited ? getTimestamp : undefined}
+              markSeen={markSeen}
+              // Dirty file checking (for preventing staging unsaved files)
+              isFileDirty={isFileDirty}
+            />
+          </div>
 
-      {/* Summary Footer */}
-      <ReviewWorkingPaneFooter
-        stagedCount={stagedFiles.length}
-        unstagedCount={unstagedFiles.length}
-        totalCount={totalCount}
-      />
+          {/* Summary Footer */}
+          <ReviewWorkingPaneFooter
+            stagedCount={stagedFiles.length}
+            unstagedCount={unstagedFiles.length}
+            totalCount={totalCount}
+          />
+        </>
+      )}
     </div>
   );
 }
