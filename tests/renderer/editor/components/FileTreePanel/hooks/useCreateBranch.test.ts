@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, waitFor } from "@testing-library/react";
-import { mockGitWrites } from "../../../../gitWrites";
+import { mockGitWrites } from "../../../../git";
 import { renderHook } from "../../../../queryRender";
 import { useCreateBranch } from "@/components/panes/editor/components/FileTreePanel/hooks/useCreateBranch";
 import type { GitV2API } from "@features/git/client/GitV2API";

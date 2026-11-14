@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor } from "@testing-library/react";
+import { mockGitReads } from "../../../../git";
 import { renderHook } from "../../../../queryRender";
 import {
   useBranches,
@@ -53,11 +54,10 @@ const mockBranches: GitBranch[] = [
 // Mock Git API
 // ============================================================================
 
-function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
+function createMockGitAPI(): GitV2API {
   return {
+    cwd: "/project",
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getBranches: vi.fn().mockResolvedValue(mockBranches),
-    ...overrides,
   } as unknown as GitV2API;
 }
 
@@ -66,8 +66,12 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
 // ============================================================================
 
 describe("useBranches", () => {
+  let reads: ReturnType<typeof mockGitReads>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    reads = mockGitReads();
+    reads.getBranches.mockResolvedValue(mockBranches);
   });
 
   describe("fetching", () => {
@@ -80,7 +84,7 @@ describe("useBranches", () => {
 
       expect(result.current.isLoading).toBe(false);
       expect(result.current.branches).toEqual([]);
-      expect(mockGit.getBranches).not.toHaveBeenCalled();
+      expect(reads.getBranches).not.toHaveBeenCalled();
     });
 
     it("should fetch branches when enabled", async () => {
@@ -95,7 +99,7 @@ describe("useBranches", () => {
       });
 
       expect(mockGit.whenReady).toHaveBeenCalled();
-      expect(mockGit.getBranches).toHaveBeenCalled();
+      expect(reads.getBranches).toHaveBeenCalledWith("/project");
       expect(result.current.branches.length).toBeGreaterThan(0);
     });
 
@@ -108,9 +112,8 @@ describe("useBranches", () => {
     });
 
     it("should handle errors", async () => {
-      const mockGit = createMockGitAPI({
-        getBranches: vi.fn().mockRejectedValue(new Error("Network error")),
-      });
+      const mockGit = createMockGitAPI();
+      reads.getBranches.mockRejectedValue(new Error("Network error"));
 
       const { result } = renderHook(() =>
         useBranches(mockGit, { enabled: true }),

@@ -11,7 +11,7 @@ import type { GitV2API } from "@features/git/client/GitV2API";
 import { useGitSync } from "@/components/panes/editor/hooks/useGitSync";
 import { getFriendlyGitError } from "@/components/panes/editor/utils/gitErrorMessages";
 import { enqueueNotification } from "@/store/actions/notifications";
-import { mockGitWrites } from "../../gitWrites";
+import { mockGitReads, mockGitWrites } from "../../git";
 import { renderHook } from "../../queryRender";
 
 const status = (upstream?: string) => ({
@@ -27,7 +27,6 @@ function createGit() {
     cwd: "/project",
     watchedSince: 0,
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getStatus: vi.fn().mockResolvedValue(status("origin/main")),
   };
 }
 
@@ -50,9 +49,12 @@ function renderSync(git: ReturnType<typeof createGit>) {
   }));
 }
 
+let reads: ReturnType<typeof mockGitReads>;
 let writes: ReturnType<typeof mockGitWrites>;
 
 beforeEach(() => {
+  reads = mockGitReads();
+  reads.getStatus.mockResolvedValue(status("origin/main"));
   writes = mockGitWrites();
 });
 
@@ -73,7 +75,9 @@ describe("useGitSync", () => {
       const call = hang();
       writes[method].mockReturnValueOnce(call.promise);
       const { result } = renderSync(git);
-      await waitFor(() => expect(git.getStatus).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(reads.getStatus).toHaveBeenCalledWith("/project"),
+      );
 
       act(() => result.current.sync[method]());
       await waitFor(() => expect(result.current.sync[pendingFlag]).toBe(true));
@@ -129,9 +133,8 @@ describe("useGitSync", () => {
   });
 
   it("publishes a branch with no upstream, then re-reads its status", async () => {
-    const git = createGit();
-    git.getStatus.mockResolvedValueOnce(status());
-    const { result } = renderSync(git);
+    reads.getStatus.mockResolvedValueOnce(status());
+    const { result } = renderSync(createGit());
     await waitFor(() => expect(result.current.sync.hasUpstream).toBe(false));
 
     act(() => result.current.sync.push());

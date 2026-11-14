@@ -9,10 +9,6 @@ type Listener = (payload: unknown) => void;
 const { mockGit, emit } = vi.hoisted(() => {
   const listeners = new Map<string, Set<Listener>>();
   const git = {
-    getStatus: vi.fn(),
-    getFileAtRef: vi.fn(),
-    getStatusFromBranch: vi.fn(),
-    getMostRecentCommittedFile: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
     on: vi.fn((event: string, listener: Listener) => {
@@ -66,7 +62,7 @@ describe("GitV2API", () => {
     vi.restoreAllMocks();
   });
 
-  describe("reads", () => {
+  describe("subscription", () => {
     it("subscribes for its cwd as it's created", async () => {
       const api = new GitV2API("/test/project");
       await api.whenReady();
@@ -74,53 +70,6 @@ describe("GitV2API", () => {
       expect(mockGit.subscribe).toHaveBeenCalledWith("/test/project");
       expect(cwdForGitSubscription("test-sub-id")).toBe("/test/project");
       expect(api.watchedSince).not.toBeNull();
-
-      api.release();
-    });
-
-    it("calls git with its cwd and returns what main sends", async () => {
-      const status = {
-        branch: "main",
-        ahead: 1,
-        behind: 0,
-        files: new Map([
-          ["a.ts", { path: "a.ts", status: "modified", staged: false }],
-        ]),
-      };
-      mockGit.getStatus.mockResolvedValue(status);
-      mockGit.getFileAtRef.mockResolvedValue("content");
-
-      const api = new GitV2API("/test/project");
-
-      await expect(api.getStatus()).resolves.toBe(status);
-      await expect(api.getFileAtRef("a.ts", "HEAD")).resolves.toBe("content");
-      await api.getStatusFromBranch("main");
-      await api.getMostRecentCommittedFile(5);
-
-      expect(mockGit.getStatus).toHaveBeenCalledWith("/test/project");
-      expect(mockGit.getFileAtRef).toHaveBeenCalledWith(
-        "/test/project",
-        "a.ts",
-        "HEAD",
-      );
-      expect(mockGit.getStatusFromBranch).toHaveBeenCalledWith(
-        "/test/project",
-        "main",
-      );
-      expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(
-        "/test/project",
-        5,
-      );
-
-      api.release();
-    });
-
-    it("propagates IPC errors", async () => {
-      mockGit.getStatus.mockRejectedValue(new Error("Git error"));
-
-      const api = new GitV2API("/test/project");
-
-      await expect(api.getStatus()).rejects.toThrow("Git error");
 
       api.release();
     });
@@ -217,9 +166,6 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       api.release();
 
-      await expect(api.getStatus()).rejects.toThrow(
-        "GitV2API has been released",
-      );
       expect(() => api.onStatusChanged(vi.fn())).toThrow(
         "GitV2API has been released",
       );

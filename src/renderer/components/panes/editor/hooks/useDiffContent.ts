@@ -33,7 +33,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useGitV2 } from "@features/git/components/useGitV2";
 import { MonacoModelRegistry, createModelKey } from "../registry";
 import { type ContentSource, contentSourceToGitRef } from "../types";
 import { isBinaryContent } from "../utils";
@@ -207,9 +206,6 @@ export function useDiffContent(
     isModifiedEditable,
   });
 
-  // Git API for fetching content from git sources
-  const git = useGitV2(cwd);
-
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);
 
@@ -260,7 +256,11 @@ export function useDiffContent(
 
       // 1. Fetch original content from git
       try {
-        originalContent = await git.getFileAtRef(pathForOriginal, originalRef);
+        originalContent = await window.conduit.git.getFileAtRef(
+          cwd,
+          pathForOriginal,
+          originalRef,
+        );
       } catch (error) {
         // Create specific error for git fetch failure
         diffError = createDiffError(error, originalRef, pathForOriginal);
@@ -321,7 +321,11 @@ export function useDiffContent(
           // Git source: fetch from git (read-only)
           const modifiedRef = contentSourceToGitRef(modifiedSource);
           try {
-            modifiedContent = await git.getFileAtRef(filePath, modifiedRef);
+            modifiedContent = await window.conduit.git.getFileAtRef(
+              cwd,
+              filePath,
+              modifiedRef,
+            );
           } catch (error) {
             // Only set error if we don't already have one from original
             if (diffError === null) {
@@ -410,7 +414,6 @@ export function useDiffContent(
     originalSource,
     modifiedSource,
     isModifiedEditable,
-    git,
     originalFilePath,
   ]);
 

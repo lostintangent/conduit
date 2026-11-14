@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, waitFor } from "@testing-library/react";
+import { mockGitReads } from "../../../../git";
 import { renderHook } from "../../../../queryRender";
 
 vi.mock(
@@ -72,10 +73,8 @@ function deferred<T>() {
 let mockGit: {
   cwd: string;
   whenReady: ReturnType<typeof vi.fn>;
-  getCommitHistory: ReturnType<typeof vi.fn>;
-  getTrackedBranches: ReturnType<typeof vi.fn>;
-  getCommitFiles: ReturnType<typeof vi.fn>;
 };
+let reads: ReturnType<typeof mockGitReads>;
 
 function renderGraph(headCommitId?: string) {
   return renderHook(() =>
@@ -94,19 +93,20 @@ beforeEach(() => {
   mockGit = {
     cwd: "/repo",
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getCommitHistory: vi.fn().mockResolvedValue(page(["abc123"])),
-    getTrackedBranches: vi.fn().mockResolvedValue({
-      current: { name: "main", commitId: "abc123" },
-      upstream: null,
-      base: null,
-    }),
-    getCommitFiles: vi.fn().mockResolvedValue([file("a.ts")]),
   };
+  reads = mockGitReads();
+  reads.getCommitHistory.mockResolvedValue(page(["abc123"]));
+  reads.getTrackedBranches.mockResolvedValue({
+    current: { name: "main", commitId: "abc123" },
+    upstream: null,
+    base: null,
+  });
+  reads.getCommitFiles.mockResolvedValue([file("a.ts")]);
 });
 
 describe("useCommitGraph", () => {
   it("loads the first page and tracked branches, with the newest commit as HEAD", async () => {
-    mockGit.getCommitHistory.mockResolvedValue(page(["abc123", "def456"]));
+    reads.getCommitHistory.mockResolvedValue(page(["abc123", "def456"]));
     const { result } = renderGraph();
 
     expect(result.current.isLoading).toBe(true);
@@ -115,7 +115,7 @@ describe("useCommitGraph", () => {
       expect(result.current.trackedBranches?.current?.name).toBe("main"),
     );
 
-    expect(mockGit.getCommitHistory).toHaveBeenCalledWith({
+    expect(reads.getCommitHistory).toHaveBeenCalledWith("/repo", {
       limit: 50,
       skip: 0,
     });
@@ -134,7 +134,7 @@ describe("useCommitGraph", () => {
   });
 
   it("marks the given HEAD instead of the newest commit", async () => {
-    mockGit.getCommitHistory.mockResolvedValue(page(["abc123", "def456"]));
+    reads.getCommitHistory.mockResolvedValue(page(["abc123", "def456"]));
     const { result } = renderGraph("def456");
 
     await waitFor(() => expect(result.current.nodes).toHaveLength(2));
@@ -145,7 +145,7 @@ describe("useCommitGraph", () => {
   });
 
   it("shows an empty graph when there are no commits", async () => {
-    mockGit.getCommitHistory.mockResolvedValue(page([]));
+    reads.getCommitHistory.mockResolvedValue(page([]));
     const { result } = await renderLoaded();
 
     expect(result.current.nodes).toEqual([]);
@@ -159,19 +159,19 @@ describe("useCommitGraph", () => {
       ["fatal: bad revision 'x'", "Invalid branch or commit reference"],
       ["something broke", "something broke"],
     ])("reports %s as %s", async (message, expected) => {
-      mockGit.getCommitHistory.mockRejectedValue(new Error(message));
+      reads.getCommitHistory.mockRejectedValue(new Error(message));
       const { result } = renderGraph();
 
       await waitFor(() => expect(result.current.error).toBe(expected));
     });
 
     it("hides the error while refreshing and clears it once a read succeeds", async () => {
-      mockGit.getCommitHistory.mockRejectedValueOnce(new Error("busy"));
+      reads.getCommitHistory.mockRejectedValueOnce(new Error("busy"));
       const { result } = renderGraph();
       await waitFor(() => expect(result.current.error).toBe("busy"));
 
       const retry = deferred<ReturnType<typeof page>>();
-      mockGit.getCommitHistory.mockReturnValueOnce(retry.promise);
+      reads.getCommitHistory.mockReturnValueOnce(retry.promise);
       act(() => result.current.refresh());
       await waitFor(() => expect(result.current.isLoading).toBe(true));
       expect(result.current.error).toBeNull();
@@ -185,7 +185,7 @@ describe("useCommitGraph", () => {
   describe("pages", () => {
     it("loads the next page after the commits already loaded", async () => {
       const next = deferred<ReturnType<typeof page>>();
-      mockGit.getCommitHistory
+      reads.getCommitHistory
         .mockResolvedValueOnce(page(["abc123", "bcd234"], true))
         .mockReturnValueOnce(next.promise);
       const { result } = await renderLoaded();
@@ -197,7 +197,7 @@ describe("useCommitGraph", () => {
 
       await act(async () => next.resolve(page(["def456"])));
       await waitFor(() => expect(result.current.nodes).toHaveLength(3));
-      expect(mockGit.getCommitHistory).toHaveBeenLastCalledWith({
+      expect(reads.getCommitHistory).toHaveBeenLastCalledWith("/repo", {
         limit: 50,
         skip: 2,
       });
@@ -211,18 +211,18 @@ describe("useCommitGraph", () => {
       act(() => result.current.loadMore());
 
       expect(result.current.isLoadingMore).toBe(false);
-      expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(1);
+      expect(reads.getCommitHistory).toHaveBeenCalledTimes(1);
     });
 
     it("re-reads every loaded page and the tracked branches on refresh", async () => {
-      mockGit.getCommitHistory
+      reads.getCommitHistory
         .mockResolvedValueOnce(page(["abc123"], true))
         .mockResolvedValueOnce(page(["def456"]));
       const { result } = await renderLoaded();
       act(() => result.current.loadMore());
       await waitFor(() => expect(result.current.nodes).toHaveLength(2));
 
-      mockGit.getCommitHistory
+      reads.getCommitHistory
         .mockResolvedValueOnce(page(["new789", "abc123"], true))
         .mockResolvedValueOnce(page(["def456"]));
       act(() => result.current.refresh());
@@ -234,18 +234,18 @@ describe("useCommitGraph", () => {
           "def456",
         ]),
       );
-      expect(mockGit.getCommitHistory).toHaveBeenLastCalledWith({
+      expect(reads.getCommitHistory).toHaveBeenLastCalledWith("/repo", {
         limit: 50,
         skip: 2,
       });
-      expect(mockGit.getTrackedBranches).toHaveBeenCalledTimes(2);
+      expect(reads.getTrackedBranches).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("expanding commits", () => {
     it("loads a commit's files the first time it's expanded", async () => {
       const files = deferred<ReturnType<typeof file>[]>();
-      mockGit.getCommitFiles.mockReturnValueOnce(files.promise);
+      reads.getCommitFiles.mockReturnValueOnce(files.promise);
       const { result } = await renderLoaded();
 
       act(() => result.current.toggleExpand("abc123"));
@@ -262,7 +262,7 @@ describe("useCommitGraph", () => {
         ]),
       );
       expect(result.current.nodes[0].isLoadingFiles).toBe(false);
-      expect(mockGit.getCommitFiles).toHaveBeenCalledWith("abc123");
+      expect(reads.getCommitFiles).toHaveBeenCalledWith("/repo", "abc123");
     });
 
     it("collapses, and re-expands without reading the files again", async () => {
@@ -278,17 +278,17 @@ describe("useCommitGraph", () => {
 
       act(() => result.current.toggleExpand("abc123"));
       expect(result.current.nodes[0].files).toHaveLength(1);
-      expect(mockGit.getCommitFiles).toHaveBeenCalledTimes(1);
+      expect(reads.getCommitFiles).toHaveBeenCalledTimes(1);
     });
 
     it("stops loading without files when they can't be read", async () => {
-      mockGit.getCommitFiles.mockRejectedValue(new Error("gone"));
+      reads.getCommitFiles.mockRejectedValue(new Error("gone"));
       const { result } = await renderLoaded();
 
       act(() => result.current.toggleExpand("abc123"));
 
       await waitFor(() =>
-        expect(mockGit.getCommitFiles).toHaveBeenCalledTimes(1),
+        expect(reads.getCommitFiles).toHaveBeenCalledTimes(1),
       );
       await waitFor(() =>
         expect(result.current.nodes[0].isLoadingFiles).toBe(false),
@@ -298,7 +298,7 @@ describe("useCommitGraph", () => {
     });
 
     it("keeps expanded commits and their files when more commits load", async () => {
-      mockGit.getCommitHistory
+      reads.getCommitHistory
         .mockResolvedValueOnce(page(["abc123"], true))
         .mockResolvedValueOnce(page(["def456"]));
       const { result } = await renderLoaded();
@@ -312,7 +312,7 @@ describe("useCommitGraph", () => {
 
       expect(result.current.expandedCommitIds.has("abc123")).toBe(true);
       expect(result.current.nodes[0].files).toHaveLength(1);
-      expect(mockGit.getCommitFiles).toHaveBeenCalledTimes(1);
+      expect(reads.getCommitFiles).toHaveBeenCalledTimes(1);
     });
   });
 });

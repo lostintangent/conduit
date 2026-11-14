@@ -9,7 +9,7 @@ import type { GitBranch } from "@features/git/model";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import { BranchSwitcher } from "@/components/panes/editor/components/FileTreePanel/BranchSwitcher";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { mockGitWrites } from "../../../gitWrites";
+import { mockGitReads, mockGitWrites } from "../../../git";
 import { render } from "../../../queryRender";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -54,19 +54,10 @@ const mockBranches: GitBranch[] = [
 
 const CWD = "/repo";
 
-function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
+function createMockGitAPI(): GitV2API {
   return {
     cwd: CWD,
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getBranches: vi.fn().mockResolvedValue(mockBranches),
-    // Add other required methods as no-ops
-    getCurrentBranch: vi.fn().mockResolvedValue("main"),
-    getStatus: vi.fn().mockResolvedValue(new Map()),
-    getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
-    getUpstreamStatus: vi.fn().mockResolvedValue({ ahead: 0, behind: 0 }),
-    onStatusChanged: vi.fn().mockReturnValue(() => {}),
-    dispose: vi.fn(),
-    ...overrides,
   } as unknown as GitV2API;
 }
 
@@ -76,10 +67,13 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
 
 describe("BranchSwitcher", () => {
   const mockOnBranchSwitch = vi.fn();
+  let reads: ReturnType<typeof mockGitReads>;
   let writes: ReturnType<typeof mockGitWrites>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    reads = mockGitReads();
+    reads.getBranches.mockResolvedValue(mockBranches);
     writes = mockGitWrites();
   });
 
@@ -133,7 +127,7 @@ describe("BranchSwitcher", () => {
 
       await waitFor(() => {
         expect(mockGit.whenReady).toHaveBeenCalled();
-        expect(mockGit.getBranches).toHaveBeenCalled();
+        expect(reads.getBranches).toHaveBeenCalledWith(CWD);
       });
     });
 
@@ -141,16 +135,13 @@ describe("BranchSwitcher", () => {
       // Use fake timers to control async timing
       vi.useFakeTimers();
 
-      const mockGit = createMockGitAPI({
-        getBranches: vi
-          .fn()
-          .mockImplementation(
-            () =>
-              new Promise((resolve) =>
-                setTimeout(() => resolve(mockBranches), 100),
-              ),
+      const mockGit = createMockGitAPI();
+      reads.getBranches.mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(() => resolve(mockBranches), 100),
           ),
-      });
+      );
 
       render(
         <BranchSwitcher
@@ -294,9 +285,8 @@ describe("BranchSwitcher", () => {
 
   describe("error handling", () => {
     it("should show error message when branch loading fails", async () => {
-      const mockGit = createMockGitAPI({
-        getBranches: vi.fn().mockRejectedValue(new Error("Network error")),
-      });
+      const mockGit = createMockGitAPI();
+      reads.getBranches.mockRejectedValue(new Error("Network error"));
 
       render(
         <BranchSwitcher

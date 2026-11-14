@@ -49,7 +49,7 @@ import {
   QueryClient,
   QueryObserver,
 } from "@tanstack/react-query";
-import { mockGitWrites } from "../../../../tests/renderer/gitWrites";
+import { mockGitWrites } from "../../../../tests/renderer/git";
 
 const gitStatus = (branch: string, files: string[] = []) => ({
   branch,
@@ -258,6 +258,31 @@ describe("installGitQueryBridge", () => {
 });
 
 describe("gitQueries", () => {
+  it("reads by the instance's cwd once its watcher is live", async () => {
+    let subscribed!: (id: string) => void;
+    mockGit.subscribe.mockReturnValue(
+      new Promise((resolve) => (subscribed = resolve)),
+    );
+    const queryClient = createQueryClient();
+    const git = new GitV2API("/repo/b");
+    created.push(git);
+
+    const status = queryClient.fetchQuery(gitQueries.status(git));
+    const history = queryClient.fetchInfiniteQuery(
+      gitQueries.commitHistory(git),
+    );
+    await Promise.resolve();
+    expect(mockGit.getStatus).not.toHaveBeenCalled();
+
+    subscribed("sub-b");
+    await Promise.all([status, history]);
+    expect(mockGit.getStatus).toHaveBeenCalledWith("/repo/b");
+    expect(mockGit.getCommitHistory).toHaveBeenCalledWith("/repo/b", {
+      limit: 50,
+      skip: 0,
+    });
+  });
+
   it("trusts cached git data only while the watcher that kept it is alive", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
     const queryClient = createQueryClient();

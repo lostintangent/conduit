@@ -77,7 +77,9 @@ import { FileTreeChanges as FileTreeChangesView } from "../../../../../src/rende
 function FileTreeChanges(props) {
   const [gitStatus, setGitStatus] = useState(undefined);
   useEffect(() => {
-    props.git.getStatus().then((status) => setGitStatus(status.files));
+    window.conduit.git
+      .getStatus(props.git.cwd)
+      .then((status) => setGitStatus(status.files));
   }, [props.git]);
   if (gitStatus === undefined) return null;
   return <FileTreeChangesView {...props} gitStatus={gitStatus} />;
@@ -89,7 +91,7 @@ function FileTreeChanges(props) {
 
 const TEST_CWD = "/project";
 
-// Mock git API (passed as prop), and the writes gitMutations make over IPC
+// Mock git API (passed as prop), and the IPC calls git reads and writes make
 const mockGetStatus = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
@@ -98,10 +100,10 @@ const mockIsGitAvailable = vi.fn();
 
 const mockGitAPI = {
   cwd: TEST_CWD,
-  getStatus: mockGetStatus,
 };
 // @ts-ignore
 globalThis.window.conduit.git = {
+  getStatus: mockGetStatus,
   stage: mockStage,
   unstage: mockUnstage,
   revert: mockRevert,

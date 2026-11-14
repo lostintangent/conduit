@@ -1,14 +1,14 @@
 /**
- * A cwd's git, for the renderer. Each instance subscribes as it's created,
- * which keeps the repository's watcher running and its events flowing until
- * it's released, and its reads call `window.conduit.git` with its cwd.
- * Writes are `gitMutations` instead, which call git by cwd, so they don't
- * depend on an instance that's released after its pane closes.
+ * A cwd's git subscription, for the renderer. Each instance subscribes as
+ * it's created, which keeps the repository's watcher running and its events
+ * flowing until it's released. Reads and writes call `window.conduit.git` by
+ * cwd (see `gitQueries` and `gitMutations`), and use an instance only to wait
+ * for its watcher and to tell whether it has kept their cache current.
  *
  * Instances for different cwds in one repository share its provider in main.
  */
 
-import type { GetCommitHistoryOptions, GitStatusChangedEvent } from "../model";
+import type { GitStatusChangedEvent } from "../model";
 
 /** The cwd behind each live subscription, so one listener can route events */
 const subscriptionCwds = new Map<string, string>();
@@ -53,63 +53,6 @@ export class GitV2API {
     return this._watchedSince;
   }
 
-  /** HEAD status, or null outside a repository. */
-  async getStatus() {
-    return this.git.getStatus(this.cwd);
-  }
-
-  async getCurrentBranch() {
-    return this.git.getCurrentBranch(this.cwd);
-  }
-
-  async getBranches() {
-    return this.git.getBranches(this.cwd);
-  }
-
-  async findRoot() {
-    return this.git.findRoot(this.cwd);
-  }
-
-  async getStatusFromBranch(baseBranch: string) {
-    return this.git.getStatusFromBranch(this.cwd, baseBranch);
-  }
-
-  async getUncommittedDiffStats() {
-    return this.git.getUncommittedDiffStats(this.cwd);
-  }
-
-  async getPerFileDiffStats() {
-    return this.git.getPerFileDiffStats(this.cwd);
-  }
-
-  async getMostRecentDirtyFile() {
-    return this.git.getMostRecentDirtyFile(this.cwd);
-  }
-
-  async getMostRecentCommittedFile(commitLimit?: number) {
-    return this.git.getMostRecentCommittedFile(this.cwd, commitLimit);
-  }
-
-  async getFileAtRef(filePath: string, ref: string) {
-    return this.git.getFileAtRef(this.cwd, filePath, ref);
-  }
-
-  async getCommitHistory(options?: GetCommitHistoryOptions) {
-    return this.git.getCommitHistory(this.cwd, options);
-  }
-
-  async getCommit(commitId: string) {
-    return this.git.getCommit(this.cwd, commitId);
-  }
-
-  async getCommitFiles(commitId: string) {
-    return this.git.getCommitFiles(this.cwd, commitId);
-  }
-
-  async getTrackedBranches() {
-    return this.git.getTrackedBranches(this.cwd);
-  }
-
   /** Calls back with each status this instance's watcher reports. */
   onStatusChanged(
     callback: (event: GitStatusChangedEvent) => void,
@@ -144,11 +87,6 @@ export class GitV2API {
       this.subscriptionId = null;
       this._watchedSince = null;
     }
-  }
-
-  private get git() {
-    this.ensureNotReleased();
-    return window.conduit.git;
   }
 
   /**

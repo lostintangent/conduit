@@ -1,23 +1,19 @@
 import { screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { gitKeys } from "@features/git/client/queries";
 import {
   FileDiffStatsProvider,
   useFileDiffStats,
 } from "@/components/panes/editor/components/FileDiffStats/FileDiffStatsContext";
 import { createQueryClient } from "@/query";
+import { mockGitReads } from "../../../git";
 import { render } from "../../../queryRender";
 
-function createMockGit(root: string | null = "/project") {
+function createMockGit() {
   return {
     cwd: "/project",
     watchedSince: 0,
     whenReady: vi.fn().mockResolvedValue(undefined),
-    findRoot: vi.fn().mockResolvedValue(root),
-    getPerFileDiffStats: vi.fn().mockResolvedValue({
-      staged: new Map(),
-      unstaged: new Map([["src/a.ts", { added: 3, removed: 1 }]]),
-    }),
   };
 }
 
@@ -48,6 +44,17 @@ function renderProvider(
 }
 
 describe("FileDiffStatsProvider", () => {
+  let reads: ReturnType<typeof mockGitReads>;
+
+  beforeEach(() => {
+    reads = mockGitReads();
+    reads.findRoot.mockResolvedValue("/project");
+    reads.getPerFileDiffStats.mockResolvedValue({
+      staged: new Map(),
+      unstaged: new Map([["src/a.ts", { added: 3, removed: 1 }]]),
+    });
+  });
+
   it("re-reads the stats once file edits settle", async () => {
     const git = createMockGit();
     const fs = createMockFs();
@@ -56,7 +63,7 @@ describe("FileDiffStatsProvider", () => {
       expect(screen.getByTestId("stats").textContent).toBe("+3 -1");
     });
 
-    git.getPerFileDiffStats.mockResolvedValue({
+    reads.getPerFileDiffStats.mockResolvedValue({
       staged: new Map(),
       unstaged: new Map([["src/a.ts", { added: 4, removed: 1 }]]),
     });
@@ -67,7 +74,8 @@ describe("FileDiffStatsProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("stats").textContent).toBe("+4 -1");
     });
-    expect(git.getPerFileDiffStats).toHaveBeenCalledTimes(2);
+    expect(reads.getPerFileDiffStats).toHaveBeenCalledTimes(2);
+    expect(reads.getPerFileDiffStats).toHaveBeenCalledWith("/project");
   });
 
   it("shares one read between editors on the same cwd", async () => {
@@ -82,13 +90,14 @@ describe("FileDiffStatsProvider", () => {
         "+3 -1",
       ]);
     });
-    expect(git.findRoot).toHaveBeenCalledTimes(1);
-    expect(git.getPerFileDiffStats).toHaveBeenCalledTimes(1);
+    expect(reads.findRoot).toHaveBeenCalledTimes(1);
+    expect(reads.getPerFileDiffStats).toHaveBeenCalledTimes(1);
   });
 
   it("reads nothing and ignores edits outside a git repo", async () => {
     const queryClient = createQueryClient();
-    const git = createMockGit(null);
+    const git = createMockGit();
+    reads.findRoot.mockResolvedValue(null);
     const fs = createMockFs();
     renderProvider(git, fs, queryClient);
 
@@ -98,7 +107,7 @@ describe("FileDiffStatsProvider", () => {
       );
     });
     expect(screen.getByTestId("stats").textContent).toBe("none");
-    expect(git.getPerFileDiffStats).not.toHaveBeenCalled();
+    expect(reads.getPerFileDiffStats).not.toHaveBeenCalled();
     expect(fs.onAnyFileContentChanged).not.toHaveBeenCalled();
   });
 });

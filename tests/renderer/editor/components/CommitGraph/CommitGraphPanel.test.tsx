@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { mockGitReads } from "../../../git";
 import { render } from "../../../queryRender";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import { CommitGraphPanel } from "@/components/panes/editor/components/CommitGraph/CommitGraphPanel";
@@ -26,26 +27,6 @@ function renderWithProvider(ui: React.ReactElement) {
 function createMockGitApi(): GitV2API {
   return {
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getCommitHistory: vi
-      .fn()
-      .mockResolvedValue({ commits: [], hasMore: false }),
-    getCommitFiles: vi.fn().mockResolvedValue([]),
-    getStatus: vi.fn(),
-    getBranches: vi.fn(),
-    deleteBranch: vi.fn(),
-    getRemotes: vi.fn(),
-    fetch: vi.fn(),
-    getFileContent: vi.fn(),
-    getFileDiff: vi.fn(),
-    discardChanges: vi.fn(),
-    stashList: vi.fn(),
-    getConfig: vi.fn(),
-    setConfig: vi.fn(),
-    getTrackedBranches: vi.fn().mockResolvedValue({
-      current: null,
-      upstream: null,
-      base: null,
-    }),
     cwd: "/test/cwd",
   } as unknown as GitV2API;
 }
@@ -55,8 +36,11 @@ function createMockGitApi(): GitV2API {
 // =============================================================================
 
 describe("CommitGraphPanel", () => {
+  let reads: ReturnType<typeof mockGitReads>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    reads = mockGitReads();
   });
 
   afterEach(() => {
@@ -108,13 +92,11 @@ describe("CommitGraphPanel", () => {
         hasMore: true,
       };
       let finishRefresh!: (value: typeof page) => void;
-      vi.mocked(git.getCommitHistory)
-        .mockResolvedValueOnce(page)
-        .mockReturnValueOnce(
-          new Promise((resolve) => {
-            finishRefresh = resolve;
-          }),
-        );
+      reads.getCommitHistory.mockResolvedValueOnce(page).mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishRefresh = resolve;
+        }),
+      );
 
       renderWithProvider(<CommitGraphPanel git={git} />);
       const loadMore = await screen.findByTestId("load-more-button");

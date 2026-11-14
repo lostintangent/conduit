@@ -12,7 +12,7 @@ import { GlobalEditorContainer } from "../../../src/renderer/components/panes/ed
 import { TooltipProvider } from "../../../src/renderer/components/ui/tooltip";
 import { EditorPaneRegistry } from "../../../src/renderer/components/panes/editor/registry/EditorPaneRegistry";
 import { activeTabIdAtom, tabsAtom } from "../../../src/renderer/store/atoms";
-import { mockGitWrites } from "../gitWrites";
+import { mockGitReads, mockGitWrites } from "../git";
 import { render as renderWithQuery } from "../queryRender";
 
 // The tab layout's browser pane reads the preload API when it loads
@@ -113,24 +113,26 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFs,
 }));
 
-// Mock useGitV2 hook - returns git API with empty status. findRoot is null so
-// the pane reads no per-file diff stats, which these tests don't cover.
+// Mock useGitV2 hook
 const mockGit = {
   cwd: "/project",
-  findRoot: vi.fn().mockResolvedValue(null),
-  getStatus: vi.fn().mockResolvedValue({ files: new Map(), branch: "main" }),
-  getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
-  getCurrentBranch: vi.fn().mockResolvedValue("main"),
-  getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-  getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
   whenReady: vi.fn().mockResolvedValue(undefined),
   release: vi.fn(),
-  getBranches: vi.fn().mockResolvedValue([]),
 };
 vi.mock("@features/git/components/useGitV2", () => ({
   useGitV2: () => mockGit,
 }));
+
+// The IPC calls git reads make, mocked afresh for each test with an empty
+// status on main. findRoot is null so the pane reads no per-file diff stats,
+// which these tests don't cover.
+let reads: ReturnType<typeof mockGitReads>;
+function mockReads() {
+  reads = mockGitReads();
+  reads.getStatus.mockResolvedValue({ files: new Map(), branch: "main" });
+  reads.getCurrentBranch.mockResolvedValue("main");
+}
 
 // Mock FileTreePanel (including BranchSelector which is re-exported from this barrel)
 vi.mock(
@@ -351,6 +353,7 @@ describe("EditorPaneV2", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockReads();
 
     // Reset view mode state
     mockViewMode = undefined;
@@ -580,7 +583,7 @@ describe("EditorPaneV2", () => {
       const modified = { path: "test.ts", status: "modified", staged: false };
       const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
       const clean = { files: new Map(), branch: "main" };
-      mockGit.getStatus.mockResolvedValue(dirty);
+      reads.getStatus.mockResolvedValue(dirty);
       const onClearFile = vi.fn();
 
       render(
@@ -599,7 +602,7 @@ describe("EditorPaneV2", () => {
       });
       expect(treeContainer.hidden).toBe(true);
 
-      mockGit.getStatus.mockResolvedValue(clean);
+      reads.getStatus.mockResolvedValue(clean);
       await reportStatus(clean);
 
       await waitFor(() => {
@@ -616,7 +619,7 @@ describe("EditorPaneV2", () => {
       const modified = { path: "test.ts", status: "modified", staged: false };
       const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
       const clean = { files: new Map(), branch: "main" };
-      mockGit.getStatus.mockResolvedValue(dirty);
+      reads.getStatus.mockResolvedValue(dirty);
 
       render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
       await reportStatus(dirty);
@@ -631,7 +634,7 @@ describe("EditorPaneV2", () => {
       fireEvent.click(screen.getByTestId("collapse-toggle-button"));
       expect(treeContainer.hidden).toBe(true);
 
-      mockGit.getStatus.mockResolvedValue(clean);
+      reads.getStatus.mockResolvedValue(clean);
       await reportStatus(clean);
 
       await waitFor(() => {
@@ -742,13 +745,13 @@ describe("EditorPaneV2", () => {
       const modified = { path: "test.ts", status: "modified", staged: false };
       const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
       const clean = { files: new Map(), branch: "main" };
-      mockGit.getStatus.mockResolvedValue(dirty);
+      reads.getStatus.mockResolvedValue(dirty);
 
       render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
       await reportStatus(dirty);
       const treeButton = await openFileFromTree("select-changes-file-button");
 
-      mockGit.getStatus.mockResolvedValue(clean);
+      reads.getStatus.mockResolvedValue(clean);
       await reportStatus(clean);
 
       await waitFor(() => {
@@ -880,15 +883,11 @@ describe("EditorPaneV2", () => {
   // ===========================================================================
 
   describe("git-derived editor mode", () => {
-    beforeEach(() => {
-      mockGit.getStatus.mockClear();
-    });
-
     it("should fetch git status on mount", async () => {
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
       await waitFor(() => {
-        expect(mockGit.getStatus).toHaveBeenCalled();
+        expect(reads.getStatus).toHaveBeenCalledWith("/project");
       });
     });
   });
@@ -900,8 +899,8 @@ describe("EditorPaneV2", () => {
   describe("non-git CWD recovery", () => {
     it("should auto-switch from changes to files view when CWD is not a git repo", async () => {
       // Configure git to return null (not a git repo)
-      mockGit.getStatus.mockResolvedValue(null);
-      mockGit.getCurrentBranch.mockResolvedValue(null);
+      reads.getStatus.mockResolvedValue(null);
+      reads.getCurrentBranch.mockResolvedValue(null);
 
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
       render(<EditorPaneV2 pane={paneWithChanges} />);
@@ -917,18 +916,18 @@ describe("EditorPaneV2", () => {
 
     it("should stay in changes view when CWD is a git repo", async () => {
       // Configure git to return valid status (is a git repo)
-      mockGit.getStatus.mockResolvedValue({
+      reads.getStatus.mockResolvedValue({
         files: new Map(),
         branch: "main",
       });
-      mockGit.getCurrentBranch.mockResolvedValue("main");
+      reads.getCurrentBranch.mockResolvedValue("main");
 
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
       render(<EditorPaneV2 pane={paneWithChanges} />);
 
       // Wait for git status to load
       await waitFor(() => {
-        expect(mockGit.getStatus).toHaveBeenCalled();
+        expect(reads.getStatus).toHaveBeenCalledWith("/project");
       });
 
       // Should remain in changes mode
@@ -937,18 +936,18 @@ describe("EditorPaneV2", () => {
 
     it("should auto-switch when the status becomes null", async () => {
       // Start with a valid git repo
-      mockGit.getStatus.mockResolvedValue({
+      reads.getStatus.mockResolvedValue({
         files: new Map(),
         branch: "main",
       });
-      mockGit.getCurrentBranch.mockResolvedValue("main");
+      reads.getCurrentBranch.mockResolvedValue("main");
 
       const paneWithChanges = { ...TEST_PANE, treeMode: "changes" as const };
       render(<EditorPaneV2 pane={paneWithChanges} />);
 
       // Wait for initial load
       await waitFor(() => {
-        expect(mockGit.getStatus).toHaveBeenCalled();
+        expect(reads.getStatus).toHaveBeenCalledWith("/project");
       });
 
       // Should be in changes mode
@@ -964,14 +963,14 @@ describe("EditorPaneV2", () => {
     });
 
     it("should not switch when already in files view and CWD is not a git repo", async () => {
-      mockGit.getStatus.mockResolvedValue(null);
-      mockGit.getCurrentBranch.mockResolvedValue(null);
+      reads.getStatus.mockResolvedValue(null);
+      reads.getCurrentBranch.mockResolvedValue(null);
 
       render(<EditorPaneV2 pane={TEST_PANE} />);
 
       // Wait for git status to load
       await waitFor(() => {
-        expect(mockGit.getStatus).toHaveBeenCalled();
+        expect(reads.getStatus).toHaveBeenCalledWith("/project");
       });
 
       // Should remain in files mode (was already files)
@@ -1026,10 +1025,6 @@ describe("EditorPaneV2", () => {
       writes = mockGitWrites();
     });
 
-    afterEach(() => {
-      mockGit.getStatus.mockResolvedValue({ files: new Map(), branch: "main" });
-    });
-
     it("can retry a failed commit", async () => {
       const staged = {
         files: new Map([
@@ -1037,7 +1032,7 @@ describe("EditorPaneV2", () => {
         ]),
         branch: "main",
       };
-      mockGit.getStatus.mockResolvedValue(staged);
+      reads.getStatus.mockResolvedValue(staged);
       const call = hang();
       writes.commit.mockReturnValueOnce(call.promise);
       render(<EditorPaneV2 pane={TEST_PANE} />);
@@ -1060,16 +1055,8 @@ describe("EditorPaneV2", () => {
   describe("branch comparison", () => {
     const changed = (path) => [path, { path, status: "modified" }];
 
-    // mockReset also drops unconsumed *Once values, which clearAllMocks keeps
-    afterEach(() => {
-      mockGit.getStatus
-        .mockReset()
-        .mockResolvedValue({ files: new Map(), branch: "main" });
-      mockGit.getStatusFromBranch.mockReset().mockResolvedValue(new Map());
-    });
-
     it("refreshes the comparison instead of showing HEAD status when files change", async () => {
-      mockGit.getStatusFromBranch
+      reads.getStatusFromBranch
         .mockResolvedValueOnce(new Map([changed("feature.ts")]))
         .mockResolvedValueOnce(
           new Map([changed("feature.ts"), changed("saved.ts")]),
@@ -1093,18 +1080,19 @@ describe("EditorPaneV2", () => {
           "feature.ts,saved.ts",
         );
       });
-      expect(mockGit.getStatusFromBranch).toHaveBeenLastCalledWith(
+      expect(reads.getStatusFromBranch).toHaveBeenLastCalledWith(
+        "/project",
         "test-branch",
       );
     });
 
     it("keeps listing HEAD's changes until the comparison loads", async () => {
-      mockGit.getStatus.mockResolvedValue({
+      reads.getStatus.mockResolvedValue({
         files: new Map([changed("head.ts")]),
         branch: "main",
       });
       let resolveComparison;
-      mockGit.getStatusFromBranch.mockReturnValueOnce(
+      reads.getStatusFromBranch.mockReturnValueOnce(
         new Promise((resolve) => {
           resolveComparison = resolve;
         }),
@@ -1119,7 +1107,10 @@ describe("EditorPaneV2", () => {
 
       fireEvent.click(screen.getByTestId("select-branch-button"));
       await waitFor(() => {
-        expect(mockGit.getStatusFromBranch).toHaveBeenCalledWith("test-branch");
+        expect(reads.getStatusFromBranch).toHaveBeenCalledWith(
+          "/project",
+          "test-branch",
+        );
       });
       expect(screen.getByTestId("tree-git-status").textContent).toBe("head.ts");
 
@@ -1135,12 +1126,12 @@ describe("EditorPaneV2", () => {
 
     it("keeps an agent pane's comparison when HEAD status loads after it", async () => {
       let resolveHeadStatus;
-      mockGit.getStatus.mockReturnValueOnce(
+      reads.getStatus.mockReturnValueOnce(
         new Promise((resolve) => {
           resolveHeadStatus = resolve;
         }),
       );
-      mockGit.getStatusFromBranch.mockResolvedValueOnce(
+      reads.getStatusFromBranch.mockResolvedValueOnce(
         new Map([changed("feature.ts")]),
       );
 
@@ -1220,7 +1211,7 @@ describe("EditorPaneV2", () => {
     // Tabs and the quick pane write the selection back to pane.file, which
     // must not be mistaken for an external open that resets the view
     it("keeps a modified file's diff when the parent echoes the selection", async () => {
-      mockGit.getStatus.mockResolvedValue({
+      reads.getStatus.mockResolvedValue({
         files: new Map([["test.ts", { path: "test.ts", status: "modified" }]]),
         branch: "main",
       });
@@ -1234,27 +1225,21 @@ describe("EditorPaneV2", () => {
         );
       }
 
-      try {
-        render(<EchoingParent />);
-        await waitFor(() => {
-          expect(screen.getByTestId("tree-git-status").textContent).toBe(
-            "test.ts",
-          );
-        });
-
-        await act(async () => {
-          fireEvent.click(screen.getByTestId("select-file-button"));
-        });
-
-        expect(screen.getByTestId("editor-file-path").textContent).toBe(
-          "/project/test.ts",
+      render(<EchoingParent />);
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-git-status").textContent).toBe(
+          "test.ts",
         );
-        expect(screen.getByTestId("editor-view-mode").textContent).toBe("diff");
-      } finally {
-        mockGit.getStatus
-          .mockReset()
-          .mockResolvedValue({ files: new Map(), branch: "main" });
-      }
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId("select-file-button"));
+      });
+
+      expect(screen.getByTestId("editor-file-path").textContent).toBe(
+        "/project/test.ts",
+      );
+      expect(screen.getByTestId("editor-view-mode").textContent).toBe("diff");
     });
   });
 });
@@ -1331,6 +1316,7 @@ describe("EditorPaneV2 in a tab", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockReads();
     mockViewMode = undefined;
     mockLayout.mockReturnValue("split");
     EditorPaneRegistry.resetInstance();

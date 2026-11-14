@@ -3,16 +3,7 @@ import {
   selectNextAvailableFile,
   relativePathToFileNode,
 } from "../../../../src/renderer/components/panes/editor/utils/fileSelectionHelpers";
-import type { GitV2API } from "@features/git/client/GitV2API";
-
-// Create a minimal mock GitV2API
-function createMockGit(overrides: Partial<GitV2API> = {}): GitV2API {
-  return {
-    getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-    getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
-    ...overrides,
-  } as unknown as GitV2API;
-}
+import { mockGitReads } from "../../git";
 
 describe("fileSelectionHelpers", () => {
   describe("relativePathToFileNode", () => {
@@ -61,16 +52,17 @@ describe("fileSelectionHelpers", () => {
   });
 
   describe("selectNextAvailableFile", () => {
+    let reads: ReturnType<typeof mockGitReads>;
+
     beforeEach(() => {
       vi.clearAllMocks();
+      reads = mockGitReads();
     });
 
     it("should return dirty file when available", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue("src/dirty.ts"),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue("src/dirty.ts");
 
-      const result = await selectNextAvailableFile(mockGit, "/project");
+      const result = await selectNextAvailableFile("/project");
 
       expect(result).toEqual({
         file: {
@@ -80,19 +72,15 @@ describe("fileSelectionHelpers", () => {
         },
         relativePath: "src/dirty.ts",
       });
-      expect(mockGit.getMostRecentDirtyFile).toHaveBeenCalled();
-      expect(mockGit.getMostRecentCommittedFile).not.toHaveBeenCalled();
+      expect(reads.getMostRecentDirtyFile).toHaveBeenCalledWith("/project");
+      expect(reads.getMostRecentCommittedFile).not.toHaveBeenCalled();
     });
 
     it("should fall back to committed file when no dirty files and fallbackToCommitted is true", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-        getMostRecentCommittedFile: vi
-          .fn()
-          .mockResolvedValue("src/committed.ts"),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue(null);
+      reads.getMostRecentCommittedFile.mockResolvedValue("src/committed.ts");
 
-      const result = await selectNextAvailableFile(mockGit, "/project", {
+      const result = await selectNextAvailableFile("/project", {
         fallbackToCommitted: true,
       });
 
@@ -104,19 +92,18 @@ describe("fileSelectionHelpers", () => {
         },
         relativePath: "src/committed.ts",
       });
-      expect(mockGit.getMostRecentDirtyFile).toHaveBeenCalled();
-      expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(10);
+      expect(reads.getMostRecentDirtyFile).toHaveBeenCalledWith("/project");
+      expect(reads.getMostRecentCommittedFile).toHaveBeenCalledWith(
+        "/project",
+        10,
+      );
     });
 
     it("should not fall back to committed file when fallbackToCommitted is false", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-        getMostRecentCommittedFile: vi
-          .fn()
-          .mockResolvedValue("src/committed.ts"),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue(null);
+      reads.getMostRecentCommittedFile.mockResolvedValue("src/committed.ts");
 
-      const result = await selectNextAvailableFile(mockGit, "/project", {
+      const result = await selectNextAvailableFile("/project", {
         fallbackToCommitted: false,
       });
 
@@ -124,17 +111,15 @@ describe("fileSelectionHelpers", () => {
         file: null,
         relativePath: null,
       });
-      expect(mockGit.getMostRecentDirtyFile).toHaveBeenCalled();
-      expect(mockGit.getMostRecentCommittedFile).not.toHaveBeenCalled();
+      expect(reads.getMostRecentDirtyFile).toHaveBeenCalledWith("/project");
+      expect(reads.getMostRecentCommittedFile).not.toHaveBeenCalled();
     });
 
     it("should return null when no files available", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-        getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue(null);
+      reads.getMostRecentCommittedFile.mockResolvedValue(null);
 
-      const result = await selectNextAvailableFile(mockGit, "/project");
+      const result = await selectNextAvailableFile("/project");
 
       expect(result).toEqual({
         file: null,
@@ -143,44 +128,37 @@ describe("fileSelectionHelpers", () => {
     });
 
     it("should use custom commit limit", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-        getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue(null);
+      reads.getMostRecentCommittedFile.mockResolvedValue(null);
 
-      await selectNextAvailableFile(mockGit, "/project", {
+      await selectNextAvailableFile("/project", {
         fallbackToCommitted: true,
         commitLimit: 5,
       });
 
-      expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalledWith(5);
+      expect(reads.getMostRecentCommittedFile).toHaveBeenCalledWith(
+        "/project",
+        5,
+      );
     });
 
     it("should default fallbackToCommitted to true", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
-        getMostRecentCommittedFile: vi
-          .fn()
-          .mockResolvedValue("src/committed.ts"),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue(null);
+      reads.getMostRecentCommittedFile.mockResolvedValue("src/committed.ts");
 
-      await selectNextAvailableFile(mockGit, "/project");
+      await selectNextAvailableFile("/project");
 
-      expect(mockGit.getMostRecentCommittedFile).toHaveBeenCalled();
+      expect(reads.getMostRecentCommittedFile).toHaveBeenCalled();
     });
 
     it("should prioritize dirty file over committed file", async () => {
-      const mockGit = createMockGit({
-        getMostRecentDirtyFile: vi.fn().mockResolvedValue("src/dirty.ts"),
-        getMostRecentCommittedFile: vi
-          .fn()
-          .mockResolvedValue("src/committed.ts"),
-      });
+      reads.getMostRecentDirtyFile.mockResolvedValue("src/dirty.ts");
+      reads.getMostRecentCommittedFile.mockResolvedValue("src/committed.ts");
 
-      const result = await selectNextAvailableFile(mockGit, "/project");
+      const result = await selectNextAvailableFile("/project");
 
       expect(result.relativePath).toBe("src/dirty.ts");
-      expect(mockGit.getMostRecentCommittedFile).not.toHaveBeenCalled();
+      expect(reads.getMostRecentCommittedFile).not.toHaveBeenCalled();
     });
   });
 });

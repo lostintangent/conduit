@@ -40,10 +40,10 @@ export const gitKeys = {
 };
 
 /** Wait for the watcher before reading, so no change lands in between unseen. */
-function read<T>(git: GitV2API, fetch: () => Promise<T>) {
+function read<T>(git: GitV2API, fetch: (cwd: string) => Promise<T>) {
   return async () => {
     await git.whenReady();
-    return fetch();
+    return fetch(git.cwd);
   };
 }
 
@@ -71,14 +71,14 @@ export const gitQueries = {
   status: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.status(git.cwd),
-      queryFn: read(git, () => git.getStatus()),
+      queryFn: read(git, (cwd) => window.conduit.git.getStatus(cwd)),
       staleTime: whileWatched(git),
     }),
 
   currentBranch: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.currentBranch(git.cwd),
-      queryFn: read(git, () => git.getCurrentBranch()),
+      queryFn: read(git, (cwd) => window.conduit.git.getCurrentBranch(cwd)),
       staleTime: whileWatched(git),
     }),
 
@@ -89,7 +89,7 @@ export const gitQueries = {
   branches: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.branches(git.cwd),
-      queryFn: read(git, () => git.getBranches()),
+      queryFn: read(git, (cwd) => window.conduit.git.getBranches(cwd)),
     }),
 
   /**
@@ -99,7 +99,7 @@ export const gitQueries = {
   root: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.root(git.cwd),
-      queryFn: read(git, () => git.findRoot()),
+      queryFn: read(git, (cwd) => window.conduit.git.findRoot(cwd)),
       staleTime: (query) => (query.state.data ? Infinity : 0),
     }),
 
@@ -107,7 +107,9 @@ export const gitQueries = {
   diffStats: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.diffStats(git.cwd),
-      queryFn: read(git, () => git.getUncommittedDiffStats()),
+      queryFn: read(git, (cwd) =>
+        window.conduit.git.getUncommittedDiffStats(cwd),
+      ),
       staleTime: whileWatched(git),
     }),
 
@@ -115,7 +117,7 @@ export const gitQueries = {
   perFileDiffStats: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.perFileDiffStats(git.cwd),
-      queryFn: read(git, () => git.getPerFileDiffStats()),
+      queryFn: read(git, (cwd) => window.conduit.git.getPerFileDiffStats(cwd)),
       staleTime: whileWatched(git),
     }),
 
@@ -123,7 +125,9 @@ export const gitQueries = {
   statusFromBranch: (git: GitV2API, baseBranch: string) =>
     queryOptions({
       queryKey: gitKeys.statusFromBranch(git.cwd, baseBranch),
-      queryFn: read(git, () => git.getStatusFromBranch(baseBranch)),
+      queryFn: read(git, (cwd) =>
+        window.conduit.git.getStatusFromBranch(cwd, baseBranch),
+      ),
       staleTime: whileWatched(git),
     }),
 
@@ -148,8 +152,11 @@ export const gitQueries = {
     infiniteQueryOptions({
       queryKey: gitKeys.commitHistory(git.cwd),
       queryFn: ({ pageParam }) =>
-        read(git, () =>
-          git.getCommitHistory({ limit: COMMIT_PAGE_SIZE, skip: pageParam }),
+        read(git, (cwd) =>
+          window.conduit.git.getCommitHistory(cwd, {
+            limit: COMMIT_PAGE_SIZE,
+            skip: pageParam,
+          }),
         )(),
       initialPageParam: 0,
       getNextPageParam: (lastPage, pages) =>
@@ -162,21 +169,21 @@ export const gitQueries = {
   trackedBranches: (git: GitV2API) =>
     queryOptions({
       queryKey: gitKeys.trackedBranches(git.cwd),
-      queryFn: read(git, () => git.getTrackedBranches()),
+      queryFn: read(git, (cwd) => window.conduit.git.getTrackedBranches(cwd)),
     }),
 
   /** A commit, re-read on mount since the refs pointing at it can move. */
   commit: (git: GitV2API, commitId: string) =>
     queryOptions({
       queryKey: gitKeys.commit(git.cwd, commitId),
-      queryFn: () => git.getCommit(commitId),
+      queryFn: () => window.conduit.git.getCommit(git.cwd, commitId),
     }),
 
   /** The files a commit changed, which never change. */
   commitFiles: (git: GitV2API, commitId: string) =>
     queryOptions({
       queryKey: gitKeys.commitFiles(git.cwd, commitId),
-      queryFn: () => git.getCommitFiles(commitId),
+      queryFn: () => window.conduit.git.getCommitFiles(git.cwd, commitId),
       staleTime: Infinity,
     }),
 };

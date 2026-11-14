@@ -166,7 +166,7 @@ export function useAutoOpenFile({
       try {
         await git.whenReady();
 
-        const { file, relativePath } = await selectNextAvailableFile(git, cwd, {
+        const { file, relativePath } = await selectNextAvailableFile(cwd, {
           fallbackToCommitted: true,
         });
 

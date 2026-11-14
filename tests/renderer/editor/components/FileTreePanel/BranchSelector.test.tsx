@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { mockGitReads } from "../../../git";
 import { render } from "../../../queryRender";
 import { BranchSelector } from "@/components/panes/editor/components/FileTreePanel/BranchSelector";
 import type { GitV2API } from "@features/git/client/GitV2API";
@@ -46,17 +47,10 @@ const mockBranches: GitBranch[] = [
 // Mock Git API
 // ============================================================================
 
-function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
+function createMockGitAPI(): GitV2API {
   return {
+    cwd: "/project",
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getBranches: vi.fn().mockResolvedValue(mockBranches),
-    getCurrentBranch: vi.fn().mockResolvedValue("main"),
-    getStatus: vi.fn().mockResolvedValue(new Map()),
-    getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
-    getUpstreamStatus: vi.fn().mockResolvedValue({ ahead: 0, behind: 0 }),
-    onStatusChanged: vi.fn().mockReturnValue(() => {}),
-    dispose: vi.fn(),
-    ...overrides,
   } as unknown as GitV2API;
 }
 
@@ -67,9 +61,12 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
 describe("BranchSelector", () => {
   const mockOnSelectBranch = vi.fn();
   const mockOnOpenChange = vi.fn();
+  let reads: ReturnType<typeof mockGitReads>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    reads = mockGitReads();
+    reads.getBranches.mockResolvedValue(mockBranches);
   });
 
   describe("rendering", () => {
@@ -291,9 +288,8 @@ describe("BranchSelector", () => {
 
   describe("error handling", () => {
     it("should show error when branch loading fails", async () => {
-      const mockGit = createMockGitAPI({
-        getBranches: vi.fn().mockRejectedValue(new Error("Network error")),
-      });
+      const mockGit = createMockGitAPI();
+      reads.getBranches.mockRejectedValue(new Error("Network error"));
 
       render(
         <BranchSelector

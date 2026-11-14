@@ -6,115 +6,88 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ============================================================================
 
 // Use vi.hoisted to define mocks before imports
-const { mockGit, MockGitV2API, mockService, mockServiceInstance } = vi.hoisted(
-  () => {
-    // Mock window.conduit.git
-    const git = {
-      getStatus: vi.fn(),
-      getFileStatus: vi.fn(),
-      isDirty: vi.fn(),
-      hasUnpushed: vi.fn(),
-      getDiff: vi.fn(),
-      getFileAtRef: vi.fn(),
-      getCurrentBranch: vi.fn(),
-      getBranches: vi.fn(),
-      findRoot: vi.fn(),
-      subscribe: vi.fn(),
-      unsubscribe: vi.fn(),
-      release: vi.fn(),
-      onStatusChanged: vi.fn(() => vi.fn()),
-      onBranchChanged: vi.fn(() => vi.fn()),
-      onCommitCreated: vi.fn(() => vi.fn()),
-      onHeadChanged: vi.fn(() => vi.fn()),
-    };
+const { MockGitV2API, mockService, mockServiceInstance } = vi.hoisted(() => {
+  // Track API instances for verification
+  const instances = new Map<
+    string,
+    { cwd: string; released: boolean; refCount: number }
+  >();
 
-    // Set up window.conduit
-    (globalThis as any).window = (globalThis as any).window || {};
-    (globalThis as any).window.conduit = { git };
+  // Create a mock class that tracks instances
+  class MockAPI {
+    readonly cwd: string;
+    private _released = false;
 
-    // Track API instances for verification
-    const instances = new Map<
-      string,
-      { cwd: string; released: boolean; refCount: number }
-    >();
+    constructor(cwd: string) {
+      this.cwd = cwd;
+    }
 
-    // Create a mock class that tracks instances
-    class MockAPI {
-      readonly cwd: string;
-      private _released = false;
-
-      constructor(cwd: string) {
-        this.cwd = cwd;
-      }
-
-      release(): void {
-        if (this._released) return;
-        this._released = true;
-        const entry = instances.get(this.cwd);
-        if (entry) {
-          entry.released = true;
-        }
-      }
-
-      get isReleased(): boolean {
-        return this._released;
+    release(): void {
+      if (this._released) return;
+      this._released = true;
+      const entry = instances.get(this.cwd);
+      if (entry) {
+        entry.released = true;
       }
     }
 
-    // Mock service instance
-    const serviceInstance = {
-      acquire: vi.fn((cwd: string) => {
-        let entry = instances.get(cwd);
-        if (!entry) {
-          const api = new MockAPI(cwd);
-          entry = { cwd, released: false, refCount: 0 };
-          instances.set(cwd, entry);
-          (entry as any).api = api;
-        }
-        entry.refCount++;
-        return (entry as any).api;
-      }),
-      release: vi.fn((cwd: string) => {
-        const entry = instances.get(cwd);
-        if (entry) {
-          entry.refCount--;
-        }
-      }),
-      getRefCount: vi.fn((cwd: string) => {
-        return instances.get(cwd)?.refCount ?? 0;
-      }),
-      hasInstance: vi.fn((cwd: string) => {
-        return instances.has(cwd);
-      }),
-      getStats: vi.fn(() => ({
-        instanceCount: instances.size,
-        totalRefCount: Array.from(instances.values()).reduce(
-          (sum, e) => sum + e.refCount,
-          0,
-        ),
-      })),
-    };
+    get isReleased(): boolean {
+      return this._released;
+    }
+  }
 
-    // Mock service class
-    const service = {
-      getInstance: vi.fn(() => serviceInstance),
-      resetInstance: vi.fn(() => {
-        instances.clear();
-      }),
-    };
+  // Mock service instance
+  const serviceInstance = {
+    acquire: vi.fn((cwd: string) => {
+      let entry = instances.get(cwd);
+      if (!entry) {
+        const api = new MockAPI(cwd);
+        entry = { cwd, released: false, refCount: 0 };
+        instances.set(cwd, entry);
+        (entry as any).api = api;
+      }
+      entry.refCount++;
+      return (entry as any).api;
+    }),
+    release: vi.fn((cwd: string) => {
+      const entry = instances.get(cwd);
+      if (entry) {
+        entry.refCount--;
+      }
+    }),
+    getRefCount: vi.fn((cwd: string) => {
+      return instances.get(cwd)?.refCount ?? 0;
+    }),
+    hasInstance: vi.fn((cwd: string) => {
+      return instances.has(cwd);
+    }),
+    getStats: vi.fn(() => ({
+      instanceCount: instances.size,
+      totalRefCount: Array.from(instances.values()).reduce(
+        (sum, e) => sum + e.refCount,
+        0,
+      ),
+    })),
+  };
 
-    return {
-      mockGit: git,
-      MockGitV2API: MockAPI,
-      mockService: service,
-      mockServiceInstance: serviceInstance,
-      getInstances: () => instances,
-      clearInstances: () => {
-        instances.clear();
-      },
-    };
-  },
-);
+  // Mock service class
+  const service = {
+    getInstance: vi.fn(() => serviceInstance),
+    resetInstance: vi.fn(() => {
+      instances.clear();
+    }),
+  };
+
+  return {
+    MockGitV2API: MockAPI,
+    mockService: service,
+    mockServiceInstance: serviceInstance,
+    getInstances: () => instances,
+    clearInstances: () => {
+      instances.clear();
+    },
+  };
+});
 
 // Mock the GitV2API class
 vi.mock("../client/GitV2API", () => ({
@@ -137,8 +110,6 @@ describe("useGitV2", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockService.resetInstance();
-    // Reset window.conduit
-    (globalThis as any).window.conduit = { git: mockGit };
   });
 
   afterEach(() => {

@@ -19,7 +19,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { useGitV2 } from "@features/git/components/useGitV2";
 import { type ContentSource, contentSourceToGitRef } from "../types";
 import { isBinaryContent } from "../utils";
 
@@ -149,8 +148,6 @@ export function useGitContent(
     error: null,
   });
 
-  const git = useGitV2(cwd);
-
   // Track mounted state to avoid state updates after unmount
   const isMountedRef = useRef(true);
 
@@ -200,7 +197,11 @@ export function useGitContent(
       const ref = contentSourceToGitRef(source);
 
       try {
-        const content = await git.getFileAtRef(filePath, ref);
+        const content = await window.conduit.git.getFileAtRef(
+          cwd,
+          filePath,
+          ref,
+        );
 
         if (isStale || !isMountedRef.current) {
           return;
@@ -242,7 +243,7 @@ export function useGitContent(
     return () => {
       isStale = true;
     };
-  }, [filePath, source, cwd, git]);
+  }, [filePath, source, cwd]);
 
   return state;
 }

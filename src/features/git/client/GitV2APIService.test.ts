@@ -5,30 +5,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 // ============================================================================
 
 const { MockGitV2API } = vi.hoisted(() => {
-  // Mock window.conduit.git
-  const git = {
-    getStatus: vi.fn(),
-    getFileStatus: vi.fn(),
-    isDirty: vi.fn(),
-    hasUnpushed: vi.fn(),
-    getDiff: vi.fn(),
-    getFileAtRef: vi.fn(),
-    getCurrentBranch: vi.fn(),
-    getBranches: vi.fn(),
-    findRoot: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    release: vi.fn(),
-    onStatusChanged: vi.fn(() => vi.fn()),
-    onBranchChanged: vi.fn(() => vi.fn()),
-    onCommitCreated: vi.fn(() => vi.fn()),
-    onHeadChanged: vi.fn(() => vi.fn()),
-  };
-
-  // Set up window.conduit
-  (globalThis as any).window = (globalThis as any).window || {};
-  (globalThis as any).window.conduit = { git };
-
   // Create a mock class that tracks instances
   class MockAPI {
     readonly cwd: string;

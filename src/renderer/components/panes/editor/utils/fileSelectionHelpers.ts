@@ -5,7 +5,6 @@
  * current file is no longer available (deleted, reverted, etc.).
  */
 
-import type { GitV2API } from "@features/git/client/GitV2API";
 import type { FileNode } from "../types";
 
 /**
@@ -34,24 +33,25 @@ export interface SelectNextFileResult {
  * Tries dirty files first (most recently modified uncommitted changes),
  * then optionally falls back to recently committed files.
  *
- * @param git - Git API instance
  * @param cwd - Current working directory
  * @param options - Selection options
  * @returns Promise with the selected file or null
  */
 export async function selectNextAvailableFile(
-  git: GitV2API,
   cwd: string,
   options: SelectNextFileOptions = {},
 ): Promise<SelectNextFileResult> {
   const { fallbackToCommitted = true, commitLimit = 10 } = options;
 
   // Try dirty files first (most recently modified uncommitted changes)
-  let relativePath = await git.getMostRecentDirtyFile();
+  let relativePath = await window.conduit.git.getMostRecentDirtyFile(cwd);
 
   // Fall back to recently committed files if enabled
   if (!relativePath && fallbackToCommitted) {
-    relativePath = await git.getMostRecentCommittedFile(commitLimit);
+    relativePath = await window.conduit.git.getMostRecentCommittedFile(
+      cwd,
+      commitLimit,
+    );
   }
 
   if (!relativePath) {

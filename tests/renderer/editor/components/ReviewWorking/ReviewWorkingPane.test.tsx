@@ -36,7 +36,7 @@ function renderWithProviders(
 // Mocks
 // ============================================================================
 
-// Mock git API (passed as prop), and the writes gitMutations make over IPC
+// Mock git API (passed as prop), and the IPC calls git reads and writes make
 const mockGetStatus = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
@@ -47,12 +47,10 @@ const mockGitApi = {
   cwd: "/project",
   watchedSince: 0,
   whenReady: vi.fn().mockResolvedValue(undefined),
-  getStatus: mockGetStatus,
-  getFileContent: vi.fn(),
-  getOriginalContent: vi.fn(),
 };
 (globalThis as any).window.conduit = {
   git: {
+    getStatus: mockGetStatus,
     stage: mockStage,
     unstage: mockUnstage,
     revert: mockRevert,
@@ -753,6 +751,7 @@ describe("ReviewWorkingPane", () => {
       });
       expect(screen.queryByText("src/before.ts")).toBeNull();
       expect(mockGetStatus).toHaveBeenCalledTimes(1);
+      expect(mockGetStatus).toHaveBeenCalledWith(TEST_CWD);
     });
   });
 

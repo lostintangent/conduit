@@ -849,7 +849,7 @@ export function EditorPaneV2({
       let cancelled = false;
 
       // In changes mode, only look for dirty files (no committed fallback)
-      selectNextAvailableFile(git, currentCwd, {
+      selectNextAvailableFile(currentCwd, {
         fallbackToCommitted: false,
       }).then(({ file, relativePath }) => {
         if (cancelled) return;
@@ -909,7 +909,7 @@ export function EditorPaneV2({
     // File is orphaned - select next file
     let cancelled = false;
 
-    selectNextAvailableFile(git, currentCwd, {
+    selectNextAvailableFile(currentCwd, {
       fallbackToCommitted: true,
     }).then(({ file, relativePath }) => {
       if (cancelled) return;

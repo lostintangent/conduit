@@ -20,6 +20,7 @@ vi.mock("@/components/panes/editor/utils/fileSelectionHelpers", () => ({
 }));
 
 import { selectNextAvailableFile } from "@/components/panes/editor/utils/fileSelectionHelpers";
+import { mockGitReads } from "../../git";
 import { renderHook } from "../../queryRender";
 
 // Mock file system API
@@ -35,15 +36,16 @@ function createMockGit() {
     cwd: "/project",
     watchedSince: 0,
     whenReady: vi.fn().mockResolvedValue(undefined),
-    getStatus: vi.fn().mockResolvedValue({
-      files: new Map(),
-    }),
   };
 }
 
 describe("useAutoOpenFile", () => {
+  let reads: ReturnType<typeof mockGitReads>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    reads = mockGitReads();
+    reads.getStatus.mockResolvedValue({ files: new Map() });
   });
 
   describe("when no initial file is provided", () => {
@@ -92,7 +94,7 @@ describe("useAutoOpenFile", () => {
       const setViewMode = vi.fn();
 
       const mockGit = createMockGit();
-      mockGit.getStatus.mockResolvedValue({
+      reads.getStatus.mockResolvedValue({
         files: new Map([["src/index.ts", { status: "modified" }]]),
       });
 
@@ -165,7 +167,7 @@ describe("useAutoOpenFile", () => {
           baseBranch: "main",
         });
       });
-      expect(mockGit.getStatus).not.toHaveBeenCalled();
+      expect(reads.getStatus).not.toHaveBeenCalled();
     });
 
     it("should not auto-open if file is already selected", async () => {

@@ -1,4 +1,5 @@
 import { waitFor } from "@testing-library/react";
+import { mockGitReads } from "../../../../tests/renderer/git";
 import { renderHook } from "../../../../tests/renderer/queryRender";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,9 +12,6 @@ const mockFsInstances = new Map<string, MockFsAPI>();
 
 interface MockGitAPI {
   cwd: string;
-  findRoot: ReturnType<typeof vi.fn>;
-  getUncommittedDiffStats: ReturnType<typeof vi.fn>;
-  getStatus: ReturnType<typeof vi.fn>;
   whenReady: ReturnType<typeof vi.fn>;
 }
 
@@ -25,26 +23,31 @@ interface MockFsAPI {
 function createMockGitAPI(cwd: string): MockGitAPI {
   return {
     cwd,
-    findRoot: vi.fn().mockResolvedValue(cwd),
-    getUncommittedDiffStats: vi.fn().mockResolvedValue({
-      added: 10,
-      removed: 5,
-      files: 2,
-    }),
-    getStatus: vi.fn().mockResolvedValue({
-      files: new Map([
-        [
-          "src/file1.ts",
-          { status: "modified", staged: false, path: "src/file1.ts" },
-        ],
-        [
-          "src/file2.ts",
-          { status: "added", staged: true, path: "src/file2.ts" },
-        ],
-      ]),
-    }),
     whenReady: vi.fn().mockResolvedValue(undefined),
   };
+}
+
+// Every cwd is the root of a repository with these changes, unless a test
+// says otherwise
+let reads: ReturnType<typeof mockGitReads>;
+
+function mockRepos() {
+  reads = mockGitReads();
+  reads.findRoot.mockImplementation(async (cwd: string) => cwd);
+  reads.getUncommittedDiffStats.mockResolvedValue({
+    added: 10,
+    removed: 5,
+    files: 2,
+  });
+  reads.getStatus.mockResolvedValue({
+    files: new Map([
+      [
+        "src/file1.ts",
+        { status: "modified", staged: false, path: "src/file1.ts" },
+      ],
+      ["src/file2.ts", { status: "added", staged: true, path: "src/file2.ts" }],
+    ]),
+  });
 }
 
 function createMockFsAPI(cwd: string): MockFsAPI {
@@ -94,6 +97,7 @@ describe("useUncommittedDiffStats", () => {
     vi.clearAllMocks();
     mockGitInstances.clear();
     mockFsInstances.clear();
+    mockRepos();
   });
 
   afterEach(() => {
@@ -125,12 +129,10 @@ describe("useUncommittedDiffStats", () => {
     });
 
     it("should return null stats and gitStatus initially", () => {
-      // Create a git API that never resolves
-      const slowGitAPI = createMockGitAPI("/slow/project");
-      slowGitAPI.getUncommittedDiffStats.mockImplementation(
+      // Git reads that never resolve
+      reads.getUncommittedDiffStats.mockImplementation(
         () => new Promise(() => {}),
       );
-      mockGitInstances.set("/slow/project", slowGitAPI);
 
       const { result } = renderHook(() =>
         useUncommittedDiffStats("/slow/project"),
@@ -149,9 +151,7 @@ describe("useUncommittedDiffStats", () => {
 
   describe("non-git repo handling", () => {
     it("should set isGitRepo to false when not a git repo", async () => {
-      const nonGitAPI = createMockGitAPI("/not/a/repo");
-      nonGitAPI.findRoot.mockResolvedValue(null);
-      mockGitInstances.set("/not/a/repo", nonGitAPI);
+      reads.findRoot.mockResolvedValue(null);
 
       const { result } = renderHook(() =>
         useUncommittedDiffStats("/not/a/repo"),
@@ -166,19 +166,17 @@ describe("useUncommittedDiffStats", () => {
     });
 
     it("should not fetch stats or status when not a git repo", async () => {
-      const nonGitAPI = createMockGitAPI("/not/a/repo");
-      nonGitAPI.findRoot.mockResolvedValue(null);
-      mockGitInstances.set("/not/a/repo", nonGitAPI);
+      reads.findRoot.mockResolvedValue(null);
 
       renderHook(() => useUncommittedDiffStats("/not/a/repo"));
 
       await waitFor(() => {
-        expect(nonGitAPI.findRoot).toHaveBeenCalled();
+        expect(reads.findRoot).toHaveBeenCalledWith("/not/a/repo");
       });
 
       // Neither should be called for non-git repos
-      expect(nonGitAPI.getUncommittedDiffStats).not.toHaveBeenCalled();
-      expect(nonGitAPI.getStatus).not.toHaveBeenCalled();
+      expect(reads.getUncommittedDiffStats).not.toHaveBeenCalled();
+      expect(reads.getStatus).not.toHaveBeenCalled();
     });
   });
 
@@ -188,11 +186,7 @@ describe("useUncommittedDiffStats", () => {
 
   describe("error handling", () => {
     it("should handle errors gracefully", async () => {
-      const errorGitAPI = createMockGitAPI("/error/project");
-      errorGitAPI.getUncommittedDiffStats.mockRejectedValue(
-        new Error("Git error"),
-      );
-      mockGitInstances.set("/error/project", errorGitAPI);
+      reads.getUncommittedDiffStats.mockRejectedValue(new Error("Git error"));
 
       const consoleSpy = vi
         .spyOn(console, "error")
@@ -237,21 +231,13 @@ describe("useUncommittedDiffStats", () => {
     });
 
     it("should use different git instances for different cwds", async () => {
-      const gitA = createMockGitAPI("/project/a");
-      gitA.getUncommittedDiffStats.mockResolvedValue({
-        added: 100,
-        removed: 50,
-        files: 10,
-      });
-      mockGitInstances.set("/project/a", gitA);
-
-      const gitB = createMockGitAPI("/project/b");
-      gitB.getUncommittedDiffStats.mockResolvedValue({
-        added: 200,
-        removed: 100,
-        files: 20,
-      });
-      mockGitInstances.set("/project/b", gitB);
+      const statsByCwd = new Map([
+        ["/project/a", { added: 100, removed: 50, files: 10 }],
+        ["/project/b", { added: 200, removed: 100, files: 20 }],
+      ]);
+      reads.getUncommittedDiffStats.mockImplementation(async (cwd: string) =>
+        statsByCwd.get(cwd),
+      );
 
       const { result, rerender } = renderHook(
         ({ cwd }) => useUncommittedDiffStats(cwd),
@@ -281,14 +267,13 @@ describe("useUncommittedDiffStats", () => {
       );
       await waitFor(() => expect(result.current.stats?.added).toBe(10));
 
-      const git = mockGitInstances.get("/test/project")!;
       const fs = mockFsInstances.get("/test/project")!;
-      git.getUncommittedDiffStats.mockResolvedValue({
+      reads.getUncommittedDiffStats.mockResolvedValue({
         added: 11,
         removed: 5,
         files: 2,
       });
-      git.getStatus.mockResolvedValue({
+      reads.getStatus.mockResolvedValue({
         files: new Map([["new.ts", { path: "new.ts", status: "modified" }]]),
       });
       const onContentChanged = fs.onAnyFileContentChanged.mock.calls[0][0];
@@ -299,8 +284,14 @@ describe("useUncommittedDiffStats", () => {
         expect(result.current.stats?.added).toBe(11);
         expect(result.current.gitStatus?.has("new.ts")).toBe(true);
       });
-      expect(git.getUncommittedDiffStats).toHaveBeenCalledTimes(2);
-      expect(git.getStatus).toHaveBeenCalledTimes(2);
+      expect(reads.getUncommittedDiffStats.mock.calls).toEqual([
+        ["/test/project"],
+        ["/test/project"],
+      ]);
+      expect(reads.getStatus.mock.calls).toEqual([
+        ["/test/project"],
+        ["/test/project"],
+      ]);
     });
 
     it("shares one read between readers of the same cwd", async () => {
@@ -317,9 +308,10 @@ describe("useUncommittedDiffStats", () => {
         expect(first.result.current.stats?.added).toBe(10);
         expect(second.result.current.stats?.added).toBe(10);
       });
-      const git = mockGitInstances.get("/test/project")!;
-      expect(git.getUncommittedDiffStats).toHaveBeenCalledTimes(1);
-      expect(git.getStatus).toHaveBeenCalledTimes(1);
+      expect(reads.getUncommittedDiffStats.mock.calls).toEqual([
+        ["/test/project"],
+      ]);
+      expect(reads.getStatus.mock.calls).toEqual([["/test/project"]]);
     });
 
     it("shows the last stats right away when remounted", async () => {
