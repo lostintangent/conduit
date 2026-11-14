@@ -1,14 +1,17 @@
 import { Command } from "commander";
 import { describe, expect, it, vi } from "vitest";
 
+// The app answers every command with success, so `terminal-wait` doesn't
+// exit the test process.
 const sendCliCommand = vi.hoisted(() =>
-  vi.fn<(name: string, args?: object) => Promise<unknown>>(),
+  vi.fn<(name: string, args?: object) => Promise<unknown>>(async () => true),
 );
 
 vi.mock("../../src/cli/ipc/ipc", () => ({ sendCliCommand }));
 
 import registerBrowserCommands from "../../src/cli/commands/browser";
 import registerPaneCommands from "../../src/cli/commands/pane";
+import registerTerminalCommands from "../../src/cli/commands/terminal";
 import "../../src/cli/ipc";
 
 async function run(args: string[]) {
@@ -17,6 +20,7 @@ async function run(args: string[]) {
     .configureOutput({ writeErr: () => {} });
   registerPaneCommands(program);
   registerBrowserCommands(program);
+  registerTerminalCommands(program);
 
   sendCliCommand.mockClear();
   await program.parseAsync(args, { from: "user" });
@@ -125,5 +129,25 @@ describe("integer options", () => {
       "browser-scroll",
       { y: -200 },
     ]);
+  });
+});
+
+describe("terminal-wait", () => {
+  it("passes fractional seconds as milliseconds", async () => {
+    expect(await run(["terminal-wait", "--timeout", "1.5"])).toEqual([
+      "terminal-wait",
+      { timeout: 1500 },
+    ]);
+  });
+
+  it.each([
+    "abc",
+    "5s",
+    "-1",
+  ])("rejects `--timeout %s` without sending it", async (value) => {
+    await expect(run(["terminal-wait", "--timeout", value])).rejects.toThrow(
+      "is invalid. Expected a number of seconds.",
+    );
+    expect(sendCliCommand).not.toHaveBeenCalled();
   });
 });

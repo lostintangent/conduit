@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { parseSeconds } from "../options";
 
 // Process escape sequences like \t, \n, \e, \x1b, etc.
 function processEscapes(str: string): string {
@@ -52,9 +53,7 @@ export default function (program: Command): Command {
     .cliCommand("terminal-wait", async (request, options) => {
       const idle = await request({
         paneId: options.pane,
-        timeout: options.timeout
-          ? parseFloat(options.timeout) * 1000
-          : undefined,
+        timeout: options.timeout ? options.timeout * 1000 : undefined,
       });
       if (!idle) process.exit(1);
     })
@@ -64,6 +63,7 @@ export default function (program: Command): Command {
     .option(
       "-t, --timeout <seconds>",
       "Maximum seconds to wait (exit 1 on timeout)",
+      parseSeconds,
     );
 
   program
