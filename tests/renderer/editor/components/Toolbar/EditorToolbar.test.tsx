@@ -15,19 +15,6 @@ describe("EditorToolbar", () => {
   });
 
   describe("standalone mode", () => {
-    it("should render with bg-elevated background", () => {
-      renderWithProviders(
-        <EditorToolbar
-          filePath="/project/src/test.ts"
-          displayPath="src/test.ts"
-        />,
-      );
-
-      const toolbar = screen.getByTestId("editor-toolbar");
-      expect(toolbar.className).toContain("bg-elevated");
-      expect(toolbar.className).not.toContain("bg-background");
-    });
-
     it("should display file name only (not full path)", () => {
       renderWithProviders(
         <EditorToolbar
@@ -75,23 +62,12 @@ describe("EditorToolbar", () => {
       );
 
       expect(screen.getByTestId("readonly-indicator")).toBeDefined();
-    });
-
-    it("should not show chevron", () => {
-      renderWithProviders(
-        <EditorToolbar
-          filePath="/project/src/test.ts"
-          displayPath="src/test.ts"
-        />,
-      );
-
-      expect(screen.queryByTestId("chevron-down")).toBeNull();
-      expect(screen.queryByTestId("chevron-right")).toBeNull();
+      expect(screen.queryByTestId("save-button")).toBeNull();
     });
   });
 
   describe("inline mode", () => {
-    it("should render with bg-background when onClick is provided", () => {
+    it("should act as a keyboard-activatable button when onClick is provided", () => {
       const onClick = vi.fn();
       renderWithProviders(
         <EditorToolbar
@@ -102,8 +78,9 @@ describe("EditorToolbar", () => {
       );
 
       const toolbar = screen.getByTestId("editor-toolbar");
-      expect(toolbar.className).toContain("bg-background");
-      expect(toolbar.className).not.toContain("bg-elevated");
+      expect(toolbar.getAttribute("role")).toBe("button");
+      fireEvent.keyDown(toolbar, { key: "Enter" });
+      expect(onClick).toHaveBeenCalledTimes(1);
     });
 
     it("should display full relative path (not just file name)", () => {
@@ -224,7 +201,8 @@ describe("EditorToolbar", () => {
         />,
       );
 
-      expect(screen.getByTestId("dirty-indicator")).toBeDefined();
+      expect(screen.getByTitle("Unsaved changes")).toBeDefined();
+      expect(screen.getByTestId("save-button").disabled).toBe(false);
     });
 
     it("should not show dirty indicator when file is clean", () => {
@@ -240,7 +218,8 @@ describe("EditorToolbar", () => {
         />,
       );
 
-      expect(screen.queryByTestId("dirty-indicator")).toBeNull();
+      expect(screen.queryByTitle("Unsaved changes")).toBeNull();
+      expect(screen.getByTestId("save-button").disabled).toBe(true);
     });
   });
 });

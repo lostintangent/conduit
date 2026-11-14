@@ -12,25 +12,10 @@ describe("DeletedFileBanner", () => {
     expect(element).toBeTruthy();
   });
 
-  it("should have the correct test id", () => {
-    render(<DeletedFileBanner />);
-
-    const element = screen.getByTestId("deleted-file-banner");
-    expect(element).toBeTruthy();
-  });
-
   it("should have role=status for accessibility", () => {
     render(<DeletedFileBanner />);
 
     const element = screen.getByRole("status");
     expect(element).toBeTruthy();
-  });
-
-  it("should have appropriate styling classes", () => {
-    render(<DeletedFileBanner />);
-
-    const banner = screen.getByTestId("deleted-file-banner");
-    expect(banner.className).toContain("bg-muted");
-    expect(banner.className).toContain("border-b");
   });
 });

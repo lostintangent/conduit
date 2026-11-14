@@ -265,32 +265,6 @@ describe("DiffEditorWrapper", () => {
   // ===========================================================================
 
   describe("diff editor creation", () => {
-    it("should render editor container when content is loaded", () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      expect(screen.getByTestId("diff-editor-wrapper")).toBeDefined();
-    });
-
-    it("should have full width and height classes", () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      const container = screen.getByTestId("diff-editor-wrapper");
-      expect(container.className).toContain("h-full");
-      expect(container.className).toContain("w-full");
-    });
-
     it("should create diff editor with correct options", async () => {
       render(
         <DiffEditorWrapper

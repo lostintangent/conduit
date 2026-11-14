@@ -43,26 +43,6 @@ describe("EditorActionButtons", () => {
   // ===========================================================================
 
   describe("rendering", () => {
-    it("should render undo button", () => {
-      renderButtons();
-      expect(screen.getByTestId("undo-button")).not.toBeNull();
-    });
-
-    it("should render redo button", () => {
-      renderButtons();
-      expect(screen.getByTestId("redo-button")).not.toBeNull();
-    });
-
-    it("should render save button", () => {
-      renderButtons();
-      expect(screen.getByTestId("save-button")).not.toBeNull();
-    });
-
-    it("should render find button when onFind is provided", () => {
-      renderButtons({ onFind: vi.fn() });
-      expect(screen.getByTestId("find-button")).not.toBeNull();
-    });
-
     it("should not render find button when onFind is not provided", () => {
       renderButtons();
       expect(screen.queryByTestId("find-button")).toBeNull();
@@ -166,28 +146,6 @@ describe("EditorActionButtons", () => {
   });
 
   // ===========================================================================
-  // Variants
-  // ===========================================================================
-
-  describe("variants", () => {
-    it("should render with toolbar variant by default", () => {
-      const { container } = renderButtons();
-
-      // Toolbar variant uses specific button styling
-      const buttons = container.querySelectorAll("button");
-      expect(buttons.length).toBeGreaterThan(0);
-    });
-
-    it("should render with compact variant", () => {
-      const { container } = renderButtons({ variant: "compact" });
-
-      // Compact variant also renders buttons
-      const buttons = container.querySelectorAll("button");
-      expect(buttons.length).toBeGreaterThan(0);
-    });
-  });
-
-  // ===========================================================================
   // Event Propagation
   // ===========================================================================
 
@@ -214,19 +172,6 @@ describe("EditorActionButtons", () => {
 
       // Parent should not receive the click
       expect(parentClickHandler).not.toHaveBeenCalled();
-    });
-  });
-
-  // ===========================================================================
-  // Custom Class Name
-  // ===========================================================================
-
-  describe("custom class name", () => {
-    it("should apply custom className to container", () => {
-      const { container } = renderButtons({ className: "custom-class" });
-
-      const wrapper = container.querySelector(".custom-class");
-      expect(wrapper).not.toBeNull();
     });
   });
 

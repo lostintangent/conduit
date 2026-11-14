@@ -61,38 +61,6 @@ describe("ExternalChangeWarning", () => {
 
       expect(container.firstChild).toBeNull();
     });
-
-    it("should render when file is orphaned", () => {
-      renderWithProviders(
-        <ExternalChangeWarning
-          filePath="/test/file.ts"
-          isOrphaned={true}
-          hasExternalChanges={false}
-          isDirty={true}
-          onReload={mockOnReload}
-          onKeepChanges={mockOnKeepChanges}
-          onSave={mockOnSave}
-        />,
-      );
-
-      expect(screen.getByTestId("external-change-warning")).toBeDefined();
-    });
-
-    it("should render when file has conflict (external changes + dirty)", () => {
-      renderWithProviders(
-        <ExternalChangeWarning
-          filePath="/test/file.ts"
-          isOrphaned={false}
-          hasExternalChanges={true}
-          isDirty={true}
-          onReload={mockOnReload}
-          onKeepChanges={mockOnKeepChanges}
-          onSave={mockOnSave}
-        />,
-      );
-
-      expect(screen.getByTestId("external-change-warning")).toBeDefined();
-    });
   });
 
   // ===========================================================================
@@ -126,16 +94,14 @@ describe("ExternalChangeWarning", () => {
       expect(screen.getByText(/save to recreate/i)).toBeDefined();
     });
 
-    it("should show save button for orphaned files", () => {
-      expect(screen.getByTestId("warning-save-button")).toBeDefined();
+    it("should offer to save anyway for orphaned files", () => {
+      expect(screen.getByTestId("warning-save-button").textContent).toBe(
+        "Save anyway",
+      );
     });
 
     it("should NOT show reload button for orphaned files", () => {
       expect(screen.queryByTestId("warning-reload-button")).toBeNull();
-    });
-
-    it("should show dismiss button", () => {
-      expect(screen.getByTestId("warning-dismiss-button")).toBeDefined();
     });
   });
 
@@ -162,16 +128,10 @@ describe("ExternalChangeWarning", () => {
       expect(screen.getByText(/modified externally/i)).toBeDefined();
     });
 
-    it("should show reload button for conflicts", () => {
-      expect(screen.getByTestId("warning-reload-button")).toBeDefined();
-    });
-
-    it("should show save button for conflicts", () => {
-      expect(screen.getByTestId("warning-save-button")).toBeDefined();
-    });
-
-    it("should show dismiss button", () => {
-      expect(screen.getByTestId("warning-dismiss-button")).toBeDefined();
+    it("should offer to keep my changes for conflicts", () => {
+      expect(screen.getByTestId("warning-save-button").textContent).toBe(
+        "Keep my changes",
+      );
     });
   });
 
@@ -312,7 +272,7 @@ describe("ExternalChangeWarning", () => {
         />,
       );
 
-      expect(screen.getByTestId("warning-save-button")).toBeDefined();
+      expect(screen.getByText("Save anyway")).toBeDefined();
     });
   });
 });

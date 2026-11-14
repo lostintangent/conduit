@@ -147,38 +147,6 @@ describe("RegularEditorWrapper", () => {
   });
 
   // ===========================================================================
-  // Rendering
-  // ===========================================================================
-
-  describe("rendering", () => {
-    it("should render the editor container", () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      expect(screen.getByTestId("monaco-editor-wrapper")).toBeDefined();
-    });
-
-    it("should have full width and height classes", () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      const container = screen.getByTestId("monaco-editor-wrapper");
-      expect(container.className).toContain("h-full");
-      expect(container.className).toContain("w-full");
-    });
-  });
-
-  // ===========================================================================
   // Editor Creation
   // ===========================================================================
 

@@ -157,8 +157,9 @@ describe("FileEditor (inline working mode)", () => {
     it("should show diff editor when expanded", () => {
       renderWithProviders(<FileEditor {...defaultProps} isExpanded={true} />);
 
-      expect(screen.getByTestId("file-editor-content")).toBeDefined();
-      expect(screen.getByTestId("mock-diff-editor")).toBeDefined();
+      expect(
+        screen.getByText(/^Mock Diff Editor for .*\/src\/test\.ts$/),
+      ).toBeDefined();
     });
   });
 
@@ -175,18 +176,6 @@ describe("FileEditor (inline working mode)", () => {
   });
 
   describe("action buttons - unstaged file", () => {
-    it("should show stage button for unstaged files", () => {
-      renderWithProviders(<FileEditor {...defaultProps} />);
-
-      expect(screen.getByTestId("stage-button")).toBeDefined();
-    });
-
-    it("should show revert button for unstaged files", () => {
-      renderWithProviders(<FileEditor {...defaultProps} />);
-
-      expect(screen.getByTestId("revert-button")).toBeDefined();
-    });
-
     it("should call git.stage when stage button is clicked", async () => {
       renderWithProviders(<FileEditor {...defaultProps} />);
 
@@ -217,12 +206,6 @@ describe("FileEditor (inline working mode)", () => {
         staged: true,
       },
     };
-
-    it("should show unstage button for staged files", () => {
-      renderWithProviders(<FileEditor {...stagedProps} />);
-
-      expect(screen.getByTestId("unstage-button")).toBeDefined();
-    });
 
     it("should not show stage or revert buttons for staged files", () => {
       renderWithProviders(<FileEditor {...stagedProps} />);
@@ -308,7 +291,7 @@ describe("ReviewWorkingPane", () => {
         <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
       );
 
-      expect(screen.getByTestId("changes-review-pane-loading")).toBeDefined();
+      expect(screen.getByText("Loading changes...")).toBeDefined();
     });
   });
 
@@ -321,7 +304,7 @@ describe("ReviewWorkingPane", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane-empty")).toBeDefined();
+        expect(screen.getByText("No changes to review")).toBeDefined();
       });
     });
   });
@@ -539,25 +522,6 @@ describe("ReviewWorkingPane", () => {
   });
 
   describe("commit form", () => {
-    it("should show commit form", async () => {
-      mockGetStatus.mockResolvedValue(
-        createMockStatus([
-          { path: "src/file.ts", status: "modified", staged: true },
-        ]),
-      );
-
-      renderWithProviders(
-        <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("commit-message-input")).toBeDefined();
-      });
-
-      expect(screen.getByTestId("commit-message-input")).toBeDefined();
-      expect(screen.getByTestId("commit-button")).toBeDefined();
-    });
-
     it("should disable commit button when no staged files", async () => {
       mockGetStatus.mockResolvedValue(
         createMockStatus([

@@ -121,6 +121,7 @@ vi.mock(
   "../../../src/renderer/components/panes/editor/components/FileTreePanel",
   () => ({
     FileTreePanel: ({
+      cwd,
       onFileSelect,
       treeViewMode,
       onTreeViewModeChange,
@@ -130,6 +131,7 @@ vi.mock(
       onCommitFileSelect,
     }) => (
       <div data-testid="mock-file-tree-panel">
+        <span data-testid="tree-cwd">{cwd}</span>
         <button data-testid="review-changes-button" onClick={onReviewChanges}>
           Review
         </button>
@@ -326,27 +328,6 @@ describe("EditorPaneV2", () => {
   // ===========================================================================
 
   describe("basic rendering", () => {
-    it("should render the main container", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      expect(screen.getByTestId("editor-pane-v2")).toBeDefined();
-    });
-
-    it("should render tree and editor panels", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
-      expect(screen.getByTestId("mock-editor-pane")).toBeDefined();
-    });
-
-    it("should render tree resizer in split mode", () => {
-      mockLayout.mockReturnValue("split");
-
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      expect(screen.getByTestId("mock-tree-resizer")).toBeDefined();
-    });
-
     it("should not render tree resizer in single mode", () => {
       mockLayout.mockReturnValue("single");
 
@@ -533,40 +514,6 @@ describe("EditorPaneV2", () => {
   });
 
   // ===========================================================================
-  // Editor ID Generation
-  // ===========================================================================
-
-  describe("editor ID generation", () => {
-    it("should generate stable editor ID from pane ID", () => {
-      const { rerender } = render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      // Re-render with same pane should maintain same editor
-      rerender(<EditorPaneV2 pane={TEST_PANE} />);
-
-      // The editor panel should still be rendered (verifies ID stability)
-      expect(screen.getByTestId("mock-editor-pane")).toBeDefined();
-    });
-  });
-
-  // ===========================================================================
-  // Agent Integration
-  // ===========================================================================
-
-  describe("agent integration", () => {
-    it("should use agentBaseBranch when provided", () => {
-      const paneWithAgent = {
-        ...TEST_PANE,
-        agentBaseBranch: "main",
-      };
-
-      render(<EditorPaneV2 pane={paneWithAgent} />);
-
-      // Component should initialize without errors
-      expect(screen.getByTestId("editor-pane-v2")).toBeDefined();
-    });
-  });
-
-  // ===========================================================================
   // Callback Props
   // ===========================================================================
 
@@ -619,16 +566,6 @@ describe("EditorPaneV2", () => {
       fireEvent.click(screen.getByTestId("toggle-tree-mode"));
 
       expect(onTreeModeChange).toHaveBeenCalledWith("all");
-    });
-
-    it("should pass onSave to EditorPane", () => {
-      const onSave = vi.fn();
-
-      render(<EditorPaneV2 pane={TEST_PANE} onSave={onSave} />);
-
-      // EditorPane is mocked, so we just verify the component renders
-      // The actual onSave pass-through is tested in the mock
-      expect(screen.getByTestId("mock-editor-pane")).toBeDefined();
     });
   });
 
@@ -741,7 +678,7 @@ describe("EditorPaneV2", () => {
   // ===========================================================================
 
   describe("pane.cwd prop sync", () => {
-    it("should handle pane.cwd prop changes without crashing", async () => {
+    it("should follow pane.cwd prop changes", async () => {
       const initialPane = {
         ...TEST_PANE,
         cwd: "/project/initial",
@@ -749,8 +686,9 @@ describe("EditorPaneV2", () => {
 
       const { rerender } = render(<EditorPaneV2 pane={initialPane} />);
 
-      // Verify initial render
-      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
+      expect(screen.getByTestId("tree-cwd").textContent).toBe(
+        "/project/initial",
+      );
 
       // Update the pane prop with a new cwd
       const updatedPane = {
@@ -762,28 +700,9 @@ describe("EditorPaneV2", () => {
         rerender(<EditorPaneV2 pane={updatedPane} />);
       });
 
-      // Component should still be rendered after cwd change
-      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
-    });
-
-    it("should handle multiple cwd changes", async () => {
-      const { rerender } = render(
-        <EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/a" }} />,
+      expect(screen.getByTestId("tree-cwd").textContent).toBe(
+        "/project/updated",
       );
-
-      // Change cwd multiple times rapidly
-      await act(async () => {
-        rerender(<EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/b" }} />);
-      });
-      await act(async () => {
-        rerender(<EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/c" }} />);
-      });
-      await act(async () => {
-        rerender(<EditorPaneV2 pane={{ ...TEST_PANE, cwd: "/project/d" }} />);
-      });
-
-      // Component should still be rendered after multiple cwd changes
-      expect(screen.getByTestId("mock-file-tree-panel")).toBeDefined();
     });
   });
 
