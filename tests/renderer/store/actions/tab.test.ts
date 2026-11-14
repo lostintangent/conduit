@@ -968,6 +968,47 @@ describe("openTab", () => {
     });
   });
 
+  it("starts the new terminal once it has fit when the active tab is split", async () => {
+    const shell = (id: string) => ({
+      id,
+      type: "terminal" as const,
+      sessionId: `session-${id}`,
+      cwd: "/home/user",
+      title: "zsh",
+    });
+    tabsAtom.set([
+      {
+        id: "tab-1",
+        name: "Tab",
+        activePaneId: "pane-1",
+        panes: { "pane-1": shell("pane-1"), "pane-2": shell("pane-2") },
+        layout: {
+          id: "split-1",
+          type: "split",
+          direction: "row",
+          children: [
+            { id: "layout-1", type: "pane", paneId: "pane-1" },
+            { id: "layout-2", type: "pane", paneId: "pane-2" },
+          ],
+        },
+      },
+    ]);
+    activeTabIdAtom.set("tab-1");
+    getTerminalSize.mockReturnValue({ cols: 62, rows: 45 });
+    mockApi.terminal.create.mockResolvedValue({
+      sessionId: "session-3",
+      cwd: "/home/user",
+      title: "zsh",
+    });
+
+    await openTab();
+
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      waitForSize: true,
+    });
+  });
+
   it("starts the first terminal in a window once its pane has fit", async () => {
     mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-1",

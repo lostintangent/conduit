@@ -131,17 +131,17 @@ export function generateIncrementedTabTitle(
 }
 
 /**
- * A new tab fills the content area that the active pane fits within, so the
- * active pane is never wider than the new tab will be. With no pane to
- * measure, as in a fresh window, the shell starts once the new tab has fit.
+ * A new tab fills the same content area as a pane that has its tab to itself,
+ * so it starts at that pane's size. Otherwise, as in a split tab or a fresh
+ * window, the shell starts once the new tab has fit.
  */
 function getNewTabTerminalSize() {
   const activeTab = activeTabAtom.get();
-  return (
-    (activeTab && getTerminalSize(activeTab.activePaneId)) ?? {
-      waitForSize: true,
-    }
-  );
+  const size =
+    activeTab?.layout.type === "pane"
+      ? getTerminalSize(activeTab.activePaneId)
+      : undefined;
+  return size ?? { waitForSize: true };
 }
 
 export async function openTab(
