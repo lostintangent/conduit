@@ -19,7 +19,8 @@ const appPath =
   process.env.CONDUIT_E2E_APP ??
   path.join(repoRoot, "out", `Conduit-darwin-${process.arch}`, "Conduit.app");
 
-// CI sets this to upload each launch's last screenshot and app log.
+// CI sets this to upload each launch's last screenshot, its app log, which has
+// the window's console, and a Playwright trace of its window.
 const artifactsDir = process.env.CONDUIT_E2E_ARTIFACTS;
 
 // Variables that would point the app or its shells at your own config.
@@ -298,6 +299,12 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       await page
         .screenshot({ path: path.join(artifactsDir, `${options.name}.png`) })
         .catch(() => {});
+      await page
+        .context()
+        .tracing.stop({
+          path: path.join(artifactsDir, `${options.name}.trace.zip`),
+        })
+        .catch(() => {});
       fs.copyFileSync(
         path.join(home, "app.log"),
         path.join(artifactsDir, `${options.name}.log`),
@@ -381,6 +388,13 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       found.on("requestfailed", (request) =>
         failedRequests.push(`${request.url()} ${request.failure()?.errorText}`),
       );
+      // Snapshots of the window before and after each step, and a video of it.
+      // A reconnect starts a new trace, so it only has what follows a crash.
+      if (artifactsDir) {
+        await found
+          .context()
+          .tracing.start({ snapshots: true, screenshots: true });
+      }
       await found.waitForFunction(() => "conduit" in window, null, {
         timeout: 30_000,
       });

@@ -43,6 +43,9 @@ describe("agent launcher", () => {
       .getByPlaceholder("Describe what you want the agents to do...")
       .fill("hi");
     await app.page.getByTitle("Increase instances").click();
+    await app.page
+      .getByText("1 agent selected (2 instances)", { exact: true })
+      .waitFor();
     await app.page.getByRole("button", { name: "Launch", exact: true }).click();
 
     await app.page
