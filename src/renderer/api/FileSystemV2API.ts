@@ -471,14 +471,16 @@ export class FileSystemV2API {
   // ---------------------------------------------------------------------------
 
   /**
-   * Unsubscribe from the main process until `resume()`. Listeners stay, and
-   * hear nothing until then.
+   * Unsubscribe from the main process and drop the IPC handlers until
+   * `resume()`, so suspended folders don't pile up handlers. Listeners stay,
+   * and hear nothing until then.
    */
   suspend(): void {
     if (this.released || this.suspended) {
       return;
     }
     this.suspended = true;
+    this.removeEventListeners();
     this.unsubscribe();
   }
 
@@ -487,6 +489,7 @@ export class FileSystemV2API {
       return;
     }
     this.suspended = false;
+    this.setupEventListeners();
     this.ensureSubscribed();
   }
 
@@ -502,13 +505,7 @@ export class FileSystemV2API {
     }
 
     this.released = true;
-
-    // Clean up IPC event listeners
-    for (const cleanup of this.ipcCleanups) {
-      cleanup();
-    }
-    this.ipcCleanups = [];
-
+    this.removeEventListeners();
     this.unsubscribe();
 
     // Clear all listeners
@@ -541,6 +538,13 @@ export class FileSystemV2API {
       });
       this.subscriptionId = null;
     }
+  }
+
+  private removeEventListeners(): void {
+    for (const cleanup of this.ipcCleanups) {
+      cleanup();
+    }
+    this.ipcCleanups = [];
   }
 
   /**

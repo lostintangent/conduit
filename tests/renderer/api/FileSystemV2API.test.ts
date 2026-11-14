@@ -581,6 +581,36 @@ describe("FileSystemV2API", () => {
       api.release();
     });
 
+    it("holds no IPC handlers while suspended", () => {
+      const handlers = new Set<unknown>();
+      const channels = [
+        mockFs.onDirectoryListingChanged,
+        mockFs.onFileContentChanged,
+        mockFs.onFileDeleted,
+        mockFs.onFileRenamed,
+      ];
+      for (const channel of channels) {
+        channel.mockImplementation((handler) => {
+          handlers.add(handler);
+          return () => handlers.delete(handler);
+        });
+      }
+      const api = new FileSystemV2API("/test/project");
+      expect(handlers.size).toBe(4);
+
+      api.suspend();
+      expect(handlers.size).toBe(0);
+
+      api.resume();
+      expect(handlers.size).toBe(4);
+
+      api.release();
+      expect(handlers.size).toBe(0);
+      for (const channel of channels) {
+        channel.mockImplementation(() => vi.fn());
+      }
+    });
+
     it("unsubscribes a subscription that arrives after it suspends", async () => {
       let resolveSubscription: ((value: string) => void) | null = null;
       mockFs.subscribe.mockImplementation(
