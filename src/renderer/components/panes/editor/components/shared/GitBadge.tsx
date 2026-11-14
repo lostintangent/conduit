@@ -26,6 +26,9 @@ export interface GitBadgeProps {
 
   /** Optional additional class names */
   className?: string;
+
+  /** Lets a sibling control reference the badge with aria-describedby */
+  id?: string;
 }
 
 /**
@@ -146,6 +149,7 @@ export function GitBadge({
   isFolder = false,
   showUnseenIndicator = false,
   className,
+  id,
 }: GitBadgeProps) {
   const config = getStatusConfig(status);
   if (!config) return null;
@@ -154,6 +158,7 @@ export function GitBadge({
   if (isFolder) {
     return (
       <div
+        id={id}
         className={cn(
           "flex-shrink-0 w-1.5 h-1.5 rounded-full",
           config.colorClass,
@@ -169,6 +174,7 @@ export function GitBadge({
   // Files show a letter badge
   return (
     <div
+      id={id}
       className={cn(
         "relative flex-shrink-0 flex items-center justify-center",
         "text-[10px] font-semibold leading-none",

@@ -4,6 +4,7 @@
  * with folder chevrons, since the parent folder provides that context.
  */
 
+import { useId } from "react";
 import path from "path-browserify";
 import { FileText } from "lucide-react";
 import type { GitFileStatus } from "@/api/GitV2API";
@@ -96,6 +97,7 @@ export function ChangeFileItem({
 
   // Determine background styling based on selection state
   const isHighlighted = isSelected || isMultiSelected;
+  const badgeId = useId();
 
   // When renaming, render a special inline edit row
   if (isRenaming && onCommitRename && onCancelRename) {
@@ -132,11 +134,12 @@ export function ChangeFileItem({
       <TooltipProvider delayDuration={2000} skipDelayDuration={2000}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              type="button"
+            {/* The row takes the click, so stats and the badge select too. The
+                file button's own clicks (and Enter/Space) bubble up to it. */}
+            <div
               className={cn(
-                "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
-                "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+                "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] transition cursor-pointer",
+                "has-[>button:focus-visible]:ring-1 has-[>button:focus-visible]:ring-white/40",
                 isHighlighted
                   ? "bg-accent/20 hover:bg-accent/25"
                   : "hover:bg-foreground/10",
@@ -146,42 +149,49 @@ export function ChangeFileItem({
               data-testid={testId}
               data-path={filePath}
             >
-              {indent}
-              {/* File icon - colored based on git status */}
-              <FileText
-                className={cn("flex-shrink-0", iconColorClass)}
-                size={12}
-              />
-
-              {/* File name and folder path - path truncates first, then filename */}
-              <div
-                className="min-w-0 flex-1 items-baseline gap-1.5"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: folderPath
-                    ? "minmax(0, auto) minmax(0, 1fr)"
-                    : "minmax(0, 1fr)",
-                }}
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-1.5 text-left focus:outline-none"
+                aria-current={isSelected || undefined}
+                aria-describedby={badgeId}
               >
-                <span className={cn("truncate", textColorClass)}>
-                  {fileName}
-                </span>
-                {folderPath && (
-                  <span className="truncate text-foreground/40 text-[11px]">
-                    {folderPath}
-                  </span>
-                )}
-              </div>
-
-              {/* Diff stats / Action buttons - mutually exclusive via display:none/block */}
-              {/* Stats: shown by default, hidden on hover */}
-              <div className="flex-shrink-0 block group-hover:hidden">
-                <FileDiffStats
-                  filePath={filePath}
-                  staged={isStaged}
-                  isUnseen={showUnseenIndicator}
+                {indent}
+                {/* File icon - colored based on git status */}
+                <FileText
+                  className={cn("flex-shrink-0", iconColorClass)}
+                  size={12}
                 />
-              </div>
+
+                {/* File name and folder path - path truncates first, then filename */}
+                <div
+                  className="min-w-0 flex-1 items-baseline gap-1.5"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: folderPath
+                      ? "minmax(0, auto) minmax(0, 1fr)"
+                      : "minmax(0, 1fr)",
+                  }}
+                >
+                  <span className={cn("truncate", textColorClass)}>
+                    {fileName}
+                  </span>
+                  {folderPath && (
+                    <span className="truncate text-foreground/40 text-[11px]">
+                      {folderPath}
+                    </span>
+                  )}
+                </div>
+
+                {/* Diff stats / Action buttons - mutually exclusive via display:none/block */}
+                {/* Stats: shown by default, hidden on hover */}
+                <div className="flex-shrink-0 block group-hover:hidden">
+                  <FileDiffStats
+                    filePath={filePath}
+                    staged={isStaged}
+                    isUnseen={showUnseenIndicator}
+                  />
+                </div>
+              </button>
               {/* Action buttons: hidden by default, shown on hover */}
               <div className="flex-shrink-0 hidden group-hover:block">
                 <ActionButtons
@@ -193,12 +203,13 @@ export function ChangeFileItem({
                 />
               </div>
 
-              {/* Git status badge */}
+              {/* Git status badge, which describes the file button it sits outside of */}
               <GitBadge
+                id={badgeId}
                 status={status}
                 showUnseenIndicator={showUnseenIndicator}
               />
-            </button>
+            </div>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="start">
             {tooltip}

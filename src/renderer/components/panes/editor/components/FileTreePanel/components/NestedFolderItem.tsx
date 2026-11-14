@@ -144,12 +144,12 @@ export function NestedFolderItem({
 
   return (
     <li data-testid={`nested-folder-${folder.name}`}>
-      {/* Folder row */}
-      <button
-        type="button"
+      {/* Folder row. Like file rows, the row takes the click and the name
+          button's clicks bubble up to it. */}
+      <div
         className={cn(
-          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] text-left transition cursor-pointer",
-          "focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40",
+          "group flex w-full items-center gap-1.5 rounded-md px-1.5 py-px text-[13px] transition cursor-pointer",
+          "has-[>button:focus-visible]:ring-1 has-[>button:focus-visible]:ring-white/40",
           isFolderRenaming
             ? "ring-1 ring-accent/60"
             : isFolderSelected
@@ -191,9 +191,13 @@ export function NestedFolderItem({
             onCancel={onCancelRename}
           />
         ) : (
-          <span className="min-w-0 flex-1 truncate text-foreground">
-            {folder.name}
-          </span>
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 text-left focus:outline-none"
+            aria-expanded={isExpanded}
+          >
+            <span className="truncate text-foreground">{folder.name}</span>
+          </button>
         )}
 
         {/* Action buttons (visible on hover, hidden when renaming) */}
@@ -209,7 +213,7 @@ export function NestedFolderItem({
             />
           </div>
         )}
-      </button>
+      </div>
 
       {/* Children (when expanded) */}
       {isExpanded && (

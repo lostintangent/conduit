@@ -342,18 +342,17 @@ describe("FileTreeChanges", () => {
       // Files should be visible initially (section is expanded by default)
       expect(screen.getByTestId("change-item-index.ts")).toBeDefined();
 
-      // Find the Changes section toggle - get all and find the one for Changes
-      const toggleButtons = screen.getAllByTestId("section-toggle");
-      // Changes section toggle is the second one (first is Staged Changes)
-      const changesToggle = toggleButtons[1];
-
-      // Click to collapse
-      fireEvent.click(changesToggle);
+      fireEvent.click(
+        screen.getByRole("button", { name: /^Changes/, expanded: true }),
+      );
 
       // Files should be hidden
       await waitFor(() => {
         expect(screen.queryByTestId("change-item-index.ts")).toBeNull();
       });
+      expect(
+        screen.getByRole("button", { name: /^Changes/, expanded: false }),
+      ).toBeDefined();
     });
 
     it("should expand collapsed section when toggle is clicked", async () => {
@@ -395,6 +394,30 @@ describe("FileTreeChanges", () => {
         expect(screen.getByTestId("change-item-index.ts")).toBeDefined();
       });
     });
+
+    it("should collapse a nested folder from its name button", async () => {
+      render(
+        <FileTreeChanges
+          viewMode="nested"
+          paneId={TEST_PANE_ID}
+          cwd={TEST_CWD}
+          git={mockGitAPI as any}
+          selectedFile={null}
+          onFileSelect={mockOnFileSelect}
+        />,
+      );
+
+      const changes = within(await screen.findByTestId("section-changes"));
+      expect(changes.getByTestId("nested-file-index.ts")).toBeDefined();
+      fireEvent.click(
+        changes.getByRole("button", { name: "src", expanded: true }),
+      );
+
+      expect(
+        changes.getByRole("button", { name: "src", expanded: false }),
+      ).toBeDefined();
+      expect(changes.queryByTestId("nested-file-index.ts")).toBeNull();
+    });
   });
 
   // ===========================================================================
@@ -430,6 +453,33 @@ describe("FileTreeChanges", () => {
       );
     });
 
+    it("should keep the row's actions out of its file button", async () => {
+      render(
+        <FileTreeChanges
+          viewMode="flat"
+          paneId={TEST_PANE_ID}
+          cwd={TEST_CWD}
+          git={mockGitAPI as any}
+          selectedFile={null}
+          onFileSelect={mockOnFileSelect}
+        />,
+      );
+
+      const row = within(await screen.findByTestId("change-item-index.ts"));
+      const fileButton = row.getByRole("button", {
+        name: /^index\.ts/,
+        description: "M",
+      });
+
+      // HTML doesn't allow a button inside a button, and assistive tech folds it into the name
+      expect(
+        fileButton.contains(row.getByRole("button", { name: "Stage" })),
+      ).toBe(false);
+
+      fireEvent.click(fileButton);
+      expect(mockOnFileSelect).toHaveBeenCalledTimes(1);
+    });
+
     it("should highlight selected file using selectedMapKey", async () => {
       const selectedFile = {
         path: "/project/src/index.ts",
@@ -453,8 +503,9 @@ describe("FileTreeChanges", () => {
         expect(screen.getByTestId("file-tree-changes")).toBeDefined();
       });
 
-      const selectedItem = screen.getByTestId("change-item-index.ts");
-      expect(selectedItem.className).toContain("bg-accent");
+      expect(
+        screen.getByRole("button", { current: true }).textContent,
+      ).toContain("index.ts");
     });
   });
 
@@ -1211,9 +1262,10 @@ describe("FileTreeChanges", () => {
         expect(screen.getByTestId("file-tree-changes")).toBeDefined();
       });
 
-      // File should still be highlighted because normalizedSelectedMapKey strips suffix
-      const selectedItem = screen.getByTestId("change-item-index.ts");
-      expect(selectedItem.className).toContain("bg-accent");
+      // File should still be current because normalizedSelectedMapKey strips suffix
+      expect(
+        screen.getByRole("button", { current: true }).textContent,
+      ).toContain("index.ts");
     });
 
     it("should use actual file path for git operations with partially staged files", async () => {

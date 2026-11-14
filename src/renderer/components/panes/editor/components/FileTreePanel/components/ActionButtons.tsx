@@ -23,9 +23,10 @@ export interface ActionButtonsProps {
 }
 
 /**
- * Shared button component with consistent styling and keyboard support.
+ * Icon button for a git action. Stops propagation so the row it sits in
+ * doesn't also select or toggle.
  */
-function ActionButton({
+export function ActionButton({
   onClick,
   title,
   testId,
@@ -37,26 +38,18 @@ function ActionButton({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          e.stopPropagation();
-          onClick();
-        }
       }}
       className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
       title={title}
       data-testid={testId}
     >
       {children}
-    </div>
+    </button>
   );
 }
 

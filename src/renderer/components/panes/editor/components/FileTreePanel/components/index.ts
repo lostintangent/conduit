@@ -2,7 +2,7 @@
  * FileTreePanel components.
  */
 
-export { ActionButtons } from "./ActionButtons";
+export { ActionButton, ActionButtons } from "./ActionButtons";
 export type { ActionButtonsProps } from "./ActionButtons";
 
 export { ChangeFileItem } from "./ChangeFileItem";

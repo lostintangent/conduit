@@ -63,7 +63,7 @@ import {
   expandFoldersToFiles,
 } from "./utils";
 import type { SelectableItem, FolderNode } from "./utils";
-import { ChangeFileItem, NestedFolderItem } from "./components";
+import { ActionButton, ChangeFileItem, NestedFolderItem } from "./components";
 import { SectionDiffStats } from "../FileDiffStats";
 
 // ============================================================================
@@ -141,6 +141,7 @@ function Section({
           type="button"
           className="flex items-center gap-1.5 flex-1 min-w-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40"
           onClick={onToggle}
+          aria-expanded={isExpanded}
           data-testid="section-toggle"
         >
           {isExpanded ? (
@@ -162,9 +163,7 @@ function Section({
         )}
         {/* Actions: hidden by default, shown on hover (no margin - stays at hard right) */}
         {actions && (
-          <div className="hidden group-hover:block flex items-center">
-            {actions}
-          </div>
+          <div className="hidden group-hover:flex items-center">{actions}</div>
         )}
       </div>
       {isExpanded && <ul className="ml-2 pb-2">{children}</ul>}
@@ -1149,26 +1148,13 @@ export function FileTreeChanges({
             isStaged={true}
             actions={
               showActionButtons && (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleUnstageAll();
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleUnstageAll();
-                    }
-                  }}
-                  className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+                <ActionButton
+                  onClick={handleUnstageAll}
                   title="Unstage All"
-                  data-testid="unstage-all-button"
+                  testId="unstage-all-button"
                 >
                   <Minus size={12} />
-                </div>
+                </ActionButton>
               )
             }
           >
@@ -1190,26 +1176,13 @@ export function FileTreeChanges({
             isStaged={false}
             actions={
               showActionButtons && (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStageAll();
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleStageAll();
-                    }
-                  }}
-                  className="p-1 rounded hover:bg-foreground/20 transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 cursor-pointer"
+                <ActionButton
+                  onClick={handleStageAll}
                   title="Stage All"
-                  data-testid="stage-all-button"
+                  testId="stage-all-button"
                 >
                   <Plus size={12} />
-                </div>
+                </ActionButton>
               )
             }
           >
