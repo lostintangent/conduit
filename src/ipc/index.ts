@@ -5,7 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { initializeAgentHandlers } from "./agent";
 import { initializeBrowserHandlers } from "./browser";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
-import { initialize as initializeDotfiles } from "./dotfiles";
+import { initialize as initializeDotfiles } from "@features/dotfiles/main";
 import { startFeatures } from "./features";
 import {
   cleanupFileSystemV2Handlers,

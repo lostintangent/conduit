@@ -16,8 +16,8 @@ import { BrowserWindow, ipcMain } from "electron";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import type { SimpleGit } from "simple-git";
-import type { DotfilesStatus } from "../../shared/types/settings";
-import { createGit } from "../git/createGit";
+import type { DotfilesStatus } from "@shared/types/settings";
+import { createGit } from "../../../ipc/git/createGit";
 import {
   createDotfilesRepo as createRepo,
   discoverDotfilesRepo,

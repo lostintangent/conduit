@@ -1,5 +1,5 @@
 import { updateTerminalFonts } from "@features/terminal/client/xtermCache";
-import { useDotfiles } from "@/hooks/useDotfiles";
+import { useDotfiles } from "@features/dotfiles/components/useDotfiles";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { quickPaneAtom } from "@/store/atoms";
 import { capitalize } from "@/utils";

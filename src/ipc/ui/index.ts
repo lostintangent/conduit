@@ -8,7 +8,7 @@ import type {
 import {
   initializeRepo as initializeDotfiles,
   setDotfilesRepo,
-} from "../dotfiles";
+} from "@features/dotfiles/main";
 import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
 import { loadSettings, saveSettings } from "./settings";
