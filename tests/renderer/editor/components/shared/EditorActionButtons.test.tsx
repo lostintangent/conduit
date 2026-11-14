@@ -43,6 +43,13 @@ describe("EditorActionButtons", () => {
   // ===========================================================================
 
   describe("rendering", () => {
+    it("should name each button", () => {
+      renderButtons({ onFind: vi.fn() });
+      for (const name of ["Undo", "Redo", "Save", "Find"]) {
+        expect(screen.getByRole("button", { name })).toBeDefined();
+      }
+    });
+
     it("should not render find button when onFind is not provided", () => {
       renderButtons();
       expect(screen.queryByTestId("find-button")).toBeNull();

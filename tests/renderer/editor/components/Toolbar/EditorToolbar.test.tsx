@@ -61,8 +61,25 @@ describe("EditorToolbar", () => {
         />,
       );
 
-      expect(screen.getByTestId("readonly-indicator")).toBeDefined();
+      expect(screen.getByRole("img", { name: "Read-only" })).toBeDefined();
       expect(screen.queryByTestId("save-button")).toBeNull();
+    });
+
+    it("should name its icon-only buttons", () => {
+      renderWithProviders(
+        <EditorToolbar
+          filePath="/project/src/test.ts"
+          displayPath="src/test.ts"
+          showBackButton
+          onBack={vi.fn()}
+          showExpandTreeButton
+          onExpandTree={vi.fn()}
+        />,
+      );
+
+      for (const name of ["Back to file tree", "Expand sidebar", "Save"]) {
+        expect(screen.getByRole("button", { name })).toBeDefined();
+      }
     });
   });
 
@@ -127,22 +144,24 @@ describe("EditorToolbar", () => {
       expect(onClick).not.toHaveBeenCalled();
     });
 
-    it("should show chevron down when expanded", () => {
-      const onClick = vi.fn();
-      renderWithProviders(
-        <EditorToolbar
-          filePath="/project/src/test.ts"
-          displayPath="src/test.ts"
-          onClick={onClick}
-          showChevron={true}
-          isExpanded={true}
-        />,
-      );
+    it.each([true, false])(
+      "should report whether the file is expanded (%s)",
+      (isExpanded) => {
+        renderWithProviders(
+          <EditorToolbar
+            filePath="/project/src/test.ts"
+            displayPath="src/test.ts"
+            onClick={vi.fn()}
+            showChevron={true}
+            isExpanded={isExpanded}
+          />,
+        );
 
-      const toolbar = screen.getByTestId("editor-toolbar");
-      // ChevronDown should be present
-      expect(toolbar.querySelector("svg")).toBeDefined();
-    });
+        expect(screen.getByRole("button", { expanded: isExpanded })).toBe(
+          screen.getByTestId("editor-toolbar"),
+        );
+      },
+    );
 
     it("should NOT show commitShortId in inline mode", () => {
       const onClick = vi.fn();

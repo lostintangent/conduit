@@ -269,6 +269,7 @@ export function EditorToolbar({
       data-testid="editor-toolbar"
       onClick={onClick}
       role={isInlineMode ? "button" : undefined}
+      aria-expanded={isInlineMode && showChevron ? isExpanded : undefined}
       tabIndex={isInlineMode ? 0 : undefined}
       onKeyDown={
         isInlineMode
@@ -303,6 +304,7 @@ export function EditorToolbar({
                     onExpandTree();
                   }}
                   className={buttonClass}
+                  aria-label="Expand sidebar"
                   data-testid="expand-tree-button"
                 >
                   <PanelLeftOpen size={14} />
@@ -333,6 +335,7 @@ export function EditorToolbar({
                     onBack();
                   }}
                   className={buttonClass}
+                  aria-label="Back to file tree"
                   data-testid="back-to-tree-button"
                 >
                   <ChevronLeft size={14} />
@@ -367,6 +370,8 @@ export function EditorToolbar({
           <Lock
             className="text-muted-foreground shrink-0"
             size={14}
+            role="img"
+            aria-label="Read-only"
             data-testid="readonly-indicator"
           />
         )}
@@ -458,7 +463,6 @@ export function EditorToolbar({
               canUndo={canUndo}
               canRedo={canRedo}
               canSave={isDirty}
-              variant="toolbar"
             />
           </>
         )}
