@@ -1,9 +1,15 @@
 import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 
+import { useCloseWhenHidden } from "@/hooks/useCloseWhenHidden";
 import { cn } from "@/utils";
 
-const Popover = PopoverPrimitive.Root;
+function Popover(props: React.ComponentProps<typeof PopoverPrimitive.Root>) {
+  const { key, onOpenChange } = useCloseWhenHidden(props);
+  return (
+    <PopoverPrimitive.Root key={key} {...props} onOpenChange={onOpenChange} />
+  );
+}
 
 const PopoverTrigger = PopoverPrimitive.Trigger;
 

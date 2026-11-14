@@ -1,11 +1,17 @@
 import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 
+import { useCloseWhenHidden } from "@/hooks/useCloseWhenHidden";
 import { cn } from "@/utils/index";
 
 const TooltipProvider = TooltipPrimitive.Provider;
 
-const Tooltip = TooltipPrimitive.Root;
+function Tooltip(props: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  const { key, onOpenChange } = useCloseWhenHidden(props);
+  return (
+    <TooltipPrimitive.Root key={key} {...props} onOpenChange={onOpenChange} />
+  );
+}
 
 const TooltipTrigger = TooltipPrimitive.Trigger;
 

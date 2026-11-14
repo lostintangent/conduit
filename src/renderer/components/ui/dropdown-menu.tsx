@@ -2,10 +2,22 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Check, ChevronRight, Circle } from "lucide-react";
 import * as React from "react";
 
+import { useCloseWhenHidden } from "@/hooks/useCloseWhenHidden";
 import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import { cn } from "@/utils/index";
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
+function DropdownMenu(
+  props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>,
+) {
+  const { key, onOpenChange } = useCloseWhenHidden(props);
+  return (
+    <DropdownMenuPrimitive.Root
+      key={key}
+      {...props}
+      onOpenChange={onOpenChange}
+    />
+  );
+}
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 
