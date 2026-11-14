@@ -28,6 +28,8 @@ interface Output {
     };
   };
   output?: string[];
+  /** Whether the hidden-output step's pane was last seen on screen. */
+  onScreen?: boolean;
 }
 
 describe("terminal and CLI", () => {
@@ -113,13 +115,22 @@ describe("terminal and CLI", () => {
     const tab = app.page.getByRole("tab", { name: /E2E-HIDDEN/ });
     await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
     const shell = await app.terminal();
-    // A pane tells main it hid or showed in the frame after it does.
-    const reported = () =>
-      app.page.evaluate(
-        () =>
-          new Promise((done) =>
-            requestAnimationFrame(() => requestAnimationFrame(done)),
-          ),
+    // A pane's IntersectionObserver tells main when it leaves or comes back
+    // on screen. Every observer in a page hears in the same task, so once this
+    // one has heard, main has been told.
+    await shell.locator.evaluate((element) => {
+      const scope = window as unknown as Output;
+      new IntersectionObserver((entries) => {
+        scope.onScreen = entries.at(-1)?.isIntersecting;
+      }).observe(element);
+    });
+    const onScreen = (expected: boolean) =>
+      until(
+        async () =>
+          (await app.page.evaluate(
+            () => (window as unknown as Output).onScreen,
+          )) === expected,
+        `the pane ${expected ? "on" : "off"} screen`,
       );
     // Two lines 120 ms apart, about half of what main holds a hidden tab's
     // output for. `zselect` waits without forking a slow `sleep`.
@@ -136,15 +147,14 @@ describe("terminal and CLI", () => {
     await shell.type(
       `zmodload zsh/zselect; until [[ -e ${hid} ]]; do zselect -t 5; done; ${twoLines("HELD")}\n`,
     );
+    await onScreen(true);
     await app.page.getByRole("tab").first().click();
-    await shell.locator.waitFor({ state: "hidden" });
-    await reported();
+    await onScreen(false);
     fs.writeFileSync(hid, "");
     expect(await messageWith("E2E-HELD-A\r\n")).toContain("E2E-HELD-B\r\n");
 
     await tab.click();
-    await shell.locator.waitFor();
-    await reported();
+    await onScreen(true);
     await shell.type(`${twoLines("SHOWN")}\n`);
     expect(await messageWith("E2E-SHOWN-A\r\n")).not.toContain(
       "E2E-SHOWN-B\r\n",
