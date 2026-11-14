@@ -32,9 +32,9 @@ export interface AgentsTabHandle {
 export const AgentsTab = forwardRef<AgentsTabHandle>(
   function AgentsTab(_props, ref) {
     const { agents, launchGroups, bufferLines } = useSettings((s) => ({
-      agents: s.agents || [],
-      launchGroups: s.launchGroups || [],
-      bufferLines: s.terminalPromptBufferLines || 100,
+      agents: s.agents,
+      launchGroups: s.launchGroups,
+      bufferLines: s.terminalPromptBufferLines,
     }));
     // A failed save notifies, and leaves any open editor as it was
     const { mutate: updateSettings } = useMutation(settingsMutations.update());

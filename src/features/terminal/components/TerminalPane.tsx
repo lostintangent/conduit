@@ -171,7 +171,7 @@ export const TerminalPane = ({
 }: TerminalPaneProps) => {
   const { id: paneId, sessionId: terminalId, cwd } = pane;
   const showTerminalRuler = useSettings((s) => s.showTerminalRuler);
-  const playButtonTarget = useSettings((s) => s.playButtonTarget ?? "newPane");
+  const playButtonTarget = useSettings((s) => s.playButtonTarget);
   const applicationMode = useSelector(applicationModeAtom);
   const setApplicationMode = applicationModeAtom.set;
 
@@ -259,7 +259,7 @@ export const TerminalPane = ({
   const handlePromptSubmit = useCallback(
     async (prompt: string, requestedAgentId?: string) => {
       const settings = getSettings();
-      const agents = settings.agents || [];
+      const agents = settings.agents;
 
       // Find the requested agent or default agent
       let selectedAgent = agents.find((a) => a.isDefault);
@@ -307,7 +307,7 @@ export const TerminalPane = ({
 
       // Get terminal buffer
       const buffer = serializeSession(sessionId, {
-        scrollback: settings.terminalPromptBufferLines || 100,
+        scrollback: settings.terminalPromptBufferLines,
       });
 
       // Construct full prompt with conversation history

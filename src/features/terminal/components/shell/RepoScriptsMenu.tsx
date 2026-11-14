@@ -23,7 +23,7 @@ type RepoScriptsMenuProps = {
  * found in package.json. Only rendered when the showPlayButton setting is enabled.
  */
 export function RepoScriptsMenu({ cwd, onRunScript }: RepoScriptsMenuProps) {
-  const showPlayButton = useSettings((s) => s.showPlayButton ?? false);
+  const showPlayButton = useSettings((s) => s.showPlayButton);
 
   const { scripts } = usePackageJsonScripts(cwd);
   const hasScripts = scripts && Object.keys(scripts).length > 0;

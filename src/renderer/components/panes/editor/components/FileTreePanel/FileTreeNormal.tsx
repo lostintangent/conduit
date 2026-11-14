@@ -897,7 +897,7 @@ export const FileTreeNormal = memo(
      */
     const { showContextMenu, setFocusState } = useFileTreeContextMenu({
       cwd,
-      homeDirectory: homeDirectory ?? undefined,
+      homeDirectory,
       onNewFile: (path) => beginCreate(path, "file"),
       onNewFolder: (path) => beginCreate(path, "folder"),
       onRename: handleRenameCommand,

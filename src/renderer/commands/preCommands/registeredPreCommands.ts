@@ -15,18 +15,7 @@ export const verifyGitRepo: PreCommand = {
   description: "Checks that the working directory is inside a git repository",
 
   run: async (terminalConfig) => {
-    // Determine cwd from config or fallback to home directory
-    let cwd: string | null | undefined = terminalConfig.cwd;
-    if (!cwd) {
-      cwd = getSettings().homeDirectory;
-    }
-
-    if (!cwd) {
-      return {
-        success: false,
-        error: "No working directory specified",
-      };
-    }
+    const cwd = terminalConfig.cwd || getSettings().homeDirectory;
 
     // Delegate to handler
     const result = await verifyGitRepoHandler(cwd);
@@ -55,18 +44,7 @@ export const createAgentSession: PreCommand = {
   description: "Spawns a git worktree for isolated agent development",
 
   run: async (terminalConfig) => {
-    // Determine cwd from config or fallback to home directory
-    let cwd: string | null | undefined = terminalConfig.cwd;
-    if (!cwd) {
-      cwd = getSettings().homeDirectory;
-    }
-
-    if (!cwd) {
-      return {
-        success: false,
-        error: "No working directory specified",
-      };
-    }
+    const cwd = terminalConfig.cwd || getSettings().homeDirectory;
 
     // Delegate to handler
     const result = await createAgentSessionHandler(cwd);

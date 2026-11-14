@@ -19,6 +19,11 @@ export function openSettings(home: () => string, watchIntervalMs = 1000) {
   // it, nobody else has changed it, so our own writes don't count as edits.
   let lastContents: string | undefined;
 
+  // The fields of settings.json whose type is wrong, as last read. Settings
+  // use the defaults for them, but writes keep them in the file until the
+  // user changes that setting, so a hand edit is never thrown away.
+  let ignored: Record<string, unknown> = {};
+
   let queue: Promise<unknown> = Promise.resolve();
   function enqueue<T>(task: () => Promise<T>): Promise<T> {
     const result = queue.then(task);
@@ -38,7 +43,27 @@ export function openSettings(home: () => string, watchIntervalMs = 1000) {
     if (typeof saved !== "object" || saved === null || Array.isArray(saved)) {
       throw new Error("settings.json doesn't hold a JSON object");
     }
-    return { ...defaultSettings, homeDirectory: home(), ...saved };
+
+    const defaults = { ...defaultSettings, homeDirectory: home() };
+    const typeOf = (value: unknown) =>
+      Array.isArray(value) ? "array" : typeof value;
+    const fields = Object.entries(saved);
+    const wrongType = fields.filter(([key, value]) => {
+      if (!Object.keys(defaults).includes(key)) return false;
+      const expected = typeOf(defaults[key as keyof typeof defaults]);
+      if (typeOf(value) === expected) return false;
+      console.warn(
+        `[Settings] settings.json's ${key} should be of type ${expected}, so using the default`,
+      );
+      return true;
+    });
+    ignored = Object.fromEntries(wrongType);
+    return {
+      ...defaults,
+      ...Object.fromEntries(
+        fields.filter((field) => !wrongType.includes(field)),
+      ),
+    };
   }
 
   function get(): UserSettings {
@@ -91,14 +116,19 @@ export function openSettings(home: () => string, watchIntervalMs = 1000) {
     return enqueue(async () => {
       await reload();
       const latest = get();
-      const next = { ...latest, ...change(latest) };
-      const contents = serialize(next);
+      const changes = change(latest);
+      const next = { ...latest, ...changes };
+      const kept = Object.fromEntries(
+        Object.entries(ignored).filter(([key]) => !(key in changes)),
+      );
+      const contents = serialize({ ...next, ...kept });
 
       // A plain write rather than write-and-rename, because settings.json
       // may be a symlink into the dotfiles repo, and a rename would replace it.
       await writeFile(filePath(), contents, "utf-8");
       current = next;
       lastContents = contents;
+      ignored = kept;
       return next;
     });
   }
@@ -128,7 +158,7 @@ export function openSettings(home: () => string, watchIntervalMs = 1000) {
 }
 
 /** settings.json keeps only what differs from the defaults. */
-function serialize(settings: UserSettings): string {
+function serialize(settings: Record<string, unknown>): string {
   const saved = Object.fromEntries(
     Object.entries(settings).filter(
       ([key, value]) =>

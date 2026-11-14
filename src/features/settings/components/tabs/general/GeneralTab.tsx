@@ -40,9 +40,7 @@ export function GeneralTab() {
   const userSettings = useSettings();
   const { mutate: updateSettings } = useMutation(settingsMutations.update());
   const setQuickPane = quickPaneAtom.set;
-  const showLaunchButton = userSettings.showLaunchButton ?? false;
-  const showPlayButton = userSettings.showPlayButton ?? false;
-  const playButtonTarget = userSettings.playButtonTarget ?? "newPane";
+  const { showLaunchButton, showPlayButton, playButtonTarget } = userSettings;
 
   const [dotfilesRepo, setDotfilesRepo] = useState(
     userSettings.dotfilesRepo || "",
@@ -51,7 +49,7 @@ export function GeneralTab() {
     userSettings.terminalShell || "",
   );
   const [terminalFontFamily, setTerminalFontFamily] = useState(
-    userSettings.terminalFontFamily || "",
+    userSettings.terminalFontFamily,
   );
   const [isHoveringDotfilesStatus, setIsHoveringDotfilesStatus] =
     useState(false);
@@ -291,7 +289,7 @@ export function GeneralTab() {
           id="terminalFontSize"
           label="Font Size"
           type="number"
-          value={userSettings.terminalFontSize ?? 13}
+          value={userSettings.terminalFontSize}
           onChange={(value) => {
             const fontSize = parseInt(value, 10);
             if (!isNaN(fontSize) && fontSize > 0) {
@@ -325,7 +323,7 @@ export function GeneralTab() {
           </label>
           <div className="relative max-w-xs">
             <select
-              value={userSettings.terminalLinkTarget ?? "pane"}
+              value={userSettings.terminalLinkTarget}
               onChange={(e) =>
                 updateSettings({
                   terminalLinkTarget: e.target.value as TerminalLinkTarget,
@@ -364,7 +362,7 @@ export function GeneralTab() {
           id="trackUnseenChangesInReviewMode"
           label="Track unseen changes in Review Mode"
           description="Show indicators for files modified by external processes while in Review Mode"
-          checked={userSettings.trackUnseenChangesInReviewMode ?? true}
+          checked={userSettings.trackUnseenChangesInReviewMode}
           onChange={(checked) =>
             updateSettings({ trackUnseenChangesInReviewMode: checked })
           }

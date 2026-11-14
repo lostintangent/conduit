@@ -225,7 +225,7 @@ export function EditorPaneV2({
   const editorTheme = useEditorTheme();
 
   const trackUnseenChanges = useSettings(
-    (s) => s.trackUnseenChangesInReviewMode ?? true,
+    (s) => s.trackUnseenChangesInReviewMode,
   );
 
   // Use sandbox handlers from the shared hook

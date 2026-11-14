@@ -57,9 +57,9 @@ export type UserSettings = {
   // Terminal settings
   dotfilesRepo?: string;
   terminalShell?: string;
-  terminalFontFamily?: string;
-  terminalFontSize?: number;
-  terminalLinkTarget?: TerminalLinkTarget;
+  terminalFontFamily: string;
+  terminalFontSize: number;
+  terminalLinkTarget: TerminalLinkTarget;
   showTerminalRuler: boolean;
   showTabState: boolean;
 
@@ -71,19 +71,19 @@ export type UserSettings = {
   autoSaveWorkspaces: boolean;
 
   // Repository shortcuts
-  showLaunchButton?: boolean;
-  showPlayButton?: boolean;
-  playButtonTarget?: PlayButtonTarget;
+  showLaunchButton: boolean;
+  showPlayButton: boolean;
+  playButtonTarget: PlayButtonTarget;
 
   // History/State
   urlHistory: string[];
   starredPages: BrowserPage[];
-  homeDirectory: string | null;
+  homeDirectory: string;
 
   // Agent settings
-  agents?: AgentConfig[];
-  launchGroups?: LaunchGroup[];
-  terminalPromptBufferLines?: number;
+  agents: AgentConfig[];
+  launchGroups: LaunchGroup[];
+  terminalPromptBufferLines: number;
 };
 
 /**
@@ -108,6 +108,10 @@ export const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   trackUnseenChangesInReviewMode: true,
 
   autoSaveWorkspaces: true,
+
+  showLaunchButton: false,
+  showPlayButton: false,
+  playButtonTarget: "newPane",
 
   urlHistory: [],
   starredPages: [],

@@ -95,19 +95,6 @@ describe("registeredPreCommands", () => {
       expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/home/user");
     });
 
-    it("should fail when no cwd and no home directory", async () => {
-      seedSettings(queryClient, { homeDirectory: null });
-
-      const config: TerminalConfig = {
-        command: "git status",
-      };
-
-      const result = await verifyGitRepo.run(config);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("No working directory specified");
-    });
-
     it("should handle API errors", async () => {
       const mockApi = (global as any).window.conduit;
       mockApi.hasGitRepository.mockRejectedValue(
@@ -185,19 +172,6 @@ describe("registeredPreCommands", () => {
       expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
         cwd: "/home/user",
       });
-    });
-
-    it("should fail when no cwd and no home directory", async () => {
-      seedSettings(queryClient, { homeDirectory: null });
-
-      const config: TerminalConfig = {
-        command: "claude-code",
-      };
-
-      const result = await createAgentSession.run(config);
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("No working directory specified");
     });
 
     it("should fail when not in a git repository", async () => {

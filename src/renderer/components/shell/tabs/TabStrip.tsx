@@ -90,7 +90,6 @@ export const TabStrip = ({
       showLaunchButton: s.showLaunchButton,
     }),
   );
-  const shouldShowLaunchButton = showLaunchButton ?? false;
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
@@ -575,16 +574,16 @@ export const TabStrip = ({
       return;
     }
 
-    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory ?? ""));
+    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
   }, [activeTab, homeDirectory, hasMinimizedTerminals]);
 
   // Always opens a new hyper terminal (used in dropdown menu)
   const handleNewHyperTerminal = useCallback(async () => {
-    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory ?? ""));
+    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
   }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
-    await openQuickTerminal(getActiveTabCwd(activeTab, homeDirectory ?? ""));
+    await openQuickTerminal(getActiveTabCwd(activeTab, homeDirectory));
   }, [activeTab, homeDirectory]);
 
   // Use margins to create gaps that reveal the overlay underneath
@@ -838,7 +837,7 @@ export const TabStrip = ({
             </TooltipContent>
           </Tooltip>
 
-          {shouldShowLaunchButton && (
+          {showLaunchButton && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

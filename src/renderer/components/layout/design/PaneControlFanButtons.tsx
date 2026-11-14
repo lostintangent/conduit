@@ -148,7 +148,7 @@ export function PaneControlFanButtons({
 
           if (!editorCwd) {
             // Fallback to home directory
-            editorCwd = getSettings().homeDirectory || ".";
+            editorCwd = getSettings().homeDirectory;
           }
 
           openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);

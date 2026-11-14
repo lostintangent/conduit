@@ -160,13 +160,13 @@ export function App() {
   const currentPane = activeTab?.panes[activeTab.activePaneId];
   const currentPaneCwd =
     currentPane?.type === "terminal" || currentPane?.type === "editor"
-      ? (currentPane.cwd ?? homeDirectory ?? "/")
+      ? (currentPane.cwd ?? homeDirectory)
       : null;
   const [lastKnownCwd, setLastKnownCwd] = useState(currentPaneCwd);
   if (currentPaneCwd !== null && currentPaneCwd !== lastKnownCwd) {
     setLastKnownCwd(currentPaneCwd);
   }
-  const activeCwd = currentPaneCwd ?? lastKnownCwd ?? homeDirectory ?? "/";
+  const activeCwd = currentPaneCwd ?? lastKnownCwd ?? homeDirectory;
 
   useCliClient(activeCwd);
 
@@ -806,7 +806,7 @@ export function App() {
           duplicateTabWithCwdDialogState
             ? getActiveTabCwd(
                 tabs.find((t) => t.id === duplicateTabWithCwdDialogState.tabId),
-                homeDirectory ?? "",
+                homeDirectory,
               )
             : ""
         }
@@ -836,7 +836,7 @@ export function App() {
         onOpen={handleAgentSessionOpen}
       />
 
-      {settingsTab && commandSystem && homeDirectory ? (
+      {settingsTab && commandSystem ? (
         <SettingsDialog
           onClose={() => setSettingsTab(null)}
           commandRegistry={commandSystem.commandRegistry}
@@ -863,9 +863,9 @@ export function App() {
 
       <AgentLauncherDialog
         isOpen={showAgentLauncher}
-        agents={agents || []}
-        launchGroups={launchGroups || []}
-        defaultAgentId={agents?.find((agent: any) => agent.isDefault)?.id}
+        agents={agents}
+        launchGroups={launchGroups}
+        defaultAgentId={agents.find((agent) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
         onLaunch={async (payload) => {
           const cwd = getActiveTabCwd(activeTab);
@@ -881,7 +881,7 @@ export function App() {
           try {
             await launchAgents(payload, {
               cwd,
-              agents: agents || [],
+              agents,
               api,
               onClose: () => setShowAgentLauncher(false),
             });

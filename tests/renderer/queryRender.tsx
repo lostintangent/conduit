@@ -9,7 +9,7 @@ import type { ReactElement, ReactNode } from "react";
 export function testSettings(
   overrides: Partial<UserSettings> = {},
 ): UserSettings {
-  return { ...defaultSettings, homeDirectory: null, ...overrides };
+  return { ...defaultSettings, homeDirectory: "/Users/tester", ...overrides };
 }
 
 /**

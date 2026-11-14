@@ -104,6 +104,31 @@ describe("settings", () => {
     expect(await readFile(file, "utf-8")).toBe('{ "theme": "light", }');
   });
 
+  it("uses the default for a setting of the wrong type, and keeps it in the file", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await writeFile(
+      file,
+      JSON.stringify({ agents: null, terminalFontSize: "14", theme: "light" }),
+    );
+
+    expect(settings.get()).toMatchObject({
+      agents: [],
+      terminalFontSize: 13,
+      theme: "light",
+    });
+    expect(warn.mock.calls.map(([message]) => message)).toEqual([
+      expect.stringContaining("agents"),
+      expect.stringContaining("terminalFontSize"),
+    ]);
+
+    await settings.update(() => ({ terminalFontSize: 15 }));
+    expect(await onDisk()).toEqual({
+      agents: null,
+      terminalFontSize: 15,
+      theme: "light",
+    });
+  });
+
   it("tells the watcher when the file changes on disk", async () => {
     settings = openSettings(() => home, 10);
     settings.get();
