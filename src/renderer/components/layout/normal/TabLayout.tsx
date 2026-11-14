@@ -1,3 +1,4 @@
+import { useSettings } from "@features/settings/client/queries";
 import { Activity } from "react";
 import { PaneControlButtons } from "@/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@/components/layout/focus/FocusModeIndicator";
@@ -34,7 +35,6 @@ import {
   activeTabAtom,
   applicationModeAtom,
   tabsAtom,
-  userSettingsAtom,
 } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type {
@@ -313,8 +313,8 @@ export function TabLayout({
   const setApplicationMode = applicationModeAtom.set;
   const isInDesignMode = applicationMode === "design";
 
-  const { dimInactivePanes, terminalLinkTarget } =
-    useSelector(userSettingsAtom);
+  const dimInactivePanes = useSettings((s) => s.dimInactivePanes);
+  const terminalLinkTarget = useSettings((s) => s.terminalLinkTarget);
 
   // Sidebar state for terminal link clicks
   const setSidebarState = sidebarStateAtom.set;

@@ -1,15 +1,23 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createQueryClient } from "@/query";
+import { notificationsAtom } from "@/store/atoms";
+import {
+  render,
+  seedSettings,
+  testSettings,
+} from "../../../../../../tests/renderer/queryRender";
 import { AgentsTab } from "./AgentsTab";
-import type { AgentConfig, LaunchGroup } from "../../../model";
+import type { AgentConfig, LaunchGroup, UserSettings } from "../../../model";
 
+let settings: UserSettings;
 const mockUpdateSettings = vi.fn();
-const mockUserSettings = {
-  agents: [] as AgentConfig[],
-  launchGroups: [] as LaunchGroup[],
-  terminalPromptBufferLines: 100,
-  updateSettings: mockUpdateSettings,
-};
+
+function renderAgentsTab() {
+  return render(<AgentsTab />, {
+    queryClient: seedSettings(createQueryClient(), settings),
+  });
+}
 
 describe("AgentsEditor", () => {
   const mockAgents: AgentConfig[] = [
@@ -39,28 +47,39 @@ describe("AgentsEditor", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUserSettings.agents = [...mockAgents];
-    mockUserSettings.launchGroups = [...mockTeams];
-    mockUserSettings.terminalPromptBufferLines = 100;
+    notificationsAtom.set([]);
+    settings = testSettings({
+      agents: [...mockAgents],
+      launchGroups: [...mockTeams],
+      terminalPromptBufferLines: 100,
+    });
+    // Main saves the updates and replies with all the settings
+    mockUpdateSettings.mockImplementation(async (updates) => {
+      settings = { ...settings, ...updates };
+      return settings;
+    });
+    (window as any).conduit = {
+      settings: { update: mockUpdateSettings, get: async () => settings },
+    };
   });
 
   describe("Initial Rendering", () => {
     it("should render with agents tab active by default", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       expect(screen.getByText("Agents")).toBeDefined();
       expect(screen.getByText("Teams")).toBeDefined();
     });
 
     it("should display all agents in the list", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       expect(screen.getByText("Copilot")).toBeDefined();
       expect(screen.getByText("Assistant")).toBeDefined();
     });
 
     it("should show Add Agent button", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       expect(screen.getByText("Add Agent")).toBeDefined();
     });
@@ -68,7 +87,7 @@ describe("AgentsEditor", () => {
 
   describe("Agent Management", () => {
     it("should allow editing an agent", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
@@ -78,9 +97,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should save agent changes", async () => {
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
@@ -102,10 +119,39 @@ describe("AgentsEditor", () => {
           }),
         );
       });
+      await waitFor(() =>
+        expect(screen.queryByDisplayValue("Copilot Pro")).toBeNull(),
+      );
+      expect(screen.getByText("Copilot Pro")).toBeDefined();
+    });
+
+    it("keeps the agent's edits open, and shows the error, when they fail to save", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      mockUpdateSettings.mockRejectedValue(
+        new Error("EACCES: permission denied"),
+      );
+      renderAgentsTab();
+
+      fireEvent.click(screen.getAllByTitle(/Edit/)[0]);
+      fireEvent.change(screen.getByDisplayValue("Copilot"), {
+        target: { value: "Copilot Pro" },
+      });
+      fireEvent.click(screen.getByText("Save"));
+
+      await waitFor(() =>
+        expect(notificationsAtom.get()).toMatchObject([
+          {
+            kind: "error",
+            message: "Couldn't update settings",
+            details: "EACCES: permission denied",
+          },
+        ]),
+      );
+      expect(screen.getByDisplayValue("Copilot Pro")).toBeDefined();
     });
 
     it("should cancel agent editing", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
@@ -120,9 +166,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should add a new agent", async () => {
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const addButton = screen.getByText("Add Agent");
       fireEvent.click(addButton);
@@ -134,9 +178,7 @@ describe("AgentsEditor", () => {
 
     it("should delete an agent", async () => {
       window.confirm = vi.fn(() => true);
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const deleteButtons = screen.getAllByTitle(/Delete/);
       fireEvent.click(deleteButtons[1]);
@@ -155,9 +197,9 @@ describe("AgentsEditor", () => {
     it("should prevent deleting the last agent", async () => {
       window.alert = vi.fn();
       window.confirm = vi.fn(() => true);
-      mockUserSettings.agents = [mockAgents[0]];
+      settings.agents = [mockAgents[0]];
 
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const deleteButtons = screen.getAllByTitle(/Delete/);
       fireEvent.click(deleteButtons[0]);
@@ -169,9 +211,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should set an agent as default", async () => {
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       // Only the non-default agent (agent-2) offers the button
       fireEvent.click(screen.getByTitle("Set as default"));
@@ -191,7 +231,7 @@ describe("AgentsEditor", () => {
 
   describe("Team Management", () => {
     it("should switch to teams tab", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -200,7 +240,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should display teams list", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -209,9 +249,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should add a new team", async () => {
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -225,7 +263,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should edit a team", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -237,9 +275,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should save team changes", async () => {
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -268,9 +304,7 @@ describe("AgentsEditor", () => {
 
     it("should delete a team", async () => {
       window.confirm = vi.fn(() => true);
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -290,7 +324,7 @@ describe("AgentsEditor", () => {
 
   describe("Team Member Management", () => {
     it("should toggle agent in team", () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -305,7 +339,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should configure instance count for team member", async () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -337,7 +371,7 @@ describe("AgentsEditor", () => {
     });
 
     it("should add custom instructions for team member instance", async () => {
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);
@@ -377,9 +411,7 @@ describe("AgentsEditor", () => {
   describe("Reset to Defaults", () => {
     it("should reset agents to defaults when confirmed", async () => {
       window.confirm = vi.fn(() => true);
-      mockUpdateSettings.mockResolvedValue(undefined);
-
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const resetButton = screen.getByText("Reset");
       fireEvent.click(resetButton);
@@ -396,7 +428,7 @@ describe("AgentsEditor", () => {
     it("should not reset agents if not confirmed", () => {
       window.confirm = vi.fn(() => false);
 
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const resetButton = screen.getByText("Reset");
       fireEvent.click(resetButton);
@@ -421,9 +453,9 @@ describe("AgentsEditor", () => {
           },
         },
       };
-      mockUserSettings.launchGroups = [teamWithInstructions];
+      settings.launchGroups = [teamWithInstructions];
 
-      render(<AgentsTab userSettings={mockUserSettings} />);
+      renderAgentsTab();
 
       const teamsTab = screen.getByText("Teams");
       fireEvent.click(teamsTab);

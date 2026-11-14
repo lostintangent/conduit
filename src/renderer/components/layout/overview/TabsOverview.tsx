@@ -7,7 +7,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { closeTab, focusTab, openTab } from "@/store/actions/tab";
-import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
+import { applicationModeAtom } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import { useSelector } from "@tanstack/react-store";
 import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
@@ -18,7 +19,7 @@ export function TabsOverview() {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
   const tabLabels = useSelector(tabLabelsAtom);
-  const { showTabState } = useSelector(userSettingsAtom);
+  const showTabState = useSettings((s) => s.showTabState);
   const setApplicationMode = applicationModeAtom.set;
 
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});

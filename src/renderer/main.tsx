@@ -1,11 +1,14 @@
 import { App } from "@/app";
 import { installGitQueryBridge } from "@features/git/client/queries";
+import {
+  installSettingsQueryBridge,
+  settingsQuery,
+  useSettings,
+} from "@features/settings/client/queries";
 import { preloadMarkdownPreview } from "@/components/panes/editor/components/EditorPane/LazyMarkdownPreview";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { userSettingsAtom } from "@/store/atoms";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { enableMapSet } from "immer";
-import { useSelector } from "@tanstack/react-store";
 import { createRoot } from "react-dom/client";
 import { queryClient } from "./query";
 import { cn } from "./utils";
@@ -16,13 +19,14 @@ enableMapSet();
 import "./index.css";
 
 installGitQueryBridge(queryClient);
+installSettingsQueryBridge(queryClient);
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
 const root = createRoot(rootElement);
 
 function AppWrapper() {
-  const { useGradientBorders } = useSelector(userSettingsAtom);
+  const useGradientBorders = useSettings((s) => s.useGradientBorders);
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -55,10 +59,13 @@ function AppWrapper() {
   );
 }
 
-root.render(
-  <QueryClientProvider client={queryClient}>
-    <AppWrapper />
-  </QueryClientProvider>,
+// Everything that reads settings can count on them being loaded
+void queryClient.ensureQueryData(settingsQuery).then(() =>
+  root.render(
+    <QueryClientProvider client={queryClient}>
+      <AppWrapper />
+    </QueryClientProvider>,
+  ),
 );
 
 // The Markdown preview stays out of the startup bundle. Load it once startup

@@ -14,9 +14,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUserSettings } from "@features/settings/components/useUserSettings";
+import {
+  settingsMutations,
+  useSettings,
+} from "@features/settings/client/queries";
 import { normalizeUrl } from "@/utils/browser";
 import type { BrowserPage } from "@features/settings/model";
+import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrowserMenu } from "./BrowserMenu";
@@ -64,8 +68,13 @@ export function BrowserToolbar({
   onCaptureScreenshot,
   tabId,
 }: BrowserToolbarProps) {
-  const { urlHistory, addUrlToHistory, removeUrlFromHistory } =
-    useUserSettings();
+  const urlHistory = useSettings((s) => s.urlHistory);
+  const { mutate: addUrlToHistory } = useMutation(
+    settingsMutations.addUrlToHistory(),
+  );
+  const { mutate: removeUrlFromHistory } = useMutation(
+    settingsMutations.removeUrlFromHistory(),
+  );
 
   const [inputUrl, setInputUrl] = useState<string>(currentPage.url);
   const [showHistory, setShowHistory] = useState<boolean>(false);
@@ -197,7 +206,7 @@ export function BrowserToolbar({
 
   const handleHistoryItemRemove = useCallback(
     (historyUrl: string) => {
-      void removeUrlFromHistory(historyUrl);
+      removeUrlFromHistory(historyUrl);
     },
     [removeUrlFromHistory],
   );

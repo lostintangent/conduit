@@ -6,11 +6,11 @@ import {
   activeTabIdAtom,
   previousTabsSnapshotAtom,
   tabsAtom,
-  userSettingsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
   workspaceStateAtom,
 } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import { useAtom, useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -22,7 +22,7 @@ export function useWorkspaces() {
 
   const tabs = useSelector(tabsAtom);
   const activeTabId = useSelector(activeTabIdAtom);
-  const userSettings = useSelector(userSettingsAtom);
+  const autoSaveWorkspaces = useSettings((s) => s.autoSaveWorkspaces);
 
   const setWorkspaceHasChanges = workspaceHasChangesAtom.set;
   const [previousTabsSnapshot, setPreviousTabsSnapshot] = useAtom(
@@ -77,7 +77,7 @@ export function useWorkspaces() {
       setWorkspaceHasChanges(true);
 
       // If auto-save is enabled, schedule a save
-      if (workspaceName && userSettings.autoSaveWorkspaces) {
+      if (workspaceName && autoSaveWorkspaces) {
         // Clear any existing timer
         if (autoSaveTimerRef.current) {
           clearTimeout(autoSaveTimerRef.current);
@@ -106,7 +106,7 @@ export function useWorkspaces() {
     tabs,
     workspaceName,
     activeTabId,
-    userSettings.autoSaveWorkspaces,
+    autoSaveWorkspaces,
     setWorkspaceHasChanges,
     setWorkspaces,
     previousTabsSnapshot,

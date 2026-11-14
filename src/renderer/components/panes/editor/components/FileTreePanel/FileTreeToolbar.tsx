@@ -17,9 +17,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { userSettingsAtom } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import { formatHomePath } from "@/utils/pathUtils";
-import { useSelector } from "@tanstack/react-store";
 import { FolderUp, PanelLeftClose } from "lucide-react";
 import { useCallback, useState } from "react";
 
@@ -58,7 +57,7 @@ export function FileTreeToolbar({
   onToggleCollapse,
   showCollapseButton = false,
 }: FileTreeToolbarProps) {
-  const { homeDirectory } = useSelector(userSettingsAtom);
+  const homeDirectory = useSettings((s) => s.homeDirectory);
   const displayPath = formatHomePath(cwd, homeDirectory);
   const isRoot = isAtRoot(cwd);
   const canGoUp = canNavigateUp && !isRoot;

@@ -1,5 +1,6 @@
 import type { Workspace, WorkspaceState } from "@shared/types";
-import { renderHook, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import { renderHook } from "../../../../tests/renderer/queryRender";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getState } = vi.hoisted(() => {

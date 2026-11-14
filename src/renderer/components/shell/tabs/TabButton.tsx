@@ -8,10 +8,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
-import { userSettingsAtom } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
-import { useSelector } from "@tanstack/react-store";
 import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -51,7 +50,7 @@ export function TabButton({
   onDragEnd,
   onHoverChange,
 }: TabButtonProps) {
-  const { showTabState } = useSelector(userSettingsAtom);
+  const showTabState = useSettings((s) => s.showTabState);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");

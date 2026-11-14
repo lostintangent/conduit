@@ -1,14 +1,14 @@
 import { updateTerminalFonts } from "@features/terminal/client/xtermCache";
 import { useDotfiles } from "@features/dotfiles/components/useDotfiles";
-import { useUserSettings } from "../../useUserSettings";
+import { settingsMutations, useSettings } from "../../../client/queries";
 import { quickPaneAtom } from "@/store/atoms";
 import { capitalize } from "@/utils";
 import type {
   PlayButtonTarget,
   TerminalLinkTarget,
   ThemeMode,
-  UserSettings,
 } from "../../../model";
+import { useMutation } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,
@@ -36,15 +36,9 @@ const themeOptions = new Map<ThemeMode, LucideIcon>([
   ["system", Monitor],
 ]);
 
-interface GeneralTabProps {
-  userSettings: ReturnType<typeof useUserSettings>;
-  onUpdateSettings: (updates: Partial<UserSettings>) => void;
-}
-
-export function GeneralTab({
-  userSettings,
-  onUpdateSettings,
-}: GeneralTabProps) {
+export function GeneralTab() {
+  const userSettings = useSettings();
+  const { mutate: updateSettings } = useMutation(settingsMutations.update());
   const setQuickPane = quickPaneAtom.set;
   const showLaunchButton = userSettings.showLaunchButton ?? false;
   const showPlayButton = userSettings.showPlayButton ?? false;
@@ -73,7 +67,7 @@ export function GeneralTab({
     const url = await createDotfilesRepo();
     if (url) {
       setDotfilesRepo(url);
-      onUpdateSettings({ dotfilesRepo: url });
+      updateSettings({ dotfilesRepo: url });
     }
   };
 
@@ -84,7 +78,7 @@ export function GeneralTab({
           {Array.from(themeOptions.entries()).map(([value, Icon]) => (
             <button
               key={value}
-              onClick={() => onUpdateSettings({ theme: value })}
+              onClick={() => updateSettings({ theme: value })}
               className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                 userSettings.theme === value
                   ? "bg-accent/20 border-accent text-accent"
@@ -126,7 +120,7 @@ export function GeneralTab({
                 value={userSettings.themeOverrides?.[key]}
                 defaultValue={defaultValue}
                 onChange={(value) => {
-                  onUpdateSettings({
+                  updateSettings({
                     themeOverrides: {
                       ...userSettings.themeOverrides,
                       [key]: value,
@@ -136,7 +130,7 @@ export function GeneralTab({
                 onReset={() => {
                   const rest = { ...userSettings.themeOverrides };
                   delete rest[key];
-                  onUpdateSettings({
+                  updateSettings({
                     themeOverrides:
                       Object.keys(rest).length > 0 ? rest : undefined,
                   });
@@ -154,7 +148,7 @@ export function GeneralTab({
           description="Keep the active pane border visible instead of fading out"
           checked={userSettings.alwaysHighlightActivePane}
           onChange={(checked) =>
-            onUpdateSettings({ alwaysHighlightActivePane: checked })
+            updateSettings({ alwaysHighlightActivePane: checked })
           }
         />
 
@@ -163,9 +157,7 @@ export function GeneralTab({
           label="Dim inactive panes"
           description="Slightly dim inactive panes to highlight the active one"
           checked={userSettings.dimInactivePanes}
-          onChange={(checked) =>
-            onUpdateSettings({ dimInactivePanes: checked })
-          }
+          onChange={(checked) => updateSettings({ dimInactivePanes: checked })}
         />
 
         <CheckboxSetting
@@ -173,7 +165,7 @@ export function GeneralTab({
           label="Always show tabs"
           description="Show the tab bar even when there is only one tab"
           checked={userSettings.alwaysShowTabs}
-          onChange={(checked) => onUpdateSettings({ alwaysShowTabs: checked })}
+          onChange={(checked) => updateSettings({ alwaysShowTabs: checked })}
         />
 
         <CheckboxSetting
@@ -182,7 +174,7 @@ export function GeneralTab({
           description="Display colorful gradient borders on panes and tabs"
           checked={userSettings.useGradientBorders}
           onChange={(checked) =>
-            onUpdateSettings({ useGradientBorders: checked })
+            updateSettings({ useGradientBorders: checked })
           }
         />
       </SettingSection>
@@ -204,7 +196,7 @@ export function GeneralTab({
               onChange={(e) => setDotfilesRepo(e.target.value)}
               onBlur={() => {
                 if (dotfilesRepo !== userSettings.dotfilesRepo) {
-                  onUpdateSettings({ dotfilesRepo });
+                  updateSettings({ dotfilesRepo });
                 }
               }}
               placeholder="username/dotfiles or https://github.com/username/dotfiles.git"
@@ -272,7 +264,7 @@ export function GeneralTab({
           onChange={(value) => setTerminalShell(value)}
           onBlur={() => {
             if (terminalShell !== userSettings.terminalShell) {
-              onUpdateSettings({
+              updateSettings({
                 terminalShell: terminalShell || undefined,
               });
             }
@@ -290,7 +282,7 @@ export function GeneralTab({
           }}
           onBlur={() => {
             if (terminalFontFamily !== userSettings.terminalFontFamily) {
-              onUpdateSettings({ terminalFontFamily });
+              updateSettings({ terminalFontFamily });
             }
           }}
         />
@@ -303,7 +295,7 @@ export function GeneralTab({
           onChange={(value) => {
             const fontSize = parseInt(value, 10);
             if (!isNaN(fontSize) && fontSize > 0) {
-              onUpdateSettings({ terminalFontSize: fontSize });
+              updateSettings({ terminalFontSize: fontSize });
               updateTerminalFonts(userSettings.terminalFontFamily, fontSize);
             }
           }}
@@ -316,7 +308,7 @@ export function GeneralTab({
           label="Show tab state indicators"
           description="Display the running and unseen state of terminals in tab buttons"
           checked={userSettings.showTabState}
-          onChange={(checked) => onUpdateSettings({ showTabState: checked })}
+          onChange={(checked) => updateSettings({ showTabState: checked })}
         />
 
         <CheckboxSetting
@@ -324,9 +316,7 @@ export function GeneralTab({
           label="Show terminal ruler"
           description="Display a ruler in terminal panes"
           checked={userSettings.showTerminalRuler}
-          onChange={(checked) =>
-            onUpdateSettings({ showTerminalRuler: checked })
-          }
+          onChange={(checked) => updateSettings({ showTerminalRuler: checked })}
         />
 
         <div>
@@ -337,7 +327,7 @@ export function GeneralTab({
             <select
               value={userSettings.terminalLinkTarget ?? "pane"}
               onChange={(e) =>
-                onUpdateSettings({
+                updateSettings({
                   terminalLinkTarget: e.target.value as TerminalLinkTarget,
                 })
               }
@@ -366,7 +356,7 @@ export function GeneralTab({
           description="Set Conduit as the default editor for command-line tools"
           checked={userSettings.useConduitAsEditor}
           onChange={(checked) =>
-            onUpdateSettings({ useConduitAsEditor: checked })
+            updateSettings({ useConduitAsEditor: checked })
           }
         />
 
@@ -376,7 +366,7 @@ export function GeneralTab({
           description="Show indicators for files modified by external processes while in Review Mode"
           checked={userSettings.trackUnseenChangesInReviewMode ?? true}
           onChange={(checked) =>
-            onUpdateSettings({ trackUnseenChangesInReviewMode: checked })
+            updateSettings({ trackUnseenChangesInReviewMode: checked })
           }
         />
       </SettingSection>
@@ -388,7 +378,7 @@ export function GeneralTab({
           description="Automatically save workspace changes"
           checked={userSettings.autoSaveWorkspaces}
           onChange={(checked) =>
-            onUpdateSettings({ autoSaveWorkspaces: checked })
+            updateSettings({ autoSaveWorkspaces: checked })
           }
         />
       </SettingSection>
@@ -399,9 +389,7 @@ export function GeneralTab({
           label="Show launch button when in a repository"
           description="Display a quick launch button when the current directory is a git repository"
           checked={showLaunchButton}
-          onChange={(checked) =>
-            onUpdateSettings({ showLaunchButton: checked })
-          }
+          onChange={(checked) => updateSettings({ showLaunchButton: checked })}
         />
 
         <CheckboxSetting
@@ -409,7 +397,7 @@ export function GeneralTab({
           label="Show play button when in repo with package.json"
           description="Display a play button to run npm scripts when package.json is detected"
           checked={showPlayButton}
-          onChange={(checked) => onUpdateSettings({ showPlayButton: checked })}
+          onChange={(checked) => updateSettings({ showPlayButton: checked })}
         />
 
         {/* Play Button Target - Complex select with conditional UI, kept as-is */}
@@ -421,7 +409,7 @@ export function GeneralTab({
             <select
               value={playButtonTarget}
               onChange={(e) =>
-                onUpdateSettings({
+                updateSettings({
                   playButtonTarget: e.target.value as PlayButtonTarget,
                 })
               }

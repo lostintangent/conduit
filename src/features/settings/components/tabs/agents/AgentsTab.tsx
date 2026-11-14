@@ -5,7 +5,7 @@
  */
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { notifySettingsError, useUserSettings } from "../../useUserSettings";
+import { settingsMutations, useSettings } from "../../../client/queries";
 import type { AgentConfig, LaunchGroup } from "../../../model";
 import {
   Check,
@@ -21,32 +21,25 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { forwardRef, useImperativeHandle, useState } from "react";
 import { DEFAULT_AGENTS } from "./defaultAgents";
-
-interface AgentsTabProps {
-  userSettings: Pick<
-    ReturnType<typeof useUserSettings>,
-    "agents" | "launchGroups" | "terminalPromptBufferLines" | "updateSettings"
-  >;
-}
 
 export interface AgentsTabHandle {
   hasUnsavedChanges: () => boolean;
 }
 
-export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
-  function AgentsTab({ userSettings }, ref) {
+export const AgentsTab = forwardRef<AgentsTabHandle>(
+  function AgentsTab(_props, ref) {
+    const { agents, launchGroups, bufferLines } = useSettings((s) => ({
+      agents: s.agents || [],
+      launchGroups: s.launchGroups || [],
+      bufferLines: s.terminalPromptBufferLines || 100,
+    }));
+    // A failed save notifies, and leaves any open editor as it was
+    const { mutate: updateSettings } = useMutation(settingsMutations.update());
+
     const [activeTab, setActiveTab] = useState("agents");
-    const [agents, setAgents] = useState<AgentConfig[]>(
-      userSettings.agents || [],
-    );
-    const [launchGroups, setLaunchGroups] = useState<LaunchGroup[]>(
-      userSettings.launchGroups || [],
-    );
-    const [bufferLines, setBufferLines] = useState<number>(
-      userSettings.terminalPromptBufferLines || 100,
-    );
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editedAgent, setEditedAgent] = useState<AgentConfig | null>(null);
     const [editingGroupIndex, setEditingGroupIndex] = useState<number | null>(
@@ -56,17 +49,6 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
     const [expandedInstructions, setExpandedInstructions] = useState<
       Set<string>
     >(new Set());
-
-    // Sync local state when userSettings changes
-    useEffect(() => {
-      setAgents(userSettings.agents || []);
-      setLaunchGroups(userSettings.launchGroups || []);
-      setBufferLines(userSettings.terminalPromptBufferLines || 100);
-    }, [
-      userSettings.agents,
-      userSettings.launchGroups,
-      userSettings.terminalPromptBufferLines,
-    ]);
 
     const hasUnsavedChanges = () => {
       if (editedAgent !== null && editingIndex !== null) {
@@ -103,23 +85,18 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
       setEditedAgent(null);
     };
 
-    const handleSaveAgent = async () => {
+    const handleSaveAgent = () => {
       if (editedAgent === null || editingIndex === null) return;
 
-      try {
-        const updatedAgents = [...agents];
-        updatedAgents[editingIndex] = editedAgent;
-
-        await userSettings.updateSettings({ agents: updatedAgents });
-        setEditingIndex(null);
-        setEditedAgent(null);
-      } catch (error) {
-        console.error("Failed to save agent:", error);
-        alert("Failed to save changes: " + (error as Error).message);
-      }
+      const updatedAgents = [...agents];
+      updatedAgents[editingIndex] = editedAgent;
+      updateSettings(
+        { agents: updatedAgents },
+        { onSuccess: handleCancelEdit },
+      );
     };
 
-    const handleDeleteAgent = async (index: number) => {
+    const handleDeleteAgent = (index: number) => {
       const agent = agents[index];
 
       const shouldDelete = confirm(
@@ -132,23 +109,22 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
         return;
       }
 
-      try {
-        const updatedAgents = agents.filter((_, i) => i !== index);
-        await userSettings.updateSettings({ agents: updatedAgents });
-
-        if (editingIndex === index) {
-          setEditingIndex(null);
-          setEditedAgent(null);
-        } else if (editingIndex !== null && editingIndex > index) {
-          setEditingIndex(editingIndex - 1);
-        }
-      } catch (error) {
-        console.error("Failed to delete agent:", error);
-        alert("Failed to delete agent: " + (error as Error).message);
-      }
+      const updatedAgents = agents.filter((_, i) => i !== index);
+      updateSettings(
+        { agents: updatedAgents },
+        {
+          onSuccess: () => {
+            if (editingIndex === index) {
+              handleCancelEdit();
+            } else if (editingIndex !== null && editingIndex > index) {
+              setEditingIndex(editingIndex - 1);
+            }
+          },
+        },
+      );
     };
 
-    const handleAddAgent = async () => {
+    const handleAddAgent = () => {
       const newAgent: AgentConfig = {
         id: `agent-${Date.now()}`,
         name: "New Agent",
@@ -157,74 +133,60 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
         isDefault: false,
       };
 
-      try {
-        const updatedAgents = [...agents, newAgent];
-        await userSettings.updateSettings({ agents: updatedAgents });
-
-        const newIndex = updatedAgents.length - 1;
-        setEditedAgent(JSON.parse(JSON.stringify(newAgent)));
-        setEditingIndex(newIndex);
-      } catch (error) {
-        console.error("Failed to add agent:", error);
-        alert("Failed to add agent: " + (error as Error).message);
-      }
+      const updatedAgents = [...agents, newAgent];
+      updateSettings(
+        { agents: updatedAgents },
+        {
+          onSuccess: () => {
+            setEditedAgent(JSON.parse(JSON.stringify(newAgent)));
+            setEditingIndex(updatedAgents.length - 1);
+          },
+        },
+      );
     };
 
-    const handleSetDefault = async (index: number) => {
-      try {
-        const updatedAgents = agents.map((agent, i) => ({
-          ...agent,
-          isDefault: i === index,
-        }));
-        await userSettings.updateSettings({ agents: updatedAgents });
-      } catch (error) {
-        console.error("Failed to set default agent:", error);
-        alert("Failed to set default agent: " + (error as Error).message);
-      }
+    const handleSetDefault = (index: number) => {
+      const updatedAgents = agents.map((agent, i) => ({
+        ...agent,
+        isDefault: i === index,
+      }));
+      updateSettings({ agents: updatedAgents });
     };
 
     const handleUpdateBufferLines = (value: number) => {
-      setBufferLines(value);
-      userSettings
-        .updateSettings({ terminalPromptBufferLines: value })
-        .catch(notifySettingsError);
+      updateSettings({ terminalPromptBufferLines: value });
     };
 
-    const handleResetToDefaults = async () => {
+    const handleResetToDefaults = () => {
       const shouldReset = confirm(
         "Are you sure you want to reset all agents to defaults? This will replace all current agents.",
       );
       if (!shouldReset) return;
 
-      try {
-        await userSettings.updateSettings({ agents: DEFAULT_AGENTS });
-        setEditingIndex(null);
-        setEditedAgent(null);
-      } catch (error) {
-        console.error("Failed to reset agents:", error);
-        alert("Failed to reset agents: " + (error as Error).message);
-      }
+      updateSettings(
+        { agents: DEFAULT_AGENTS },
+        { onSuccess: handleCancelEdit },
+      );
     };
 
     // Teams handlers
-    const handleAddGroup = async () => {
+    const handleAddGroup = () => {
       const newGroup: LaunchGroup = {
         id: `team-${Date.now()}`,
         name: "New Team",
         agentIds: [],
       };
 
-      try {
-        const updatedGroups = [...launchGroups, newGroup];
-        await userSettings.updateSettings({ launchGroups: updatedGroups });
-
-        const newIndex = updatedGroups.length - 1;
-        setEditedGroup(JSON.parse(JSON.stringify(newGroup)));
-        setEditingGroupIndex(newIndex);
-      } catch (error) {
-        console.error("Failed to add team:", error);
-        alert("Failed to add team: " + (error as Error).message);
-      }
+      const updatedGroups = [...launchGroups, newGroup];
+      updateSettings(
+        { launchGroups: updatedGroups },
+        {
+          onSuccess: () => {
+            setEditedGroup(JSON.parse(JSON.stringify(newGroup)));
+            setEditingGroupIndex(updatedGroups.length - 1);
+          },
+        },
+      );
     };
 
     const handleEditGroup = (index: number) => {
@@ -245,23 +207,18 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
       setEditedGroup(null);
     };
 
-    const handleSaveGroup = async () => {
+    const handleSaveGroup = () => {
       if (editedGroup === null || editingGroupIndex === null) return;
 
-      try {
-        const updatedGroups = [...launchGroups];
-        updatedGroups[editingGroupIndex] = editedGroup;
-
-        await userSettings.updateSettings({ launchGroups: updatedGroups });
-        setEditingGroupIndex(null);
-        setEditedGroup(null);
-      } catch (error) {
-        console.error("Failed to save team:", error);
-        alert("Failed to save changes: " + (error as Error).message);
-      }
+      const updatedGroups = [...launchGroups];
+      updatedGroups[editingGroupIndex] = editedGroup;
+      updateSettings(
+        { launchGroups: updatedGroups },
+        { onSuccess: handleCancelEditGroup },
+      );
     };
 
-    const handleDeleteGroup = async (index: number) => {
+    const handleDeleteGroup = (index: number) => {
       const group = launchGroups[index];
 
       const shouldDelete = confirm(
@@ -269,20 +226,22 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
       );
       if (!shouldDelete) return;
 
-      try {
-        const updatedGroups = launchGroups.filter((_, i) => i !== index);
-        await userSettings.updateSettings({ launchGroups: updatedGroups });
-
-        if (editingGroupIndex === index) {
-          setEditingGroupIndex(null);
-          setEditedGroup(null);
-        } else if (editingGroupIndex !== null && editingGroupIndex > index) {
-          setEditingGroupIndex(editingGroupIndex - 1);
-        }
-      } catch (error) {
-        console.error("Failed to delete team:", error);
-        alert("Failed to delete team: " + (error as Error).message);
-      }
+      const updatedGroups = launchGroups.filter((_, i) => i !== index);
+      updateSettings(
+        { launchGroups: updatedGroups },
+        {
+          onSuccess: () => {
+            if (editingGroupIndex === index) {
+              handleCancelEditGroup();
+            } else if (
+              editingGroupIndex !== null &&
+              editingGroupIndex > index
+            ) {
+              setEditingGroupIndex(editingGroupIndex - 1);
+            }
+          },
+        },
+      );
     };
 
     const toggleAgentInGroup = (agentId: string) => {

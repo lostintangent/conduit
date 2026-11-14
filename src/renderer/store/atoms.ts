@@ -4,13 +4,7 @@ import { getDefaultActions } from "@/commands/paneActions/core/defaults";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
 import type { HyperTerminal, WorkspaceState } from "@shared/types";
-import { defaultSettings, type UserSettings } from "@features/settings/model";
 import { createAtom, createFrozenAtom } from "@/store/createAtom";
-
-export const userSettingsAtom = createAtom<UserSettings>({
-  ...defaultSettings,
-  homeDirectory: null,
-});
 
 export const tabsAtom = createFrozenAtom<Tab[]>([]);
 

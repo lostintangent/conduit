@@ -1,15 +1,22 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { act } from "@testing-library/react";
 import { useMarkdownPreview } from "../../../../src/renderer/components/panes/editor/hooks/useMarkdownPreview";
 import React from "react";
-import { userSettingsAtom } from "@/store/atoms";
+import { createQueryClient } from "@/query";
+import type { QueryClient } from "@tanstack/react-query";
+import { renderHook as renderQueryHook, seedSettings } from "../../queryRender";
 
 // ============================================================================
 // Mocks
 // ============================================================================
 
+let queryClient: QueryClient;
+
 const setTheme = (theme: "dark" | "light" | "system") =>
-  userSettingsAtom.set((settings) => ({ ...settings, theme }));
+  seedSettings(queryClient, { theme });
+
+const renderHook = <Result>(callback: () => Result) =>
+  renderQueryHook(callback, { queryClient });
 
 vi.mock("@/utils/theme", () => ({
   resolveTheme: (theme: string) => theme,
@@ -22,6 +29,7 @@ vi.mock("@/utils/theme", () => ({
 describe("useMarkdownPreview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = createQueryClient();
     setTheme("dark");
   });
 

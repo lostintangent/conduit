@@ -15,7 +15,8 @@ import {
 } from "@/store/actions/hyperTerminal";
 import { splitPane } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
-import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
+import { applicationModeAtom } from "@/store/atoms";
+import { getSettings, useSettings } from "@features/settings/client/queries";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@features/terminal/client/prompt";
 import { useSelector } from "@tanstack/react-store";
@@ -169,9 +170,8 @@ export const TerminalPane = ({
   fontSize,
 }: TerminalPaneProps) => {
   const { id: paneId, sessionId: terminalId, cwd } = pane;
-  const settings = useSelector(userSettingsAtom);
-  const { showTerminalRuler } = settings;
-  const playButtonTarget = settings.playButtonTarget ?? "newPane";
+  const showTerminalRuler = useSettings((s) => s.showTerminalRuler);
+  const playButtonTarget = useSettings((s) => s.playButtonTarget ?? "newPane");
   const applicationMode = useSelector(applicationModeAtom);
   const setApplicationMode = applicationModeAtom.set;
 
@@ -258,6 +258,7 @@ export const TerminalPane = ({
 
   const handlePromptSubmit = useCallback(
     async (prompt: string, requestedAgentId?: string) => {
+      const settings = getSettings();
       const agents = settings.agents || [];
 
       // Find the requested agent or default agent
@@ -398,7 +399,7 @@ export const TerminalPane = ({
         }
       }
     },
-    [sessionId, cwd, settings, promptMode.conversationHistory],
+    [sessionId, cwd, promptMode.conversationHistory],
   );
 
   const handleClosePromptMode = useCallback(() => {
@@ -444,7 +445,7 @@ export const TerminalPane = ({
     let controller: ReturnType<typeof createFitController> | null = null;
     let detachKeyHandler: (() => void) | null = null;
 
-    const terminal = getOrCreate(sessionId, paneId, settings);
+    const terminal = getOrCreate(sessionId, paneId, getSettings());
 
     terminalRef.current = terminal;
 

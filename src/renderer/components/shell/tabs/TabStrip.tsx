@@ -1,3 +1,4 @@
+import { useSettings } from "@features/settings/client/queries";
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import {
   getCommandDisplayTitle,
@@ -36,7 +37,6 @@ import {
   applicationModeAtom,
   hyperTerminalsAtom,
   tabsAtom,
-  userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@features/settings/model";
@@ -83,8 +83,13 @@ export const TabStrip = ({
     activeTab?.activePaneId !== undefined
       ? activeTab?.panes[activeTab.activePaneId]
       : null;
-  const { homeDirectory, alwaysShowTabs, showLaunchButton } =
-    useSelector(userSettingsAtom);
+  const { homeDirectory, alwaysShowTabs, showLaunchButton } = useSettings(
+    (s) => ({
+      homeDirectory: s.homeDirectory,
+      alwaysShowTabs: s.alwaysShowTabs,
+      showLaunchButton: s.showLaunchButton,
+    }),
+  );
   const shouldShowLaunchButton = showLaunchButton ?? false;
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const isDesignMode = applicationMode === "design";

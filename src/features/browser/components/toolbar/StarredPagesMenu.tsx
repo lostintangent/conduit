@@ -9,9 +9,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUserSettings } from "@features/settings/components/useUserSettings";
+import {
+  settingsMutations,
+  useSettings,
+} from "@features/settings/client/queries";
 import { cn } from "@/utils/index";
 import type { BrowserPage } from "@features/settings/model";
+import { useMutation } from "@tanstack/react-query";
 import { ChevronDown, Star } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -26,11 +30,13 @@ export function StarredPagesMenu({
   onPageSelected,
   onMenuOpened,
 }: StarredPagesMenuProps) {
-  const {
-    starredPages = [],
-    addStarredPage,
-    removeStarredPage,
-  } = useUserSettings();
+  const starredPages = useSettings((s) => s.starredPages);
+  const { mutate: addStarredPage } = useMutation(
+    settingsMutations.addStarredPage(),
+  );
+  const { mutate: removeStarredPage } = useMutation(
+    settingsMutations.removeStarredPage(),
+  );
 
   const starButtonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -65,10 +71,10 @@ export function StarredPagesMenu({
     }
 
     if (isCurrentUrlStarred) {
-      void removeStarredPage(currentPage.url);
+      removeStarredPage(currentPage.url);
     } else {
       const trimmedTitle = currentPage.title.trim();
-      void addStarredPage({
+      addStarredPage({
         url: currentPage.url,
         title: trimmedTitle.length > 0 ? trimmedTitle : currentPage.url,
       });
@@ -93,7 +99,7 @@ export function StarredPagesMenu({
 
   const handleStarredRemove = useCallback(
     (pageUrl: string) => {
-      void removeStarredPage(pageUrl);
+      removeStarredPage(pageUrl);
     },
     [removeStarredPage],
   );

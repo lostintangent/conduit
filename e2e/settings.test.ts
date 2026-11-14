@@ -32,8 +32,8 @@ describe("settings", () => {
 
   it("keeps that edit when it next saves a setting", async () => {
     await app.page.getByRole("button", { name: "Settings" }).click();
-    // The box only turns on once the save comes back, so check() would race
-    // it. This waits for the file instead.
+    // The box turns on a moment after the click, so check() would race it.
+    // This waits for the saved file instead.
     await app.page
       .getByRole("checkbox", { name: "Show terminal ruler" })
       .click();
@@ -59,8 +59,9 @@ describe("settings", () => {
 
     await app.page.getByText("Couldn't update settings").waitFor();
     await app.page.getByText("settings.json doesn't parse").waitFor();
-    // Turning the ruler off didn't save, so the box shows it still on.
-    expect(await ruler.isChecked()).toBe(true);
+    // Turning the ruler off didn't save, so once the app re-reads its
+    // settings, the box shows it still on.
+    await until(() => ruler.isChecked(), "the ruler's box to turn back on");
     expect(fs.readFileSync(file, "utf-8")).toBe("{ not json");
   });
 

@@ -32,11 +32,7 @@ import { useAutoUpdater } from "@features/updates/components/useAutoUpdater";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import {
-  notifySettingsError,
-  useSettingsSync,
-  useUserSettings,
-} from "@features/settings/components/useUserSettings";
+import { useSettings } from "@features/settings/client/queries";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
 import {
   closeHyperTerminal,
@@ -87,8 +83,6 @@ export function App() {
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const hyperTerminals = useSelector(hyperTerminalsAtom);
 
-  useSettingsSync();
-  const userSettings = useUserSettings();
   const {
     tabPosition,
     alwaysShowTabs,
@@ -97,7 +91,17 @@ export function App() {
     themeOverrides,
     agents,
     launchGroups,
-  } = userSettings;
+    dotfilesRepo,
+  } = useSettings((s) => ({
+    tabPosition: s.tabPosition,
+    alwaysShowTabs: s.alwaysShowTabs,
+    homeDirectory: s.homeDirectory,
+    theme: s.theme,
+    themeOverrides: s.themeOverrides,
+    agents: s.agents,
+    launchGroups: s.launchGroups,
+    dotfilesRepo: s.dotfilesRepo,
+  }));
 
   // Apply theme (and terminal colors) on change, and on system theme
   // changes when in "system" mode
@@ -177,7 +181,7 @@ export function App() {
     applicationMode,
     setApplicationMode,
     homeDirectory,
-    dotfilesRepo: userSettings.dotfilesRepo,
+    dotfilesRepo,
     workspaceName,
     // Context key data
     hasCustomLayout,
@@ -839,10 +843,6 @@ export function App() {
           keybindingRegistry={commandSystem.keybindingRegistry}
           homeDirectory={homeDirectory}
           initialTab={settingsTab}
-          onUpdateSettings={(updates) => {
-            userSettings.updateSettings(updates).catch(notifySettingsError);
-          }}
-          userSettings={userSettings}
         />
       ) : settingsTab ? (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">

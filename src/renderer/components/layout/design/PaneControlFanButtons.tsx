@@ -16,6 +16,7 @@ import {
   splitPane,
 } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
+import { getSettings } from "@features/settings/client/queries";
 import type { SplitDirection } from "@/types";
 import { useSelector } from "@tanstack/react-store";
 import { Settings } from "lucide-react";
@@ -73,8 +74,6 @@ export function PaneControlFanButtons({
   };
 
   const handleActionClick = async (action: Action) => {
-    const api = window.conduit;
-
     // Get cwd from current pane if available
     let cwd: string | undefined;
     if (currentPane) {
@@ -149,8 +148,7 @@ export function PaneControlFanButtons({
 
           if (!editorCwd) {
             // Fallback to home directory
-            const { homeDirectory: homeDir } = await api.settings.get();
-            editorCwd = homeDir || ".";
+            editorCwd = getSettings().homeDirectory || ".";
           }
 
           openEditorPane(tabId, paneId, editorCwd, direction, insertBefore);

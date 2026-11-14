@@ -10,9 +10,7 @@
 
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserSettings } from "./useUserSettings";
 import { DialogTitle } from "@radix-ui/react-dialog";
-import type { UserSettings } from "../model";
 import { X } from "lucide-react";
 import { useState } from "react";
 import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
@@ -28,8 +26,6 @@ interface SettingsDialogProps {
   keybindingRegistry: KeybindingRegistry;
   homeDirectory: string;
   initialTab?: "general" | "keybindings" | "paneActions" | "agents";
-  onUpdateSettings: (updates: Partial<UserSettings>) => void;
-  userSettings: ReturnType<typeof useUserSettings>;
 }
 
 export function SettingsDialog({
@@ -38,8 +34,6 @@ export function SettingsDialog({
   keybindingRegistry,
   homeDirectory,
   initialTab = "general",
-  onUpdateSettings,
-  userSettings,
 }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
@@ -77,10 +71,7 @@ export function SettingsDialog({
 
           {/* General Tab */}
           <TabsContent value="general" className="flex flex-col min-h-0 flex-1">
-            <GeneralTab
-              userSettings={userSettings}
-              onUpdateSettings={onUpdateSettings}
-            />
+            <GeneralTab />
           </TabsContent>
 
           {/* Keyboard Shortcuts Tab */}
@@ -105,7 +96,7 @@ export function SettingsDialog({
 
           {/* Agents Tab */}
           <TabsContent value="agents" className="flex flex-col min-h-0 flex-1">
-            <AgentsTab userSettings={userSettings} />
+            <AgentsTab />
           </TabsContent>
         </Tabs>
       </DialogContent>

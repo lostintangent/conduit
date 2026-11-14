@@ -1,11 +1,6 @@
 import type { Workspace } from "@shared/types";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { render } from "../../../../tests/renderer/queryRender";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => {

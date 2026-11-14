@@ -10,8 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePackageJsonScripts } from "@/hooks/usePackageJsonScripts";
-import { userSettingsAtom } from "@/store/atoms";
-import { useSelector } from "@tanstack/react-store";
+import { useSettings } from "@features/settings/client/queries";
 import { Play } from "lucide-react";
 
 type RepoScriptsMenuProps = {
@@ -24,8 +23,7 @@ type RepoScriptsMenuProps = {
  * found in package.json. Only rendered when the showPlayButton setting is enabled.
  */
 export function RepoScriptsMenu({ cwd, onRunScript }: RepoScriptsMenuProps) {
-  const userSettings = useSelector(userSettingsAtom);
-  const showPlayButton = userSettings.showPlayButton ?? false;
+  const showPlayButton = useSettings((s) => s.showPlayButton ?? false);
 
   const { scripts } = usePackageJsonScripts(cwd);
   const hasScripts = scripts && Object.keys(scripts).length > 0;

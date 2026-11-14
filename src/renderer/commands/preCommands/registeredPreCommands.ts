@@ -1,3 +1,4 @@
+import { getSettings } from "@features/settings/client/queries";
 import { createAgentSessionHandler } from "./handlers/agentSessionHandler";
 import { verifyGitRepoHandler } from "./handlers/gitRepoHandler";
 import type { PreCommand, PreCommandResult, TerminalConfig } from "./types";
@@ -14,13 +15,10 @@ export const verifyGitRepo: PreCommand = {
   description: "Checks that the working directory is inside a git repository",
 
   run: async (terminalConfig) => {
-    const api = window.conduit;
-
     // Determine cwd from config or fallback to home directory
     let cwd: string | null | undefined = terminalConfig.cwd;
     if (!cwd) {
-      const settings = await api.settings.get();
-      cwd = settings.homeDirectory;
+      cwd = getSettings().homeDirectory;
     }
 
     if (!cwd) {
@@ -57,13 +55,10 @@ export const createAgentSession: PreCommand = {
   description: "Spawns a git worktree for isolated agent development",
 
   run: async (terminalConfig) => {
-    const api = window.conduit;
-
     // Determine cwd from config or fallback to home directory
     let cwd: string | null | undefined = terminalConfig.cwd;
     if (!cwd) {
-      const settings = await api.settings.get();
-      cwd = settings.homeDirectory;
+      cwd = getSettings().homeDirectory;
     }
 
     if (!cwd) {

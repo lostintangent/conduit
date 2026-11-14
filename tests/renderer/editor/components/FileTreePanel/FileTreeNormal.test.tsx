@@ -1,11 +1,6 @@
 // @ts-nocheck
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { render } from "../../../queryRender";
 import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

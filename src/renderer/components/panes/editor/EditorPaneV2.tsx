@@ -23,11 +23,10 @@ import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/Sa
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@features/git/components/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { userSettingsAtom } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import type { EditorPane as EditorPaneType } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
-import { useSelector } from "@tanstack/react-store";
 import {
   startTransition,
   useCallback,
@@ -225,10 +224,9 @@ export function EditorPaneV2({
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
 
-  // Get user settings for unseen tracking preference
-  const userSettings = useSelector(userSettingsAtom);
-  const trackUnseenChanges =
-    userSettings.trackUnseenChangesInReviewMode ?? true;
+  const trackUnseenChanges = useSettings(
+    (s) => s.trackUnseenChangesInReviewMode ?? true,
+  );
 
   // Use sandbox handlers from the shared hook
   const {

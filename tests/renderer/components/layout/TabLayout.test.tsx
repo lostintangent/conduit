@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const openExternal = vi.hoisted(() => {
@@ -17,15 +17,13 @@ vi.mock("@features/terminal/components/TerminalPane", () => ({
 
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import {
-  activeTabIdAtom,
-  applicationModeAtom,
-  tabsAtom,
-  userSettingsAtom,
-} from "@/store/atoms";
+import { createQueryClient } from "@/query";
+import { activeTabIdAtom, applicationModeAtom, tabsAtom } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { Tab } from "@/types";
+import type { QueryClient } from "@tanstack/react-query";
 import { enableMapSet } from "immer";
+import { render, seedSettings } from "../../queryRender";
 
 enableMapSet();
 
@@ -45,6 +43,11 @@ const tab: Tab = {
   activePaneId: "term",
 };
 
+let queryClient: QueryClient;
+beforeEach(() => {
+  queryClient = createQueryClient();
+});
+
 function renderTabLayout() {
   render(
     <TabContentPortalProvider>
@@ -56,6 +59,7 @@ function renderTabLayout() {
         handleEditorUpdate={vi.fn()}
       />
     </TabContentPortalProvider>,
+    { queryClient },
   );
 }
 
@@ -68,10 +72,7 @@ describe("TabLayout terminal links", () => {
   });
 
   it("opens links in the default browser when that's the link target", () => {
-    userSettingsAtom.set({
-      ...userSettingsAtom.get(),
-      terminalLinkTarget: "default",
-    });
+    seedSettings(queryClient, { terminalLinkTarget: "default" });
     renderTabLayout();
 
     act(() => terminalProps!.onLinkClick("https://example.com"));
@@ -80,18 +81,16 @@ describe("TabLayout terminal links", () => {
     expect(tabsAtom.get()[0].panes).toEqual(tab.panes);
   });
 
-  it("follows a link target change made while the terminal is open", () => {
-    userSettingsAtom.set({
-      ...userSettingsAtom.get(),
-      terminalLinkTarget: "default",
-    });
+  it("follows a link target change made while the terminal is open", async () => {
+    seedSettings(queryClient, { terminalLinkTarget: "default" });
     renderTabLayout();
+    const { onLinkClick } = terminalProps!;
 
-    act(() =>
-      userSettingsAtom.set({
-        ...userSettingsAtom.get(),
-        terminalLinkTarget: "sidebar",
-      }),
+    act(() => {
+      seedSettings(queryClient, { terminalLinkTarget: "sidebar" });
+    });
+    await waitFor(() =>
+      expect(terminalProps!.onLinkClick).not.toBe(onLinkClick),
     );
     act(() => terminalProps!.onLinkClick("https://example.com"));
 

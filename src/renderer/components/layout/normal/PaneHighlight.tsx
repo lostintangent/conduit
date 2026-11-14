@@ -1,4 +1,4 @@
-import { useUserSettings } from "@features/settings/components/useUserSettings";
+import { useSettings } from "@features/settings/client/queries";
 import { activePaneIdAtom } from "@/store/atoms";
 import { useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,7 +14,9 @@ const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.
  */
 function usePaneHighlight() {
   const activePaneId = useSelector(activePaneIdAtom);
-  const { alwaysHighlightActivePane } = useUserSettings();
+  const alwaysHighlightActivePane = useSettings(
+    (s) => s.alwaysHighlightActivePane,
+  );
 
   const [highlightedPaneId, setHighlightedPaneId] = useState<string | null>(
     null,
@@ -98,7 +100,9 @@ type PaneHighlightProps = {
 
 export function PaneHighlight({ paneId }: PaneHighlightProps) {
   const highlightedPaneId = usePaneHighlight();
-  const { alwaysHighlightActivePane } = useUserSettings();
+  const alwaysHighlightActivePane = useSettings(
+    (s) => s.alwaysHighlightActivePane,
+  );
 
   if (paneId !== highlightedPaneId) {
     return null;

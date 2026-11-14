@@ -19,9 +19,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSettings } from "@features/settings/client/queries";
 import { openWorkspace } from "@features/workspaces/client/actions";
 import {
-  userSettingsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
   workspaceStateAtom,
@@ -32,7 +32,7 @@ import type { Workspace } from "@shared/types";
 const api = window.conduit;
 
 export const WorkspaceMenu = () => {
-  const { autoSaveWorkspaces } = useSelector(userSettingsAtom);
+  const autoSaveWorkspaces = useSettings((s) => s.autoSaveWorkspaces);
 
   const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
   const workspaceName = useSelector(workspaceNameAtom);

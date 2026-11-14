@@ -8,8 +8,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { useSelector } from "@tanstack/react-store";
-import { userSettingsAtom } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import { resolveTheme, watchSystemTheme } from "@/utils/theme";
 
 /**
@@ -23,7 +22,7 @@ import { resolveTheme, watchSystemTheme } from "@/utils/theme";
  * @returns Monaco theme name ("vs" or "vs-dark")
  */
 export function useEditorTheme(): string {
-  const { theme: themeMode } = useSelector(userSettingsAtom);
+  const themeMode = useSettings((s) => s.theme);
 
   // Get initial resolved theme
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>

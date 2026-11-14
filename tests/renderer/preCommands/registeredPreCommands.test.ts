@@ -8,8 +8,10 @@ import {
   verifyGitRepo,
 } from "@/commands/preCommands/registeredPreCommands";
 import type { TerminalConfig } from "@/commands/preCommands/types";
+import { queryClient } from "@/query";
 import type { AgentSessionInfo } from "@shared/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { seedSettings } from "../queryRender";
 
 describe("registeredPreCommands", () => {
   const mockSession: AgentSessionInfo = {
@@ -28,11 +30,9 @@ describe("registeredPreCommands", () => {
       conduit: {
         hasGitRepository: vi.fn(),
         spawnAgentSession: vi.fn(),
-        settings: {
-          get: vi.fn().mockResolvedValue({ homeDirectory: "/home/user" }),
-        },
       },
     };
+    seedSettings(queryClient, { homeDirectory: "/home/user" });
   });
 
   afterEach(() => {
@@ -92,13 +92,11 @@ describe("registeredPreCommands", () => {
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(true);
-      expect(mockApi.settings.get).toHaveBeenCalled();
       expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/home/user");
     });
 
     it("should fail when no cwd and no home directory", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.settings.get.mockResolvedValue({ homeDirectory: null });
+      seedSettings(queryClient, { homeDirectory: null });
 
       const config: TerminalConfig = {
         command: "git status",
@@ -184,15 +182,13 @@ describe("registeredPreCommands", () => {
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(true);
-      expect(mockApi.settings.get).toHaveBeenCalled();
       expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
         cwd: "/home/user",
       });
     });
 
     it("should fail when no cwd and no home directory", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.settings.get.mockResolvedValue({ homeDirectory: null });
+      seedSettings(queryClient, { homeDirectory: null });
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -320,15 +316,17 @@ describe("registeredPreCommands", () => {
     });
 
     it("should convert thrown errors into a failure result", async () => {
-      const mockApi = (global as any).window.conduit;
-      mockApi.settings.get.mockRejectedValue(new Error("Settings unavailable"));
+      queryClient.clear();
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const result = await runPreCommand("verify-git-repo", {
         command: "test",
       });
 
-      expect(result).toEqual({ success: false, error: "Settings unavailable" });
+      expect(result).toEqual({
+        success: false,
+        error: "Settings were read before they loaded",
+      });
       errorSpy.mockRestore();
     });
   });

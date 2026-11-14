@@ -18,9 +18,8 @@
  * ```
  */
 
-import { userSettingsAtom } from "@/store/atoms";
+import { useSettings } from "@features/settings/client/queries";
 import { resolveTheme } from "@/utils/theme";
-import { useSelector } from "@tanstack/react-store";
 import { useCallback, useMemo, useRef } from "react";
 
 /**
@@ -50,7 +49,7 @@ export interface UseMarkdownPreviewResult {
  * @returns Mermaid config, click handler, and container ref
  */
 export function useMarkdownPreview(): UseMarkdownPreviewResult {
-  const { theme } = useSelector(userSettingsAtom);
+  const theme = useSettings((s) => s.theme);
   const resolvedTheme = resolveTheme(theme);
   const containerRef = useRef<HTMLDivElement>(null);
 

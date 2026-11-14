@@ -88,7 +88,7 @@ export type UserSettings = {
 
 /**
  * Every setting that has a default. Main fills in whatever settings.json
- * leaves out from these, and the renderer starts from them until main replies.
+ * leaves out from these.
  */
 export const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   tabPosition: "bottom",

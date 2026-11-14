@@ -3,13 +3,13 @@ import {
   tabProgressAtom,
   tabsAtom,
   tabStateAtom,
-  userSettingsAtom,
   type TabProgressState,
   type TabState,
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { formatHomePath } from "@/utils/pathUtils";
 import { createAtom } from "@/store/createAtom";
+import { getSettings } from "@features/settings/client/queries";
 
 export type TabDescriptor = {
   id: string;
@@ -39,7 +39,8 @@ export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
   const activeTabId = activeTabIdAtom.get();
   const tabStates = tabStateAtom.get();
   const tabProgress = tabProgressAtom.get();
-  const { homeDirectory } = userSettingsAtom.get();
+  // Not tracked, since the home directory doesn't change while the app runs
+  const { homeDirectory } = getSettings();
 
   const formatPathForLabel = (pathValue: string | null | undefined) =>
     pathValue ? formatHomePath(pathValue, homeDirectory) : null;
