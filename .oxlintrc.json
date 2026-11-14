@@ -1,9 +1,23 @@
 {
   "plugins": ["react", "vitest"],
   "categories": {
+    "correctness": "error",
     "perf": "warn"
   },
   "rules": {
+    // Correctness rules the code doesn't pass yet. They stay warnings until
+    // it does, and every other correctness rule fails `bun lint`.
+    "react-hooks/immutability": "warn",
+    "react-hooks/incompatible-library": "warn",
+    "react-hooks/preserve-manual-memoization": "warn",
+    "react-hooks/refs": "warn",
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/static-components": "warn",
+    "react-hooks/use-memo": "warn",
+    "react/no-did-update-set-state": "warn",
+    "vitest/expect-expect": "warn",
+    "vitest/no-conditional-expect": "warn",
+    "vitest/require-to-throw-message": "warn",
     "no-await-in-loop": "off",
     "no-constant-condition": "off",
     "no-control-regex": "off",
