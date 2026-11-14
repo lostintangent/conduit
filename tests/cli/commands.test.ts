@@ -12,25 +12,37 @@ const sendCliCommand = vi.hoisted(() =>
 
 vi.mock("../../src/cli/ipc/ipc", () => ({ sendCliCommand }));
 
-import registerBrowserCommands from "@features/browser/cli/command";
-import registerEditorCommands from "@features/editor/cli/command";
-import registerPaneCommands from "@features/workbench/cli/paneCommand";
-import registerTerminalCommands from "@features/terminal/cli/command";
 import "../../src/cli/ipc";
 
+// The commands each feature registers, found the way src/cli/index.ts finds
+// them.
+const features = import.meta.glob<(program: Command) => Command>(
+  "../../src/features/*/cli/command.ts",
+  { eager: true, import: "default" },
+);
+
+// Subcommands copy their parent's settings when they're added.
+function createProgram(program = new Command()) {
+  for (const register of Object.values(features)) register(program);
+  return program;
+}
+
 async function run(args: string[]) {
-  const program = new Command()
-    .exitOverride()
-    .configureOutput({ writeErr: () => {} });
-  registerPaneCommands(program);
-  registerBrowserCommands(program);
-  registerEditorCommands(program);
-  registerTerminalCommands(program);
+  const program = createProgram(
+    new Command().exitOverride().configureOutput({ writeErr: () => {} }),
+  );
 
   sendCliCommand.mockClear();
   await program.parseAsync(args, { from: "user" });
   return sendCliCommand.mock.calls[0];
 }
+
+it("has a handler in the app for every command", async () => {
+  const { handlerMap } = await import("@/cli/handlers");
+  const commands = createProgram().commands.map((command) => command.name());
+
+  expect(Object.keys(handlerMap).sort()).toEqual(commands.sort());
+});
 
 describe("pane-close", () => {
   it.each([

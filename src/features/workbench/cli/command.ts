@@ -61,5 +61,37 @@ export default function (program: Command): Command {
     .alias("focus")
     .description("Toggle focus mode for the active pane.");
 
+  program
+    .cliCommand("tab-new", (request, { title, command }) =>
+      request({ title, command }),
+    )
+    .alias("new")
+    .description("Open a new tab.")
+    .option("-t, --title <title>", "Title for the new tab")
+    .option("-c, --command <command>", "Command to run in the new tab");
+
+  program
+    .cliCommand("tab-duplicate")
+    .alias("duplicate")
+    .description("Duplicate the active tab.");
+
+  program
+    .cliCommand("tab-lock")
+    .alias("lock")
+    .description("Toggle the locked state of the active tab.");
+
+  program
+    .cliCommand("tab-synchronize")
+    .alias("synchronize")
+    .description("Toggle the synchronized state of the active tab.");
+
+  program
+    .cliCommand("notify", async (request, messageParts: string[]) => {
+      const message = messageParts.join(" ") || undefined;
+      await request({ message });
+    })
+    .description("Display a notification")
+    .argument("[message...]", "The notification message to display");
+
   return program;
 }

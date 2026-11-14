@@ -13,17 +13,6 @@ type Service = Record<string, (...args: any[]) => unknown>;
 type Dispose = () => void | Promise<void>;
 type Startup = () => void | Dispose | Promise<void | Dispose>;
 
-// Bun declares `import.meta.glob` in bun-types, which the app's tsconfig
-// leaves out so renderer code can't see Bun's globals.
-declare global {
-  interface ImportMeta {
-    glob<Module>(
-      pattern: string,
-      options: { eager: true; import: "default" },
-    ): Record<string, Module>;
-  }
-}
-
 const services = byFeature(
   import.meta.glob<Service>("../features/*/main/service.ts", {
     eager: true,

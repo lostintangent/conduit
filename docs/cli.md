@@ -25,7 +25,7 @@ The CLI is built on a multi-process architecture that leverages:
 
 ### 1. CLI Entry Point (`src/cli/index.ts`)
 
-The CLI is built using the [Commander.js](https://github.com/tj/commander.js) library and defines all available commands. Key responsibilities include:
+The CLI is built using the [Commander.js](https://github.com/tj/commander.js) library. Each feature defines its commands in `src/features/<name>/cli/command.ts`, whose default export registers them on the program, and the entry point finds those files with `import.meta.glob`. Key responsibilities include:
 
 - Parsing command-line arguments
 - Validating input parameters
@@ -196,8 +196,10 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
 The renderer process handles CLI requests by:
 
 - Listening for `cli:request` events from the main process
-- Executing the requested command using the application's command system
+- Running the handler for the command's name
 - Sending responses back to the main process via `cli:respond`
+
+Each feature handles its commands in `src/features/<name>/cli/handler.ts`, whose default export maps command names to handlers. `src/renderer/cli/handlers/index.ts` merges them with `import.meta.glob`. A handler gets the request's context, including the calling terminal's tab, and finds its own pane from there. The browser's handlers find their webview, for example.
 
 ## CLI Packaging and Distribution
 

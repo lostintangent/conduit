@@ -1,25 +1,35 @@
-import {
-  automateBrowser,
-  findCallingTerminalTab,
-  resolveBrowserPane,
-  resolveCanvasPane,
-  resolveTerminalSessions,
-} from "@/cli/utils";
-import {
-  activeTabAtom,
-  quickPaneAtom,
-  tabsAtom,
-} from "@features/workbench/client/atoms";
-import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
+import { isHyperTerminal } from "@features/workbench/client/actions/hyperTerminal";
+import { activeTabAtom, tabsAtom } from "@features/workbench/client/atoms";
+import type { Tab } from "@features/workbench/model";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { useEffect, useEffectEvent } from "react";
 import { handlerMap, type HandlerContext } from "./handlers";
 
 const { cli } = window.conduit;
 
-export function useCliClient(activeCwd: string) {
-  const setQuickPane = quickPaneAtom.set;
+function findCallingTerminalTab(
+  tabs: Tab[],
+  sessionId: string,
+  activeTab: Tab | null,
+): Tab {
+  let matchingTab = tabs.find((tab) =>
+    Object.values(tab.panes).some(
+      (pane) => pane.type === "terminal" && pane.sessionId === sessionId,
+    ),
+  );
 
+  if (!matchingTab && isHyperTerminal(sessionId)) {
+    matchingTab = activeTab ?? undefined;
+  }
+
+  if (!matchingTab) {
+    throw new Error("Unable to find the calling terminal's tab.");
+  }
+
+  return matchingTab;
+}
+
+export function useCliClient(activeCwd: string) {
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
       let isResponseSuppressed = false;
@@ -27,7 +37,6 @@ export function useCliClient(activeCwd: string) {
       // every tab change just to keep these current.
       const tabs = tabsAtom.get();
       const activeTab = activeTabAtom.get();
-      const sidebarState = sidebarStateAtom.get();
 
       const respond = <T>(response: Omit<CliResponse<T>, "requestId">) => {
         cli.respondToRequest<T>({
@@ -38,20 +47,6 @@ export function useCliClient(activeCwd: string) {
 
       const respondResult = (result?: unknown) => respond({ result });
       const respondError = (error: string) => respond({ error });
-
-      const resolutionContext = {
-        tabs,
-        sessionId,
-        activeTab,
-      } as const;
-
-      // Browser and canvas need sidebar state for resolution
-      const sidebarAwareContext = {
-        ...resolutionContext,
-        isSidebarOpen: sidebarState.isOpen,
-        sidebarView: sidebarState.view,
-        activeCwd,
-      } as const;
 
       const handler = handlerMap[name];
 
@@ -65,21 +60,13 @@ export function useCliClient(activeCwd: string) {
       };
 
       const context: HandlerContext = {
-        onOpenFile: setQuickPane,
         requestId,
         sessionId,
         activeTab,
-        tabs,
+        activeCwd,
         suppressResponse,
-        findCallingTerminalTab: () => findCallingTerminalTab(resolutionContext),
-        resolveTerminalSessions: (paneId?: string, all?: boolean) =>
-          resolveTerminalSessions(resolutionContext, paneId, all),
-        resolveBrowserPane: (paneId?: string) =>
-          resolveBrowserPane(sidebarAwareContext, paneId),
-        resolveCanvasPane: (paneId?: string) =>
-          resolveCanvasPane(sidebarAwareContext, paneId),
-        automateBrowser: (command, automationArgs) =>
-          automateBrowser(sidebarAwareContext, command, automationArgs),
+        findCallingTerminalTab: () =>
+          findCallingTerminalTab(tabs, sessionId, activeTab),
       };
 
       try {

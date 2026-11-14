@@ -66,13 +66,5 @@ export default function (program: Command): Command {
       parseSeconds,
     );
 
-  program
-    .cliCommand("notify", async (request, messageParts: string[]) => {
-      const message = messageParts.join(" ") || undefined;
-      await request({ message });
-    })
-    .description("Display a notification")
-    .argument("[message...]", "The notification message to display");
-
   return program;
 }

@@ -1,7 +1,20 @@
-import { executeCommand } from "@/commands";
-import { closePane } from "@features/workbench/client/actions/pane";
-import { ApplicationCommands } from "@shared/commands";
 import type { HandlerMap } from "@/cli/handlers/types";
+import { executeCommand } from "@/commands";
+import {
+  dismissNotification,
+  enqueueNotification,
+} from "@features/workbench/client/actions/notifications";
+import {
+  activatePane,
+  closePane,
+} from "@features/workbench/client/actions/pane";
+import {
+  focusTab,
+  markTabAsNotified,
+  openTab,
+  updateTabProperty,
+} from "@features/workbench/client/actions/tab";
+import { ApplicationCommands } from "@shared/commands";
 
 const moveCommands = {
   left: ApplicationCommands.PANE_MOVE_LEFT,
@@ -38,7 +51,7 @@ const splitCommands = {
   },
 } as const;
 
-export const paneHandlers: Partial<HandlerMap> = {
+export default {
   "pane-list": (args, context) => {
     const matchingTab = context.findCallingTerminalTab();
 
@@ -86,4 +99,69 @@ export const paneHandlers: Partial<HandlerMap> = {
       await executeCommand(ApplicationCommands.PANE_CLOSE);
     }
   },
-};
+
+  "tab-new": async (args) => {
+    await openTab({
+      title: args?.title,
+      command: args?.command,
+    });
+  },
+
+  "tab-duplicate": async () => {
+    await executeCommand(ApplicationCommands.TAB_DUPLICATE);
+  },
+
+  "tab-lock": (_args, context) => {
+    const tab = context.findCallingTerminalTab();
+    updateTabProperty(tab.id, { locked: !tab.locked });
+  },
+
+  "tab-synchronize": (_args, context) => {
+    const tab = context.findCallingTerminalTab();
+    updateTabProperty(tab.id, { synchronized: !tab.synchronized });
+  },
+
+  notify: (args, context) => {
+    const matchingTab = context.findCallingTerminalTab();
+
+    const callingPane = Object.entries(matchingTab.panes).find(
+      ([, pane]) =>
+        pane.type === "terminal" && pane.sessionId === context.sessionId,
+    );
+
+    if (!callingPane) {
+      throw new Error("Unable to find the calling terminal's pane.");
+    }
+
+    const isTabActive = matchingTab.id === context.activeTab?.id;
+
+    // Always mark background tabs as notified
+    if (!isTabActive) {
+      markTabAsNotified(matchingTab.id, context.sessionId);
+    }
+
+    // Only show notification toast if message provided
+    if (args.message) {
+      const isPaneActive = callingPane[0] === context.activeTab?.activePaneId;
+      const isAlreadyActive = isTabActive && isPaneActive;
+
+      const notificationId = enqueueNotification({
+        kind: "info",
+        message: args.message,
+        system: true,
+        actions: !isAlreadyActive
+          ? [
+              {
+                label: "Focus terminal",
+                onClick: () => {
+                  focusTab(matchingTab.id);
+                  activatePane(matchingTab.id, callingPane[0]);
+                  dismissNotification(notificationId);
+                },
+              },
+            ]
+          : undefined,
+      });
+    }
+  },
+} satisfies Partial<HandlerMap>;

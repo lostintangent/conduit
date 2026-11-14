@@ -1,4 +1,5 @@
 import type { QuickPaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
+import { quickPaneAtom } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import type { EditorPane } from "@features/workbench/model";
 import type { HandlerMap } from "@/cli/handlers/types";
@@ -6,7 +7,7 @@ import type { HandlerMap } from "@/cli/handlers/types";
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
   Pick<QuickPaneDescriptor, "closeOnSave" | "onClose">;
 
-export const editorHandlers: Partial<HandlerMap> = {
+export default {
   /**
    * Handle editor-open requests from the CLI.
    *
@@ -18,7 +19,7 @@ export const editorHandlers: Partial<HandlerMap> = {
    * - Opens in the sidebar editor
    * - Returns immediately without blocking
    */
-  "editor-open": (args, context) => {
+  "editor-open": (args) => {
     const commandArgs = args ?? { cwd: "" };
 
     // Quick mode: open in modal dialog, block until closed
@@ -31,7 +32,7 @@ export const editorHandlers: Partial<HandlerMap> = {
           closeOnSave: true,
           onClose: resolve,
         };
-        context.onOpenFile(descriptor);
+        quickPaneAtom.set(descriptor);
       });
     }
 
@@ -46,4 +47,4 @@ export const editorHandlers: Partial<HandlerMap> = {
       },
     });
   },
-};
+} satisfies Partial<HandlerMap>;
