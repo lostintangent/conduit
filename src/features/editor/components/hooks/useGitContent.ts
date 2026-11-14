@@ -34,8 +34,8 @@ import {
   binaryFileError,
   type ContentError,
   gitReadError,
-  isBinaryContent,
-} from "../utils";
+} from "../utils/gitErrorMessages";
+import { isBinaryContent } from "../utils/binaryDetection";
 
 /**
  * Result returned by useGitContent hook.

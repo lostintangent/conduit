@@ -47,8 +47,10 @@ import { cn } from "@/utils";
 import { memo, useCallback, useState } from "react";
 import { CommitGraphHeader } from "./CommitGraphHeader";
 import { CommitGraphList } from "./CommitGraphList";
-import { useCommitGraph } from "./hooks";
-import { EmptyState, ErrorState, LoadingState } from "./states";
+import { useCommitGraph } from "../hooks/useCommitGraph";
+import { EmptyState } from "./states/EmptyState";
+import { ErrorState } from "./states/ErrorState";
+import { LoadingState } from "./states/LoadingState";
 import type {
   CommitFile,
   CommitFileSelectEvent,

@@ -55,7 +55,8 @@ import { FileSystemSubscription } from "@features/files/client/FileSystemSubscri
 import { FileSystemSubscriptionPool } from "@features/files/client/FileSystemSubscriptionPool";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../model";
 import { FileTooLargeError } from "../model";
-import { detectLanguage, pathsEqual } from "../components/utils";
+import { detectLanguage } from "../components/utils/languageDetection";
+import { pathsEqual } from "../components/utils/pathUtils";
 import { ViewStateRegistry } from "./ViewStateRegistry";
 
 /** Grace period before disposing a model with zero references (ms) */

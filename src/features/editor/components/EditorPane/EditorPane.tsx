@@ -31,15 +31,16 @@ import type { GitFileStatus } from "@features/git/model";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import * as monaco from "monaco-editor";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  useCommitDetails,
-  useEditorActions,
-  useEditorSaveKeybinding,
-  useModelState,
-  type UnseenTrackingResult,
-} from "../hooks";
+import { useCommitDetails } from "../hooks/useCommitDetails";
+import { useEditorActions } from "../hooks/useEditorActions";
+import { useEditorSaveKeybinding } from "../hooks/useEditorSaveKeybinding";
+import { useModelState } from "../hooks/useModelState";
+import { type UnseenTrackingResult } from "../hooks/useUnseenTracking";
 import { isImageFile } from "../hooks/useImagePreview";
-import { createModelKey, MonacoModelRegistry } from "../../client";
+import {
+  createModelKey,
+  MonacoModelRegistry,
+} from "../../client/MonacoModelRegistry";
 import type {
   ContentSource,
   FileNode,
@@ -47,10 +48,10 @@ import type {
   ViewMode,
 } from "../../model";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
-import { ReviewCommitPane } from "../ReviewCommit";
-import { ReviewWorkingPane } from "../ReviewWorking";
-import { EditorToolbar } from "../Toolbar";
-import { FileEditor } from "../shared";
+import { ReviewCommitPane } from "../ReviewCommit/ReviewCommitPane";
+import { ReviewWorkingPane } from "../ReviewWorking/ReviewWorkingPane";
+import { EditorToolbar } from "../Toolbar/EditorToolbar";
+import { FileEditor } from "../shared/FileEditor";
 import { DeletedFileBanner } from "./DeletedFileBanner";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";

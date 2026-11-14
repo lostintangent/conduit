@@ -1,5 +1,5 @@
 import { deleteCanvasState } from "@features/canvas/client/canvasStore";
-import { disposeEditorPane } from "@features/editor";
+import { disposeEditorPane } from "@features/editor/components/EditorPaneAnchor";
 import { disposeSession } from "@features/terminal/client/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";

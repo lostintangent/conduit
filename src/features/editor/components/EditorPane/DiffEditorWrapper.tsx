@@ -33,22 +33,19 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  useAutoSizeEditor,
-  useDiffContent,
-  useEditorTheme,
-  useMonacoModel,
-  usePreventFocusScroll,
-} from "../hooks";
-import { createModelKey } from "../../client";
+import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
+import { useDiffContent } from "../hooks/useDiffContent";
+import { useEditorTheme } from "../hooks/useEditorTheme";
+import { useMonacoModel } from "../hooks/useMonacoModel";
+import { usePreventFocusScroll } from "../hooks/usePreventFocusScroll";
+import { createModelKey } from "../../client/MonacoModelRegistry";
 import { ViewStateRegistry } from "../../client/ViewStateRegistry";
 import type { ContentSource } from "../../model";
-import {
-  detectLanguage,
-  forceTokenizeVisibleLines,
-  replaceModelContent,
-} from "../utils";
-import { ReadOnlyBadge, SourceBadge } from "../shared";
+import { detectLanguage } from "../utils/languageDetection";
+import { forceTokenizeVisibleLines } from "../utils/tokenization";
+import { replaceModelContent } from "../utils/modelContent";
+import { ReadOnlyBadge } from "../shared/ReadOnlyBadge";
+import { SourceBadge } from "../shared/SourceBadge";
 
 export interface DiffEditorWrapperProps {
   /** Unique ID for this diff editor instance */

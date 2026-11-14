@@ -11,7 +11,7 @@ import {
   QuickPaneDialog,
   type PaneDescriptor,
 } from "@/components/layout/quick/QuickPaneDialog";
-import { GlobalEditorContainer } from "@features/editor";
+import { GlobalEditorContainer } from "@features/editor/components/GlobalEditorContainer";
 import {
   disposeSession,
   updateTerminalThemes,

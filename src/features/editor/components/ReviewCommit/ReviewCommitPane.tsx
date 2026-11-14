@@ -24,7 +24,7 @@ import type { CommitFile } from "@features/git/model";
 import { cn } from "@/utils";
 import { GitCommit } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { FileEditor } from "../shared";
+import { FileEditor } from "../shared/FileEditor";
 import { ReviewCommitPaneFooter } from "./ReviewCommitPaneFooter";
 import { ReviewCommitPaneHeader } from "./ReviewCommitPaneHeader";
 

@@ -22,7 +22,10 @@
  */
 
 import { useEffect, useState } from "react";
-import { MonacoModelRegistry, createModelKey } from "../../client";
+import {
+  MonacoModelRegistry,
+  createModelKey,
+} from "../../client/MonacoModelRegistry";
 import type { ModelState, ModelStateEvent } from "../../model";
 
 /**

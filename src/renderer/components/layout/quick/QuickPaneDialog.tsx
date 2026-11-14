@@ -1,4 +1,4 @@
-import { EditorPaneAnchor } from "@features/editor";
+import { EditorPaneAnchor } from "@features/editor/components/EditorPaneAnchor";
 import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ErrorBoundary } from "@/components/ui/error-boundary";

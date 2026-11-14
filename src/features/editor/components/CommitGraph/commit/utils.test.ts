@@ -6,10 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import {
-  formatRelativeTime,
-  formatFullDate,
-} from "@features/editor/components/utils";
+import { formatRelativeTime, formatFullDate } from "@/utils/time";
 
 // =============================================================================
 // formatRelativeTime

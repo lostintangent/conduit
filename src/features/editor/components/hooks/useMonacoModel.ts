@@ -26,7 +26,10 @@
 
 import type * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
-import { MonacoModelRegistry, createModelKey } from "../../client";
+import {
+  MonacoModelRegistry,
+  createModelKey,
+} from "../../client/MonacoModelRegistry";
 
 /**
  * Hook to get a Monaco text model for a file.
@@ -184,8 +187,3 @@ export function useMonacoModel(
 
   return model;
 }
-
-/**
- * Re-export utilities for convenience
- */
-export { createModelKey, pathToUri, uriToPath } from "../../client";

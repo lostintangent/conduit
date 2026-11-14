@@ -23,7 +23,7 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import type { GitFileStatus } from "@features/git/model";
-import { UNSTAGED_KEY_SUFFIX } from "../../utils";
+import { UNSTAGED_KEY_SUFFIX } from "../../utils/gitStatusHelpers";
 
 /** Delay before scrolling to allow DOM updates (ms) */
 const SCROLL_DELAY_MS = 100;

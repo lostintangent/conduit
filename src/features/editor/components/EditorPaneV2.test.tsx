@@ -39,7 +39,7 @@ const runEditorCommand = (name) =>
 // Mocks
 // ============================================================================
 
-// Mock the hooks barrel (useResponsiveLayout, useEditorTheme, useReviewModeState)
+// Mock the layout, theme, and review mode hooks
 const mockLayout = vi.fn();
 const mockMarkSeen = vi.fn();
 
@@ -55,9 +55,15 @@ const mockSetViewModePreservingReview = vi.fn((fn) => {
   return result;
 });
 
-vi.mock("./hooks", () => ({
+vi.mock("./hooks/useResponsiveLayout", () => ({
   useResponsiveLayout: () => mockLayout(),
+}));
+
+vi.mock("./hooks/useEditorTheme", () => ({
   useEditorTheme: () => "vs-dark",
+}));
+
+vi.mock("./hooks/useReviewModeState", () => ({
   useReviewModeState: (initialViewMode = { type: "editor" }) => {
     mockViewMode ??= initialViewMode;
     return {
@@ -74,6 +80,9 @@ vi.mock("./hooks", () => ({
       handleTreeViewModeTransition: vi.fn(),
     };
   },
+}));
+
+vi.mock("./hooks/useUnseenTracking", () => ({
   useUnseenTracking: () => ({
     isUnseen: () => false,
     getTimestamp: () => null,
@@ -95,7 +104,13 @@ vi.mock("./hooks", () => ({
       reset: vi.fn(),
     },
   }),
+}));
+
+vi.mock("./hooks/useModelState", () => ({
   useModelState: () => null, // Returns null when no model exists (file not loaded)
+}));
+
+vi.mock("./hooks/useAutoOpenFile", () => ({
   useAutoOpenFile: vi.fn(), // Auto-open file hook (does nothing in tests)
 }));
 
@@ -134,8 +149,8 @@ function mockReads() {
   reads.getCurrentBranch.mockResolvedValue("main");
 }
 
-// Mock FileTreePanel (including BranchSelector which is re-exported from this barrel)
-vi.mock("./FileTreePanel", () => ({
+// Mock FileTreePanel and BranchSelector
+vi.mock("./FileTreePanel/FileTreePanel", () => ({
   FileTreePanel: ({
     cwd,
     onFileSelect,
@@ -226,6 +241,9 @@ vi.mock("./FileTreePanel", () => ({
       </button>
     </div>
   ),
+}));
+
+vi.mock("./FileTreePanel/BranchSelector", () => ({
   BranchSelector: ({ open, onSelectBranch, onOpenChange }) => (
     <div data-testid="mock-branch-selector" data-open={open}>
       <button
@@ -242,14 +260,10 @@ vi.mock("./FileTreePanel", () => ({
       </button>
     </div>
   ),
-  BranchSwitcher: () => <div data-testid="mock-branch-switcher" />,
-  FileTreeNormal: () => <div data-testid="mock-file-tree-normal" />,
-  FileTreeChanges: () => <div data-testid="mock-file-tree-changes" />,
-  FileTreeItem: () => <div data-testid="mock-file-tree-item" />,
 }));
 
 // Mock EditorPane
-vi.mock("./EditorPane", () => ({
+vi.mock("./EditorPane/EditorPane", () => ({
   EditorPane: ({
     selectedFile,
     viewMode,
@@ -290,21 +304,6 @@ vi.mock("./TreeResizer", () => ({
       Resizer ({currentWidth}px)
     </div>
   ),
-}));
-
-// Also mock the useReviewModeState hook
-vi.mock("./hooks/useReviewModeState", () => ({
-  useReviewModeState: () => ({
-    viewMode: { type: "editor" },
-    isReviewMode: false,
-    enterReviewMode: vi.fn(),
-    exitReviewMode: vi.fn(),
-    setViewMode: vi.fn(),
-    setViewModePreservingReview: vi.fn(),
-    handleTreeViewModeTransition: vi.fn().mockReturnValue({
-      restoredReviewMode: false,
-    }),
-  }),
 }));
 
 // A tab's terminals render nothing here, so the pills counted are the tab's

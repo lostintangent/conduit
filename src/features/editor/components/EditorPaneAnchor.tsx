@@ -25,7 +25,10 @@ import type { EditorPane } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
-import { EditorPaneRegistry, type EditorPaneConfig } from "../client";
+import {
+  EditorPaneRegistry,
+  type EditorPaneConfig,
+} from "../client/EditorPaneRegistry";
 import {
   findEditorInput,
   findTreeSide,

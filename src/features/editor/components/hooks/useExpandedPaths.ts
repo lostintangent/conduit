@@ -10,7 +10,7 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { getParentPaths, normalizePathForKey } from "../utils";
+import { getParentPaths, normalizePathForKey } from "../utils/pathUtils";
 
 export interface UseExpandedPathsOptions {
   /** Initial expanded paths (typically the root directory) */

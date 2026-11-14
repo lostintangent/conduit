@@ -59,7 +59,7 @@ const mockGitApi = {
 };
 
 // Mock EditorPane components - we don't need to test the actual editors
-vi.mock("../EditorPane", () => ({
+vi.mock("../EditorPane/DiffEditorWrapper", () => ({
   DiffEditorWrapper: ({ filePath, readOnly }: any) => (
     <div
       data-testid="mock-diff-editor"
@@ -69,11 +69,17 @@ vi.mock("../EditorPane", () => ({
       Mock Diff Editor for {filePath}
     </div>
   ),
+}));
+
+vi.mock("../EditorPane/RegularEditorWrapper", () => ({
   RegularEditorWrapper: ({ filePath }: any) => (
     <div data-testid="mock-regular-editor" data-filepath={filePath}>
       Mock Regular Editor for {filePath}
     </div>
   ),
+}));
+
+vi.mock("../EditorPane/constants", () => ({
   EDITOR_MAX_HEIGHT: 400,
 }));
 

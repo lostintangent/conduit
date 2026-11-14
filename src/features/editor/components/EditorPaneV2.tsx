@@ -35,44 +35,44 @@ import {
   useRef,
   useState,
 } from "react";
+import { BranchSelector } from "./FileTreePanel/BranchSelector";
+import { EditorPane } from "./EditorPane/EditorPane";
+import { FileDiffStatsProvider } from "./FileDiffStats/FileDiffStatsContext";
 import {
-  BranchSelector,
-  EditorPane,
-  FileDiffStatsProvider,
   FileTreePanel,
-  TreeResizer,
   type FileTreePanelHandle,
-} from ".";
+} from "./FileTreePanel/FileTreePanel";
+import { TreeResizer } from "./TreeResizer";
 import type {
   CommitFileSelectEvent,
   CommitViewEvent,
 } from "./CommitGraph/types";
-import {
-  useAutoOpenFile,
-  useEditorTheme,
-  useModelState,
-  useResponsiveLayout,
-  useReviewModeState,
-  useUnseenTracking,
-} from "./hooks";
+import { useAutoOpenFile } from "./hooks/useAutoOpenFile";
+import { useEditorTheme } from "./hooks/useEditorTheme";
+import { useModelState } from "./hooks/useModelState";
+import { useResponsiveLayout } from "./hooks/useResponsiveLayout";
+import { useReviewModeState } from "./hooks/useReviewModeState";
+import { useUnseenTracking } from "./hooks/useUnseenTracking";
 import { isImageFile } from "./hooks/useImagePreview";
 import { useFocusFollowsSide } from "./hooks/useFocusFollowsSide";
-import { MonacoModelRegistry, createModelKey } from "../client";
+import {
+  MonacoModelRegistry,
+  createModelKey,
+} from "../client/MonacoModelRegistry";
 import type { FileNode, TreeViewMode, ViewMode } from "../model";
 import {
   computeStagedForChangesMode,
-  detectLanguage,
   getFileEntryPresence,
   getFileStatusForEntry,
-  getFriendlyGitError,
   getRelativePath,
   isDiffableStatus,
   isUnstagedMapKey,
-  // MapKey helpers (centralized operations)
   makeMapKey,
   mapKeyToPath,
-  selectNextAvailableFile,
-} from "./utils";
+} from "./utils/gitStatusHelpers";
+import { detectLanguage } from "./utils/languageDetection";
+import { getFriendlyGitError } from "./utils/gitErrorMessages";
+import { selectNextAvailableFile } from "./utils/fileSelectionHelpers";
 
 /**
  * Compute the parent directory of a given path.

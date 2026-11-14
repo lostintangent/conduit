@@ -14,7 +14,7 @@
  * ```
  */
 
-import { formatRelativeTime } from "../utils";
+import { formatRelativeTime } from "@/utils/time";
 
 export interface ReviewCommitPaneFooterProps {
   /** Number of files changed in the commit */

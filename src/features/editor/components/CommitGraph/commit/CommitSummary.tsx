@@ -28,13 +28,9 @@ import { cn } from "@/utils";
 import type { HistoryCommit } from "../types";
 import type { TrackedBranchInfo } from "@features/git/model";
 import { ViewAllButton } from "./ViewAllButton";
-import {
-  parseRefs,
-  filterRefsForDisplay,
-  RefBadgeList,
-  buildTrackedBranchBadges,
-  type RefWithColorHint,
-} from "../refs";
+import { parseRefs, filterRefsForDisplay } from "../refs/parseRefs";
+import { RefBadgeList, type RefWithColorHint } from "../refs/RefBadge";
+import { buildTrackedBranchBadges } from "../refs/trackedBranchBadges";
 
 // =============================================================================
 // Props

@@ -42,7 +42,7 @@ vi.mock("@/components/ui/tooltip", () => ({
 }));
 
 // Mock DiffStatsDisplay
-vi.mock("@features/editor/components/FileDiffStats", () => ({
+vi.mock("@features/editor/components/FileDiffStats/DiffStatsDisplay", () => ({
   DiffStatsDisplay: ({
     stats,
   }: {

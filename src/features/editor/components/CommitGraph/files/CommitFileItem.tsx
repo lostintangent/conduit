@@ -28,9 +28,9 @@ import { FileText } from "lucide-react";
 import { cn } from "@/utils";
 import type { GitFileStatus } from "@features/git/model";
 import type { CommitFile } from "../types";
-import { GitBadge, getStatusConfig } from "../../shared";
+import { GitBadge, getStatusConfig } from "../../shared/GitBadge";
 import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";
-import { getFileName, getDirectoryPath } from "../../utils";
+import { getFileName, getDirectoryPath } from "../../utils/pathUtils";
 
 // =============================================================================
 // Types

@@ -37,7 +37,8 @@ import {
   FolderSymlink,
 } from "lucide-react";
 import { memo, useCallback, useMemo } from "react";
-import { GitBadge, aggregateFolderStatus, getStatusConfig } from "../shared";
+import { GitBadge, getStatusConfig } from "../shared/GitBadge";
+import { aggregateFolderStatus } from "../shared/gitFolderAggregation";
 import { FileTreeItemRename } from "./FileTreeItemRename";
 
 export interface FileTreeItemProps {

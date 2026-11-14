@@ -36,17 +36,18 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import {
   DISABLED_UNSEEN_TRACKING,
   type UnseenTrackingResult,
-  useGitSync,
-} from "../hooks";
+} from "../hooks/useUnseenTracking";
+import { useGitSync } from "../hooks/useGitSync";
 import {
   filterDirtyFilesForStaging,
-  joinCwdPath,
   notifyDirtyFilesSkipped,
-} from "../utils";
+} from "../utils/stagingHelpers";
+import { joinCwdPath } from "../utils/pathUtils";
 import { ReviewWorkingPaneFooter } from "./ReviewWorkingPaneFooter";
 import { ReviewWorkingPaneHeader } from "./ReviewWorkingPaneHeader";
 import { ReviewWorkingPaneSection } from "./ReviewWorkingPaneSection";
-import { useExpandedFiles, useScrollToSelectedFile } from "./hooks";
+import { useExpandedFiles } from "./hooks/useExpandedFiles";
+import { useScrollToSelectedFile } from "./hooks/useScrollToSelectedFile";
 
 export interface ReviewWorkingPaneProps {
   /** Working directory */

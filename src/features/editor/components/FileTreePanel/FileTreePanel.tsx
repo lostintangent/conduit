@@ -28,9 +28,10 @@ import type { FileSystemSubscription } from "@features/files/client/FileSystemSu
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { cn } from "@/utils";
 import { forwardRef, memo } from "react";
-import { useGitSync, usePanelHeight } from "../hooks";
+import { useGitSync } from "../hooks/useGitSync";
+import { usePanelHeight } from "../hooks/usePanelHeight";
 import type { FileNode, TreeViewMode } from "../../model";
-import { CommitGraphPanel } from "../CommitGraph";
+import { CommitGraphPanel } from "../CommitGraph/CommitGraphPanel";
 import type {
   CommitFileSelectEvent,
   CommitViewEvent,

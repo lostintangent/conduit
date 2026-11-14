@@ -17,7 +17,7 @@ vi.mock("@features/git/components/useGitSubscription", () => ({
   }),
 }));
 
-vi.mock("../../client", () => ({
+vi.mock("../../client/MonacoModelRegistry", () => ({
   createModelKey: (filePath: string) => `file://${filePath}`,
   MonacoModelRegistry: {
     getInstance: () => ({

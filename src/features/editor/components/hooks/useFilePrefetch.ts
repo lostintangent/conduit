@@ -22,7 +22,7 @@
  */
 
 import { useCallback, useRef } from "react";
-import { MonacoModelRegistry } from "../../client";
+import { MonacoModelRegistry } from "../../client/MonacoModelRegistry";
 
 /** Delay before prefetching starts (ms) */
 const PREFETCH_DELAY_MS = 400;

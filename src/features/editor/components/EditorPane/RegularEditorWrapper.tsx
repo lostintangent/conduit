@@ -41,18 +41,19 @@
 
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  useAutoSizeEditor,
-  useEditorTheme,
-  useGitContent,
-  useMonacoModel,
-  usePreventFocusScroll,
-} from "../hooks";
-import { createModelKey, ViewStateRegistry } from "../../client";
+import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
+import { useEditorTheme } from "../hooks/useEditorTheme";
+import { useGitContent } from "../hooks/useGitContent";
+import { useMonacoModel } from "../hooks/useMonacoModel";
+import { usePreventFocusScroll } from "../hooks/usePreventFocusScroll";
+import { createModelKey } from "../../client/MonacoModelRegistry";
+import { ViewStateRegistry } from "../../client/ViewStateRegistry";
 import { type ContentSource, isGitSource } from "../../model";
-import { forceTokenizeVisibleLines, replaceModelContent } from "../utils";
+import { forceTokenizeVisibleLines } from "../utils/tokenization";
+import { replaceModelContent } from "../utils/modelContent";
 import { detectLanguage } from "../utils/languageDetection";
-import { ReadOnlyBadge, SourceBadge } from "../shared";
+import { ReadOnlyBadge } from "../shared/ReadOnlyBadge";
+import { SourceBadge } from "../shared/SourceBadge";
 
 /** Debounce delay for ViewState saves (ms) */
 const VIEWSTATE_SAVE_DEBOUNCE_MS = 300;

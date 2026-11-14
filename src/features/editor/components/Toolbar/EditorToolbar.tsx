@@ -38,8 +38,9 @@ import {
 } from "lucide-react";
 import { useCallback, useState } from "react";
 import type { ModelState } from "../../model";
-import { formatRelativeTime } from "../utils";
-import { EditorActionButtons, GitBadge } from "../shared";
+import { formatRelativeTime } from "@/utils/time";
+import { EditorActionButtons } from "../shared/EditorActionButtons";
+import { GitBadge } from "../shared/GitBadge";
 
 export interface EditorToolbarProps {
   /** Current model state (dirty, orphaned, etc.) */

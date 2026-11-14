@@ -30,7 +30,7 @@ import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
-import { FileEditor } from "../shared";
+import { FileEditor } from "../shared/FileEditor";
 
 export interface ReviewWorkingPaneSectionProps {
   /** Section title (e.g., "Staged Changes", "Changes") */

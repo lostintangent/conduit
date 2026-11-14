@@ -1,5 +1,5 @@
 import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
-import { disposeEditorPane } from "@features/editor";
+import { disposeEditorPane } from "@features/editor/components/EditorPaneAnchor";
 import {
   getSessionState,
   markAsIdle,

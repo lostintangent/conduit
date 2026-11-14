@@ -55,27 +55,27 @@ const mockViewStateRegistry = {
 
 // Mock useMonacoModel hook
 // Note: We don't use importOriginal because the real hooks would access window.conduit
-vi.mock("../hooks", () => ({
+vi.mock("../hooks/useMonacoModel", () => ({
   useMonacoModel: vi.fn(() => mockModel),
-  useResponsiveLayout: vi.fn(() => ({ layoutMode: "normal", showTree: true })),
-  useDiffContent: vi.fn(() => ({
-    original: "original",
-    modified: "modified",
-    isLoading: false,
-    error: null,
-  })),
-  useModelState: vi.fn(() => ({
-    content: "content",
-    isDirty: false,
-    isOrphaned: false,
-  })),
+}));
+
+vi.mock("../hooks/useEditorTheme", () => ({
   useEditorTheme: vi.fn(() => "vs-dark"),
+}));
+
+vi.mock("../hooks/useAutoSizeEditor", () => ({
   useAutoSizeEditor: vi.fn(() => ({
     height: 100,
     enabled: false,
     containerStyle: { height: "100%", width: "100%" },
   })),
+}));
+
+vi.mock("../hooks/usePreventFocusScroll", () => ({
   usePreventFocusScroll: vi.fn(),
+}));
+
+vi.mock("../hooks/useGitContent", () => ({
   useGitContent: vi.fn(() => ({
     content: null,
     isLoading: false,
@@ -102,25 +102,18 @@ vi.mock("monaco-editor", () => ({
 }));
 
 // Mock registries
-vi.mock("../../client", () => ({
+vi.mock("../../client/ViewStateRegistry", () => ({
   ViewStateRegistry: {
     getInstance: () => mockViewStateRegistry,
     resetInstance: vi.fn(),
   },
+}));
+
+vi.mock("../../client/MonacoModelRegistry", () => ({
   MonacoModelRegistry: {
     getInstance: () => ({
       getOrCreate: vi.fn(() => mockModel),
       release: vi.fn(),
-    }),
-    resetInstance: vi.fn(),
-  },
-  EditorPaneRegistry: {
-    getInstance: () => ({
-      getOrCreate: vi.fn(),
-      dispose: vi.fn(),
-      disposeAll: vi.fn(),
-      attach: vi.fn(),
-      detach: vi.fn(),
     }),
     resetInstance: vi.fn(),
   },
@@ -214,7 +207,7 @@ describe("RegularEditorWrapper", () => {
     // A stage or commit outside re-reads a git side, which used to replace
     // the editor's model and reset its scroll position and selection
     it("should edit a re-read git side into its model", async () => {
-      const { useGitContent } = await import("../hooks");
+      const { useGitContent } = await import("../hooks/useGitContent");
       vi.mocked(monaco.editor.createModel).mockImplementation((value) => {
         const lines = value.split("\n");
         return {

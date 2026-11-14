@@ -12,7 +12,7 @@
  * stat updates with zero additional overhead (uses event data directly).
  */
 
-import { DiffStatsDisplay } from "@features/editor/components/FileDiffStats";
+import { DiffStatsDisplay } from "@features/editor/components/FileDiffStats/DiffStatsDisplay";
 import { GitStatusSummary } from "@features/editor/components/FileTreePanel/GitStatusSummary";
 import { Separator } from "@/components/ui/separator";
 import {

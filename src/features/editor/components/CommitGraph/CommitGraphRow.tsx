@@ -41,9 +41,10 @@ import { memo, useCallback } from "react";
 import { cn } from "@/utils";
 import type { CommitGraphNode, GraphRenderConfig, CommitFile } from "./types";
 import type { TrackedBranchInfo } from "@features/git/model";
-import { GraphCell } from "./graph";
-import { CommitSummary, CommitTooltip } from "./commit";
-import { CommitFilesPanel } from "./files";
+import { GraphCell } from "./graph/GraphCell";
+import { CommitSummary } from "./commit/CommitSummary";
+import { CommitTooltip } from "./commit/CommitTooltip";
+import { CommitFilesPanel } from "./files/CommitFilesPanel";
 import { ROW_HEIGHT } from "./graph/constants";
 
 // =============================================================================

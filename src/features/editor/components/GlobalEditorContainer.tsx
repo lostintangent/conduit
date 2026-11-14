@@ -24,7 +24,10 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { EditorPaneV2 } from "./EditorPaneV2";
-import { EditorPaneRegistry, type EditorPaneConfig } from "../client";
+import {
+  EditorPaneRegistry,
+  type EditorPaneConfig,
+} from "../client/EditorPaneRegistry";
 import { configureMonaco } from "./utils/monacoSetup";
 
 // Global Monaco settings (diagnostics off, markdown pairs, Zig). Must run before any editor is created.

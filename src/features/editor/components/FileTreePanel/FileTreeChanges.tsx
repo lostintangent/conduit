@@ -35,33 +35,33 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { gitMutations, gitQueries } from "@features/git/client/queries";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
-import { useScrollPersistence, useFileTreeChangesContextMenu } from "../hooks";
+import { useScrollPersistence } from "../hooks/useScrollPersistence";
+import { useFileTreeChangesContextMenu } from "../hooks/useFileTreeChangesContextMenu";
 import {
   filterDirtyFilesForStaging,
-  getParentPath,
-  getParentPaths,
-  getRelativePath,
-  joinCwdPath,
   notifyDirtyFilesSkipped,
-  // MapKey helpers (centralized operations)
-  normalizeMapKey,
-} from "../utils";
+} from "../utils/stagingHelpers";
+import { getParentPath, getParentPaths, joinCwdPath } from "../utils/pathUtils";
+import { getRelativePath, normalizeMapKey } from "../utils/gitStatusHelpers";
 import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../model";
 
 // Local imports from extracted modules
-import { useFocusFollowsRow, useMultiSelect } from "./hooks";
+import { useFocusFollowsRow } from "./hooks/useFocusFollowsRow";
+import { useMultiSelect } from "./hooks/useMultiSelect";
 import {
   buildFolderTree,
   buildVisualOrderFromTree,
   buildFlatVisualOrder,
   expandFoldersToFiles,
-} from "./utils";
-import type { SelectableItem, FolderNode } from "./utils";
-import { ActionButton, ChangeFileItem, NestedFolderItem } from "./components";
-import { SectionDiffStats } from "../FileDiffStats";
+} from "./utils/treeHelpers";
+import type { SelectableItem, FolderNode } from "./utils/types";
+import { ActionButton } from "./components/ActionButtons";
+import { ChangeFileItem } from "./components/ChangeFileItem";
+import { NestedFolderItem } from "./components/NestedFolderItem";
+import { SectionDiffStats } from "../FileDiffStats/SectionDiffStats";
 
 // ============================================================================
 // Types

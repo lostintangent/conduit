@@ -32,19 +32,17 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  useExpandedPaths,
-  useFilePrefetch,
-  useFileTreeContextMenu,
-  useScrollPersistence,
-} from "../hooks";
+import { useExpandedPaths } from "../hooks/useExpandedPaths";
+import { useFilePrefetch } from "../hooks/useFilePrefetch";
+import { useFileTreeContextMenu } from "../hooks/useFileTreeContextMenu";
+import { useScrollPersistence } from "../hooks/useScrollPersistence";
 import {
   getParentPath,
   getParentPaths,
-  getRelativePath,
   normalizePathForKey,
   pathsEqual,
-} from "../utils";
+} from "../utils/pathUtils";
+import { getRelativePath } from "../utils/gitStatusHelpers";
 
 import type { DirectoryEntry } from "@features/files/model";
 import type { GitFileStatus } from "@features/git/model";

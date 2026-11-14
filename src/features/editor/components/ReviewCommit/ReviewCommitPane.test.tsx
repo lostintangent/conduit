@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ReviewCommitPane } from "./ReviewCommitPane";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-vi.mock("../shared", () => ({
+vi.mock("../shared/FileEditor", () => ({
   FileEditor: ({ filePath, isExpanded, onToggle }) => (
     <button
       data-testid={`file-${filePath}`}

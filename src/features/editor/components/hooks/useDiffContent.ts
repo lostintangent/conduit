@@ -41,14 +41,17 @@ import { gitQueries } from "@features/git/client/queries";
 import { useGitSubscription } from "@features/git/components/useGitSubscription";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { MonacoModelRegistry, createModelKey } from "../../client";
+import {
+  MonacoModelRegistry,
+  createModelKey,
+} from "../../client/MonacoModelRegistry";
 import { type ContentSource, contentSourceToGitRef } from "../../model";
 import {
   binaryFileError,
   type ContentError,
   gitReadError,
-  isBinaryContent,
-} from "../utils";
+} from "../utils/gitErrorMessages";
+import { isBinaryContent } from "../utils/binaryDetection";
 
 /**
  * Result returned by useDiffContent hook.

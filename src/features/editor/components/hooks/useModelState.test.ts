@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useModelState } from "./useModelState";
-import { pathToUri } from "../../client";
+import { pathToUri } from "../../client/MonacoModelRegistry";
 import type { ModelState, ModelStateEvent } from "../../model";
 
 // ============================================================================
@@ -19,8 +19,9 @@ const mockRegistry = {
   }),
 };
 
-vi.mock("../../client", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../client")>();
+vi.mock("../../client/MonacoModelRegistry", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../client/MonacoModelRegistry")>();
   return {
     ...original,
     MonacoModelRegistry: {

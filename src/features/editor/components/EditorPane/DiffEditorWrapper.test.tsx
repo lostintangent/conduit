@@ -82,51 +82,38 @@ vi.mock("monaco-editor", () => ({
   },
 }));
 
-// Mock ViewStateRegistry
-const mockViewStateRegistry = {
-  save: vi.fn(),
-  restore: vi.fn(),
-};
-
 // Mock useDiffContent hook - return function that reads current state
-vi.mock("../hooks", () => ({
+vi.mock("../hooks/useDiffContent", () => ({
   useDiffContent: vi.fn(() => mockState.diffContent),
+}));
+
+vi.mock("../hooks/useMonacoModel", () => ({
   useMonacoModel: vi.fn(() => mockModifiedModel),
-  useResponsiveLayout: vi.fn(() => ({ layoutMode: "normal", showTree: true })),
-  useModelState: vi.fn(() => ({
-    content: "content",
-    isDirty: false,
-    isOrphaned: false,
-  })),
+}));
+
+vi.mock("../hooks/useEditorTheme", () => ({
   useEditorTheme: vi.fn(() => "vs-dark"),
+}));
+
+vi.mock("../hooks/useAutoSizeEditor", () => ({
   useAutoSizeEditor: vi.fn(() => ({
     height: 100,
     enabled: false,
     containerStyle: { height: "100%", width: "100%" },
   })),
+}));
+
+vi.mock("../hooks/usePreventFocusScroll", () => ({
   usePreventFocusScroll: vi.fn(),
 }));
 
 // Mock registries
-vi.mock("../../client", () => ({
-  ViewStateRegistry: {
-    getInstance: () => mockViewStateRegistry,
-    resetInstance: vi.fn(),
-  },
+
+vi.mock("../../client/MonacoModelRegistry", () => ({
   MonacoModelRegistry: {
     getInstance: () => ({
       getOrCreate: vi.fn(() => mockModifiedModel),
       release: vi.fn(),
-    }),
-    resetInstance: vi.fn(),
-  },
-  EditorPaneRegistry: {
-    getInstance: () => ({
-      getOrCreate: vi.fn(),
-      dispose: vi.fn(),
-      disposeAll: vi.fn(),
-      attach: vi.fn(),
-      detach: vi.fn(),
     }),
     resetInstance: vi.fn(),
   },
@@ -135,7 +122,8 @@ vi.mock("../../client", () => ({
 
 // Import component after mocks are set up
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
-import { useAutoSizeEditor, useDiffContent } from "../hooks";
+import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
+import { useDiffContent } from "../hooks/useDiffContent";
 
 // ============================================================================
 // Tests

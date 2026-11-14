@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMonacoModel } from "./useMonacoModel";
-import { createModelKey } from "../../client";
+import { createModelKey } from "../../client/MonacoModelRegistry";
 
 // ============================================================================
 // Mocks
@@ -40,8 +40,9 @@ const mockRegistry = {
   ),
 };
 
-vi.mock("../../client", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../client")>();
+vi.mock("../../client/MonacoModelRegistry", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../client/MonacoModelRegistry")>();
   return {
     ...original,
     MonacoModelRegistry: {

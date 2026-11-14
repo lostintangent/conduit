@@ -53,22 +53,23 @@ import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useMutation } from "@tanstack/react-query";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDiffModeTransition } from "../hooks/useDiffModeTransition";
+import { useEditorActions } from "../hooks/useEditorActions";
+import { useEditorSaveKeybinding } from "../hooks/useEditorSaveKeybinding";
+import { useModelState } from "../hooks/useModelState";
 import {
-  useDiffModeTransition,
-  useEditorActions,
-  useEditorSaveKeybinding,
-  useModelState,
-} from "../hooks";
-import { MonacoModelRegistry, createModelKey } from "../../client";
+  MonacoModelRegistry,
+  createModelKey,
+} from "../../client/MonacoModelRegistry";
 import type { ContentSource } from "../../model";
-import { canStageFile, commitFileToFileChange, joinCwdPath } from "../utils";
+import { canStageFile } from "../utils/stagingHelpers";
+import { commitFileToFileChange } from "../utils/gitStatusHelpers";
+import { joinCwdPath } from "../utils/pathUtils";
 import { EditorErrorBoundary } from "../EditorErrorBoundary";
-import {
-  DiffEditorWrapper,
-  EDITOR_MAX_HEIGHT,
-  RegularEditorWrapper,
-} from "../EditorPane";
-import { EditorToolbar } from "../Toolbar";
+import { DiffEditorWrapper } from "../EditorPane/DiffEditorWrapper";
+import { EDITOR_MAX_HEIGHT } from "../EditorPane/constants";
+import { RegularEditorWrapper } from "../EditorPane/RegularEditorWrapper";
+import { EditorToolbar } from "../Toolbar/EditorToolbar";
 
 // ============================================================================
 // Types
