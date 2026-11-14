@@ -25,7 +25,7 @@
  */
 
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useAutoSizeEditor,
   useDiffContent,
@@ -223,6 +223,9 @@ export function DiffEditorWrapper({
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(
     null,
   );
+  // The same instance as state, for hooks that need it during render
+  const [diffEditor, setDiffEditor] =
+    useState<monaco.editor.IStandaloneDiffEditor | null>(null);
   const viewModelRef = useRef<monaco.editor.IDiffEditorViewModel | null>(null);
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const modifiedModelRef = useRef<monaco.editor.ITextModel | null>(null);
@@ -275,7 +278,7 @@ export function DiffEditorWrapper({
 
   // Auto-sizing hook - grows height with content up to maxHeight
   const { containerRef: autoSizeRef } = useAutoSizeEditor({
-    diffEditor: diffEditorRef.current,
+    diffEditor,
     maxHeight: autoSize,
   });
 
@@ -298,6 +301,7 @@ export function DiffEditorWrapper({
     });
 
     diffEditorRef.current = diffEditor;
+    setDiffEditor(diffEditor);
 
     // Set initial readOnly option
     diffEditor.updateOptions({ readOnly: effectiveReadOnly });

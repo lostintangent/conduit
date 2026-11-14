@@ -135,7 +135,10 @@ vi.mock("../../../../../src/renderer/components/panes/editor/registry", () => ({
 
 // Import component after mocks are set up
 import { DiffEditorWrapper } from "../../../../../src/renderer/components/panes/editor/components/EditorPane/DiffEditorWrapper";
-import { useDiffContent } from "../../../../../src/renderer/components/panes/editor/hooks";
+import {
+  useAutoSizeEditor,
+  useDiffContent,
+} from "../../../../../src/renderer/components/panes/editor/hooks";
 
 // ============================================================================
 // Tests
@@ -291,6 +294,24 @@ describe("DiffEditorWrapper", () => {
             readOnly: false,
           }),
         );
+      });
+    });
+
+    it("should hand the created editor to auto-size", async () => {
+      render(
+        <DiffEditorWrapper
+          editorId="test-diff"
+          cwd="/test"
+          filePath="/test/file.ts"
+          autoSize={400}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(useAutoSizeEditor).toHaveBeenLastCalledWith({
+          diffEditor: mockDiffEditor,
+          maxHeight: 400,
+        });
       });
     });
   });

@@ -184,9 +184,10 @@ export function RegularEditorWrapper({
   // Language detection for git sources (working directory uses model's language)
   const language = isGitSourceMode ? detectLanguage(filePath) : undefined;
 
-  // Version counter to trigger re-render when editor is created
-  // This ensures useAutoSizeEditor sees the editor instance after creation
-  const [, setEditorVersion] = useState(0);
+  // The editor instance as state, for hooks that need it during render.
+  // editorRef holds the same instance for callbacks and effects.
+  const [editor, setEditor] =
+    useState<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
@@ -233,7 +234,7 @@ export function RegularEditorWrapper({
 
   // Auto-sizing hook - grows height with content up to maxHeight
   const { containerRef: autoSizeRef } = useAutoSizeEditor({
-    editor: editorRef.current,
+    editor,
     maxHeight: autoSize,
   });
 
@@ -315,7 +316,7 @@ export function RegularEditorWrapper({
     });
 
     editorRef.current = editor;
-    setEditorVersion((v) => v + 1); // Trigger re-render so hook sees the editor
+    setEditor(editor);
 
     // Call onMount callback via ref to avoid dependency
     onMountRef.current?.(editor);
