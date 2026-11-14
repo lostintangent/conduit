@@ -51,7 +51,6 @@ interface TabLayoutProps {
   resizingNode: string | null;
   handleBrowserUpdate: (tabId, paneId, updates) => void;
   handleEditorUpdate: (tabId, paneId, updates) => void;
-  onOpenQuickPane?: (descriptor) => void;
   onOpenPaneActions?: () => void;
 }
 ```

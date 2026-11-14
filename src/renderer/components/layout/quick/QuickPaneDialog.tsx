@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/tooltip";
 import { applicationModeAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType, Pane } from "@/types";
-import type { FileTreeNode } from "@shared/types";
 import { generateId } from "@shared/utils";
 import { useSetAtom } from "jotai";
 import { ArrowUpRight, PictureInPicture2, X } from "lucide-react";
@@ -92,20 +91,6 @@ export function QuickPaneDialog({
     [currentDescriptor.type],
   );
 
-  // Handle file open from within editor pane
-  const handleFileOpen = useCallback((node: FileTreeNode) => {
-    setCurrentDescriptor((prev) => {
-      if (prev.type === "editor") {
-        // Update the descriptor to open the file in the same quick pane
-        return {
-          ...prev,
-          file: node.path,
-        };
-      }
-      return prev;
-    });
-  }, []);
-
   const handleOpenAsTabClick = useCallback(() => {
     const {
       onClose: _onClose,
@@ -168,7 +153,6 @@ export function QuickPaneDialog({
               onTreeModeChange={(mode) =>
                 handleEditorUpdate({ treeMode: mode })
               }
-              onFileOpen={handleFileOpen}
               hideFileTree={currentDescriptor.closeOnSave}
               onSave={() => {
                 if (currentDescriptor.closeOnSave) {

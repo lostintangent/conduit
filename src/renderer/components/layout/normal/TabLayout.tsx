@@ -6,7 +6,6 @@ import { PaneHighlight } from "@/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
-import type { PaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneAnchor } from "@/components/panes/editor";
@@ -279,7 +278,6 @@ interface TabLayoutProps {
     paneId: string,
     updates: Partial<EditorPaneType>,
   ) => void;
-  onOpenQuickPane?: (descriptor: PaneDescriptor) => void;
   onOpenPaneActions?: () => void;
 }
 
@@ -289,7 +287,6 @@ export function TabLayout({
   resizingNode,
   handleBrowserUpdate,
   handleEditorUpdate,
-  onOpenQuickPane,
   onOpenPaneActions,
 }: TabLayoutProps) {
   const tabs = useAtomValue(tabsAtom);
@@ -547,13 +544,6 @@ export function TabLayout({
                       changesViewMode: mode,
                     })
                   }
-                  onFileOpen={(node) =>
-                    onOpenQuickPane({
-                      type: "editor",
-                      cwd: pane?.cwd,
-                      file: node.path,
-                    })
-                  }
                   onHover={(isHovering) => {
                     if (isInDesignMode) {
                       setHoveredPaneId(isHovering ? pane.id : null);
@@ -694,7 +684,6 @@ export function TabLayout({
       handleEditorUpdate,
       handleBrowserUpdate,
       isInDesignMode,
-      onOpenQuickPane,
       renderDropZone,
       shouldShowTerminalDimensions,
       resizingNode,

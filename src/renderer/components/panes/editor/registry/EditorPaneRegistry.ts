@@ -22,7 +22,6 @@
 import type { EditorPane } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import type { FileChangeData } from "../EditorPaneV2";
-import type { FileNode } from "../types";
 import { EventEmitter } from "@shared/EventEmitter";
 
 /**
@@ -41,9 +40,6 @@ export interface EditorPaneConfig {
 
   /** Callback when working directory changes */
   onCwdChange?: (cwd: string) => void;
-
-  /** Callback when a file is opened from tree */
-  onFileOpen?: (node: FileNode) => void;
 
   /** Callback when tree mode changes */
   onTreeModeChange?: (mode: "all" | "changes") => void;

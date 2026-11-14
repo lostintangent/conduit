@@ -25,7 +25,6 @@ import type { ChangesViewMode } from "@shared/types";
 import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
 import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
-import type { FileNode } from "./types";
 
 export interface EditorPaneAnchorProps {
   /**
@@ -53,11 +52,6 @@ export interface EditorPaneAnchorProps {
    * Callback fired when the working directory changes.
    */
   onCwdChange?: (cwd: string) => void;
-
-  /**
-   * Callback fired when a file is opened from the tree.
-   */
-  onFileOpen?: (node: FileNode) => void;
 
   /**
    * Callback fired when tree view mode changes.
@@ -121,7 +115,6 @@ export function EditorPaneAnchor({
   onFileChange,
   onClearFile,
   onCwdChange,
-  onFileOpen,
   onTreeModeChange,
   onChangesViewModeChange,
   onSave,
@@ -140,7 +133,6 @@ export function EditorPaneAnchor({
     onFileChange,
     onClearFile,
     onCwdChange,
-    onFileOpen,
     onTreeModeChange,
     onChangesViewModeChange,
     onSave,
@@ -154,7 +146,6 @@ export function EditorPaneAnchor({
       onFileChange,
       onClearFile,
       onCwdChange,
-      onFileOpen,
       onTreeModeChange,
       onChangesViewModeChange,
       onSave,
@@ -165,7 +156,6 @@ export function EditorPaneAnchor({
     onFileChange,
     onClearFile,
     onCwdChange,
-    onFileOpen,
     onTreeModeChange,
     onChangesViewModeChange,
     onSave,
@@ -179,7 +169,6 @@ export function EditorPaneAnchor({
     onFileChange: (data) => callbacksRef.current.onFileChange?.(data),
     onClearFile: () => callbacksRef.current.onClearFile?.(),
     onCwdChange: (cwd) => callbacksRef.current.onCwdChange?.(cwd),
-    onFileOpen: (node) => callbacksRef.current.onFileOpen?.(node),
     onTreeModeChange: (mode) => callbacksRef.current.onTreeModeChange?.(mode),
     onChangesViewModeChange: (mode) =>
       callbacksRef.current.onChangesViewModeChange?.(mode),

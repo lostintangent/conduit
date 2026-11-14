@@ -128,11 +128,6 @@ export interface EditorPaneV2Props {
   onCwdChange?: (cwd: string) => void;
 
   /**
-   * Callback fired when a file is opened from the tree.
-   */
-  onFileOpen?: (node: FileNode) => void;
-
-  /**
    * Callback fired when tree view mode changes.
    */
   onTreeModeChange?: (mode: "all" | "changes") => void;
@@ -195,7 +190,6 @@ export function EditorPaneV2({
   onFileChange,
   onClearFile,
   onCwdChange,
-  onFileOpen: _onFileOpen,
   onTreeModeChange,
   onChangesViewModeChange,
   onSave,
@@ -747,9 +741,6 @@ export function EditorPaneV2({
           return { type: "editor" };
         });
       });
-
-      // Note: onFileOpen is NOT called here - it's for external "open in quick pane" action
-      // File selection within the editor just updates selectedFile state
 
       // Mark file as seen (if unseen tracking is enabled)
       if (trackUnseenChanges) {

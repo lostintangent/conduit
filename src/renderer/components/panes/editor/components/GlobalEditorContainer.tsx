@@ -74,7 +74,6 @@ function EditorPaneWrapper({
       onFileChange={config.onFileChange}
       onClearFile={config.onClearFile}
       onCwdChange={config.onCwdChange}
-      onFileOpen={config.onFileOpen}
       onTreeModeChange={config.onTreeModeChange}
       onChangesViewModeChange={config.onChangesViewModeChange}
       onSave={config.onSave}

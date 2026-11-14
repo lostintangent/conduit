@@ -519,10 +519,6 @@ describe("EditorPaneV2", () => {
       mockFs.readTextFile.mockClear();
     });
 
-    // Note: onFileOpen is NOT called when file is selected within the editor.
-    // It's meant for external "open in quick pane" actions, not internal file selection.
-    // Internal file selection just updates the selectedFile state.
-
     it("should call onFileChange with file content when file is selected", async () => {
       const onFileChange = vi.fn();
       mockFs.readTextFile.mockResolvedValue("const x = 1;");
