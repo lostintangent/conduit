@@ -1114,8 +1114,9 @@ export const FileTreeNormal = memo(
 
         if (!focusedPath && visiblePaths.length > 0) {
           // If there's a selected file, focus that; otherwise focus first item
-          if (selectedFile?.path && visiblePaths.includes(selectedFile.path)) {
-            setFocusedPath(selectedFile.path);
+          const selectedPath = selectedFile?.path;
+          if (selectedPath && visiblePaths.includes(selectedPath)) {
+            setFocusedPath(selectedPath);
           } else {
             setFocusedPath(visiblePaths[0]);
           }
@@ -1277,112 +1278,85 @@ export const FileTreeNormal = memo(
     /**
      * Recursively render directory contents.
      */
-    const renderDirectory = useCallback(
-      (dirPath: string, depth: number): React.ReactNode => {
-        const entries = directoryCache[normalizePathForKey(dirPath)];
-        if (!entries) return null;
+    function renderDirectory(dirPath: string, depth: number): React.ReactNode {
+      const entries = directoryCache[normalizePathForKey(dirPath)];
+      if (!entries) return null;
 
-        // Sort entries using shared helper (must match visiblePaths order)
-        const sorted = sortEntries(entries);
+      // Sort entries using shared helper (must match visiblePaths order)
+      const sorted = sortEntries(entries);
 
-        // Check if we're creating a new item in this directory
-        const isCreatingHere = creatingInPath === dirPath;
-        const creationPlaceholder = renderCreationPlaceholder(dirPath);
+      // Check if we're creating a new item in this directory
+      const isCreatingHere = creatingInPath === dirPath;
+      const creationPlaceholder = renderCreationPlaceholder(dirPath);
 
-        // Find index where files start (after all directories)
-        const firstFileIndex = sorted.findIndex((e) => e.type === "file");
-        const fileStartIndex =
-          firstFileIndex === -1 ? sorted.length : firstFileIndex;
+      // Find index where files start (after all directories)
+      const firstFileIndex = sorted.findIndex((e) => e.type === "file");
+      const fileStartIndex =
+        firstFileIndex === -1 ? sorted.length : firstFileIndex;
 
-        // Determine where to insert placeholder:
-        // - New folder: at the start (index 0)
-        // - New file: after all folders (at fileStartIndex)
-        const placeholderIndex =
-          isCreatingHere && creatingType === "file" ? fileStartIndex : 0;
+      // Determine where to insert placeholder:
+      // - New folder: at the start (index 0)
+      // - New file: after all folders (at fileStartIndex)
+      const placeholderIndex =
+        isCreatingHere && creatingType === "file" ? fileStartIndex : 0;
 
-        const renderItem = (entry: DirectoryEntry) => {
-          const entryPath = joinPath(dirPath, entry.name);
-          const isExpanded = isPathExpanded(entryPath);
-          // Suppress git status for paths involved in a recent rename
-          // (cleared via timeout after git has time to settle)
-          const status = gitStatusSuppressedPaths.has(entryPath)
-            ? null
-            : (gitStatusMap.get(entryPath) ?? null);
-          const relativePath = getRelativePath(entryPath, cwd);
+      const renderItem = (entry: DirectoryEntry) => {
+        const entryPath = joinPath(dirPath, entry.name);
+        const isExpanded = isPathExpanded(entryPath);
+        // Suppress git status for paths involved in a recent rename
+        // (cleared via timeout after git has time to settle)
+        const status = gitStatusSuppressedPaths.has(entryPath)
+          ? null
+          : (gitStatusMap.get(entryPath) ?? null);
+        const relativePath = getRelativePath(entryPath, cwd);
 
-          const isItemRenaming = pathsEqual(renamingPath, entryPath);
-          const isFileSelected = pathsEqual(selectedFile?.path, entryPath);
-
-          return (
-            <FileTreeItem
-              key={entryPath}
-              entry={entry}
-              path={entryPath}
-              relativePath={relativePath}
-              depth={depth}
-              gitStatus={status}
-              gitStatusMap={gitStatus}
-              isSelected={isFileSelected}
-              isFocused={pathsEqual(focusedPath, entryPath)}
-              isExpanded={isExpanded}
-              onSelect={handleItemClick}
-              onToggleExpand={handleToggleExpand}
-              onDirectoryChange={onDirectoryChange}
-              // Inline rename props
-              isRenaming={isItemRenaming}
-              onRenameCommit={isItemRenaming ? commitRename : undefined}
-              onRenameCancel={isItemRenaming ? cancelRename : undefined}
-              checkNameConflict={
-                isItemRenaming
-                  ? createNameConflictChecker(entryPath)
-                  : undefined
-              }
-              onContextMenu={handleContextMenu}
-              onFileHover={onFileHover}
-              onFileHoverEnd={onFileHoverEnd}
-            >
-              {entry.type === "directory" &&
-                isExpanded &&
-                renderDirectory(entryPath, depth + 1)}
-            </FileTreeItem>
-          );
-        };
+        const isItemRenaming = pathsEqual(renamingPath, entryPath);
+        const isFileSelected = pathsEqual(selectedFile?.path, entryPath);
 
         return (
-          <>
-            {/* Render items before placeholder position */}
-            {sorted.slice(0, placeholderIndex).map(renderItem)}
-            {/* Show creation placeholder at the appropriate position */}
-            {creationPlaceholder}
-            {/* Render items after placeholder position */}
-            {sorted.slice(placeholderIndex).map(renderItem)}
-          </>
+          <FileTreeItem
+            key={entryPath}
+            entry={entry}
+            path={entryPath}
+            relativePath={relativePath}
+            depth={depth}
+            gitStatus={status}
+            gitStatusMap={gitStatus}
+            isSelected={isFileSelected}
+            isFocused={pathsEqual(focusedPath, entryPath)}
+            isExpanded={isExpanded}
+            onSelect={handleItemClick}
+            onToggleExpand={handleToggleExpand}
+            onDirectoryChange={onDirectoryChange}
+            // Inline rename props
+            isRenaming={isItemRenaming}
+            onRenameCommit={isItemRenaming ? commitRename : undefined}
+            onRenameCancel={isItemRenaming ? cancelRename : undefined}
+            checkNameConflict={
+              isItemRenaming ? createNameConflictChecker(entryPath) : undefined
+            }
+            onContextMenu={handleContextMenu}
+            onFileHover={onFileHover}
+            onFileHoverEnd={onFileHoverEnd}
+          >
+            {entry.type === "directory" &&
+              isExpanded &&
+              renderDirectory(entryPath, depth + 1)}
+          </FileTreeItem>
         );
-      },
-      [
-        directoryCache,
-        isPathExpanded,
-        gitStatusMap,
-        gitStatusSuppressedPaths,
-        gitStatus,
-        selectedFile?.path,
-        focusedPath,
-        renamingPath,
-        handleItemClick,
-        handleToggleExpand,
-        onDirectoryChange,
-        commitRename,
-        cancelRename,
-        createNameConflictChecker,
-        handleContextMenu,
-        onFileHover,
-        onFileHoverEnd,
-        cwd,
-        renderCreationPlaceholder,
-        creatingInPath,
-        creatingType,
-      ],
-    );
+      };
+
+      return (
+        <>
+          {/* Render items before placeholder position */}
+          {sorted.slice(0, placeholderIndex).map(renderItem)}
+          {/* Show creation placeholder at the appropriate position */}
+          {creationPlaceholder}
+          {/* Render items after placeholder position */}
+          {sorted.slice(placeholderIndex).map(renderItem)}
+        </>
+      );
+    }
 
     // Loading state for initial load
     if (isLoading && !directoryCache[normalizePathForKey(cwd)]) {

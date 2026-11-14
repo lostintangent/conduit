@@ -661,7 +661,6 @@ export const CanvasPane = memo(function CanvasPane({
     strokeWidth,
     fill,
     addElement,
-    selectElements,
     recordAdd,
     recordMove,
     recordTransform,
@@ -1327,6 +1326,7 @@ export const CanvasPane = memo(function CanvasPane({
       updateCursorPreview,
       renderCanvas,
       selectElements,
+      viewport.zoom,
     ],
   );
 

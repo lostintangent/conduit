@@ -1098,7 +1098,7 @@ export function EditorPaneV2({
       // Update the preference for future file selections (session-local)
       setPreferDiffForModified(isDiff);
     },
-    [selectedFile, baseBranch],
+    [selectedFile, baseBranch, setViewMode],
   );
 
   /**
