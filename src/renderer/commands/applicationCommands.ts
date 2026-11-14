@@ -812,8 +812,9 @@ export function registerApplicationCommands(
     },
   });
 
-  // Pane navigation also takes Cmd+Option+Arrow (as in iTerm2, Ghostty and
-  // Warp), since editors keep Cmd+Arrow for moving the cursor.
+  // Pane navigation uses Cmd+Option+Arrow (as in iTerm2, Ghostty and Warp),
+  // which works from every pane. Cmd+Arrow also works outside editors, which
+  // keep it for moving the cursor.
 
   // Pane: Navigate Left
   commandRegistry.registerCommand({
@@ -821,7 +822,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane on Left",
     description: "Focus the pane to the left of the current pane",
     category: "Pane",
-    keybinding: [{ key: "Cmd+Left" }, { key: "Cmd+Alt+Left" }],
+    keybinding: [{ key: "Cmd+Alt+Left" }, { key: "Cmd+Left" }],
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -838,7 +839,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane on Right",
     description: "Focus the pane to the right of the current pane",
     category: "Pane",
-    keybinding: [{ key: "Cmd+Right" }, { key: "Cmd+Alt+Right" }],
+    keybinding: [{ key: "Cmd+Alt+Right" }, { key: "Cmd+Right" }],
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -855,7 +856,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane Above",
     description: "Focus the pane above the current pane",
     category: "Pane",
-    keybinding: [{ key: "Cmd+Up" }, { key: "Cmd+Alt+Up" }],
+    keybinding: [{ key: "Cmd+Alt+Up" }, { key: "Cmd+Up" }],
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
@@ -872,7 +873,7 @@ export function registerApplicationCommands(
     title: "Navigate to Pane Below",
     description: "Focus the pane below the current pane",
     category: "Pane",
-    keybinding: [{ key: "Cmd+Down" }, { key: "Cmd+Alt+Down" }],
+    keybinding: [{ key: "Cmd+Alt+Down" }, { key: "Cmd+Down" }],
     when: hasActivePane.isTrue(),
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
