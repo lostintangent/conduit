@@ -17,6 +17,7 @@ import "./index.css";
 installGitQueryBridge(queryClient);
 
 const rootElement = document.getElementById("root");
+if (!rootElement) throw new Error("Missing #root element");
 const root = createRoot(rootElement);
 
 function AppWrapper() {

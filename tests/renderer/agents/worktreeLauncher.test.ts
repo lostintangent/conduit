@@ -22,7 +22,7 @@ describe("launchAgents", () => {
   afterEach(() => {
     vi.useRealTimers();
     tabsAtom.set([]);
-    activeTabIdAtom.set(() => undefined);
+    activeTabIdAtom.set(null);
   });
 
   it("starts the first agent's terminal once its new tab has fit, since the tab is split for the others", async () => {

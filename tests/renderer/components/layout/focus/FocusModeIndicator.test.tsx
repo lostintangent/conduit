@@ -26,7 +26,7 @@ function tab(id: string): Tab {
 describe("FocusModeIndicator", () => {
   it("shows the active tab once there is one", () => {
     tabsAtom.set([]);
-    activeTabIdAtom.set(() => undefined);
+    activeTabIdAtom.set(null);
     render(
       <TooltipProvider>
         <FocusModeIndicator />

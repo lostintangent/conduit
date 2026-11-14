@@ -569,7 +569,7 @@ describe("applicationCommands", () => {
           ApplicationCommands.WORKSPACE_RENAME,
         )!;
         const mockContext = commandContext({
-          workspaceName: undefined,
+          workspaceName: null,
           setShowRenameWorkspaceDialog: vi.fn(),
         });
 

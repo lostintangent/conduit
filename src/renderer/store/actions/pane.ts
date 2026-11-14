@@ -182,6 +182,8 @@ export function setPaneCollapsed(
     produce((tabs) => {
       // Find the layout node for the pane and update its collapsed state
       const tab = tabs.find(({ id }) => id === tabId);
+      if (!tab) return;
+
       walkLayout(tab.layout, ({ node, parent }) => {
         if (node.type === "pane" && node.paneId === paneId) {
           if (collapsed) {
@@ -191,7 +193,7 @@ export function setPaneCollapsed(
               // If the pane being minimized is then active
               // pane, then let's find its first non-minimized
               // sibling, and make that the active pane instead.
-              const siblingPaneId = parent.children
+              const siblingPaneId = parent?.children
                 .filter(
                   (child) =>
                     child.type === "pane" &&
@@ -951,7 +953,9 @@ export function cloneTerminalPane(
   // command, which is already guarded by checks for whether the pane
   // can be cloned. So we're not repeating those checks here.
   const tab = tabsAtom.get().find(({ id }) => id === tabId);
-  const sourcePane = tab.panes[paneId] as TerminalPane;
+  const sourcePane = tab?.panes[paneId] as TerminalPane | undefined;
+  if (!sourcePane) return;
+
   insertPaneNextTo(
     tabId,
     paneId,

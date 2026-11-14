@@ -157,7 +157,7 @@ export class CommandRegistry {
       agent: null as any,
       activeTab: null,
       activePaneId: null,
-      workspaceName: undefined,
+      workspaceName: null,
       allTabs: [],
     };
   }

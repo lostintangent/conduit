@@ -189,7 +189,7 @@ describe("loadUserKeybindings", () => {
   });
 
   it("should return early when window.conduit is undefined", async () => {
-    window.conduit = undefined;
+    Reflect.deleteProperty(window, "conduit");
 
     await loadUserKeybindings(registry, "/path/to/keybindings.json");
 

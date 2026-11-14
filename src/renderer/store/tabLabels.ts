@@ -13,11 +13,12 @@ import { createAtom } from "@/store/createAtom";
 
 export type TabDescriptor = {
   id: string;
-  label: string;
+  // Missing only for a tab without panes, which shouldn't exist.
+  label: string | undefined;
   tooltip: Record<string, string>;
   name?: string;
   isActive: boolean;
-  locked: boolean;
+  locked?: boolean;
   tabState: TabState;
   progressState: TabProgressState | null;
   progressPercent: number;
@@ -46,7 +47,7 @@ export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
   return tabs.map((tab) => {
     const activePane = resolveActivePane(tab);
 
-    let label;
+    let label: string | undefined;
     const tooltip: Record<string, string> = {};
 
     switch (activePane?.type) {
@@ -54,7 +55,9 @@ export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
         label =
           formatPathForLabel(activePane.cwd) ?? activePane.title ?? "Shell";
 
-        tooltip["CWD"] = activePane.cwd;
+        if (activePane.cwd) {
+          tooltip["CWD"] = activePane.cwd;
+        }
         if (activePane.title) {
           tooltip["Command"] = activePane.title;
         }

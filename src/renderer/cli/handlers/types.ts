@@ -7,7 +7,7 @@ export type HandlerContext = {
   onOpenFile: (descriptor: QuickPaneDescriptor) => void;
   requestId: string;
   sessionId: string;
-  activeTab?: Tab;
+  activeTab: Tab | null;
   tabs: Tab[];
   suppressResponse: () => void;
   findCallingTerminalTab: () => Tab;
@@ -26,8 +26,10 @@ export type HandlerContext = {
   ) => Promise<unknown>;
 };
 
+// Commands with arguments always send them, and useCliClient passes `{}` for
+// commands without any.
 export type CliHandler<Name extends CliCommand["name"]> = (
-  args: CliCommandArgs<Name>,
+  args: NonNullable<CliCommandArgs<Name>>,
   context: HandlerContext,
 ) => Promise<unknown> | unknown;
 

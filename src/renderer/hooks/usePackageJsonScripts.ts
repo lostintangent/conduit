@@ -15,7 +15,7 @@ interface PackageJson {
  * @param cwd - Current working directory
  * @returns Object containing scripts and the package.json path, or null if not found
  */
-export function usePackageJsonScripts(cwd: string | undefined) {
+export function usePackageJsonScripts(cwd: string | null | undefined) {
   const [result, setResult] = useState<{
     scripts: PackageJsonScripts;
     packageJsonPath: string;
@@ -31,9 +31,9 @@ export function usePackageJsonScripts(cwd: string | undefined) {
 
     let cancelled = false;
 
-    async function findAndParsePackageJson(): Promise<void> {
+    async function findAndParsePackageJson(startDir: string): Promise<void> {
       try {
-        let currentDir = cwd;
+        let currentDir = startDir;
         const root = path.parse(currentDir).root;
 
         // Search up to 10 levels or until we hit root
@@ -89,7 +89,7 @@ export function usePackageJsonScripts(cwd: string | undefined) {
     }
 
     setLoading(true);
-    findAndParsePackageJson();
+    findAndParsePackageJson(cwd);
 
     return () => {
       cancelled = true;

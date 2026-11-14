@@ -125,7 +125,11 @@ export function useWorkspaces() {
   }, [workspaceName, setPreviousTabsSnapshot]);
 
   const saveWorkspace = useCallback(
-    async (customName: string, tabs: any[], activeTabId: string) => {
+    async (
+      customName: string,
+      tabs: any[],
+      activeTabId: string | undefined,
+    ) => {
       let name = customName.trim();
       if (name.length === 0) {
         const now = new Date();
@@ -150,7 +154,11 @@ export function useWorkspaces() {
   const renameWorkspace = useCallback(
     async (newName: string) => {
       const trimmedName = newName.trim();
-      if (trimmedName.length === 0 || trimmedName === workspaceName) {
+      if (
+        !workspaceName ||
+        trimmedName.length === 0 ||
+        trimmedName === workspaceName
+      ) {
         setShowRenameWorkspaceDialog(false);
         return;
       }

@@ -42,12 +42,12 @@ export interface WorktreeLaunchOptions {
 }
 
 function buildAgentCommand(
-  agent: AgentConfig,
+  interactiveCommand: string,
   prompt: string,
   instructions?: string,
 ): string {
   const argumentText = instructions ? `${prompt}\n\n${instructions}` : prompt;
-  return agent.interactiveCommand.replace(
+  return interactiveCommand.replace(
     "{arg}",
     `"${argumentText.replace(/"/g, '\\"')}"`,
   );
@@ -148,7 +148,7 @@ export async function launchAgents(
     const firstInstances = payload.agentInstances?.[firstAgentId]
       ?.instances ?? [{ id: "1" }];
     const firstCommand = buildAgentCommand(
-      firstAgent,
+      firstAgent.interactiveCommand,
       payload.prompt,
       firstInstances[0]?.instructions,
     );
@@ -188,10 +188,11 @@ export async function launchAgents(
         let session: AgentSessionInfo | undefined;
         if (useWorktrees) {
           // Create a new worktree for this instance
-          session = await api.spawnAgentSession({
-            cwd,
-            preferredName: agent.name,
-          });
+          session =
+            (await api.spawnAgentSession({
+              cwd,
+              preferredName: agent.name,
+            })) ?? undefined;
           if (!session) {
             console.error(
               `Failed to create session for ${agent.name} instance ${i + 1}`,
@@ -228,7 +229,7 @@ export async function launchAgents(
 
         // Send the interactive command with custom instructions
         const command = buildAgentCommand(
-          agent,
+          agent.interactiveCommand,
           payload.prompt,
           instance.instructions,
         );

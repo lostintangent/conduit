@@ -32,9 +32,9 @@ export interface UseCommandSystemOptions {
   tabs: any[];
   applicationMode: ApplicationMode;
   setApplicationMode: (mode: ApplicationMode) => void;
-  homeDirectory?: string;
+  homeDirectory?: string | null;
   dotfilesRepo?: string;
-  workspaceName?: string;
+  workspaceName?: string | null;
   // Context key data
   hasCustomLayout: (tabId: string) => boolean;
   hasLastWorkspace: boolean;
@@ -147,7 +147,7 @@ export function useCommandSystem(
         // State - will be updated by subsequent effect
         activeTab: null,
         activePaneId: null,
-        workspaceName: undefined,
+        workspaceName: null,
         allTabs: [],
         applicationMode: "normal" as ApplicationMode,
         setApplicationMode: () => {},
@@ -235,7 +235,7 @@ export function useCommandSystem(
       // State accessors - fresh data on each command execution
       activeTab,
       activePaneId: activeTab?.activePaneId ?? null,
-      workspaceName,
+      workspaceName: workspaceName ?? null,
       allTabs: tabs,
 
       // Application mode

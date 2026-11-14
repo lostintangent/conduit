@@ -73,9 +73,9 @@ export function handleToggleDesignMode(
  * @param setShowGeneralSettings - Function to show the general settings
  */
 export function handleOpenSettings(
-  setShowGeneralSettings: (show: boolean) => void,
+  setShowGeneralSettings?: (show: boolean) => void,
 ): void {
-  setShowGeneralSettings(true);
+  setShowGeneralSettings?.(true);
 }
 
 /**
@@ -84,9 +84,9 @@ export function handleOpenSettings(
  * @param setShowKeybindingsEditor - Function to show the keybindings editor
  */
 export function handleOpenKeyboardShortcuts(
-  setShowKeybindingsEditor: (show: boolean) => void,
+  setShowKeybindingsEditor?: (show: boolean) => void,
 ): void {
-  setShowKeybindingsEditor(true);
+  setShowKeybindingsEditor?.(true);
 }
 
 /**
@@ -95,9 +95,9 @@ export function handleOpenKeyboardShortcuts(
  * @param setIsQuickOpenOpen - Function to open the Quick Open dialog
  */
 export function handleQuickOpen(
-  setIsQuickOpenOpen: (open: boolean) => void,
+  setIsQuickOpenOpen?: (open: boolean) => void,
 ): void {
-  setIsQuickOpenOpen(true);
+  setIsQuickOpenOpen?.(true);
 }
 
 /**

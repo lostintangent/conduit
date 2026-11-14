@@ -7,7 +7,7 @@ import type { WebviewTag } from "electron";
 export type CliRequestContext = {
   tabs: Tab[];
   sessionId: string;
-  activeTab?: Tab;
+  activeTab: Tab | null;
 };
 
 /**

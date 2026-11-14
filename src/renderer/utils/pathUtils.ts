@@ -46,7 +46,10 @@ export function pathsEqual(
 /**
  * Format a path for display, replacing the home directory with "~".
  */
-export function formatHomePath(path: string, homeDirectory?: string): string {
+export function formatHomePath(
+  path: string,
+  homeDirectory?: string | null,
+): string {
   if (!homeDirectory) {
     return path;
   }

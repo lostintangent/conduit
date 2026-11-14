@@ -928,7 +928,7 @@ describe("openTab", () => {
 
   afterEach(() => {
     tabsAtom.set([]);
-    activeTabIdAtom.set(() => undefined);
+    activeTabIdAtom.set(null);
   });
 
   it("starts the new terminal at the active pane's size", async () => {
@@ -1032,7 +1032,7 @@ describe("openTabFromExistingAgentSession", () => {
 
   afterEach(() => {
     tabsAtom.set([]);
-    activeTabIdAtom.set(() => undefined);
+    activeTabIdAtom.set(null);
   });
 
   it("starts the worktree's terminal once its tab has fit when no pane can be measured", async () => {

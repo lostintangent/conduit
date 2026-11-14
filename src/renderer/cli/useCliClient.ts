@@ -78,7 +78,7 @@ export function useCliClient(activeCwd: string) {
       };
 
       try {
-        const result = await handler(args as any, context);
+        const result = await handler((args ?? {}) as any, context);
 
         if (!isResponseSuppressed) {
           respondResult(result);

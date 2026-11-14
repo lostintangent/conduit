@@ -86,9 +86,8 @@ describe("watchKeybindingsFile", () => {
   });
 
   it("should call callback when file changes", async () => {
-    let fileChangedListener:
-      ((payload: { subscriptionId: string; path: string }) => void) | null =
-      null;
+    let fileChangedListener = null as
+      ((payload: { subscriptionId: string; path: string }) => void) | null;
 
     const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
     const mockOnFileContentChanged = vi.fn(
@@ -152,7 +151,7 @@ describe("watchKeybindingsFile", () => {
   });
 
   it("should handle undefined window.conduit", () => {
-    window.conduit = undefined;
+    Reflect.deleteProperty(window, "conduit");
 
     const cleanup = watchKeybindingsFile("/path/to/keybindings.json", vi.fn());
 
@@ -204,9 +203,8 @@ describe("watchKeybindingsFile", () => {
   });
 
   it("should only trigger callback for matching subscriptionId", async () => {
-    let fileChangedListener:
-      ((payload: { subscriptionId: string; path: string }) => void) | null =
-      null;
+    let fileChangedListener = null as
+      ((payload: { subscriptionId: string; path: string }) => void) | null;
 
     const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
     const mockOnFileContentChanged = vi.fn(

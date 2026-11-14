@@ -580,6 +580,7 @@ export function registerApplicationCommands(
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
+      if (!targetPaneId) return;
       setPaneCollapsed(targetTabId, targetPaneId, true);
     },
   });
@@ -599,6 +600,7 @@ export function registerApplicationCommands(
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
+      if (!targetPaneId) return;
       setPaneCollapsed(targetTabId, targetPaneId, false);
     },
   });
@@ -618,6 +620,7 @@ export function registerApplicationCommands(
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
+      if (!targetPaneId) return;
       closePane(targetTabId, targetPaneId);
     },
   });
@@ -1010,6 +1013,7 @@ export function registerApplicationCommands(
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab.id;
       const targetPaneId = paneId ?? context.activePaneId;
+      if (!targetPaneId) return;
       cloneTerminalPane(targetTabId, targetPaneId);
     },
   });
@@ -1498,6 +1502,7 @@ export function registerApplicationCommands(
     category: "Browser",
     when: activePaneType.equals("browser"),
     run: ({ activeTab, activePaneId }) => {
+      if (!activePaneId) return;
       const pane = activeTab.panes[activePaneId];
       updatePaneProperty(activeTab.id, activePaneId, {
         chromeless: !pane.chromeless,
@@ -1631,7 +1636,8 @@ const paneContextBuilder: MenuContextBuilder = async (
       if (node.type === "pane" && node.paneId === pane.id) {
         isPaneCollapsed = Boolean(node.collapsed);
         canPaneBeCollapsed =
-          parent?.children.length > 1 &&
+          !!parent &&
+          parent.children.length > 1 &&
           !parent.children.every(
             (child) =>
               child.id === node.id ||

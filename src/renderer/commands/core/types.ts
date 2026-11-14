@@ -25,7 +25,7 @@ export interface CommandContext {
   // State accessors
   readonly activeTab: any | null;
   readonly activePaneId: string | null;
-  readonly workspaceName: string | undefined;
+  readonly workspaceName: string | null;
   readonly allTabs: any[];
   readonly applicationMode?: ApplicationMode;
 

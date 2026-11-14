@@ -19,7 +19,7 @@ export function commandContext(
     agent: null,
     activeTab: null,
     activePaneId: null,
-    workspaceName: undefined,
+    workspaceName: null,
     allTabs: [],
     ...overrides,
   };

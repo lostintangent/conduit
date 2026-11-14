@@ -22,7 +22,7 @@ import type { Tab } from "@/types";
 export async function handleSaveWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
-  setShowCreateWorkspaceDialog: (show: boolean) => void,
+  setShowCreateWorkspaceDialog?: (show: boolean) => void,
 ): Promise<void> {
   if (!activeTabId) {
     return;
@@ -44,7 +44,7 @@ export async function handleSaveWorkspace(
     previousTabsSnapshotAtom.set(savedSnapshot);
     workspaceHasChangesAtom.set(false);
   } else {
-    setShowCreateWorkspaceDialog(true);
+    setShowCreateWorkspaceDialog?.(true);
   }
 }
 
@@ -54,9 +54,9 @@ export async function handleSaveWorkspace(
  * @param setShowRenameWorkspaceDialog - Function to show rename dialog
  */
 export function handleRenameWorkspace(
-  setShowRenameWorkspaceDialog: (show: boolean) => void,
+  setShowRenameWorkspaceDialog?: (show: boolean) => void,
 ): void {
-  setShowRenameWorkspaceDialog(true);
+  setShowRenameWorkspaceDialog?.(true);
 }
 
 /**
@@ -65,9 +65,9 @@ export function handleRenameWorkspace(
  * @param setShowDuplicateWorkspaceDialog - Function to show duplicate workspace dialog
  */
 export function handleDuplicateWorkspace(
-  setShowDuplicateWorkspaceDialog: (show: boolean) => void,
+  setShowDuplicateWorkspaceDialog?: (show: boolean) => void,
 ): void {
-  setShowDuplicateWorkspaceDialog(true);
+  setShowDuplicateWorkspaceDialog?.(true);
 }
 
 /**
@@ -85,9 +85,9 @@ export async function handleCloseWorkspace(): Promise<void> {
  * @param setShowWorkspacePicker - Function to show workspace picker
  */
 export function handleOpenWorkspace(
-  setShowWorkspacePicker: (show: boolean) => void,
+  setShowWorkspacePicker?: (show: boolean) => void,
 ): void {
-  setShowWorkspacePicker(true);
+  setShowWorkspacePicker?.(true);
 }
 
 /**

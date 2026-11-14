@@ -17,7 +17,7 @@ export const verifyGitRepo: PreCommand = {
     const api = window.conduit;
 
     // Determine cwd from config or fallback to home directory
-    let cwd = terminalConfig.cwd;
+    let cwd: string | null | undefined = terminalConfig.cwd;
     if (!cwd) {
       const settings = await api.getSettings();
       cwd = settings.homeDirectory;
@@ -60,7 +60,7 @@ export const createAgentSession: PreCommand = {
     const api = window.conduit;
 
     // Determine cwd from config or fallback to home directory
-    let cwd = terminalConfig.cwd;
+    let cwd: string | null | undefined = terminalConfig.cwd;
     if (!cwd) {
       const settings = await api.getSettings();
       cwd = settings.homeDirectory;

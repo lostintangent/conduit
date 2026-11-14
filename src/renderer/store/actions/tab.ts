@@ -522,13 +522,13 @@ export async function duplicateTab(
   }
 
   // Map old pane IDs to new pane IDs
-  const paneIdMap = new Map<string, string>();
+  const paneIdMap: Record<string, string> = {};
 
   // Create new panes by duplicating the source panes
   const newPanes: Record<string, Pane> = {};
   for (const [oldPaneId, sourcePane] of Object.entries(sourceTab.panes)) {
     const newPaneId = generateId();
-    paneIdMap.set(oldPaneId, newPaneId);
+    paneIdMap[oldPaneId] = newPaneId;
 
     if (sourcePane.type === "terminal") {
       // Capture command from source terminal before creating new one
@@ -623,7 +623,7 @@ export async function duplicateTab(
       return {
         id: generateId(),
         type: "pane",
-        paneId: paneIdMap.get(node.paneId),
+        paneId: paneIdMap[node.paneId],
         size: node.size,
       };
     }
@@ -650,7 +650,7 @@ export async function duplicateTab(
     id: newTabId,
     panes: newPanes,
     layout: newLayout,
-    activePaneId: paneIdMap.get(sourceTab.activePaneId),
+    activePaneId: paneIdMap[sourceTab.activePaneId],
     name: newTitle,
     locked: sourceTab.locked,
     synchronized: sourceTab.synchronized,

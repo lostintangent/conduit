@@ -78,8 +78,8 @@ describe("workspaceHandlers", () => {
 
     mockSetShowCreateWorkspaceDialog = vi.fn();
 
-    // Reset the workspace atoms (set(undefined) is a no-op, so use an updater)
-    workspaceNameAtom.set(() => undefined);
+    // Reset the workspace atoms
+    workspaceNameAtom.set(null);
     workspaceStateAtom.set({ workspaces: [] });
     previousTabsSnapshotAtom.set("");
     workspaceHasChangesAtom.set(true);
@@ -128,7 +128,7 @@ describe("workspaceHandlers", () => {
     it("should show create dialog when no workspaceName exists", async () => {
       const activeTabId = "tab-1";
 
-      workspaceNameAtom.set(() => undefined);
+      workspaceNameAtom.set(null);
 
       await handleSaveWorkspace(
         mockTabs,

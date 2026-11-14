@@ -43,7 +43,7 @@ export const userSettingsAtom = createAtom<UserSettings>({
 
 export const tabsAtom = createFrozenAtom<Tab[]>([]);
 
-export const activeTabIdAtom = createAtom(undefined as string | undefined);
+export const activeTabIdAtom = createAtom(null as string | null);
 export const activeTabAtom = createAtom<Tab | null>(() => {
   const tabs = tabsAtom.get();
   const activeTabId = activeTabIdAtom.get();
@@ -55,7 +55,7 @@ export const activePaneIdAtom = createAtom<string | null>(() => {
   return activeTab?.activePaneId ?? null;
 });
 
-export const workspaceNameAtom = createAtom(undefined as string | undefined);
+export const workspaceNameAtom = createAtom(null as string | null);
 export const workspaceStateAtom = createAtom<WorkspaceState>({
   workspaces: [],
 });
