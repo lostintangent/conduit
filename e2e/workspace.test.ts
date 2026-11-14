@@ -37,6 +37,19 @@ describe("workspaces", () => {
     await menuClosed();
   }
 
+  /**
+   * Waits for the active terminal to take focus back after a menu or dialog
+   * closes. Check before `run`, which focuses the terminal itself.
+   */
+  async function expectTerminalFocused(after: string) {
+    const terminal = await app.terminal();
+    await until(
+      () => terminal.focused(),
+      `the terminal to have focus after ${after}`,
+      5_000,
+    );
+  }
+
   async function pwd(): Promise<string> {
     const terminal = await app.terminal();
     expect(await terminal.run('echo "pwd is $PWD"')).toBe(0);
@@ -57,6 +70,7 @@ describe("workspaces", () => {
     await dialog.getByRole("textbox").fill("E2E Space");
     await dialog.getByRole("textbox").press("Enter");
     await dialog.waitFor({ state: "detached" });
+    await expectTerminalFocused("saving");
 
     await openMenu();
     await menuItem("E2E Space").waitFor();
@@ -68,6 +82,29 @@ describe("workspaces", () => {
     ).toContain("E2E Space");
   });
 
+  it("renames the workspace, and keeps its name when renaming is cancelled", async () => {
+    const dialog = app.page.getByRole("dialog", { name: "Rename workspace" });
+    await choose("Rename Workspace");
+    await dialog.getByRole("textbox").fill("E2E Renamed");
+    await dialog.getByRole("textbox").press("Enter");
+    await dialog.waitFor({ state: "detached" });
+    await expectTerminalFocused("renaming");
+
+    await choose("Rename Workspace");
+    await dialog.getByRole("textbox").fill("E2E Cancelled");
+    await dialog.getByRole("textbox").press("Escape");
+    await dialog.waitFor({ state: "detached" });
+    await expectTerminalFocused("cancelling a rename");
+
+    const saved = fs.readFileSync(
+      path.join(app.home, ".conduit/workspaces.json"),
+      "utf8",
+    );
+    expect(saved).toContain("E2E Renamed");
+    expect(saved).not.toContain("E2E Space");
+    expect(saved).not.toContain("E2E Cancelled");
+  });
+
   it("closes the workspace into a fresh window", async () => {
     await choose("Close Workspace");
     // Every terminal the test has used is tagged.
@@ -76,16 +113,18 @@ describe("workspaces", () => {
         (await app.page.locator(".xterm[data-e2e-terminal]").count()) === 0,
       "the workspace's terminals to close",
     );
+    await expectTerminalFocused("closing the workspace");
     expect(await pwd()).toBe(app.home);
     expect(await tabs().count()).toBe(1);
   });
 
   it("reopens the workspace's tabs in their directories", async () => {
-    await choose("E2E Space");
+    await choose("E2E Renamed");
     await tabs()
       .nth(1)
       .and(app.page.getByRole("tab", { selected: true }))
       .waitFor();
+    await expectTerminalFocused("opening the workspace");
     expect(await tabs().count()).toBe(2);
     expect(await pwd()).toBe(path.join(app.home, "two"));
     await expectStartedAtPaneWidth(app, await app.terminal());

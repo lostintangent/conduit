@@ -139,6 +139,13 @@ export class Terminal {
     );
   }
 
+  /** Whether keystrokes go to this terminal, without clicking it first. */
+  async focused(): Promise<boolean> {
+    return this.locator
+      .locator(".xterm-helper-textarea")
+      .evaluate((element) => element === document.activeElement);
+  }
+
   /** Waits for the shell's first prompt. */
   async ready(): Promise<this> {
     await this.waitForText(/%\s*$/m, 30_000);
