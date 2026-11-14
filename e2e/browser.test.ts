@@ -26,9 +26,12 @@ describe("browser automation from the CLI", () => {
   let url: string;
   let app: Conduit;
   let terminal: Terminal;
+  /** The paths the page has requested, e.g. to tell a test it's ready. */
+  const requested: string[] = [];
 
   beforeAll(async () => {
-    server = http.createServer((_, response) => {
+    server = http.createServer((request, response) => {
+      requested.push(request.url!);
       response.writeHead(200, { "content-type": "text/html" });
       response.end(page);
     });
@@ -96,6 +99,14 @@ describe("browser automation from the CLI", () => {
         (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
         script,
       );
+  }
+
+  /** The nth tab, once it's the selected one. */
+  function selectedTab(index: number) {
+    return app.page
+      .getByRole("tab")
+      .nth(index)
+      .and(app.page.getByRole("tab", { selected: true }));
   }
 
   it("opens a browser pane and navigates it", async () => {
@@ -191,12 +202,6 @@ describe("browser automation from the CLI", () => {
 
   // The File menu has its own Cmd+T, but Playwright's keys never reach menus
   it("runs the app's shortcuts while a page has focus", async () => {
-    const selectedTab = (index: number) =>
-      app.page
-        .getByRole("tab")
-        .nth(index)
-        .and(app.page.getByRole("tab", { selected: true }));
-
     await clickPage(0);
     await app.page.keyboard.press("Meta+p");
     const quickOpen = app.page.getByPlaceholder(/Search files by name/);
@@ -215,6 +220,87 @@ describe("browser automation from the CLI", () => {
     await app.page.keyboard.press("Meta+1");
     await selectedTab(0).waitFor();
   });
+
+  // The browser routes a click by where the window last drew the page, so a
+  // click that lands as the page's tab shows goes to the window instead
+  for (const focused of ["address bar", "page"]) {
+    it(`gives a page the keys when it's clicked as its tab shows, after the ${focused} had focus`, async () => {
+      const box = (await app.page.locator("webview").nth(0).boundingBox())!;
+      await inPage(
+        0,
+        `onkeydown = (event) => typed.push(event.key);
+        window.typed = [];`,
+      );
+      // Focus goes back to it when the tab shows
+      if (focused === "page") {
+        await clickPage(0);
+        await until(
+          () => inPage(0, "document.hasFocus()"),
+          "the page to take focus",
+        );
+      } else {
+        const addresses = app.page.getByPlaceholder("Enter URL...");
+        const address = await addresses.evaluateAll(
+          (inputs, url) =>
+            inputs.findIndex(
+              (input) => (input as HTMLInputElement).value === url,
+            ),
+          url,
+        );
+        await addresses.nth(address).click();
+      }
+      await app.page.keyboard.press("Meta+2");
+      await selectedTab(1).waitFor();
+      await until(
+        () =>
+          app.page.evaluate(() =>
+            document.activeElement?.matches(".xterm-helper-textarea"),
+          ),
+        "the second tab's terminal to take focus",
+      );
+      // Keeps the window from drawing the page where Cmd+1 places it, once
+      // focus has gone back to where it was. The window can't answer while
+      // it waits, so the page tells the test.
+      await app.page.evaluate(() => {
+        const webview = document.querySelector(
+          "webview",
+        ) as Electron.WebviewTag;
+        const observer = new MutationObserver(() => {
+          if (webview.style.left === "-10000px") return;
+          observer.disconnect();
+          requestAnimationFrame(() => {
+            void webview.executeJavaScript(`void fetch("/held")`);
+            const end = performance.now() + 1000;
+            while (performance.now() < end);
+          });
+        });
+        observer.observe(webview, { attributeFilter: ["style"] });
+      });
+      // Playwright's click waits for each step to be handled, so it would
+      // only land after the window draws again
+      const cdp = await app.page.context().newCDPSession(app.page);
+      requested.length = 0;
+      const switched = app.page.keyboard.press("Meta+1");
+      await until(() => requested.includes("/held"), "the window to wait");
+      const click = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+      await Promise.all(
+        (["mousePressed", "mouseReleased"] as const).map((type) =>
+          cdp.send("Input.dispatchMouseEvent", {
+            type,
+            ...click,
+            button: "left",
+            clickCount: 1,
+          }),
+        ),
+      );
+      await switched;
+      await cdp.detach();
+
+      await inPage(0, "typed.length = 0");
+      await app.page.keyboard.type("Ada");
+      expect(await inPage(0, `typed.join("")`)).toBe("Ada");
+    });
+  }
 
   it("leaves a page its editing keys and the keys the app isn't using", async () => {
     await clickPage(0);

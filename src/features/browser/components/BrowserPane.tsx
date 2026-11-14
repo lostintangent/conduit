@@ -368,6 +368,18 @@ export function BrowserPane({
       if (channel === "browser:pointerdown") handleWebViewFocus();
     };
 
+    // A click that lands before the window draws the page where it now is,
+    // like as its tab shows, comes to the window instead. The window would
+    // keep the keys, even taking them from the page, so the page takes focus
+    // the way its own click gives it. Focusing the webview does nothing
+    // while it's already the focused element, so it lets go first.
+    const handleWebViewMouseDown = (event: MouseEvent) => {
+      event.preventDefault();
+      webview.blur();
+      webview.focus();
+      handleWebViewFocus();
+    };
+
     const handleConsoleMessage = (
       event: Event & {
         message?: string;
@@ -415,6 +427,7 @@ export function BrowserPane({
     webview.addEventListener("mouseleave", handleWebViewMouseLeave);
 
     webview.addEventListener("focus", handleWebViewFocus);
+    webview.addEventListener("mousedown", handleWebViewMouseDown);
     webview.addEventListener("ipc-message", handleIpcMessage);
 
     webview.addEventListener("console-message", handleConsoleMessage);
@@ -439,6 +452,7 @@ export function BrowserPane({
       webview.removeEventListener("mouseleave", handleWebViewMouseLeave);
 
       webview.removeEventListener("focus", handleWebViewFocus);
+      webview.removeEventListener("mousedown", handleWebViewMouseDown);
       webview.removeEventListener("ipc-message", handleIpcMessage);
 
       webview.removeEventListener("console-message", handleConsoleMessage);
