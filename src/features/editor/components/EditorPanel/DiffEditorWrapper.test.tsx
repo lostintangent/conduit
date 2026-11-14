@@ -1,347 +1,216 @@
-// @ts-nocheck
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import * as monaco from "monaco-editor";
+import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
+import type { DiffContent } from "../hooks/useDiffContent";
+import { DiffEditorWrapper } from "./DiffEditorWrapper";
 
-// ============================================================================
-// Mocks - Use vi.hoisted to create mocks that can be dynamically changed
-// ============================================================================
+const { model, modifiedEditor, diffEditor, diff, made } = vi.hoisted(() => {
+  // Names each view model and side model as it's made, and logs their
+  // disposal in order
+  const made = { viewModels: 0, models: 0, disposed: [] as string[] };
+  const modifiedEditor = { focus: vi.fn(), saveViewState: () => null };
+  return {
+    made,
+    // The working directory model useMonacoModel returns. A test that
+    // switches files points it at the new file, the way the hook would.
+    model: {
+      getValue: () => "modified content",
+      uri: {
+        fsPath: "/test/file.ts",
+        toString() {
+          return `file://${this.fsPath}`;
+        },
+      },
+      onDidChangeContent: vi.fn((_listener: () => void) => ({
+        dispose: vi.fn(),
+      })),
+    },
+    modifiedEditor,
+    diffEditor: {
+      createViewModel: vi.fn(() => {
+        const name = `viewModel${++made.viewModels}`;
+        return { dispose: () => made.disposed.push(name) };
+      }),
+      setModel: vi.fn(),
+      getModifiedEditor: () => modifiedEditor,
+      updateOptions: vi.fn(),
+      revealFirstDiff: vi.fn(),
+      dispose: vi.fn(),
+    },
+    diff: { content: {} as DiffContent },
+  };
+});
 
-// State container for dynamic mock state
-const mockState = vi.hoisted(() => ({
-  diffContent: {
-    original: "original content",
-    modified: "modified content",
-    isLoading: false,
-    error: null as string | null,
-    isModifiedEditable: true, // Default to editable (working directory mode)
-  },
-}));
-
-// Mock Monaco model - uses a dynamic filePath that can be updated per test
-let mockModelFilePath = "/test/file.ts";
-
-const mockModifiedModel = {
-  getValue: vi.fn(() => "modified content"),
-  setValue: vi.fn(),
-  dispose: vi.fn(),
-  uri: {
-    toString: () => `file://${mockModelFilePath}`,
-    fsPath: mockModelFilePath,
-  },
-  onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
-};
-
-// Helper to update mock model's file path for tests that use different files
-const setMockModelFilePath = (filePath: string) => {
-  mockModelFilePath = filePath;
-  mockModifiedModel.uri.fsPath = filePath;
-};
-
-// Mock modified editor (returned by getModifiedEditor)
-const mockModifiedEditor = {
-  focus: vi.fn(),
-  getModel: vi.fn(() => mockModifiedModel),
-  saveViewState: vi.fn(() => ({
-    cursorState: [{ position: { lineNumber: 1, column: 1 } }],
-    viewState: { scrollTop: 0 },
-  })),
-  restoreViewState: vi.fn(),
-};
-
-// Mock Monaco diff editor
-const mockDiffEditor = {
-  createViewModel: vi.fn((model: unknown) => ({ model, dispose: vi.fn() })),
-  setModel: vi.fn(),
-  getModifiedEditor: vi.fn(() => mockModifiedEditor),
-  updateOptions: vi.fn(),
-  dispose: vi.fn(),
-  layout: vi.fn(),
-  revealFirstDiff: vi.fn(),
-};
-
-// Mock monaco.editor.createDiffEditor
-const mockCreateDiffEditor = vi.fn(() => mockDiffEditor);
-const mockCreateModel = vi.fn(() => ({
-  dispose: vi.fn(),
-}));
-const mockSetTheme = vi.fn();
-
-// Mock monaco module
 vi.mock("monaco-editor", () => ({
   editor: {
-    createDiffEditor: (...args: unknown[]) => mockCreateDiffEditor(...args),
-    createModel: (...args: unknown[]) => mockCreateModel(...args),
-    setTheme: (...args: unknown[]) => mockSetTheme(...args),
-  },
-  Uri: {
-    parse: vi.fn((uri: string) => ({ toString: () => uri })),
-    file: vi.fn((path: string) => ({
-      toString: () => `file://${path}`,
-      fsPath: path,
-    })),
-  },
-}));
-
-// Mock useDiffContent hook - return function that reads current state
-vi.mock("../hooks/useDiffContent", () => ({
-  useDiffContent: vi.fn(() => mockState.diffContent),
-}));
-
-vi.mock("../hooks/useMonacoModel", () => ({
-  useMonacoModel: vi.fn(() => mockModifiedModel),
-}));
-
-vi.mock("../hooks/useEditorTheme", () => ({
-  useEditorTheme: vi.fn(() => "vs-dark"),
-}));
-
-vi.mock("../hooks/useAutoSizeEditor", () => ({
-  useAutoSizeEditor: vi.fn(() => ({
-    height: 100,
-    enabled: false,
-    containerStyle: { height: "100%", width: "100%" },
-  })),
-}));
-
-vi.mock("../hooks/usePreventFocusScroll", () => ({
-  usePreventFocusScroll: vi.fn(),
-}));
-
-// Mock registries
-
-vi.mock("../../client/MonacoModelRegistry", () => ({
-  MonacoModelRegistry: {
-    getInstance: () => ({
-      getOrCreate: vi.fn(() => mockModifiedModel),
-      release: vi.fn(),
+    createDiffEditor: vi.fn(() => diffEditor),
+    // The original side, and a git modified side, get models of their own,
+    // which a re-read edits in place
+    createModel: vi.fn((value: string) => {
+      const lines = value.split("\n");
+      const name = `model${++made.models}`;
+      return {
+        getLinesContent: () => lines,
+        getEOL: () => "\n",
+        getLineMaxColumn: (line: number) => lines[line - 1].length + 1,
+        applyEdits: vi.fn(),
+        dispose: () => made.disposed.push(name),
+      };
     }),
-    resetInstance: vi.fn(),
+    setTheme: vi.fn(),
   },
+  Uri: { parse: (uri: string) => ({ toString: () => uri }) },
+}));
+
+vi.mock("../hooks/useDiffContent", () => ({
+  useDiffContent: () => diff.content,
+}));
+vi.mock("../hooks/useMonacoModel", () => ({ useMonacoModel: () => model }));
+vi.mock("../hooks/useEditorTheme", () => ({ useEditorTheme: () => "vs-dark" }));
+// The real hook sizes the container from the editors' content heights
+vi.mock("../hooks/useAutoSizeEditor", () => ({
+  useAutoSizeEditor: vi.fn(() => ({ containerRef: { current: null } })),
+}));
+vi.mock("../../client/MonacoModelRegistry", () => ({
   createModelKey: (filePath: string) => `file://${filePath}`,
 }));
 
-// Import component after mocks are set up
-import { DiffEditorWrapper } from "./DiffEditorWrapper";
-import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
-import { useDiffContent } from "../hooks/useDiffContent";
+type Props = ComponentProps<typeof DiffEditorWrapper>;
 
-// ============================================================================
-// Tests
-// ============================================================================
+function renderDiff(props: Partial<Props> = {}) {
+  const diffWith = (next: Partial<Props>) => (
+    <DiffEditorWrapper
+      editorId="test-diff"
+      cwd="/test"
+      filePath="/test/file.ts"
+      {...next}
+    />
+  );
+  const view = render(diffWith(props));
+  return {
+    ...view,
+    rerender: (next: Partial<Props>) => view.rerender(diffWith(next)),
+  };
+}
+
+const diffContent = (overrides: Partial<DiffContent> = {}): DiffContent => ({
+  original: "original content",
+  modified: "modified content",
+  isLoading: false,
+  error: null,
+  errorMessage: null,
+  isModifiedEditable: true,
+  ...overrides,
+});
 
 describe("DiffEditorWrapper", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset mock model file path to default for clean test state
-    setMockModelFilePath("/test/file.ts");
-    // Reset to default state
-    mockState.diffContent = {
-      original: "original content",
-      modified: "modified content",
-      isLoading: false,
-      error: null,
-      isModifiedEditable: true, // Default to editable (working directory mode)
-    };
-    // Reset the mock implementation to use default state
-    (useDiffContent as ReturnType<typeof vi.fn>).mockImplementation(
-      () => mockState.diffContent,
-    );
+    model.uri.fsPath = "/test/file.ts";
+    diff.content = diffContent();
+    Object.assign(made, { viewModels: 0, models: 0, disposed: [] });
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
     vi.useRealTimers();
   });
 
-  // ===========================================================================
-  // Loading State
-  // ===========================================================================
-
   describe("loading state", () => {
-    it("should show loading state while fetching content", () => {
-      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
+    beforeEach(() => {
+      diff.content = diffContent({
         original: null,
         modified: null,
         isLoading: true,
-        error: null,
       });
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      expect(screen.getByTestId("diff-editor-loading")).toBeDefined();
-      expect(screen.getByText("Loading diff...")).toBeDefined();
     });
 
-    it("should not set up model while loading", async () => {
-      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
-        original: null,
-        modified: null,
-        isLoading: true,
-        error: null,
-      });
+    it("should show loading state while fetching content", () => {
+      renderDiff();
 
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
+      expect(screen.getByTestId("diff-editor-loading").textContent).toBe(
+        "Loading diff...",
       );
+    });
 
-      // Monaco diff editor model should not be set up during loading
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).not.toHaveBeenCalled();
-      });
+    it("should not set up model while loading", () => {
+      renderDiff();
+
+      expect(diffEditor.setModel).not.toHaveBeenCalled();
     });
   });
-
-  // ===========================================================================
-  // Error State
-  // ===========================================================================
 
   describe("error state", () => {
-    it("should show error state when fetch fails", () => {
-      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
+    beforeEach(() => {
+      diff.content = diffContent({
         original: null,
         modified: null,
-        isLoading: false,
-        error: { message: "Failed to fetch git content" },
+        error: { type: "unknown", message: "Failed to fetch git content" },
       });
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      expect(screen.getByTestId("diff-editor-error")).toBeDefined();
-      expect(screen.getByText("Failed to fetch git content")).toBeDefined();
     });
 
-    it("should not set up model on error", async () => {
-      (useDiffContent as ReturnType<typeof vi.fn>).mockReturnValue({
-        original: null,
-        modified: null,
-        isLoading: false,
-        error: { message: "Failed to fetch git content" },
-      });
+    it("should show error state when fetch fails", () => {
+      renderDiff();
 
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
+      expect(screen.getByTestId("diff-editor-error").textContent).toBe(
+        "Failed to fetch git content",
       );
+    });
 
-      // Monaco diff editor model should not be set up on error
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).not.toHaveBeenCalled();
-      });
+    it("should not set up model on error", () => {
+      renderDiff();
+
+      expect(diffEditor.setModel).not.toHaveBeenCalled();
     });
   });
-
-  // ===========================================================================
-  // Diff Editor Creation
-  // ===========================================================================
 
   describe("diff editor creation", () => {
-    it("should create diff editor with correct options", async () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-dark"
-          readOnly={false}
-        />,
-      );
+    it("should create diff editor with correct options", () => {
+      renderDiff({ theme: "vs-dark", readOnly: false });
 
-      await waitFor(() => {
-        // Editor is created with base options (readOnly is set via updateOptions)
-        expect(mockCreateDiffEditor).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
-          expect.objectContaining({
-            theme: "vs-dark",
-            renderSideBySide: true,
-          }),
-        );
-        // readOnly is set via updateOptions after creation
-        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            readOnly: false,
-          }),
-        );
+      expect(monaco.editor.createDiffEditor).toHaveBeenCalledWith(
+        screen.getByTestId("diff-editor-wrapper"),
+        expect.objectContaining({ theme: "vs-dark", renderSideBySide: true }),
+      );
+      // readOnly is set via updateOptions after creation
+      expect(diffEditor.updateOptions).toHaveBeenCalledWith({
+        readOnly: false,
       });
     });
 
-    it("should hand the created editor to auto-size", async () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          autoSize={400}
-        />,
-      );
+    it("should hand the created editor to auto-size", () => {
+      renderDiff({ autoSize: 400 });
 
-      await waitFor(() => {
-        expect(useAutoSizeEditor).toHaveBeenLastCalledWith({
-          diffEditor: mockDiffEditor,
-          maxHeight: 400,
-        });
+      expect(useAutoSizeEditor).toHaveBeenLastCalledWith({
+        diffEditor,
+        maxHeight: 400,
       });
     });
   });
 
-  // ===========================================================================
-  // Model Setup
-  // ===========================================================================
-
   describe("model setup", () => {
-    it("should create original model from git content", async () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should create original model from git content", () => {
+      renderDiff();
 
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          "original content",
-          expect.any(String),
-          expect.anything(),
-        );
-      });
+      expect(monaco.editor.createModel).toHaveBeenCalledWith(
+        "original content",
+        "typescript",
+        expect.anything(),
+      );
     });
 
-    it("should set models on diff editor", async () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should set models on diff editor", () => {
+      renderDiff();
 
-      await waitFor(() => {
-        expect(mockDiffEditor.createViewModel).toHaveBeenCalledWith({
-          original: expect.anything(),
-          modified: mockModifiedModel,
-        });
+      const original = vi.mocked(monaco.editor.createModel).mock.results[0]
+        .value;
+      expect(diffEditor.createViewModel).toHaveBeenCalledWith({
+        original,
+        modified: model,
       });
-      expect(mockDiffEditor.setModel).toHaveBeenCalledWith(
-        mockDiffEditor.createViewModel.mock.results[0]?.value,
+      expect(diffEditor.setModel).toHaveBeenCalledWith(
+        diffEditor.createViewModel.mock.results[0].value,
       );
     });
 
@@ -349,43 +218,25 @@ describe("DiffEditorWrapper", () => {
     // the diff and scroll it back to its first change
     it("should edit a re-read git side into its model, keeping the diff", () => {
       vi.useFakeTimers();
-      mockCreateModel.mockImplementation((value: string) => {
-        const lines = value.split("\n");
-        return {
-          dispose: vi.fn(),
-          getLinesContent: () => lines,
-          getEOL: () => "\n",
-          getLineMaxColumn: (line: number) => lines[line - 1].length + 1,
-          applyEdits: vi.fn(),
-        };
-      });
-      mockState.diffContent = {
+      diff.content = diffContent({
         original: "a\nb\nc",
         modified: "a\nB\nc",
-        isLoading: false,
-        error: null,
         isModifiedEditable: false,
-      };
-      const diff = (originalSource: string) => (
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          originalSource={originalSource}
-          modifiedSource="index"
-        />
-      );
-      const { rerender } = render(diff("head"));
+      });
+      const { rerender } = renderDiff({
+        originalSource: "head",
+        modifiedSource: "index",
+      });
       vi.advanceTimersByTime(100);
-      expect(mockDiffEditor.revealFirstDiff).toHaveBeenCalledTimes(1);
+      expect(diffEditor.revealFirstDiff).toHaveBeenCalledTimes(1);
 
-      mockState.diffContent = { ...mockState.diffContent, original: "a\nB\nc" };
-      rerender(diff("head"));
+      diff.content = { ...diff.content, original: "a\nB\nc" };
+      rerender({ originalSource: "head", modifiedSource: "index" });
       vi.advanceTimersByTime(100);
 
-      const [original, modified] = mockCreateModel.mock.results.map(
-        (result) => result.value,
-      );
+      const [original, modified] = vi
+        .mocked(monaco.editor.createModel)
+        .mock.results.map((result) => result.value);
       expect(original.applyEdits).toHaveBeenCalledWith([
         {
           range: {
@@ -398,456 +249,169 @@ describe("DiffEditorWrapper", () => {
         },
       ]);
       expect(modified.applyEdits).not.toHaveBeenCalled();
-      expect(mockCreateModel).toHaveBeenCalledTimes(2);
-      expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(1);
-      expect(mockDiffEditor.revealFirstDiff).toHaveBeenCalledTimes(1);
+      expect(monaco.editor.createModel).toHaveBeenCalledTimes(2);
+      expect(diffEditor.createViewModel).toHaveBeenCalledTimes(1);
+      expect(diffEditor.revealFirstDiff).toHaveBeenCalledTimes(1);
 
       // Comparing with another source is another diff
-      rerender(diff("index"));
-      expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(2);
+      rerender({ originalSource: "index", modifiedSource: "index" });
+      expect(diffEditor.createViewModel).toHaveBeenCalledTimes(2);
     });
   });
 
-  // ===========================================================================
-  // Options Updates
-  // ===========================================================================
-
   describe("options updates", () => {
-    it("should update theme globally when theme changes", async () => {
-      const { rerender } = render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-dark"
-        />,
-      );
+    it("should update theme globally when theme changes", () => {
+      const { rerender } = renderDiff({ theme: "vs-dark" });
 
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).toHaveBeenCalled();
-      });
+      rerender({ theme: "vs-light" });
 
-      // Clear the mock to check for the new call
-      mockSetTheme.mockClear();
-
-      rerender(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-light"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockSetTheme).toHaveBeenCalledWith("vs-light");
-      });
+      expect(monaco.editor.setTheme).toHaveBeenLastCalledWith("vs-light");
     });
 
     // Recreating the editor on a theme change dropped its models, and nothing
     // set them again, so an open diff went blank.
-    it("should keep the diff when the theme changes", async () => {
-      const { rerender } = render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-dark"
-        />,
-      );
+    it("should keep the diff when the theme changes", () => {
+      const { rerender } = renderDiff({ theme: "vs-dark" });
 
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).toHaveBeenCalled();
-      });
+      rerender({ theme: "vs-light" });
 
-      rerender(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-light"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockSetTheme).toHaveBeenCalledWith("vs-light");
-      });
-      expect(mockCreateDiffEditor).toHaveBeenCalledTimes(1);
-      expect(mockDiffEditor.setModel).toHaveBeenLastCalledWith(
-        mockDiffEditor.createViewModel.mock.results[0]?.value,
+      expect(monaco.editor.setTheme).toHaveBeenLastCalledWith("vs-light");
+      expect(monaco.editor.createDiffEditor).toHaveBeenCalledTimes(1);
+      expect(diffEditor.setModel).toHaveBeenLastCalledWith(
+        diffEditor.createViewModel.mock.results[0].value,
       );
     });
 
-    it("should update diff editor options when readOnly changes", async () => {
-      const { rerender } = render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          readOnly={false}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).toHaveBeenCalled();
+    it("should update diff editor options when readOnly changes", () => {
+      const { rerender } = renderDiff({ readOnly: false });
+      expect(diffEditor.updateOptions).not.toHaveBeenCalledWith({
+        readOnly: true,
       });
 
-      rerender(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          readOnly={true}
-        />,
-      );
+      rerender({ readOnly: true });
 
-      await waitFor(() => {
-        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            readOnly: true,
-          }),
-        );
+      expect(diffEditor.updateOptions).toHaveBeenLastCalledWith({
+        readOnly: true,
       });
     });
   });
-
-  // ===========================================================================
-  // Focus Handling
-  // ===========================================================================
 
   describe("focus handling", () => {
-    it("should focus modified editor when container is clicked", async () => {
-      const mockFocus = vi.fn();
-      mockDiffEditor.getModifiedEditor.mockReturnValue({
-        focus: mockFocus,
-        getModel: vi.fn(() => mockModifiedModel),
-        saveViewState: vi.fn(() => null),
-        restoreViewState: vi.fn(),
-      });
+    it("should focus modified editor when container is clicked", () => {
+      renderDiff();
+      expect(modifiedEditor.focus).not.toHaveBeenCalled();
 
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+      fireEvent.click(screen.getByTestId("diff-editor-wrapper"));
 
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).toHaveBeenCalled();
-      });
-
-      const container = screen.getByTestId("diff-editor-wrapper");
-      fireEvent.click(container);
-
-      expect(mockFocus).toHaveBeenCalled();
+      expect(modifiedEditor.focus).toHaveBeenCalled();
     });
   });
-
-  // ===========================================================================
-  // Callbacks
-  // ===========================================================================
 
   describe("callbacks", () => {
-    it("should call onMount when diff editor is ready", async () => {
-      const mockOnMount = vi.fn();
+    it("should call onMount when diff editor is ready", () => {
+      const onMount = vi.fn();
+      renderDiff({ onMount });
 
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          onMount={mockOnMount}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockOnMount).toHaveBeenCalledWith(mockDiffEditor);
-      });
+      expect(onMount).toHaveBeenCalledWith(diffEditor);
     });
 
-    it("should set up onChange listener when onChange is provided", async () => {
-      const mockOnChange = vi.fn();
+    it("should set up onChange listener when onChange is provided", () => {
+      const onChange = vi.fn();
+      renderDiff({ onChange });
 
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-          onChange={mockOnChange}
-        />,
-      );
+      const [contentChanged] = model.onDidChangeContent.mock.calls[0];
+      contentChanged();
 
-      await waitFor(() => {
-        expect(mockModifiedModel.onDidChangeContent).toHaveBeenCalled();
-      });
+      expect(onChange).toHaveBeenCalledWith("modified content");
     });
   });
-
-  // ===========================================================================
-  // Default Props
-  // ===========================================================================
 
   describe("default props", () => {
-    it("should use vs-dark theme by default", async () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should use vs-dark theme by default", () => {
+      renderDiff();
 
-      await waitFor(() => {
-        expect(mockCreateDiffEditor).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
-          expect.objectContaining({
-            theme: "vs-dark",
-          }),
-        );
-      });
+      expect(monaco.editor.createDiffEditor).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({ theme: "vs-dark" }),
+      );
     });
 
-    it("should not be read-only by default", async () => {
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should not be read-only by default", () => {
+      renderDiff();
 
-      await waitFor(() => {
-        // readOnly is set via updateOptions, not in createDiffEditor
-        expect(mockDiffEditor.updateOptions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            readOnly: false,
-          }),
-        );
+      expect(diffEditor.updateOptions).toHaveBeenCalledWith({
+        readOnly: false,
+      });
+      expect(diffEditor.updateOptions).not.toHaveBeenCalledWith({
+        readOnly: true,
       });
     });
   });
 
-  // ===========================================================================
-  // Cleanup
-  // ===========================================================================
-
   describe("cleanup", () => {
-    it("should dispose diff editor on unmount", async () => {
-      const { unmount } = render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockDiffEditor.setModel).toHaveBeenCalled();
-      });
+    it("should dispose diff editor on unmount", () => {
+      const { unmount } = renderDiff();
+      expect(diffEditor.dispose).not.toHaveBeenCalled();
 
       unmount();
 
-      expect(mockDiffEditor.dispose).toHaveBeenCalled();
+      expect(diffEditor.dispose).toHaveBeenCalled();
     });
 
     // Disposing the view model cancels a diff still computing on the worker,
     // which otherwise fails once its original model is gone. Monaco never
     // disposes a view model it creates from plain models.
     describe("view model disposal", () => {
-      let disposed: string[];
-
-      beforeEach(() => {
-        disposed = [];
-        let viewModels = 0;
-        mockDiffEditor.createViewModel.mockImplementation((model) => {
-          const name = `viewModel${++viewModels}`;
-          return { model, dispose: vi.fn(() => disposed.push(name)) };
-        });
-        let models = 0;
-        mockCreateModel.mockImplementation(() => {
-          const name = `original${++models}`;
-          return { dispose: vi.fn(() => disposed.push(name)) };
-        });
-      });
-
-      it("should dispose the view model before the original model on unmount", async () => {
-        const { unmount } = render(
-          <DiffEditorWrapper
-            editorId="test-diff"
-            cwd="/test"
-            filePath="/test/file.ts"
-          />,
-        );
-
-        await waitFor(() => {
-          expect(mockDiffEditor.setModel).toHaveBeenCalled();
-        });
+      it("should dispose the view model before the original model on unmount", () => {
+        const { unmount } = renderDiff();
+        expect(made.disposed).toEqual([]);
 
         unmount();
 
-        expect(disposed).toEqual(["viewModel1", "original1"]);
+        expect(made.disposed).toEqual(["viewModel1", "model1"]);
       });
 
-      it("should dispose the previous view model before its original model when the file changes", async () => {
-        const { rerender } = render(
-          <DiffEditorWrapper
-            editorId="test-diff"
-            cwd="/test"
-            filePath="/test/file.ts"
-          />,
-        );
+      it("should dispose the previous view model before its original model when the file changes", () => {
+        const { rerender } = renderDiff();
 
-        await waitFor(() => {
-          expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(1);
-        });
+        model.uri.fsPath = "/test/other.ts";
+        rerender({ filePath: "/test/other.ts" });
 
-        setMockModelFilePath("/test/other.ts");
-        rerender(
-          <DiffEditorWrapper
-            editorId="test-diff"
-            cwd="/test"
-            filePath="/test/other.ts"
-          />,
-        );
-
-        await waitFor(() => {
-          expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(2);
-        });
-        expect(disposed).toEqual(["viewModel1", "original1"]);
+        expect(diffEditor.createViewModel).toHaveBeenCalledTimes(2);
+        expect(made.disposed).toEqual(["viewModel1", "model1"]);
       });
     });
   });
 
-  // ===========================================================================
-  // Language Detection
-  // ===========================================================================
-
   describe("language detection", () => {
-    it("should detect typescript for .ts files", async () => {
-      // Set mock model to match the test file path
-      setMockModelFilePath("/test/file.ts");
+    it.each([
+      ["should detect typescript for .ts files", "/test/file.ts", "typescript"],
+      ["should detect javascript for .js files", "/test/file.js", "javascript"],
+      ["should detect json for .json files", "/test/file.json", "json"],
+      [
+        "should default to plaintext for unknown extensions",
+        "/test/file.xyz",
+        "plaintext",
+      ],
+      [
+        "should detect shell for .gitignore (filename-based detection)",
+        "/test/.gitignore",
+        "shell",
+      ],
+      [
+        "should detect dockerfile for Dockerfile (filename-based detection)",
+        "/test/Dockerfile",
+        "dockerfile",
+      ],
+    ])("%s", (_title, filePath, language) => {
+      model.uri.fsPath = filePath;
+      renderDiff({ filePath });
 
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
+      expect(monaco.editor.createModel).toHaveBeenCalledWith(
+        "original content",
+        language,
+        expect.anything(),
       );
-
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          expect.any(String),
-          "typescript",
-          expect.anything(),
-        );
-      });
-    });
-
-    it("should detect javascript for .js files", async () => {
-      // Set mock model to match the test file path
-      setMockModelFilePath("/test/file.js");
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.js"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          expect.any(String),
-          "javascript",
-          expect.anything(),
-        );
-      });
-    });
-
-    it("should detect json for .json files", async () => {
-      // Set mock model to match the test file path
-      setMockModelFilePath("/test/file.json");
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.json"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          expect.any(String),
-          "json",
-          expect.anything(),
-        );
-      });
-    });
-
-    it("should default to plaintext for unknown extensions", async () => {
-      // Set mock model to match the test file path
-      setMockModelFilePath("/test/file.xyz");
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/file.xyz"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          expect.any(String),
-          "plaintext",
-          expect.anything(),
-        );
-      });
-    });
-
-    it("should detect shell for .gitignore (filename-based detection)", async () => {
-      // Set mock model to match the test file path
-      setMockModelFilePath("/test/.gitignore");
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/.gitignore"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          expect.any(String),
-          "shell",
-          expect.anything(),
-        );
-      });
-    });
-
-    it("should detect dockerfile for Dockerfile (filename-based detection)", async () => {
-      // Set mock model to match the test file path
-      setMockModelFilePath("/test/Dockerfile");
-
-      render(
-        <DiffEditorWrapper
-          editorId="test-diff"
-          cwd="/test"
-          filePath="/test/Dockerfile"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockCreateModel).toHaveBeenCalledWith(
-          expect.any(String),
-          "dockerfile",
-          expect.anything(),
-        );
-      });
     });
   });
 });

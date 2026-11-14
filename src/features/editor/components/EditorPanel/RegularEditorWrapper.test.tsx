@@ -1,618 +1,302 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import * as monaco from "monaco-editor";
+import type { ComponentProps } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { GitContentResult } from "../hooks/useGitContent";
+import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
-// ============================================================================
-// Mocks - Must be defined before vi.mock calls that reference them
-// ============================================================================
-
-// Mock Monaco model - uses a dynamic filePath that can be updated per test
-let mockModelFilePath = "/test/file.ts";
-
-const mockModel = {
-  getValue: vi.fn(() => "file content"),
-  setValue: vi.fn(),
-  dispose: vi.fn(),
-  uri: {
-    toString: () => `file://${mockModelFilePath}`,
-    fsPath: mockModelFilePath,
-  },
-  onDidChangeContent: vi.fn(() => ({ dispose: vi.fn() })),
-};
-
-// Helper to update mock model's file path for tests that switch files
-const setMockModelFilePath = (filePath: string) => {
-  mockModelFilePath = filePath;
-  mockModel.uri.fsPath = filePath;
-};
-
-// Mock Monaco editor - returned by monaco.editor.create
-const mockEditor = {
-  setModel: vi.fn(),
-  getModel: vi.fn(() => mockModel),
-  updateOptions: vi.fn(),
-  focus: vi.fn(),
-  dispose: vi.fn(),
-  saveViewState: vi.fn(() => ({
-    cursorState: [{ position: { lineNumber: 1, column: 1 } }],
-    viewState: { scrollTop: 0 },
-  })),
-  restoreViewState: vi.fn(),
-  onDidChangeModelContent: vi.fn(() => ({ dispose: vi.fn() })),
-  onDidBlurEditorText: vi.fn(() => ({ dispose: vi.fn() })),
-  onDidFocusEditorText: vi.fn(() => ({ dispose: vi.fn() })),
-  onDidChangeCursorPosition: vi.fn(() => ({ dispose: vi.fn() })),
-  onDidScrollChange: vi.fn(() => ({ dispose: vi.fn() })),
-  getDomNode: vi.fn(() => document.createElement("div")),
-  layout: vi.fn(),
-};
-
-// Mock ViewStateRegistry
-const mockViewStateRegistry = {
-  save: vi.fn(),
-  restore: vi.fn(),
-};
-
-// Mock useMonacoModel hook
-// Note: We don't use importOriginal because the real hooks would access window.conduit
-vi.mock("../hooks/useMonacoModel", () => ({
-  useMonacoModel: vi.fn(() => mockModel),
-}));
-
-vi.mock("../hooks/useEditorTheme", () => ({
-  useEditorTheme: vi.fn(() => "vs-dark"),
-}));
-
-vi.mock("../hooks/useAutoSizeEditor", () => ({
-  useAutoSizeEditor: vi.fn(() => ({
-    height: 100,
-    enabled: false,
-    containerStyle: { height: "100%", width: "100%" },
-  })),
-}));
-
-vi.mock("../hooks/usePreventFocusScroll", () => ({
-  usePreventFocusScroll: vi.fn(),
-}));
-
-vi.mock("../hooks/useGitContent", () => ({
-  useGitContent: vi.fn(() => ({
-    content: null,
-    isLoading: false,
-    error: null,
-  })),
-}));
-
-// Mock monaco-editor - The component uses monaco.editor.create directly
-vi.mock("monaco-editor", () => ({
-  editor: {
-    create: vi.fn(() => mockEditor),
-    createModel: vi.fn(() => mockModel),
-    setTheme: vi.fn(),
-    defineTheme: vi.fn(),
-    setModelLanguage: vi.fn(),
-  },
-  Uri: {
-    parse: vi.fn((uri: string) => ({ toString: () => uri })),
-    file: vi.fn((path: string) => ({
-      toString: () => `file://${path}`,
-      fsPath: path,
+const { model, editor, viewStates, git } = vi.hoisted(() => ({
+  // The working directory model useMonacoModel returns. A test that switches
+  // files points it at the new file, the way the hook would.
+  model: {
+    getValue: vi.fn(() => "file content"),
+    dispose: vi.fn(),
+    uri: { fsPath: "/test/file.ts" },
+    onDidChangeContent: vi.fn((_listener: () => void) => ({
+      dispose: vi.fn(),
     })),
   },
-}));
-
-// Mock registries
-vi.mock("../../client/ViewStateRegistry", () => ({
-  ViewStateRegistry: {
-    getInstance: () => mockViewStateRegistry,
-    resetInstance: vi.fn(),
+  editor: {
+    setModel: vi.fn(),
+    updateOptions: vi.fn(),
+    focus: vi.fn(),
+    dispose: vi.fn(),
+    onDidBlurEditorText: vi.fn(() => ({ dispose: vi.fn() })),
   },
+  viewStates: { save: vi.fn(), restore: vi.fn() },
+  git: { content: {} as GitContentResult },
 }));
 
-vi.mock("../../client/MonacoModelRegistry", () => ({
-  MonacoModelRegistry: {
-    getInstance: () => ({
-      getOrCreate: vi.fn(() => mockModel),
-      release: vi.fn(),
+vi.mock("monaco-editor", () => ({
+  editor: {
+    create: vi.fn(() => editor),
+    // A git side gets a model of its own, which a re-read edits in place
+    createModel: vi.fn((value: string) => {
+      const lines = value.split("\n");
+      return {
+        dispose: vi.fn(),
+        getLinesContent: () => lines,
+        getEOL: () => "\n",
+        getLineMaxColumn: (line: number) => lines[line - 1].length + 1,
+        applyEdits: vi.fn(),
+      };
     }),
-    resetInstance: vi.fn(),
+    setTheme: vi.fn(),
   },
+  Uri: { parse: (uri: string) => ({ toString: () => uri }) },
+}));
+
+vi.mock("../hooks/useMonacoModel", () => ({ useMonacoModel: () => model }));
+vi.mock("../hooks/useGitContent", () => ({
+  useGitContent: () => git.content,
+}));
+vi.mock("../hooks/useEditorTheme", () => ({ useEditorTheme: () => "vs-dark" }));
+vi.mock("../../client/ViewStateRegistry", () => ({
+  ViewStateRegistry: { getInstance: () => viewStates },
+}));
+vi.mock("../../client/MonacoModelRegistry", () => ({
   createModelKey: (filePath: string) => `file://${filePath}`,
 }));
 
-// Import after mocks are set up
-import { RegularEditorWrapper } from "./RegularEditorWrapper";
-import * as monaco from "monaco-editor";
+type Props = ComponentProps<typeof RegularEditorWrapper>;
 
-// ============================================================================
-// Tests
-// ============================================================================
+function renderEditor(props: Partial<Props> = {}) {
+  const editorWith = (next: Partial<Props>) => (
+    <RegularEditorWrapper
+      editorId="test-editor"
+      cwd="/test"
+      filePath="/test/file.ts"
+      {...next}
+    />
+  );
+  const view = render(editorWith(props));
+  return {
+    ...view,
+    rerender: (next: Partial<Props>) => view.rerender(editorWith(next)),
+  };
+}
+
+const gitSide = (content: string): GitContentResult => ({
+  content,
+  isLoading: false,
+  error: null,
+});
 
 describe("RegularEditorWrapper", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset mock model file path to default for clean test state
-    setMockModelFilePath("/test/file.ts");
+    model.uri.fsPath = "/test/file.ts";
+    git.content = { content: null, isLoading: false, error: null };
   });
-
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
-  // ===========================================================================
-  // Editor Creation
-  // ===========================================================================
 
   describe("editor creation", () => {
-    it("should create editor using monaco.editor.create on mount", async () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-dark"
-          readOnly={false}
-        />,
-      );
+    it("should create editor using monaco.editor.create on mount", () => {
+      renderEditor({ theme: "vs-dark", readOnly: false });
 
-      await waitFor(() => {
-        expect(monaco.editor.create).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
-          expect.objectContaining({
-            theme: "vs-dark",
-            readOnly: false,
-          }),
-        );
-      });
+      expect(monaco.editor.create).toHaveBeenCalledWith(
+        screen.getByTestId("monaco-editor-wrapper"),
+        expect.objectContaining({ theme: "vs-dark", readOnly: false }),
+      );
     });
 
-    it("should dispose editor on unmount", async () => {
-      const { unmount } = render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(monaco.editor.create).toHaveBeenCalled();
-      });
+    it("should dispose editor on unmount", () => {
+      const { unmount } = renderEditor();
+      expect(editor.dispose).not.toHaveBeenCalled();
 
       unmount();
 
-      expect(mockEditor.dispose).toHaveBeenCalled();
+      expect(editor.dispose).toHaveBeenCalled();
     });
   });
 
-  // ===========================================================================
-  // Model Attachment
-  // ===========================================================================
-
   describe("model attachment", () => {
-    it("should attach model to editor", async () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should attach model to editor", () => {
+      renderEditor();
 
-      await waitFor(() => {
-        expect(mockEditor.setModel).toHaveBeenCalledWith(mockModel);
-      });
+      expect(editor.setModel).toHaveBeenCalledWith(model);
     });
 
     // A stage or commit outside re-reads a git side, which used to replace
     // the editor's model and reset its scroll position and selection
-    it("should edit a re-read git side into its model", async () => {
-      const { useGitContent } = await import("../hooks/useGitContent");
-      vi.mocked(monaco.editor.createModel).mockImplementation((value) => {
-        const lines = value.split("\n");
-        return {
-          dispose: vi.fn(),
-          getLinesContent: () => lines,
-          getEOL: () => "\n",
-          getLineMaxColumn: (line: number) => lines[line - 1].length + 1,
-          applyEdits: vi.fn(),
-        };
-      });
-      const show = (content: string, source = "index") => {
-        vi.mocked(useGitContent).mockReturnValue({
-          content,
-          isLoading: false,
-          error: null,
-        });
-        return (
-          <RegularEditorWrapper
-            editorId="test-editor"
-            cwd="/test"
-            filePath="/test/file.ts"
-            source={source}
-          />
-        );
-      };
-      try {
-        const { rerender } = render(show("a\nb\nc"));
-        await waitFor(() =>
-          expect(mockEditor.setModel).toHaveBeenCalledTimes(1),
-        );
+    it("should edit a re-read git side into its model", () => {
+      git.content = gitSide("a\nb\nc");
+      const { rerender } = renderEditor({ source: "index" });
+      expect(editor.setModel).toHaveBeenCalledTimes(1);
 
-        rerender(show("a\nB\nc"));
+      git.content = gitSide("a\nB\nc");
+      rerender({ source: "index" });
 
-        const model = vi.mocked(monaco.editor.createModel).mock.results[0]
-          .value;
-        expect(model.applyEdits).toHaveBeenCalledWith([
-          {
-            range: {
-              startLineNumber: 1,
-              startColumn: 2,
-              endLineNumber: 2,
-              endColumn: 2,
-            },
-            text: "\nB",
+      const side = vi.mocked(monaco.editor.createModel).mock.results[0].value;
+      expect(side.applyEdits).toHaveBeenCalledWith([
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 2,
+            endLineNumber: 2,
+            endColumn: 2,
           },
-        ]);
-        expect(monaco.editor.createModel).toHaveBeenCalledTimes(1);
-        expect(mockEditor.setModel).toHaveBeenCalledTimes(1);
+          text: "\nB",
+        },
+      ]);
+      expect(monaco.editor.createModel).toHaveBeenCalledTimes(1);
+      expect(editor.setModel).toHaveBeenCalledTimes(1);
 
-        // Another source is another model
-        rerender(show("a\nB\nc", "head"));
-        expect(monaco.editor.createModel).toHaveBeenCalledTimes(2);
-      } finally {
-        vi.mocked(monaco.editor.createModel).mockImplementation(
-          () => mockModel,
-        );
-        vi.mocked(useGitContent).mockReturnValue({
-          content: null,
-          isLoading: false,
-          error: null,
-        });
-      }
+      // Another source is another model
+      rerender({ source: "head" });
+      expect(monaco.editor.createModel).toHaveBeenCalledTimes(2);
     });
   });
 
-  // ===========================================================================
-  // ViewState Management
-  // ===========================================================================
-
   describe("viewstate management", () => {
-    it("should restore viewstate for file", async () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should restore viewstate for file", () => {
+      renderEditor();
 
-      await waitFor(() => {
-        expect(mockViewStateRegistry.restore).toHaveBeenCalledWith(
-          "test-editor",
-          "/test/file.ts",
-          expect.any(Object),
-        );
-      });
+      expect(viewStates.restore).toHaveBeenCalledWith(
+        "test-editor",
+        "/test/file.ts",
+        editor,
+      );
     });
 
-    it("should save viewstate on unmount", async () => {
-      const { unmount } = render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockEditor.setModel).toHaveBeenCalled();
-      });
+    it("should save viewstate on unmount", () => {
+      const { unmount } = renderEditor();
+      expect(viewStates.save).not.toHaveBeenCalled();
 
       unmount();
 
-      expect(mockViewStateRegistry.save).toHaveBeenCalledWith(
+      expect(viewStates.save).toHaveBeenCalledWith(
         "test-editor",
         "/test/file.ts",
-        expect.any(Object),
+        editor,
       );
     });
   });
 
-  // ===========================================================================
-  // Options Updates
-  // ===========================================================================
-
   describe("options updates", () => {
-    it("should update editor options when theme changes", async () => {
-      const { rerender } = render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-dark"
-        />,
+    it("should update editor options when theme changes", () => {
+      const { rerender } = renderEditor({ theme: "vs-dark" });
+
+      rerender({ theme: "vs-light" });
+
+      expect(editor.updateOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "vs-light" }),
       );
-
-      await waitFor(() => {
-        expect(mockEditor.setModel).toHaveBeenCalled();
-      });
-
-      rerender(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          theme="vs-light"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockEditor.updateOptions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            theme: "vs-light",
-          }),
-        );
-      });
     });
 
-    it("should update editor options when readOnly changes", async () => {
-      const { rerender } = render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          readOnly={false}
-        />,
+    it("should update editor options when readOnly changes", () => {
+      const { rerender } = renderEditor({ readOnly: false });
+
+      rerender({ readOnly: true });
+
+      expect(editor.updateOptions).toHaveBeenCalledWith(
+        expect.objectContaining({ readOnly: true }),
       );
-
-      await waitFor(() => {
-        expect(mockEditor.setModel).toHaveBeenCalled();
-      });
-
-      rerender(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          readOnly={true}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockEditor.updateOptions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            readOnly: true,
-          }),
-        );
-      });
     });
 
     // Recreating the editor dropped its model, and the model effect didn't
     // attach it again, so the open file went blank.
-    it.each([
+    it.each<[string, Partial<Props>]>([
       ["theme", { theme: "vs-light" }],
       ["readOnly", { readOnly: true }],
-    ])("should keep the open file when %s changes", async (_, changed) => {
-      const props = {
-        editorId: "test-editor",
-        cwd: "/test",
-        filePath: "/test/file.ts",
-        theme: "vs-dark",
-        readOnly: false,
-      };
-      const { rerender } = render(<RegularEditorWrapper {...props} />);
+    ])("should keep the open file when %s changes", (_, changed) => {
+      const props = { theme: "vs-dark", readOnly: false };
+      const { rerender } = renderEditor(props);
+      expect(editor.setModel).toHaveBeenCalledWith(model);
 
-      await waitFor(() => {
-        expect(mockEditor.setModel).toHaveBeenCalledWith(mockModel);
-      });
+      rerender({ ...props, ...changed });
 
-      rerender(<RegularEditorWrapper {...props} {...changed} />);
-
-      await waitFor(() => {
-        expect(mockEditor.updateOptions).toHaveBeenCalledWith(
-          expect.objectContaining(changed),
-        );
-      });
+      expect(editor.updateOptions).toHaveBeenCalledWith(
+        expect.objectContaining(changed),
+      );
       expect(monaco.editor.create).toHaveBeenCalledTimes(1);
-      expect(mockEditor.dispose).not.toHaveBeenCalled();
+      expect(editor.dispose).not.toHaveBeenCalled();
     });
   });
-
-  // ===========================================================================
-  // Focus Handling
-  // ===========================================================================
 
   describe("focus handling", () => {
-    it("should focus editor when container is clicked", async () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should focus editor when container is clicked", () => {
+      renderEditor();
 
-      await waitFor(() => {
-        expect(mockEditor.setModel).toHaveBeenCalled();
-      });
+      fireEvent.click(screen.getByTestId("monaco-editor-wrapper"));
 
-      const container = screen.getByTestId("monaco-editor-wrapper");
-      fireEvent.click(container);
-
-      expect(mockEditor.focus).toHaveBeenCalled();
+      expect(editor.focus).toHaveBeenCalled();
     });
   });
-
-  // ===========================================================================
-  // Callbacks
-  // ===========================================================================
 
   describe("callbacks", () => {
-    it("should call onMount when editor is ready", async () => {
-      const mockOnMount = vi.fn();
+    it("should call onMount when editor is ready", () => {
+      const onMount = vi.fn();
 
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          onMount={mockOnMount}
-        />,
-      );
+      renderEditor({ onMount });
 
-      await waitFor(() => {
-        expect(mockOnMount).toHaveBeenCalledWith(expect.any(Object));
-      });
+      expect(onMount).toHaveBeenCalledWith(editor);
     });
 
-    it("should set up onChange listener when onChange is provided", async () => {
-      const mockOnChange = vi.fn();
+    it("should set up onChange listener when onChange is provided", () => {
+      const onChange = vi.fn();
+      renderEditor({ onChange });
 
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-          onChange={mockOnChange}
-        />,
-      );
+      const [contentChanged] = model.onDidChangeContent.mock.calls[0];
+      contentChanged();
 
-      await waitFor(() => {
-        expect(mockModel.onDidChangeContent).toHaveBeenCalled();
-      });
+      expect(onChange).toHaveBeenCalledWith("file content");
     });
   });
-
-  // ===========================================================================
-  // Default Props
-  // ===========================================================================
 
   describe("default props", () => {
-    it("should use vs-dark theme by default", async () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should use vs-dark theme by default", () => {
+      renderEditor();
 
-      await waitFor(() => {
-        expect(monaco.editor.create).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
-          expect.objectContaining({
-            theme: "vs-dark",
-          }),
-        );
-      });
+      expect(monaco.editor.create).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({ theme: "vs-dark" }),
+      );
     });
 
-    it("should not be read-only by default", async () => {
-      render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file.ts"
-        />,
-      );
+    it("should not be read-only by default", () => {
+      renderEditor();
 
-      await waitFor(() => {
-        expect(monaco.editor.create).toHaveBeenCalledWith(
-          expect.any(HTMLElement),
-          expect.objectContaining({
-            readOnly: false,
-          }),
-        );
-      });
+      expect(monaco.editor.create).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        expect.objectContaining({ readOnly: false }),
+      );
     });
   });
 
-  // ===========================================================================
-  // File Path Changes
-  // ===========================================================================
-
   describe("file path changes", () => {
-    it("should save viewstate for old file when switching files", async () => {
-      // Set mock model to match initial file path
-      setMockModelFilePath("/test/file1.ts");
-
-      const { rerender } = render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file1.ts"
-        />,
+    function openFile1ThenFile2() {
+      model.uri.fsPath = "/test/file1.ts";
+      const { rerender } = renderEditor({ filePath: "/test/file1.ts" });
+      expect(viewStates.restore).toHaveBeenCalledWith(
+        "test-editor",
+        "/test/file1.ts",
+        editor,
       );
+      viewStates.save.mockClear();
+      viewStates.restore.mockClear();
 
-      await waitFor(() => {
-        expect(mockViewStateRegistry.restore).toHaveBeenCalledWith(
-          "test-editor",
-          "/test/file1.ts",
-          expect.any(Object),
-        );
-      });
+      model.uri.fsPath = "/test/file2.ts";
+      rerender({ filePath: "/test/file2.ts" });
+    }
 
-      // Clear mocks before rerender
-      mockViewStateRegistry.save.mockClear();
-      mockViewStateRegistry.restore.mockClear();
+    it("should save viewstate for old file when switching files", () => {
+      openFile1ThenFile2();
 
-      // Update mock model to match new file path (simulating useMonacoModel returning new model)
-      setMockModelFilePath("/test/file2.ts");
-
-      rerender(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file2.ts"
-        />,
+      expect(viewStates.save).toHaveBeenCalledWith(
+        "test-editor",
+        "/test/file1.ts",
+        editor,
       );
-
-      await waitFor(() => {
-        expect(mockViewStateRegistry.save).toHaveBeenCalledWith(
-          "test-editor",
-          "/test/file1.ts",
-          expect.any(Object),
-        );
-      });
     });
 
-    it("should restore viewstate for new file after switching", async () => {
-      // Set mock model to match initial file path
-      setMockModelFilePath("/test/file1.ts");
+    it("should restore viewstate for new file after switching", () => {
+      openFile1ThenFile2();
 
-      const { rerender } = render(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file1.ts"
-        />,
+      expect(viewStates.restore).toHaveBeenCalledWith(
+        "test-editor",
+        "/test/file2.ts",
+        editor,
       );
-
-      await waitFor(() => {
-        expect(mockViewStateRegistry.restore).toHaveBeenCalled();
-      });
-
-      mockViewStateRegistry.restore.mockClear();
-
-      // Update mock model to match new file path (simulating useMonacoModel returning new model)
-      setMockModelFilePath("/test/file2.ts");
-
-      rerender(
-        <RegularEditorWrapper
-          editorId="test-editor"
-          cwd="/test"
-          filePath="/test/file2.ts"
-        />,
-      );
-
-      await waitFor(() => {
-        expect(mockViewStateRegistry.restore).toHaveBeenCalledWith(
-          "test-editor",
-          "/test/file2.ts",
-          expect.any(Object),
-        );
-      });
     });
   });
 });
