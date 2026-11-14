@@ -502,6 +502,14 @@ export function updateTerminalThemes() {
   });
 }
 
+/** Shows or hides the overview ruler beside a pane's terminal. */
+export function showRuler(paneId: string, visible: boolean) {
+  const instance = xtermInstancesByPane.get(paneId);
+  if (instance) {
+    instance.terminal.options.overviewRuler = visible ? { width: 15 } : {};
+  }
+}
+
 /**
  * Update terminal fonts for all active terminals
  * Called when the terminal font settings change

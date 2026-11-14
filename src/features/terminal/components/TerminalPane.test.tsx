@@ -22,10 +22,17 @@ const promptStream = vi.hoisted(() => {
 });
 
 let keyHandler: (event: KeyboardEvent) => boolean;
+const search = vi.hoisted(() => ({
+  findNext: vi.fn(),
+  clearActiveDecoration: () => {},
+  clearDecorations: () => {},
+  onDidChangeResults: () => ({ dispose: () => {} }),
+}));
 vi.mock("../client/xtermCache", () => {
   const terminal = {
     options: {},
     focus: () => {},
+    hasSelection: () => false,
     attachCustomKeyEventHandler: (handler: typeof keyHandler) => {
       keyHandler = handler;
     },
@@ -34,9 +41,11 @@ vi.mock("../client/xtermCache", () => {
     attach: () => {},
     getOrCreate: () => ({
       terminal,
+      search,
       setLinkHandler: () => {},
     }),
     serializeSession: () => "",
+    showRuler: () => {},
   };
 });
 const createFitController = vi.hoisted(() =>
@@ -125,5 +134,38 @@ describe("TerminalPane focus", () => {
     rerender(pane(true));
 
     expect(createFitController).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("TerminalPane search", () => {
+  // Nothing re-renders a pane that mounts at its terminal's size, like a
+  // floating terminal that's restored, so search can't wait for a render.
+  it("searches its terminal right after it mounts", () => {
+    seedSettings(queryClient, {});
+    render(
+      <TooltipProvider>
+        <TerminalPane
+          pane={{
+            id: "pane-3",
+            type: "terminal",
+            sessionId: "session-3",
+            cwd: "/repo",
+            title: "zsh",
+          }}
+          isActive
+          tabId="tab-1"
+        />
+      </TooltipProvider>,
+      { queryClient },
+    );
+
+    act(() => {
+      keyHandler(new KeyboardEvent("keydown", { metaKey: true, key: "f" }));
+    });
+    fireEvent.change(screen.getByPlaceholderText("Find..."), {
+      target: { value: "needle" },
+    });
+
+    expect(search.findNext).toHaveBeenCalledWith("needle", expect.anything());
   });
 });

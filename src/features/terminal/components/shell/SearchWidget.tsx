@@ -29,11 +29,10 @@ const buildSearchDecorations = (): NonNullable<
 });
 
 export type SearchWidgetHandle = {
-  show: (selection: string) => void;
+  show: (terminal: xtermInstance, selection: string) => void;
 };
 
 type SearchWidgetProps = {
-  terminal: xtermInstance | null;
   onClosed?: () => void;
   ref?: React.Ref<SearchWidgetHandle>;
 };
@@ -43,8 +42,11 @@ type SearchResults = {
   count: number;
 };
 
-export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
+export function SearchWidget({ onClosed, ref }: SearchWidgetProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // The terminal it searches, from when it was last shown.
+  const [terminal, setTerminal] = useState<xtermInstance | null>(null);
 
   const [isVisible, setIsVisible] = useState(false);
 
@@ -177,7 +179,8 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
   );
 
   const show = useCallback(
-    (selection: string) => {
+    (entry: xtermInstance, selection: string) => {
+      setTerminal(entry);
       const trimmed = selection.trim();
       setIsVisible(true);
       requestAnimationFrame(() => inputRef.current?.focus());
@@ -192,17 +195,13 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
       setSearchResults({ index: -1, count: -1 });
 
       requestAnimationFrame(() => {
-        if (!searchAddon) {
-          setSearchResults({ index: -1, count: 0 });
-          return;
-        }
-        searchAddon.findNext(
+        entry.search.findNext(
           trimmed,
           buildSearchOptions({ incremental: true }),
         );
       });
     },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon],
+    [buildSearchOptions, clearSearchArtifacts],
   );
 
   const handleSearchKeyDown = (

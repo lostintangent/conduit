@@ -28,7 +28,12 @@ import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
 import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { createFitController } from "../client/fitController";
-import { attach, getOrCreate, serializeSession } from "../client/xtermCache";
+import {
+  attach,
+  getOrCreate,
+  serializeSession,
+  showRuler,
+} from "../client/xtermCache";
 import { pasteImage } from "./pasteImage";
 import { useRuntimeTimer } from "./useRuntimeTimer";
 
@@ -167,19 +172,12 @@ export const TerminalPane = ({
   const showTerminalRuler = useSettings((s) => s.showTerminalRuler);
   const playButtonTarget = useSettings((s) => s.playButtonTarget);
   const applicationMode = useSelector(applicationModeAtom);
-  const setApplicationMode = applicationModeAtom.set;
 
   const toggleSyncCmd = useCommand(ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE);
 
   const paneRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<TerminalInstance | null>(null);
-  const applicationModeRef = useRef<ApplicationMode>(applicationMode);
-  applicationModeRef.current = applicationMode;
-
-  const setApplicationModeRef =
-    useRef<typeof setApplicationMode>(setApplicationMode);
-  setApplicationModeRef.current = setApplicationMode;
   const previousApplicationModeRef = useRef<ApplicationMode>(applicationMode);
 
   const [dimensions, setDimensions] = useState<{
@@ -223,11 +221,12 @@ export const TerminalPane = ({
   );
 
   const showSearchWidget = useCallback(() => {
-    const terminal = terminalRef.current?.terminal;
-    const selection = terminal?.hasSelection()
-      ? terminal.getSelection().replace(/\s+/g, " ").trim()
+    const entry = terminalRef.current;
+    if (!entry) return;
+    const selection = entry.terminal.hasSelection()
+      ? entry.terminal.getSelection().replace(/\s+/g, " ").trim()
       : "";
-    searchWidgetRef.current?.show(selection ?? "");
+    searchWidgetRef.current?.show(entry, selection);
   }, []);
 
   const handleTogglePromptMode = useCallback(() => {
@@ -483,14 +482,10 @@ export const TerminalPane = ({
     }
   }, [applicationMode, isActive, focusTerminal]);
 
-  // Hide/show the terminal ruler based on the user
-  // setting, which can be changed at any time.
+  // The setting can change at any time, including in settings.json.
   useEffect(() => {
-    const terminal = terminalRef.current?.terminal;
-    if (!terminal) return;
-
-    terminal.options.overviewRuler = showTerminalRuler ? { width: 15 } : {};
-  }, [showTerminalRuler]);
+    showRuler(paneId, showTerminalRuler);
+  }, [paneId, showTerminalRuler]);
 
   return (
     <div
@@ -539,11 +534,7 @@ export const TerminalPane = ({
       {/* Git stats badge (top-right, pinned) - only show when in a tab (not hyper terminal or quick pane) */}
       {tabId && <TerminalGitStats cwd={cwd} />}
 
-      <SearchWidget
-        ref={searchWidgetRef}
-        terminal={terminalRef.current}
-        onClosed={focusTerminal}
-      />
+      <SearchWidget ref={searchWidgetRef} onClosed={focusTerminal} />
 
       {showDimensions && dimensions && !isHyperTerminal(terminalId) && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
