@@ -119,12 +119,9 @@ export function BranchSelector({
 
   // Scroll selected item into view
   useEffect(() => {
-    const selected = listRef.current?.querySelector(
-      `[data-index="${selectedIndex}"]`,
-    );
-    if (selected && typeof selected.scrollIntoView === "function") {
-      selected.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
+    listRef.current
+      ?.querySelector(`[data-index="${selectedIndex}"]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedIndex]);
 
   // ---------------------------------------------------------------------------

@@ -185,13 +185,9 @@ function CommitGraphListComponent({
         const newCommitId = nodes[newIndex].commit.id;
         onSelectionChange?.(newCommitId);
 
-        // Scroll selected row into view (with fallback for test environments)
-        const rowElement = listRef.current?.querySelector(
-          `[data-commit-id="${newCommitId}"]`,
-        );
-        if (rowElement && typeof rowElement.scrollIntoView === "function") {
-          rowElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
-        }
+        listRef.current
+          ?.querySelector(`[data-commit-id="${newCommitId}"]`)
+          ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
       }
     },
     [nodes, selectedCommitId, onToggleExpand, onViewAll, onSelectionChange],

@@ -43,12 +43,7 @@ function waitForSelector(selector: string, timeout?: number): Promise<boolean> {
 }
 
 function scrollElementIntoView(element: Element) {
-  if (typeof (element as HTMLElement).scrollIntoView === "function") {
-    (element as HTMLElement).scrollIntoView({
-      block: "center",
-      behavior: "instant",
-    });
-  }
+  element.scrollIntoView({ block: "center", behavior: "instant" });
 }
 
 // Each button's `button` index, its bit in `buttons` while pressed, and the

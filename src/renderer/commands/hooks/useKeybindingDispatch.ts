@@ -214,9 +214,6 @@ function isInputElement(target: EventTarget | null): boolean {
 
   const tagName = target.tagName.toLowerCase();
   return (
-    tagName === "input" ||
-    tagName === "textarea" ||
-    target.isContentEditable ||
-    target.contentEditable === "true" // Fallback for jsdom and older browsers
+    tagName === "input" || tagName === "textarea" || target.isContentEditable
   );
 }
