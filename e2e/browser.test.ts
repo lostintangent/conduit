@@ -112,6 +112,13 @@ describe("browser automation from the CLI", () => {
   it("opens a browser pane and navigates it", async () => {
     expect(await terminal.run("conduit split right -t browser")).toBe(0);
     expect(await terminal.run(`conduit browser-navigate ${url}`)).toBe(0);
+    // browser-navigate returns before the page loads, so wait for its title
+    await until(async () => {
+      const [pane] = await conduit<{ title?: string }[]>(
+        "pane-list -t browser",
+      );
+      return pane?.title === "E2E Page";
+    }, "the page's title");
     expect(await conduit("pane-list -t browser")).toEqual([
       expect.objectContaining({ type: "browser", url, title: "E2E Page" }),
     ]);
