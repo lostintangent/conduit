@@ -191,6 +191,7 @@ export function ReviewWorkingPaneHeader({
                   onClick={onExitReview}
                   className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                   data-testid="exit-review-button"
+                  aria-label="Exit review mode"
                 >
                   <ArrowLeft size={14} />
                 </button>
@@ -222,6 +223,11 @@ export function ReviewWorkingPaneHeader({
                         onClick={onToggleSortOrder}
                         className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                         data-testid="sort-order-toggle"
+                        aria-label={
+                          sortByLastEdited
+                            ? "Switch to alphabetical"
+                            : "Switch to last edited"
+                        }
                       >
                         {/* Show icon of the state we're switching TO */}
                         {sortByLastEdited ? (
@@ -245,6 +251,7 @@ export function ReviewWorkingPaneHeader({
                         onClick={onMarkAllSeen}
                         className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
                         data-testid="mark-all-seen-button"
+                        aria-label="Mark all as seen"
                       >
                         <Eye size={14} />
                       </button>
@@ -332,6 +339,7 @@ export function ReviewWorkingPaneHeader({
                         disabled={isGitOperationRunning || !hasUpstream}
                         className="p-1.5 rounded hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="pull-button"
+                        aria-label="Pull from remote"
                       >
                         <ArrowDownToLine
                           className={cn(
@@ -360,6 +368,7 @@ export function ReviewWorkingPaneHeader({
                         disabled={isGitOperationRunning}
                         className="p-1.5 rounded hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="push-button"
+                        aria-label="Push to remote"
                       >
                         <ArrowUpFromLine
                           className={cn(
@@ -384,6 +393,7 @@ export function ReviewWorkingPaneHeader({
                         disabled={isGitOperationRunning}
                         className="p-1.5 rounded hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="publish-button"
+                        aria-label="Publish branch"
                       >
                         <Send
                           className={cn(

@@ -58,6 +58,7 @@ export function ReviewCommitPaneHeader({
               onClick={onClose}
               className="p-1 rounded hover:bg-white/10 transition-colors shrink-0"
               data-testid="back-button"
+              aria-label="Exit commit view"
             >
               <ArrowLeft size={14} />
             </button>

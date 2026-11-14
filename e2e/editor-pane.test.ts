@@ -68,6 +68,13 @@ describe("editor pane", () => {
   const diffEditor = () =>
     pane().locator(".monaco-diff-editor").filter({ visible: true });
   const commitReview = () => pane().getByTestId("commit-changes-pane");
+  const toolbar = () => pane().getByTestId("git-branch-toolbar");
+
+  /** The buttons in the container that a screen reader can't name. */
+  const namelessButtons = async (container: Locator) =>
+    (await container.ariaSnapshot())
+      .split("\n")
+      .filter((line) => /^\s*- button(?! ")/.test(line));
 
   /** Where keyboard focus is in the pane: its tree, an editor, or elsewhere. */
   const focusIn = () =>
@@ -118,7 +125,9 @@ describe("editor pane", () => {
   }
 
   async function setTreeMode(mode: "files" | "changes") {
-    const toggle = pane().getByTestId("filter-toggle");
+    const toggle = pane().getByRole("button", {
+      name: "Show only changed files",
+    });
     const showsChanges = (await toggle.getAttribute("aria-pressed")) === "true";
     if (showsChanges !== (mode === "changes")) await toggle.click();
     await (mode === "changes" ? graph() : fileTree()).waitFor();
@@ -219,8 +228,12 @@ describe("editor pane", () => {
       .click();
     await tree().waitFor({ state: "hidden" });
     await commitReview().getByText("src/b.ts").waitFor();
+    // Its buttons used to have only tooltips, which screen readers don't read.
+    expect(await namelessButtons(commitReview())).toEqual([]);
     // Leaving used to stay on the editor side, which can be an empty state.
-    await commitReview().getByTestId("back-button").click();
+    await commitReview()
+      .getByRole("button", { name: "Exit commit view" })
+      .click();
     await tree().waitFor();
     await waitForFocusIn("tree", "leaving the commit");
   });
@@ -241,13 +254,17 @@ describe("editor pane", () => {
     );
     fs.chmodSync(path.join(project, ".git/hooks/pre-commit"), 0o755);
     try {
-      await pane().getByTestId("review-button").click();
+      expect(await namelessButtons(toolbar())).toEqual([]);
+      await pane()
+        .getByRole("button", { name: "Review all changes in detail" })
+        .click();
       // Review used to start behind a narrow pane's tree.
       await tree().waitFor({ state: "hidden" });
       const review = pane().getByTestId("changes-review-toolbar");
       await review.getByText("Review Changes (2)").waitFor();
       const unseen = review.getByText(/^• \d+ new$/);
       await unseen.waitFor();
+      expect(await namelessButtons(review)).toEqual([]);
 
       await pane().getByRole("button", { name: "Stage all" }).click();
       await until(
@@ -274,7 +291,7 @@ describe("editor pane", () => {
       );
       expect(git(project, "status", "--porcelain")).toBe("");
       // An emptied review used to drop its header, and its only way out.
-      await pane().getByTestId("exit-review-button").click();
+      await pane().getByRole("button", { name: "Exit review mode" }).click();
       await tree().waitFor();
       await commit("Commit from review").waitFor();
     } finally {
@@ -307,7 +324,9 @@ describe("editor pane", () => {
     // A commit already loaded used to keep the last commit's open files, so
     // its own showed collapsed.
     await viewAll("Root commit", 3);
-    await commitReview().getByTestId("back-button").click();
+    await commitReview()
+      .getByRole("button", { name: "Exit commit view" })
+      .click();
   });
 
   it("moves focus to the file when Cmd+B hides a wide pane's tree, and shows the tree, with focus, once the file is committed", async () => {

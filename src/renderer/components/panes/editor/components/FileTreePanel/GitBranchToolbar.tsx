@@ -309,6 +309,7 @@ export function GitBranchToolbar({
                         size="sm"
                         className={toggleButtonClass}
                         data-testid="branch-compare-toggle"
+                        aria-label="Compare with a base branch"
                       >
                         <GitCompare />
                       </Toggle>
@@ -334,6 +335,11 @@ export function GitBranchToolbar({
                           size="sm"
                           className={toggleButtonClass}
                           data-testid="changes-view-mode-toggle"
+                          aria-label={
+                            changesViewMode === "flat"
+                              ? "Switch to tree view"
+                              : "Switch to flat view"
+                          }
                         >
                           {changesViewMode === "flat" ? (
                             <FolderTree />
@@ -364,6 +370,7 @@ export function GitBranchToolbar({
                             size="sm"
                             className={toggleButtonClass}
                             data-testid="review-button"
+                            aria-label="Review all changes in detail"
                           >
                             <BookOpen />
                           </Toggle>
@@ -494,6 +501,7 @@ export function GitBranchToolbar({
                     : ""
                 }`}
                 data-testid="filter-toggle"
+                aria-label="Show only changed files"
               >
                 <GitStatusSummary
                   gitStatus={gitStatus}
@@ -553,6 +561,7 @@ export function GitBranchToolbar({
                     size="sm"
                     className={toggleButtonClass}
                     data-testid="commit-button"
+                    aria-label="Commit staged changes"
                   >
                     <FillingIcon
                       icon={GitCommitVertical}
@@ -583,6 +592,7 @@ export function GitBranchToolbar({
                           size="sm"
                           className={toggleButtonClass}
                           data-testid="pull-button"
+                          aria-label="Pull from remote"
                         >
                           <FillingIcon
                             icon={ArrowDownToLine}
@@ -611,6 +621,7 @@ export function GitBranchToolbar({
                           size="sm"
                           className={toggleButtonClass}
                           data-testid="push-button"
+                          aria-label="Push to remote"
                         >
                           <FillingIcon
                             icon={ArrowUpFromLine}
@@ -635,6 +646,7 @@ export function GitBranchToolbar({
                           size="sm"
                           className={toggleButtonClass}
                           data-testid="publish-button"
+                          aria-label="Publish branch"
                         >
                           <FillingIcon icon={Send} isAnimating={isPushing} />
                         </Toggle>
