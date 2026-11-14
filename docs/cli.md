@@ -53,7 +53,7 @@ program
   );
 ```
 
-### 2. CLI Command Extension (`src/cli/command/`)
+### 2. CLI Command Extension (`src/cli/ipc/`)
 
 The `cliCommand` method is a custom extension to Commander that provides type-safe command handlers. It:
 
@@ -61,7 +61,7 @@ The `cliCommand` method is a custom extension to Commander that provides type-sa
 - Wraps command callbacks with IPC request handling
 - Provides TypeScript type inference for command arguments and results
 
-### 3. IPC Communication Layer (`src/cli/command/ipc.ts`)
+### 3. IPC Communication Layer (`src/cli/ipc/ipc.ts`)
 
 This module handles communication between the CLI process and the main process via Unix domain sockets (or named pipes on Windows):
 
