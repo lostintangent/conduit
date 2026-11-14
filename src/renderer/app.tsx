@@ -57,6 +57,7 @@ import {
   generateIncrementedTabTitle,
   getActiveTabCwd,
   openTab,
+  openTabFromExistingAgentSession,
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
@@ -367,8 +368,6 @@ export function App() {
 
   const handleAgentSessionOpen = useCallback(
     async (session: AgentSessionInfo) => {
-      const { openTabFromExistingAgentSession } =
-        await import("@/store/actions/tab");
       await openTabFromExistingAgentSession(session);
     },
     [],
@@ -884,12 +883,17 @@ export function App() {
         defaultAgentId={agents?.find((agent: any) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
         onLaunch={async (payload) => {
-          try {
-            const cwd = getActiveTabCwd(activeTab);
-            if (!cwd) {
-              throw new Error("No working directory found in active pane");
-            }
+          const cwd = getActiveTabCwd(activeTab);
+          if (!cwd) {
+            enqueueNotification({
+              kind: "error",
+              message:
+                "Launch failed: No working directory found in active pane",
+            });
+            return;
+          }
 
+          try {
             await launchAgents(payload, {
               cwd,
               agents: agents || [],
