@@ -1,6 +1,7 @@
 import { EditorPaneAnchor } from "@/components/panes/editor";
 import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import {
   Tooltip,
   TooltipContent,
@@ -126,42 +127,44 @@ export function QuickPaneDialog({
       >
         <DialogTitle className="sr-only">Quick Pane</DialogTitle>
         <div className="flex flex-1 w-full h-full min-h-0 min-w-0 overflow-hidden">
-          {currentDescriptor.type === "terminal" && (
-            <TerminalPane
-              pane={{
-                ...currentDescriptor,
-                id: quickPaneId,
-                type: "terminal",
-              }}
-              isActive
-            />
-          )}
-          {currentDescriptor.type === "editor" && (
-            <EditorPaneAnchor
-              paneId={quickPaneId}
-              pane={{
-                id: quickPaneId,
-                type: "editor",
-                cwd: currentDescriptor.cwd,
-                file: currentDescriptor.file,
-                treeMode: currentDescriptor.treeMode,
-              }}
-              onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
-              onFileChange={({ file }) => handleEditorUpdate({ file })}
-              onClearFile={() => handleEditorUpdate({ file: undefined })}
-              onTreeModeChange={(mode) =>
-                handleEditorUpdate({ treeMode: mode })
-              }
-              hideFileTree={currentDescriptor.closeOnSave}
-              onSave={() => {
-                if (currentDescriptor.closeOnSave) {
-                  onClose();
+          <ErrorBoundary>
+            {currentDescriptor.type === "terminal" && (
+              <TerminalPane
+                pane={{
+                  ...currentDescriptor,
+                  id: quickPaneId,
+                  type: "terminal",
+                }}
+                isActive
+              />
+            )}
+            {currentDescriptor.type === "editor" && (
+              <EditorPaneAnchor
+                paneId={quickPaneId}
+                pane={{
+                  id: quickPaneId,
+                  type: "editor",
+                  cwd: currentDescriptor.cwd,
+                  file: currentDescriptor.file,
+                  treeMode: currentDescriptor.treeMode,
+                }}
+                onCwdChange={(cwd) => handleEditorUpdate({ cwd })}
+                onFileChange={({ file }) => handleEditorUpdate({ file })}
+                onClearFile={() => handleEditorUpdate({ file: undefined })}
+                onTreeModeChange={(mode) =>
+                  handleEditorUpdate({ treeMode: mode })
                 }
-              }}
-              onClose={onClose}
-              className="h-full w-full"
-            />
-          )}
+                hideFileTree={currentDescriptor.closeOnSave}
+                onSave={() => {
+                  if (currentDescriptor.closeOnSave) {
+                    onClose();
+                  }
+                }}
+                onClose={onClose}
+                className="h-full w-full"
+              />
+            )}
+          </ErrorBoundary>
         </div>
 
         <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-2 text-white">

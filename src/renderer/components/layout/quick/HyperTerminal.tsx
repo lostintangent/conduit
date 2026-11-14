@@ -4,6 +4,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import type {
   HyperTerminal as HyperTerminalType,
@@ -250,17 +251,19 @@ export function HyperTerminal({
           />
         </div>
         <div className="flex-1 min-h-0 overflow-hidden px-0.5">
-          <TerminalPane
-            pane={{
-              id: paneId,
-              type: "terminal",
-              sessionId: terminalId,
-              cwd,
-              title: "",
-            }}
-            isActive
-            fontSize={11}
-          />
+          <ErrorBoundary>
+            <TerminalPane
+              pane={{
+                id: paneId,
+                type: "terminal",
+                sessionId: terminalId,
+                cwd,
+                title: "",
+              }}
+              isActive
+              fontSize={11}
+            />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

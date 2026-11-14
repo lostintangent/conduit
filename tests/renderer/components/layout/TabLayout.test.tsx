@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const openExternal = vi.hoisted(() => {
@@ -8,6 +8,8 @@ const openExternal = vi.hoisted(() => {
 });
 
 let terminalProps: { onLinkClick: (url: string) => void } | undefined;
+// Panes whose terminal throws while it renders
+const crashingPanes = new Set<string>();
 // The tab of each terminal pane that mounted, recorded when its state is
 // created, so a remount shows up as a repeat.
 const terminalMounts: string[] = [];
@@ -19,6 +21,9 @@ vi.mock("@features/terminal/components/TerminalPane", async () => {
       pane: { id: string };
       onLinkClick: (url: string) => void;
     }) => {
+      if (crashingPanes.has(props.pane.id)) {
+        throw new Error("Terminal broke");
+      }
       terminalProps = props;
       useState(() => terminalMounts.push(props.tabId));
       return (
@@ -220,5 +225,68 @@ describe("TabLayout tab switching", () => {
     expect(highlightedPanes()).toEqual([]);
     await nextFrame();
     expect(highlightedPanes()).toEqual(["a1"]);
+  });
+});
+
+describe("TabLayout pane errors", () => {
+  const splitTab: Tab = {
+    ...tab,
+    panes: {
+      left: { ...tab.panes.term, id: "left" },
+      right: { ...tab.panes.term, id: "right" },
+    },
+    layout: {
+      id: "row",
+      type: "split",
+      direction: "row",
+      children: [
+        { id: "node-left", type: "pane", paneId: "left" },
+        { id: "node-right", type: "pane", paneId: "right" },
+      ],
+    },
+    activePaneId: "left",
+  };
+  const terminalPanes = () =>
+    [...document.querySelectorAll<HTMLElement>("[data-pane]")].map(
+      (terminal) => terminal.dataset.pane,
+    );
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    tabsAtom.set([splitTab]);
+    activeTabIdAtom.set("tab-1");
+  });
+  afterEach(() => {
+    crashingPanes.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("shows a pane that throws as crashed, and keeps the panes beside it", () => {
+    crashingPanes.add("right");
+    renderTabLayout();
+
+    expect(terminalPanes()).toEqual(["left"]);
+    expect(screen.getByText("This pane crashed")).not.toBeNull();
+    expect(screen.getByText("Terminal broke")).not.toBeNull();
+  });
+
+  it("shows the pane again on Retry", () => {
+    crashingPanes.add("right");
+    renderTabLayout();
+
+    crashingPanes.clear();
+    fireEvent.click(screen.getByText("Retry"));
+
+    expect(terminalPanes()).toEqual(["left", "right"]);
+  });
+
+  it("closes the crashed pane", () => {
+    crashingPanes.add("right");
+    renderTabLayout();
+
+    fireEvent.click(screen.getByText("Close"));
+
+    expect(Object.keys(tabsAtom.get()[0].panes)).toEqual(["left"]);
+    expect(terminalPanes()).toEqual(["left"]);
   });
 });

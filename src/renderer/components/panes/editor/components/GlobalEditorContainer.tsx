@@ -22,6 +22,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { EditorPaneV2 } from "../EditorPaneV2";
 import { EditorPaneRegistry, type EditorPaneConfig } from "../registry";
 import { configureMonaco } from "../utils/monacoSetup";
@@ -69,20 +70,22 @@ function EditorPaneWrapper({
   // Render INTO the registry-owned wrapper element via portal
   // React doesn't own the wrapper, so no DOM conflicts when registry moves it
   return createPortal(
-    <EditorPaneV2
-      pane={config.pane}
-      onFileChange={config.onFileChange}
-      onClearFile={config.onClearFile}
-      onCwdChange={config.onCwdChange}
-      onTreeModeChange={config.onTreeModeChange}
-      onChangesViewModeChange={config.onChangesViewModeChange}
-      onSave={config.onSave}
-      onHover={config.onHover}
-      hideFileTree={config.hideFileTree}
-      hideIndividualSandboxIndicator={config.hideIndividualSandboxIndicator}
-      tabId={config.tabId}
-      onClose={config.onClose}
-    />,
+    <ErrorBoundary onClose={config.onClose}>
+      <EditorPaneV2
+        pane={config.pane}
+        onFileChange={config.onFileChange}
+        onClearFile={config.onClearFile}
+        onCwdChange={config.onCwdChange}
+        onTreeModeChange={config.onTreeModeChange}
+        onChangesViewModeChange={config.onChangesViewModeChange}
+        onSave={config.onSave}
+        onHover={config.onHover}
+        hideFileTree={config.hideFileTree}
+        hideIndividualSandboxIndicator={config.hideIndividualSandboxIndicator}
+        tabId={config.tabId}
+        onClose={config.onClose}
+      />
+    </ErrorBoundary>,
     wrapperElement,
   );
 }

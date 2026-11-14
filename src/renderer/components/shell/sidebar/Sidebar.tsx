@@ -9,6 +9,7 @@
  * - Lock mode to freeze the sidebar at a specific CWD
  */
 
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { applicationModeAtom } from "@/store/atoms";
 import { sidebarStateAtom, type SidebarView } from "@/store/sidebarStore";
 import { useAtom, useSelector } from "@tanstack/react-store";
@@ -141,13 +142,15 @@ export function Sidebar({ cwd }: SidebarProps) {
 
           {/* Content */}
           <div className="flex-1 min-w-0 min-h-0 flex flex-col">
-            {view === "editor" ? (
-              <EditorView cwd={effectiveCwd} />
-            ) : view === "browser" ? (
-              <BrowserView cwd={effectiveCwd} />
-            ) : (
-              <CanvasView cwd={effectiveCwd} isLocked={true} />
-            )}
+            <ErrorBoundary resetKey={view}>
+              {view === "editor" ? (
+                <EditorView cwd={effectiveCwd} />
+              ) : view === "browser" ? (
+                <BrowserView cwd={effectiveCwd} />
+              ) : (
+                <CanvasView cwd={effectiveCwd} isLocked={true} />
+              )}
+            </ErrorBoundary>
           </div>
         </div>
       </Activity>

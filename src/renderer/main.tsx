@@ -23,7 +23,14 @@ installSettingsQueryBridge(queryClient);
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");
-const root = createRoot(rootElement);
+const root = createRoot(rootElement, {
+  // A pane's error boundary caught this. React's own log of it is just the
+  // message, so keep both stacks to show where it came from.
+  onCaughtError: (error, { componentStack }) => {
+    const stack = error instanceof Error ? error.stack : String(error);
+    console.error(`${stack}\n\nIn:${componentStack ?? ""}`);
+  },
+});
 
 function AppWrapper() {
   const useGradientBorders = useSettings((s) => s.useGradientBorders);

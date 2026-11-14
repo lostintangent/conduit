@@ -10,6 +10,7 @@ import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { BrowserPane } from "@features/browser/components/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneAnchor } from "@/components/panes/editor";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import type {
@@ -512,158 +513,164 @@ export function TabLayout({
           }}
         >
           <div className="flex w-full h-full min-h-0 min-w-0 overflow-hidden">
-            {pane.type === "terminal" ? (
-              <TerminalPane
-                key={pane.id}
-                pane={pane}
-                tabId={tab.id}
-                isActive={isActivePane}
-                onActivate={onPaneActivate}
-                onContextMenu={onPaneContextMenu}
-                // Resolve cloned terminal's sessionId here to avoid TerminalPane subscribing to all tabs
-                resolvedSessionId={
-                  pane.cloneOf
-                    ? ((tab.panes[pane.cloneOf] as typeof pane)?.sessionId ??
-                      pane.sessionId)
-                    : pane.sessionId
-                }
-                onLinkClick={(url) => {
-                  if (terminalLinkTarget === "sidebar") {
-                    setSidebarState({
-                      isOpen: true,
-                      view: "browser",
-                      navigation: {
-                        cwd: pane.cwd ?? undefined,
-                        browserUrl: url,
-                      },
-                    });
-                  } else if (terminalLinkTarget === "default") {
-                    window.conduit.openExternal(url);
-                  } else {
-                    openBrowserPane(tab.id, pane.id, url);
-                  }
-                }}
-                showDimensions={shouldShowTerminalDimensions && !isInPreview}
-                hideIndividualSandboxIndicator={hasUnifiedSandbox}
-                isTabSynchronized={tab.synchronized}
-              />
-            ) : pane.type === "editor" ? (
-              <div
-                className="flex flex-1 w-full h-full min-h-0 min-w-0"
-                onContextMenu={onPaneContextMenu}
-                onMouseDown={onPaneActivate}
-              >
-                <EditorPaneAnchor
-                  key={pane.id}
-                  paneId={pane.id}
-                  pane={pane}
-                  onFileChange={(fileData) =>
-                    handleEditorUpdate(tab.id, pane.id, {
-                      file: fileData.file,
-                    })
-                  }
-                  onClearFile={() =>
-                    handleEditorUpdate(tab.id, pane.id, {
-                      file: undefined,
-                    })
-                  }
-                  onCwdChange={(cwd) =>
-                    handleEditorUpdate(tab.id, pane.id, { cwd })
-                  }
-                  onTreeModeChange={(mode) =>
-                    handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
-                  }
-                  onChangesViewModeChange={(mode) =>
-                    handleEditorUpdate(tab.id, pane.id, {
-                      changesViewMode: mode,
-                    })
-                  }
-                  onHover={(isHovering) => {
-                    if (isInDesignMode) {
-                      setHoveredPaneId(isHovering ? pane.id : null);
-                    }
-                    if (isInPreview) {
-                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
-                    }
-                  }}
-                  isInPreview={isInPreview}
-                  isActive={isActivePane}
-                  hideIndividualSandboxIndicator={hasUnifiedSandbox}
-                  tabId={tab.id}
-                  onClose={() => closePane(tab.id, pane.id)}
-                  className="h-full w-full"
-                />
-              </div>
-            ) : pane.type === "browser" ? (
-              <div
-                className="flex flex-1 w-full h-full min-h-0 min-w-0"
-                onContextMenu={onPaneContextMenu}
-                onMouseDown={onPaneActivate}
-              >
-                <BrowserPane
-                  key={pane.id}
-                  url={pane.url}
-                  paneId={pane.id}
-                  tabId={tab.id}
-                  disableInteraction={resizingNode !== null}
-                  isActive={isActivePane}
-                  onContextMenu={onBrowserContextMenu}
-                  onUrlChange={(nextUrl) =>
-                    handleBrowserUpdate(tab.id, pane.id, { url: nextUrl })
-                  }
-                  onTitleChange={(nextTitle) =>
-                    handleBrowserUpdate(tab.id, pane.id, { title: nextTitle })
-                  }
-                  isInPreview={isInPreview}
-                  onHover={(isHovering) => {
-                    if (isInDesignMode) {
-                      setHoveredPaneId(isHovering ? pane.id : null);
-                    }
-                    if (isInPreview) {
-                      setHoveredPreviewPaneId(isHovering ? pane.id : null);
-                    }
-                  }}
-                  devToolsFor={pane.devToolsFor}
-                  chromeless={pane.chromeless}
-                  isDevToolsOpen={ctx.devToolsTargets.has(pane.id)}
-                  onToggleDevTools={() => {
-                    const devToolsPane = Object.values(tab.panes).find(
-                      (p) => p.type === "browser" && p.devToolsFor === pane.id,
-                    );
-                    if (devToolsPane) {
-                      closePane(tab.id, devToolsPane.id);
-                    } else {
-                      openBrowserPane(
-                        tab.id,
-                        pane.id,
-                        "about:blank",
-                        "column",
-                        false,
-                        true,
-                      );
-                    }
-                  }}
-                  onHideToolbar={() =>
-                    updatePaneProperty(tab.id, pane.id, { chromeless: true })
-                  }
-                />
-              </div>
-            ) : pane.type === "canvas" ? (
-              <div
-                className="flex flex-1 w-full h-full min-h-0 min-w-0"
-                onContextMenu={onPaneContextMenu}
-                onMouseDown={onPaneActivate}
-              >
-                <CanvasPane
+            <ErrorBoundary
+              resetKey={pane.id}
+              onClose={() => closePane(tab.id, pane.id)}
+            >
+              {pane.type === "terminal" ? (
+                <TerminalPane
                   key={pane.id}
                   pane={pane}
-                  paneId={pane.id}
                   tabId={tab.id}
                   isActive={isActivePane}
+                  onActivate={onPaneActivate}
                   onContextMenu={onPaneContextMenu}
+                  // Resolve cloned terminal's sessionId here to avoid TerminalPane subscribing to all tabs
+                  resolvedSessionId={
+                    pane.cloneOf
+                      ? ((tab.panes[pane.cloneOf] as typeof pane)?.sessionId ??
+                        pane.sessionId)
+                      : pane.sessionId
+                  }
+                  onLinkClick={(url) => {
+                    if (terminalLinkTarget === "sidebar") {
+                      setSidebarState({
+                        isOpen: true,
+                        view: "browser",
+                        navigation: {
+                          cwd: pane.cwd ?? undefined,
+                          browserUrl: url,
+                        },
+                      });
+                    } else if (terminalLinkTarget === "default") {
+                      window.conduit.openExternal(url);
+                    } else {
+                      openBrowserPane(tab.id, pane.id, url);
+                    }
+                  }}
+                  showDimensions={shouldShowTerminalDimensions && !isInPreview}
+                  hideIndividualSandboxIndicator={hasUnifiedSandbox}
+                  isTabSynchronized={tab.synchronized}
                 />
-              </div>
-            ) : null}
+              ) : pane.type === "editor" ? (
+                <div
+                  className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                  onContextMenu={onPaneContextMenu}
+                  onMouseDown={onPaneActivate}
+                >
+                  <EditorPaneAnchor
+                    key={pane.id}
+                    paneId={pane.id}
+                    pane={pane}
+                    onFileChange={(fileData) =>
+                      handleEditorUpdate(tab.id, pane.id, {
+                        file: fileData.file,
+                      })
+                    }
+                    onClearFile={() =>
+                      handleEditorUpdate(tab.id, pane.id, {
+                        file: undefined,
+                      })
+                    }
+                    onCwdChange={(cwd) =>
+                      handleEditorUpdate(tab.id, pane.id, { cwd })
+                    }
+                    onTreeModeChange={(mode) =>
+                      handleEditorUpdate(tab.id, pane.id, { treeMode: mode })
+                    }
+                    onChangesViewModeChange={(mode) =>
+                      handleEditorUpdate(tab.id, pane.id, {
+                        changesViewMode: mode,
+                      })
+                    }
+                    onHover={(isHovering) => {
+                      if (isInDesignMode) {
+                        setHoveredPaneId(isHovering ? pane.id : null);
+                      }
+                      if (isInPreview) {
+                        setHoveredPreviewPaneId(isHovering ? pane.id : null);
+                      }
+                    }}
+                    isInPreview={isInPreview}
+                    isActive={isActivePane}
+                    hideIndividualSandboxIndicator={hasUnifiedSandbox}
+                    tabId={tab.id}
+                    onClose={() => closePane(tab.id, pane.id)}
+                    className="h-full w-full"
+                  />
+                </div>
+              ) : pane.type === "browser" ? (
+                <div
+                  className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                  onContextMenu={onPaneContextMenu}
+                  onMouseDown={onPaneActivate}
+                >
+                  <BrowserPane
+                    key={pane.id}
+                    url={pane.url}
+                    paneId={pane.id}
+                    tabId={tab.id}
+                    disableInteraction={resizingNode !== null}
+                    isActive={isActivePane}
+                    onContextMenu={onBrowserContextMenu}
+                    onUrlChange={(nextUrl) =>
+                      handleBrowserUpdate(tab.id, pane.id, { url: nextUrl })
+                    }
+                    onTitleChange={(nextTitle) =>
+                      handleBrowserUpdate(tab.id, pane.id, { title: nextTitle })
+                    }
+                    isInPreview={isInPreview}
+                    onHover={(isHovering) => {
+                      if (isInDesignMode) {
+                        setHoveredPaneId(isHovering ? pane.id : null);
+                      }
+                      if (isInPreview) {
+                        setHoveredPreviewPaneId(isHovering ? pane.id : null);
+                      }
+                    }}
+                    devToolsFor={pane.devToolsFor}
+                    chromeless={pane.chromeless}
+                    isDevToolsOpen={ctx.devToolsTargets.has(pane.id)}
+                    onToggleDevTools={() => {
+                      const devToolsPane = Object.values(tab.panes).find(
+                        (p) =>
+                          p.type === "browser" && p.devToolsFor === pane.id,
+                      );
+                      if (devToolsPane) {
+                        closePane(tab.id, devToolsPane.id);
+                      } else {
+                        openBrowserPane(
+                          tab.id,
+                          pane.id,
+                          "about:blank",
+                          "column",
+                          false,
+                          true,
+                        );
+                      }
+                    }}
+                    onHideToolbar={() =>
+                      updatePaneProperty(tab.id, pane.id, { chromeless: true })
+                    }
+                  />
+                </div>
+              ) : pane.type === "canvas" ? (
+                <div
+                  className="flex flex-1 w-full h-full min-h-0 min-w-0"
+                  onContextMenu={onPaneContextMenu}
+                  onMouseDown={onPaneActivate}
+                >
+                  <CanvasPane
+                    key={pane.id}
+                    pane={pane}
+                    paneId={pane.id}
+                    tabId={tab.id}
+                    isActive={isActivePane}
+                    onContextMenu={onPaneContextMenu}
+                  />
+                </div>
+              ) : null}
+            </ErrorBoundary>
           </div>
 
           {/* Design mode overlay - blocks pane interactions while allowing
