@@ -13,7 +13,7 @@ const sendCliCommand = vi.hoisted(() =>
 vi.mock("../../src/cli/ipc/ipc", () => ({ sendCliCommand }));
 
 import registerBrowserCommands from "../../src/cli/commands/browser";
-import registerEditorCommands from "../../src/cli/commands/editor";
+import registerEditorCommands from "@features/editor/cli/command";
 import registerPaneCommands from "../../src/cli/commands/pane";
 import registerTerminalCommands from "@features/terminal/cli/command";
 import "../../src/cli/ipc";

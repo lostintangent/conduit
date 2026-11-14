@@ -42,7 +42,7 @@ vi.mock("@/components/ui/tooltip", () => ({
 }));
 
 // Mock DiffStatsDisplay
-vi.mock("@/components/panes/editor/components/FileDiffStats", () => ({
+vi.mock("@features/editor/components/FileDiffStats", () => ({
   DiffStatsDisplay: ({
     stats,
   }: {
@@ -55,24 +55,21 @@ vi.mock("@/components/panes/editor/components/FileDiffStats", () => ({
 }));
 
 // Mock GitStatusSummary
-vi.mock(
-  "@/components/panes/editor/components/FileTreePanel/GitStatusSummary",
-  () => ({
-    GitStatusSummary: ({
-      gitStatus,
-      changedFilesCount,
-      isHovered,
-    }: {
-      gitStatus: Map<string, unknown>;
-      changedFilesCount: number;
-      isHovered?: boolean;
-    }) => (
-      <span data-testid="git-status-summary" data-hovered={isHovered}>
-        {changedFilesCount} files
-      </span>
-    ),
-  }),
-);
+vi.mock("@features/editor/components/FileTreePanel/GitStatusSummary", () => ({
+  GitStatusSummary: ({
+    gitStatus,
+    changedFilesCount,
+    isHovered,
+  }: {
+    gitStatus: Map<string, unknown>;
+    changedFilesCount: number;
+    isHovered?: boolean;
+  }) => (
+    <span data-testid="git-status-summary" data-hovered={isHovered}>
+      {changedFilesCount} files
+    </span>
+  ),
+}));
 
 // Mock Separator
 vi.mock("@/components/ui/separator", () => ({

@@ -9,7 +9,7 @@ import { useTabContentPortal } from "@/components/layout/normal/TabContentPortal
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { BrowserPane } from "@features/browser/components/BrowserPane";
 import { CanvasPane } from "@features/canvas/components/CanvasPane";
-import { EditorPaneAnchor } from "@/components/panes/editor";
+import { EditorPaneAnchor } from "@features/editor";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { TerminalPane } from "@features/terminal/components/TerminalPane";

@@ -41,8 +41,8 @@ import {
   fileTreeTargetPath,
 } from "@/commands/contextKeys/appContextKeys";
 import { MenuId } from "@/commands/menus/types";
-import { MonacoModelRegistry } from "@/components/panes/editor/registry/MonacoModelRegistry";
-import { getRelativePath } from "@/components/panes/editor/utils/gitStatusHelpers";
+import { MonacoModelRegistry } from "@features/editor/client/MonacoModelRegistry";
+import { getRelativePath } from "@features/editor/components/utils/gitStatusHelpers";
 
 /**
  * File tree command IDs

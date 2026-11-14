@@ -9,7 +9,7 @@
  * The `effectiveCwd` prop is the CWD to use (either current or locked).
  */
 
-import { EditorPaneAnchor } from "@/components/panes/editor";
+import { EditorPaneAnchor } from "@features/editor";
 import {
   clearCwdEditorFile,
   closeSidebar,

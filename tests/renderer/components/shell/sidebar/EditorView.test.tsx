@@ -8,7 +8,7 @@ import {
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/panes/editor", () => ({
+vi.mock("@features/editor", () => ({
   EditorPaneAnchor: ({ pane }) => (
     <span data-testid="pane-file">{pane.file ?? "no-file"}</span>
   ),
