@@ -101,9 +101,11 @@ describe("editor pane", () => {
     }, `"${text}" in the editor`);
   }
 
-  /** Waits for the tab's label, which names the pane's file or folder. */
-  async function waitForTabLabel(ending: string) {
-    const tab = app.page.getByRole("tab", { selected: true });
+  /** Waits for a tab's label, which names its pane's file or folder. */
+  async function waitForTabLabel(
+    ending: string,
+    tab = app.page.getByRole("tab", { selected: true }),
+  ) {
     await until(async () => {
       const label = await tab.locator(":scope > span").first().textContent();
       if (!label?.endsWith(ending)) throw new Error(`the tab says "${label}"`);
@@ -135,6 +137,11 @@ describe("editor pane", () => {
   }
 
   async function setTreeMode(mode: "files" | "changes") {
+    // A narrow pane showing a file hides its tree, and the tree's toolbar.
+    if (!(await tree().isVisible())) {
+      await pane().getByRole("button", { name: "Back to file tree" }).click();
+      await tree().waitFor();
+    }
     const toggle = pane().getByRole("button", {
       name: "Show only changed files",
     });
@@ -378,6 +385,33 @@ describe("editor pane", () => {
     // The diff's editor went with it, and focus used to fall to the page.
     await waitForFocusIn("editor", "the diff closed");
     await editor().locator(":focus").waitFor();
+  });
+
+  it("returns focus to a narrow pane's changes when its file is committed while its tab is hidden", async () => {
+    await setWide(false);
+    await setTreeMode("changes");
+    write("src/c.ts", "export const c = 2;\n");
+    await changed("c.ts").click();
+    await tree().waitFor({ state: "hidden" });
+    await diffEditor().locator(".editor.modified").click();
+    await waitForFocusIn("editor", "clicking the diff");
+
+    const tabs = app.page.getByRole("tab");
+    const selectedTab = (index: number) =>
+      tabs.nth(index).and(app.page.getByRole("tab", { selected: true }));
+    await app.page.keyboard.press(
+      (await tabs.count()) < 2 ? "Meta+t" : "Meta+2",
+    );
+    await selectedTab(1).waitFor();
+    commitAll("Change c");
+    // The hidden pane names its folder once it has gone back to its tree.
+    await waitForTabLabel("/proj", tabs.nth(0));
+
+    await app.page.keyboard.press("Meta+1");
+    await selectedTab(0).waitFor();
+    await tree().waitFor();
+    // The changes have no tree tab stop, so focus used to fall to the page.
+    await waitForFocusIn("tree", "returning to the tab");
   });
 
   it("had no uncaught errors or failed loads", () => {

@@ -26,7 +26,11 @@ import type { ChangesViewMode } from "@shared/types";
 import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
 import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
-import { findEditorInput, findTreeTabStop } from "./utils/focusTargets";
+import {
+  findEditorInput,
+  findTreeSide,
+  findTreeTabStop,
+} from "./utils/focusTargets";
 
 export interface EditorPaneAnchorProps {
   /**
@@ -155,7 +159,8 @@ export function EditorPaneAnchor({
   // Focus goes back to where it last was if that's still showing (a narrow
   // pane shows the tree or the editor, not both), and otherwise to the editor.
   // The tree is a last resort once the pane has settled, since a revealed tab
-  // can show only the tree for a few frames.
+  // can show only the tree for a few frames. Its side takes focus itself when
+  // it has no tab stop, like the changes view.
   useFocusWhenActive(isActive, containerRef, (settled) => {
     const container = containerRef.current;
     if (!container) return;
@@ -168,7 +173,9 @@ export function EditorPaneAnchor({
     const target =
       (canReturn ? lastFocused : null) ??
       findEditorInput(container) ??
-      (settled || !lastFocused ? findTreeTabStop(container) : null);
+      (settled || !lastFocused
+        ? (findTreeTabStop(container) ?? findTreeSide(container))
+        : null);
     target?.focus({ preventScroll: true });
   });
 

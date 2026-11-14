@@ -50,6 +50,8 @@ describe("EditorPaneAnchor focus on activation", () => {
     vi.spyOn(performance, "now").mockImplementation(() => now);
 
     tree = document.createElement("div");
+    tree.dataset.paneSide = "tree";
+    tree.tabIndex = -1;
     tree.innerHTML =
       '<nav role="tree" tabindex="-1"><ul role="group"><li role="treeitem"><div tabindex="0">a.ts</div></li></ul></nav>';
     treeItem = tree.querySelector('[role="treeitem"] > div')!;
@@ -103,5 +105,19 @@ describe("EditorPaneAnchor focus on activation", () => {
     now = 1000;
     flushFrame();
     expect(document.activeElement).toBe(treeItem);
+  });
+
+  it("focuses the tree's side once the pane settles when it has no tab stop, like the changes view", () => {
+    tree.innerHTML = "<nav><button>a.ts</button></nav>";
+    const { activate } = mountAnchor();
+    editorInput.focus();
+    editor.style.display = "none";
+
+    activate();
+    expect(document.activeElement).toBe(document.body);
+
+    now = 1000;
+    flushFrame();
+    expect(document.activeElement).toBe(tree);
   });
 });

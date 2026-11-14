@@ -1426,6 +1426,7 @@ export function EditorPaneV2({
             width: showTree ? (layout === "split" ? treeWidth : "100%") : 0,
           }}
           data-testid="tree-container"
+          data-pane-side="tree"
           data-collapsed={!showTree}
           tabIndex={-1}
         >
