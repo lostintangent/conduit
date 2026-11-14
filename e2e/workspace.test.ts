@@ -225,6 +225,20 @@ describe("workspaces", () => {
     await (await app.terminal()).locator.hover();
     const running = agent.locator(".animate-shiny-text");
     await running.waitFor({ timeout: 10_000 });
+    // The shimmer only moves layers, so the compositor runs it without repainting.
+    const animated = await running.evaluate((shimmer) =>
+      shimmer
+        .getAnimations({ subtree: true })
+        .flatMap((animation) =>
+          (animation.effect as KeyframeEffect).getKeyframes(),
+        )
+        .flatMap((keyframe) => Object.keys(keyframe))
+        .filter(
+          (key) =>
+            !["offset", "computedOffset", "easing", "composite"].includes(key),
+        ),
+    );
+    expect([...new Set(animated)]).toEqual(["transform"]);
 
     fs.writeFileSync(path.join(app.home, "agent-done"), "");
     const stopped = Date.now();
