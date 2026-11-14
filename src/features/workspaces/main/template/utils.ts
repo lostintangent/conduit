@@ -8,7 +8,7 @@ import type {
   Pane,
   PaneType,
   TerminalPane,
-} from "@shared/types";
+} from "@shared/types/panes";
 import type { TemplateLayoutNode, TemplatePane, TemplateSplit } from "./types";
 
 /** Check if a string is an HTTP/HTTPS URL */

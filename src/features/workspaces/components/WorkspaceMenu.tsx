@@ -27,7 +27,7 @@ import {
   workspaceNameAtom,
 } from "@features/workbench/client/atoms";
 import { cn } from "@/utils";
-import type { Workspace } from "@shared/types";
+import type { Workspace } from "../model";
 
 const api = window.conduit;
 

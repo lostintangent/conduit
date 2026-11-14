@@ -1,4 +1,4 @@
-import type { Workspace, WorkspaceState } from "@shared/types";
+import type { Workspace, WorkspaceState } from "../model";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { createQueryClient } from "@/query";
 import { render } from "../../../../tests/renderer/queryRender";

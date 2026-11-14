@@ -1,5 +1,5 @@
 import type { Tab } from "@features/workbench/model";
-import type { Workspace, WorkspaceTab } from "@shared/types";
+import type { Workspace, WorkspaceTab } from "../model";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing handlers

@@ -6,7 +6,7 @@ import {
 } from "@features/workspaces/client/queries";
 import { cn } from "@/utils";
 import { formatRelativeTime } from "@/utils/time";
-import type { Workspace } from "@shared/types";
+import type { Workspace } from "../model";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";

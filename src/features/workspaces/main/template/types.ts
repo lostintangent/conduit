@@ -4,7 +4,7 @@ import type {
   PaneType,
   TabMetadata,
   TerminalPane,
-} from "@shared/types";
+} from "@shared/types/panes";
 
 /**
  * Template pane definition for YAML workspace files.

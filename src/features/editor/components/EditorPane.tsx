@@ -25,7 +25,7 @@ import { useGitSubscription } from "@features/git/components/useGitSubscription"
 import { useSandboxHandlers } from "@features/agents/components/useSandboxHandlers";
 import { useSettings } from "@features/settings/client/queries";
 import type { EditorPane as EditorPaneType } from "@features/workbench/model";
-import type { ChangesViewMode } from "@shared/types";
+import type { ChangesViewMode } from "@shared/types/panes";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { BranchSelector } from "./FileTreePanel/BranchSelector";

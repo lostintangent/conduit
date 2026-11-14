@@ -1,4 +1,5 @@
-import type { BackgroundCommandRequest, Workspace } from "@shared/types";
+import type { BackgroundCommandRequest } from "@features/terminal/model";
+import type { Workspace } from "@features/workspaces/model";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";

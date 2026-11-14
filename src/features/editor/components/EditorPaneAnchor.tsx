@@ -22,7 +22,7 @@
 
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import type { EditorPane } from "@features/workbench/model";
-import type { ChangesViewMode } from "@shared/types";
+import type { ChangesViewMode } from "@shared/types/panes";
 import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPane";
 import {

@@ -1,4 +1,5 @@
-import type { LayoutNode, LayoutPaneNode, Workspace } from "@shared/types";
+import type { LayoutNode, LayoutPaneNode } from "@features/workbench/model";
+import type { Workspace } from "../../model";
 import type {
   TemplateLayoutNode,
   TemplatePane,

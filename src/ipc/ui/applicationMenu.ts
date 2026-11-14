@@ -1,5 +1,5 @@
 import { BrowserWindow, Menu, app, autoUpdater } from "electron";
-import type { Workspace } from "../../shared/types";
+import type { Workspace } from "@features/workspaces/model";
 import { getUpdateStatus } from "@features/updates/main/startup";
 import type { UpdateStatus } from "@features/updates/model";
 import { getWorkspaces } from "@features/workspaces/main/service";

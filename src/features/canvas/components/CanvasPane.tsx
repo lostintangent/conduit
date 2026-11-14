@@ -3,7 +3,7 @@ import { useImageDrop } from "@/hooks/useImageDrop";
 import { useOnHide } from "@/hooks/useOnHide";
 import { DEFAULT_CANVAS_STATE } from "@features/canvas/client/canvasStore";
 import { resolveColor, watchAppTheme } from "@/utils/theme";
-import type { CanvasPane as CanvasPaneType } from "@shared/types";
+import type { CanvasPane as CanvasPaneType } from "@shared/types/panes";
 import type {
   CanvasElement,
   CanvasTool,

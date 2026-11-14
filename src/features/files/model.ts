@@ -10,7 +10,7 @@
  * - Two file types only: 'file' | 'directory' (no symlinks for now)
  */
 
-import type { Event } from "@shared/types";
+import type { Event } from "@shared/EventEmitter";
 
 // ============================================================================
 // Constants
@@ -147,7 +147,7 @@ export interface DeleteOptions {
 }
 
 // Re-export common event system types from shared
-export type { Disposable, Event } from "@shared/types";
+export type { Disposable, Event } from "@shared/EventEmitter";
 
 /**
  * Cleanup function returned by event subscriptions.

@@ -1,5 +1,5 @@
-import type { LayoutNode } from "./layout";
-import type { Pane, TabMetadata } from "./panes";
+import type { LayoutNode } from "@features/workbench/model";
+import type { Pane, TabMetadata } from "@shared/types/panes";
 
 /**
  * A saved/serializable workspace tab.
@@ -21,9 +21,4 @@ export type Workspace = {
 export type WorkspaceState = {
   workspaces: Workspace[];
   lastWorkspace?: Workspace;
-};
-
-export type NewTabOptions = {
-  command?: string;
-  title?: string;
 };

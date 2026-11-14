@@ -2,8 +2,11 @@ import type { ResolvedKeybinding } from "@/commands/keybindings/types";
 import type { QuickPaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
 import { getDefaultActions } from "@features/workbench/client/paneActions/defaults";
 import type { Action } from "@features/workbench/client/paneActions/types";
-import type { Notification, Tab } from "@features/workbench/model";
-import type { HyperTerminal } from "@shared/types";
+import type {
+  HyperTerminal,
+  Notification,
+  Tab,
+} from "@features/workbench/model";
 import { createAtom, createFrozenAtom } from "@/createAtom";
 
 export const tabsAtom = createFrozenAtom<Tab[]>([]);

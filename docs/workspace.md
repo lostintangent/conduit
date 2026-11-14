@@ -108,7 +108,7 @@ type Pane = TerminalPane | BrowserPane | EditorPane;
 
 The workspace format is used for JSON persistence. It's a complete serialization of the workspace suitable for storage and restoration.
 
-**Source:** `src/shared/types/workspace.ts`
+**Source:** `src/features/workspaces/model.ts`
 
 ```typescript
 type Workspace = {
@@ -379,14 +379,14 @@ tabs:
 
 The shared type system provides common definitions used across all three formats:
 
-| Type                                              | Location                  | Used By                  |
-| ------------------------------------------------- | ------------------------- | ------------------------ |
-| `PaneType`                                        | `@shared/types/panes`     | All formats              |
-| `TerminalPane`, `BrowserPane`, `EditorPane`       | `@shared/types/panes`     | Workspace, Template base |
-| `LayoutNode`, `LayoutPaneNode`, `LayoutSplitNode` | `@shared/types/layout`    | Workspace, Renderer      |
-| `SplitDirection`                                  | `@shared/types/layout`    | All formats              |
-| `TabMetadata`                                     | `@shared/types/panes`     | All formats              |
-| `Workspace`, `WorkspaceTab`                       | `@shared/types/workspace` | Persistence              |
+| Type                                              | Location                     | Used By                  |
+| ------------------------------------------------- | ---------------------------- | ------------------------ |
+| `PaneType`                                        | `@shared/types/panes`        | All formats              |
+| `TerminalPane`, `BrowserPane`, `EditorPane`       | `@shared/types/panes`        | Workspace, Template base |
+| `LayoutNode`, `LayoutPaneNode`, `LayoutSplitNode` | `@features/workbench/model`  | Workspace, Renderer      |
+| `SplitDirection`                                  | `@features/workbench/model`  | All formats              |
+| `TabMetadata`                                     | `@shared/types/panes`        | All formats              |
+| `Workspace`, `WorkspaceTab`                       | `@features/workspaces/model` | Persistence              |
 
 ### Pane Type Extensions
 
@@ -462,6 +462,7 @@ const serializedTabs = await serializeTabs(tabs);
 
 ```
 src/features/workspaces/
+├── model.ts              # Workspace, WorkspaceTab, WorkspaceState
 ├── main/
 │   ├── service.ts        # Service methods, serialization
 │   ├── startup.ts        # Loads state, builds the menu
@@ -473,12 +474,9 @@ src/features/workspaces/
 ├── client/actions.ts     # Open, close and restore workspaces
 └── components/           # WorkspaceMenu, WorkspacePicker, useWorkspaces
 
-src/shared/types/
-├── panes.ts              # PaneType, Pane types, TabMetadata
-├── layout.ts             # LayoutNode, SplitDirection
-└── workspace.ts          # Workspace, WorkspaceTab, WorkspaceState
+src/shared/types/panes.ts        # PaneType, Pane types, TabMetadata
 
-src/features/workbench/model.ts  # Runtime pane types with extensions
+src/features/workbench/model.ts  # Layout types, runtime pane types with extensions
 ```
 
 ### Service Methods

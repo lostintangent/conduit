@@ -4,10 +4,8 @@ import {
   workspaceNameAtom,
 } from "@features/workbench/client/atoms";
 import type { LayoutNode, Pane, Tab } from "@features/workbench/model";
-import type {
-  TerminalPane as SharedTerminalPane,
-  Workspace,
-} from "@shared/types";
+import type { TerminalPane as SharedTerminalPane } from "@shared/types/panes";
+import type { Workspace } from "../model";
 import { closeTab } from "@features/workbench/client/actions/tab";
 
 const api = window.conduit;

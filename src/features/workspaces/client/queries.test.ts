@@ -1,5 +1,5 @@
 import type { Tab } from "@features/workbench/model";
-import type { WorkspaceState } from "@shared/types";
+import type { WorkspaceState } from "../model";
 import { MutationObserver } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 

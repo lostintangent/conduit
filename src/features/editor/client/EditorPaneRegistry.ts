@@ -20,7 +20,7 @@
  */
 
 import type { EditorPane } from "@features/workbench/model";
-import type { ChangesViewMode } from "@shared/types";
+import type { ChangesViewMode } from "@shared/types/panes";
 import type { FileChangeData } from "../components/EditorPane";
 import { EventEmitter } from "@shared/EventEmitter";
 

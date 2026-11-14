@@ -11,7 +11,7 @@ import {
   tabsAtom,
   workspaceNameAtom,
 } from "@features/workbench/client/atoms";
-import type { Workspace } from "@shared/types";
+import type { Workspace } from "../model";
 import { enableMapSet } from "immer";
 
 enableMapSet();

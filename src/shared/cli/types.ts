@@ -1,5 +1,4 @@
-import { Pane } from "@features/workbench/model";
-import type { NewTabOptions } from "@shared/types";
+import type { NewTabOptions, Pane } from "@features/workbench/model";
 import type {
   BrowserCaptureArgs,
   BrowserClickArgs,

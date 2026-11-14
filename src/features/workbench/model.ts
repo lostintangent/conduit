@@ -1,28 +1,33 @@
 import type {
-  EditorTreeMode,
-  Identifiable,
-  LayoutNode,
-  LayoutPaneNode,
-  LayoutSplitNode,
-  NotificationKind,
   BrowserPane as SharedBrowserPane,
   CanvasPane as SharedCanvasPane,
   EditorPane as SharedEditorPane,
   TerminalPane as SharedTerminalPane,
-  SplitDirection,
   TabMetadata,
-} from "@shared/types";
+} from "@shared/types/panes";
 
-export type {
-  EditorTreeMode,
-  Identifiable,
-  LayoutNode,
-  LayoutPaneNode,
-  LayoutSplitNode,
-  NotificationKind,
-  SplitDirection,
-  TabMetadata,
-};
+/* Layout types */
+
+export type Identifiable = { id: string };
+type Resizable = { size?: number };
+
+export type LayoutPaneNode = {
+  type: "pane";
+  paneId: string;
+  collapsed?: boolean;
+} & Identifiable &
+  Resizable;
+
+export type SplitDirection = "row" | "column";
+
+export type LayoutSplitNode = {
+  type: "split";
+  direction: SplitDirection;
+  children: LayoutNode[];
+} & Identifiable &
+  Resizable;
+
+export type LayoutNode = LayoutPaneNode | LayoutSplitNode;
 
 /* Tab and pane types */
 
@@ -64,6 +69,25 @@ export type Tab = TabMetadata & {
   activePaneId: string;
 } & Identifiable;
 
+export type NewTabOptions = {
+  command?: string;
+  title?: string;
+};
+
+/* Hyper terminal types */
+
+export type HyperTerminalState = "visible" | "minimized";
+
+export type HyperTerminalPosition = { x: number; y: number };
+
+export type HyperTerminal = {
+  terminalId: string;
+  paneId: string;
+  cwd: string | null;
+  state: HyperTerminalState;
+  position: HyperTerminalPosition | null;
+};
+
 /* Command palette types */
 
 export type Command = {
@@ -75,6 +99,8 @@ export type Command = {
 } & Identifiable;
 
 /* Notification types */
+
+export type NotificationKind = "info" | "success" | "error";
 
 export type NotificationAction = {
   label: string;

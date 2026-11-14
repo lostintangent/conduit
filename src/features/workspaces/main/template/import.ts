@@ -1,13 +1,11 @@
 import type {
-  BrowserPane,
   LayoutNode,
   LayoutPaneNode,
   LayoutSplitNode,
-  Pane,
   SplitDirection,
-  TerminalPane,
-  Workspace,
-} from "@shared/types";
+} from "@features/workbench/model";
+import type { BrowserPane, Pane, TerminalPane } from "@shared/types/panes";
+import type { Workspace } from "../../model";
 import { generateId } from "@shared/utils";
 import type {
   TemplateLayoutNode,

@@ -11,6 +11,12 @@ export type TerminalCreateOptions = {
   waitForSize?: boolean;
 };
 
+export type BackgroundCommandRequest = {
+  command: string;
+  args?: string[];
+  cwd?: string | null;
+};
+
 /* Terminal Prompt Mode types */
 
 export type TerminalPromptRequest = {

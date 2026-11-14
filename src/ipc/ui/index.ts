@@ -1,6 +1,6 @@
 import { BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
-import type { BackgroundCommandRequest } from "../../shared/types";
+import type { BackgroundCommandRequest } from "@features/terminal/model";
 import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
 

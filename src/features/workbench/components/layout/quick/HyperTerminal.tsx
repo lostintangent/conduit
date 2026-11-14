@@ -5,7 +5,7 @@ import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import type {
   HyperTerminal as HyperTerminalType,
   HyperTerminalPosition,
-} from "@shared/types";
+} from "@features/workbench/model";
 import { ArrowUpRight, Maximize2, Minus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 

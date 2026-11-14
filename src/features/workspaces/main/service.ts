@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "yaml";
 import type { Tab } from "@features/workbench/model";
-import type { Workspace, WorkspaceState } from "@shared/types";
+import type { Workspace, WorkspaceState } from "../model";
 import { captureTerminalCommand } from "@features/terminal/main/command";
 import { getAllTerminals } from "@features/terminal/main/store";
 import type { TerminalInstance } from "@features/terminal/main/types";

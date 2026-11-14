@@ -1,4 +1,4 @@
-import type { Workspace, WorkspaceState } from "@shared/types";
+import type { Workspace, WorkspaceState } from "../model";
 import { act, waitFor } from "@testing-library/react";
 import {
   renderHook,

@@ -1,7 +1,7 @@
 import { disposeSession } from "@features/terminal/client/xtermCache";
 import { openTabFromExistingSession } from "@features/workbench/client/actions/tab";
 import { hyperTerminalsAtom } from "@features/workbench/client/atoms";
-import type { HyperTerminalPosition } from "@shared/types";
+import type { HyperTerminalPosition } from "@features/workbench/model";
 import { generateId } from "@shared/utils";
 import { produce } from "immer";
 

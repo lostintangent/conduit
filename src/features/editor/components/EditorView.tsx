@@ -17,8 +17,7 @@ import {
   setCwdEditorFile,
   sidebarPaneIds,
 } from "@features/workbench/client/sidebarStore";
-import type { EditorTreeMode } from "@features/workbench/model";
-import type { ChangesViewMode } from "@shared/types";
+import type { ChangesViewMode, EditorTreeMode } from "@shared/types/panes";
 import { useSelector } from "@tanstack/react-store";
 import { usePersistedState } from "@features/workbench/components/sidebar/hooks/usePersistedState";
 import { useSidebarNavigation } from "@features/workbench/components/sidebar/hooks/useSidebarNavigation";

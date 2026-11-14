@@ -7,7 +7,7 @@
 
 import type * as monaco from "monaco-editor";
 import type { GitFileStatusCode } from "@features/git/model";
-import type { Disposable } from "@shared/types";
+import type { Disposable } from "@shared/EventEmitter";
 
 // ============================================================================
 // Model State Types

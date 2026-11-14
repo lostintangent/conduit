@@ -4,7 +4,7 @@
  * Based on: docs/pane-actions-schema.md
  */
 
-import type { PaneType } from "@shared/types";
+import type { PaneType } from "@shared/types/panes";
 
 // Re-export PaneType for consumers of this module
 export type { PaneType };
