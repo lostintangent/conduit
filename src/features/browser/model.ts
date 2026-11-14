@@ -1,4 +1,4 @@
-export type AutomationBoundingBox = {
+type AutomationBoundingBox = {
   x: number;
   y: number;
   width: number;
@@ -178,7 +178,6 @@ export type BrowserAutomationCommandDefinition = {
   paneDescription: string;
   options?: BrowserAutomationOption[];
   automation: BrowserAutomationAction;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   buildArgs: (args: any[], options: any) => object;
 };
 

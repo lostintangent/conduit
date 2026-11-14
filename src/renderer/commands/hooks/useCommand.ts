@@ -5,7 +5,7 @@ import { getCommandRegistry, executeCommand } from "@/commands";
 import { formatKeybindingForDisplay } from "../keybindings/utils";
 import type { KeyChord } from "../keybindings/types";
 
-export interface CommandKeybinding {
+interface CommandKeybinding {
   /** The formatted display string (e.g., "⌘⌥F" or "Ctrl+Alt+F") */
   display: string;
   /** The raw chords for programmatic access */

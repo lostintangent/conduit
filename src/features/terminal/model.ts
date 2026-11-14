@@ -31,14 +31,14 @@ export type TerminalPromptResponse = {
   error?: string;
 };
 
-export type TerminalPromptStreamChunk = {
+type TerminalPromptStreamChunk = {
   type: "data" | "error" | "end";
   data?: string;
   error?: string;
 };
 
 /** Every event is broadcast, so each carries the session it belongs to. */
-export type TerminalEvents = {
+type TerminalEvents = {
   data: { sessionId: string; data: string };
   /** The shell printed, but its output waits in main until a pane shows it. */
   activity: { sessionId: string };

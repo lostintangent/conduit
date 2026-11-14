@@ -1,5 +1,5 @@
 /**
- * Relative and full date formatting shared across the app.
+ * Relative time formatting shared across the app.
  */
 
 /**
@@ -58,23 +58,4 @@ export function formatRelativeTime(timestamp: number, now?: number): string {
   // Years
   const diffYears = Math.floor(diffDays / 365);
   return `${diffYears}y`;
-}
-
-/**
- * Format a full date for tooltip display.
- *
- * Shows complete date and time for when user hovers over relative time.
- *
- * @param timestamp - Unix timestamp in seconds
- * @returns Full date string like "Dec 12, 2025, 3:45 PM"
- */
-export function formatFullDate(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 }

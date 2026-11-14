@@ -22,7 +22,7 @@ export type CliRequest = {
   command: CliCommand;
 };
 
-export type DefineCommand<
+type DefineCommand<
   Name extends string,
   Args extends object = object,
   _Result = void,
@@ -38,7 +38,7 @@ export const PANE_TYPES = [
   "canvas",
   "all",
 ] as const;
-export type PaneType = (typeof PANE_TYPES)[number];
+type PaneType = (typeof PANE_TYPES)[number];
 
 export const PANE_SPLIT_TYPES = [
   "editor",
@@ -46,7 +46,7 @@ export const PANE_SPLIT_TYPES = [
   "terminal",
   "canvas",
 ] as const;
-export type PaneSplitType = (typeof PANE_SPLIT_TYPES)[number];
+type PaneSplitType = (typeof PANE_SPLIT_TYPES)[number];
 
 export const PANE_MOVE_TARGETS = [
   "left",
@@ -55,10 +55,10 @@ export const PANE_MOVE_TARGETS = [
   "down",
   "tab",
 ] as const;
-export type PaneMoveTarget = (typeof PANE_MOVE_TARGETS)[number];
+type PaneMoveTarget = (typeof PANE_MOVE_TARGETS)[number];
 
 export const PANE_SPLIT_TARGETS = ["left", "right", "top", "bottom"] as const;
-export type PaneSplitTarget = (typeof PANE_SPLIT_TARGETS)[number];
+type PaneSplitTarget = (typeof PANE_SPLIT_TARGETS)[number];
 
 export type CliCommand =
   // Pane commands

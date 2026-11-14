@@ -1,14 +1,4 @@
-import type { TerminalCreateOptions } from "@features/terminal/model";
-import type { AgentSessionInfo } from "@features/agents/model";
-
-/**
- * Options that can be passed to splitPane function
- * Matches the SplitPaneOptions type from pane.ts
- */
-export type SplitPaneOptions = {
-  terminalOptions?: TerminalCreateOptions;
-  agentSession?: AgentSessionInfo;
-};
+import type { SplitPaneOptions } from "@features/workbench/client/actions/pane";
 
 /**
  * Result returned by a pre-command execution

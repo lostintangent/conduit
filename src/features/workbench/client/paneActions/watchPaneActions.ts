@@ -11,12 +11,12 @@ import { ValidationError } from "./validation";
 /**
  * Callback when file changes and is successfully reloaded
  */
-export type FileChangeCallback = (actions: Action[]) => void;
+type FileChangeCallback = (actions: Action[]) => void;
 
 /**
  * Callback when file change is detected but load fails
  */
-export type FileErrorCallback = (error: Error) => void;
+type FileErrorCallback = (error: Error) => void;
 
 /**
  * Options for file watching

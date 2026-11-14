@@ -160,7 +160,6 @@ describe("EventEmitter", () => {
     it("should handle unsubscribing during event firing", () => {
       const listener1 = vi.fn();
       // Using let here because we need to assign in a callback before using
-      // eslint-disable-next-line prefer-const
       let subscription2: ReturnType<typeof emitter.event>;
 
       const unsubscribingListener = vi.fn(() => {

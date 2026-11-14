@@ -18,13 +18,8 @@ import type {
 } from "@features/canvas/model";
 import {
   type CanvasHistoryState,
-  EMPTY_HISTORY,
   MAX_HISTORY_SIZE,
 } from "@features/canvas/client/canvasStore";
-
-// Re-export for consumers
-export type { CanvasHistoryState };
-export { EMPTY_HISTORY, MAX_HISTORY_SIZE };
 
 // =============================================================================
 // Types

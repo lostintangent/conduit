@@ -11,8 +11,8 @@ import { type Point } from "../utils/transformUtils";
 // Constants
 // =============================================================================
 
-export const MIN_ZOOM = 0.1; // 10%
-export const MAX_ZOOM = 10; // 1000%
+const MIN_ZOOM = 0.1; // 10%
+const MAX_ZOOM = 10; // 1000%
 const ZOOM_STEP = 1.1; // 10% per step
 
 // =============================================================================

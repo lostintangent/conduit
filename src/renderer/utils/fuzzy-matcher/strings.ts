@@ -4,8 +4,6 @@
  *  Portions adapted from VS Code: https://github.com/microsoft/vscode
  *--------------------------------------------------------------------------------------------*/
 
-/* eslint-disable @typescript-eslint/no-inferrable-types */
-/* eslint-disable no-useless-escape */
 /* cspell:disable */
 // Note: This file contains functions extracted from VS Code
 
@@ -19,7 +17,7 @@ export function startsWithIgnoreCase(str: string, candidate: string): boolean {
   );
 }
 
-export function compareSubstring(
+function compareSubstring(
   a: string,
   b: string,
   aStart: number = 0,
@@ -46,7 +44,7 @@ export function compareSubstring(
   return 0;
 }
 
-export function compareSubstringIgnoreCase(
+function compareSubstringIgnoreCase(
   a: string,
   b: string,
   aStart: number = 0,
@@ -105,6 +103,6 @@ export function compareSubstringIgnoreCase(
   return 0;
 }
 
-export function isLowerAsciiLetter(code: number): boolean {
+function isLowerAsciiLetter(code: number): boolean {
   return code >= CharCode.a && code <= CharCode.z;
 }

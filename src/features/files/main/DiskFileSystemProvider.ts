@@ -69,7 +69,6 @@ export const diskReads = {
       size: stats.size,
       mtime: stats.mtimeMs,
       ctime: stats.ctimeMs,
-      // eslint-disable-next-line no-bitwise
       readonly: (stats.mode & 0o200) === 0,
     };
   },

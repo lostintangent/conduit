@@ -7,7 +7,7 @@
 // Types
 // =============================================================================
 
-export interface RGB {
+interface RGB {
   r: number;
   g: number;
   b: number;
@@ -18,7 +18,7 @@ export interface RGB {
 // =============================================================================
 
 /** Default luminance threshold for light/dark classification */
-export const DEFAULT_LUMINANCE_THRESHOLD = 0.5;
+const DEFAULT_LUMINANCE_THRESHOLD = 0.5;
 
 // =============================================================================
 // Parsing
@@ -36,7 +36,7 @@ export const DEFAULT_LUMINANCE_THRESHOLD = 0.5;
  * parseHexColor("1a1a1a")   // { r: 26, g: 26, b: 26 }
  * parseHexColor("invalid")  // null
  */
-export function parseHexColor(hex: string): RGB | null {
+function parseHexColor(hex: string): RGB | null {
   const cleanHex = hex.replace(/^#/, "");
 
   if (cleanHex.length === 3) {
@@ -83,7 +83,7 @@ function srgbToLinear(value: number): number {
  * computeLuminance("#ffffff")  // 1
  * computeLuminance("#1a1a1a")  // ~0.01
  */
-export function computeLuminance(hex: string, fallback = 0.5): number {
+function computeLuminance(hex: string, fallback = 0.5): number {
   const rgb = parseHexColor(hex);
   if (!rgb) return fallback;
 

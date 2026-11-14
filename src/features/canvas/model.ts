@@ -190,7 +190,7 @@ export type CanvasTool =
 /**
  * Create a default transform centered at the given position.
  */
-export function createTransform(x = 0, y = 0): Transform {
+function createTransform(x = 0, y = 0): Transform {
   return {
     x,
     y,

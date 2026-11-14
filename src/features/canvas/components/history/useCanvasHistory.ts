@@ -46,7 +46,7 @@ import {
  * Canvas operations interface.
  * The hook calls these when applying undo/redo commands.
  */
-export interface CanvasOperations {
+interface CanvasOperations {
   /** Add a single element */
   addElement: (element: CanvasElement) => void;
   /** Remove elements by ID */

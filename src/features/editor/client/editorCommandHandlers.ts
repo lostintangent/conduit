@@ -27,7 +27,7 @@
 /**
  * Handler function type for editor commands.
  */
-export type EditorCommandHandler = () => void;
+type EditorCommandHandler = () => void;
 
 /**
  * Collection of handlers that an editor pane can provide.

@@ -10,7 +10,7 @@ export type HandlerContext = {
 
 // Commands with arguments always send them, and useCliClient passes `{}` for
 // commands without any.
-export type CliHandler<Name extends CliCommand["name"]> = (
+type CliHandler<Name extends CliCommand["name"]> = (
   args: NonNullable<CliCommandArgs<Name>>,
   context: HandlerContext,
 ) => Promise<unknown> | unknown;

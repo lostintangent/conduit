@@ -31,7 +31,7 @@ import {
  * Icon mapping for pane actions
  * Maps icon IDs to Lucide React components
  */
-export const PANE_ACTION_ICON_MAP: Record<string, LucideIcon> = {
+const PANE_ACTION_ICON_MAP: Record<string, LucideIcon> = {
   "git-branch": GitBranch,
   code: Code,
   terminal: Terminal,

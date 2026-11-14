@@ -125,7 +125,7 @@ export type LayoutPathEntry = {
   index: number;
 };
 
-export function findLayoutPath(
+function findLayoutPath(
   node: LayoutNode,
   predicate: (candidate: LayoutNode) => boolean,
   parent: LayoutSplitNode | null = null,
@@ -530,7 +530,7 @@ export function detachPane(
   return { pane: detachedPane, tabClosed };
 }
 
-type SplitPaneOptions = {
+export type SplitPaneOptions = {
   terminalOptions?: TerminalCreateOptions;
   agentSession?: AgentSessionInfo;
 };
@@ -708,7 +708,7 @@ function insertPaneAtTabRoot(
  * Insert a pane next to a target pane (splitting it in the given direction)
  * and make it the active pane.
  */
-export function insertPaneNextTo(
+function insertPaneNextTo(
   tabId: string,
   targetPaneId: string,
   pane: Pane,

@@ -16,7 +16,7 @@ export type { PaneType };
  * 'container', 'database', 'package', 'server', 'test-tube',
  * 'bug', 'rocket', 'shield', 'book', 'wrench'
  */
-export type IconId = string;
+type IconId = string;
 
 /**
  * Maximum number of actions allowed

@@ -214,7 +214,6 @@ export const automation = {
         nextValue += char;
         applyValue(nextValue);
         if (delay) {
-          // eslint-disable-next-line no-await-in-loop
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
@@ -345,5 +344,3 @@ export const automation = {
 };
 
 window.addEventListener("beforeunload", () => handles.clear());
-
-export default automation;

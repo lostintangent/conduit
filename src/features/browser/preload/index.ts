@@ -3,7 +3,7 @@ import type {
   BrowserAutomationResponse,
 } from "@features/browser/model";
 import { ipcRenderer } from "electron";
-import automation from "./automation";
+import { automation } from "./automation";
 import { handAppKeys } from "./appKeys";
 
 ipcRenderer.on(

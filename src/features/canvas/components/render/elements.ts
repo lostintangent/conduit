@@ -22,11 +22,11 @@ import {
 // =============================================================================
 
 // Arrow head sizing: multiplier for stroke width to determine head length
-export const ARROW_HEAD_LENGTH_MULTIPLIER = 3;
+const ARROW_HEAD_LENGTH_MULTIPLIER = 3;
 // Minimum arrow head length in pixels (ensures visibility for thin strokes)
-export const ARROW_HEAD_MIN_LENGTH = 8;
+const ARROW_HEAD_MIN_LENGTH = 8;
 // Arrow head width as a ratio of head length
-export const ARROW_HEAD_WIDTH_RATIO = 0.6;
+const ARROW_HEAD_WIDTH_RATIO = 0.6;
 
 /**
  * Calculate arrow head dimensions based on stroke width.
@@ -462,7 +462,7 @@ function renderShape(
  * @param element - The element to render
  * @param zoom - Viewport zoom level (1.0 = 100%), used for pattern rendering
  */
-export function renderElement(
+function renderElement(
   ctx: CanvasRenderingContext2D,
   element: CanvasElement,
   zoom = 1,

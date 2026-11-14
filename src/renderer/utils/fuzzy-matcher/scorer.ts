@@ -25,7 +25,7 @@ const sep = "/";
 
 export type FuzzyScorerCache = { [key: string]: IItemScore };
 
-export interface IPreparedQueryPiece {
+interface IPreparedQueryPiece {
   /**
    * The original query as provided as input.
    */

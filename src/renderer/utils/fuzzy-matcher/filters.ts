@@ -4,10 +4,6 @@
  *  Portions adapted from VS Code: https://github.com/microsoft/vscode
  *--------------------------------------------------------------------------------------------*/
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-inferrable-types */
-/* eslint-disable @typescript-eslint/no-namespace */
-/* eslint-disable no-cond-assign */
 /* cspell:disable */
 // Note: This file is copied from VS Code and contains intentional code patterns
 

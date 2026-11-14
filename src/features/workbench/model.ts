@@ -8,7 +8,7 @@ import type {
 
 /* Layout types */
 
-export type Identifiable = { id: string };
+type Identifiable = { id: string };
 type Resizable = { size?: number };
 
 export type LayoutPaneNode = {
@@ -76,7 +76,7 @@ export type NewTabOptions = {
 
 /* Hyper terminal types */
 
-export type HyperTerminalState = "visible" | "minimized";
+type HyperTerminalState = "visible" | "minimized";
 
 export type HyperTerminalPosition = { x: number; y: number };
 
@@ -100,9 +100,9 @@ export type Command = {
 
 /* Notification types */
 
-export type NotificationKind = "info" | "success" | "error";
+type NotificationKind = "info" | "success" | "error";
 
-export type NotificationAction = {
+type NotificationAction = {
   label: string;
   onClick: () => void;
 };

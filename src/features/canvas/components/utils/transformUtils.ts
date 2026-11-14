@@ -108,7 +108,7 @@ export function distance(p1: Point, p2: Point): number {
  * Calculate the angle in degrees from p1 to p2.
  * 0 degrees is to the right, 90 degrees is down.
  */
-export function angleBetween(p1: Point, p2: Point): number {
+function angleBetween(p1: Point, p2: Point): number {
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
   return Math.atan2(dy, dx) * (180 / Math.PI);
@@ -117,7 +117,7 @@ export function angleBetween(p1: Point, p2: Point): number {
 /**
  * Normalize an angle to be within 0-360 degrees.
  */
-export function normalizeAngle(angle: number): number {
+function normalizeAngle(angle: number): number {
   let normalized = angle % 360;
   if (normalized < 0) normalized += 360;
   return normalized;

@@ -12,11 +12,11 @@ import type {
 import type { TemplateLayoutNode, TemplatePane, TemplateSplit } from "./types";
 
 /** Check if a string is an HTTP/HTTPS URL */
-export const isHttpUrl = (s: string) =>
+const isHttpUrl = (s: string) =>
   s.startsWith("http://") || s.startsWith("https://");
 
 /** Check if a string is a file:// URL */
-export const isFileUrl = (s: string) => s.startsWith("file://");
+const isFileUrl = (s: string) => s.startsWith("file://");
 
 /** Get CWD from a pane (only terminal/editor have CWD) */
 export const getPaneCwd = (pane: Pane): string | null | undefined =>

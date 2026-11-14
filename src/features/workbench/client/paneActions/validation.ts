@@ -76,7 +76,7 @@ export function validatePaneActionsConfig(data: unknown): Action[] {
  * @returns Validated action
  * @throws ValidationError if validation fails
  */
-export function validateAction(data: unknown, index: number): Action {
+function validateAction(data: unknown, index: number): Action {
   const context = `Action[${index}]`;
 
   if (!isObject(data)) {
@@ -143,7 +143,7 @@ export function validateAction(data: unknown, index: number): Action {
  * @returns Validated config
  * @throws ValidationError if validation fails
  */
-export function validatePaneConfig(
+function validatePaneConfig(
   paneType: PaneType,
   data: unknown,
   context: string,

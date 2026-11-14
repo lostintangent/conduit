@@ -15,7 +15,7 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
-export const appPath =
+const appPath =
   process.env.CONDUIT_E2E_APP ??
   path.join(repoRoot, "out", `Conduit-darwin-${process.arch}`, "Conduit.app");
 

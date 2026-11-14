@@ -5,7 +5,7 @@
  * Automatically determines optimal split patterns based on agent count.
  */
 
-export type SplitDirection = "row" | "column";
+import type { SplitDirection } from "@features/workbench/model";
 
 export interface LayoutSplit {
   direction: SplitDirection;

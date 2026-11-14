@@ -7,13 +7,11 @@
  * feature's model, so main and renderer share one payload type per event.
  */
 
-// biome-ignore lint/suspicious/noEmptyInterface: features merge into these
 export interface Services {}
-// biome-ignore lint/suspicious/noEmptyInterface: features merge into these
 export interface Events {}
 
 /** A service as the renderer sees it: every method becomes async. */
-export type Remote<Service> = {
+type Remote<Service> = {
   [Method in keyof Service]: Service[Method] extends (
     ...args: infer Args
   ) => infer Result
@@ -22,9 +20,7 @@ export type Remote<Service> = {
 };
 
 /** Subscribes to one of a feature's events and returns the unsubscribe. */
-export type Listen<FeatureEvents> = <
-  Event extends keyof FeatureEvents & string,
->(
+type Listen<FeatureEvents> = <Event extends keyof FeatureEvents & string>(
   event: Event,
   listener: (payload: FeatureEvents[Event]) => void,
 ) => () => void;

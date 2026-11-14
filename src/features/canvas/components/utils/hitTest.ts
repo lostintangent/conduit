@@ -130,7 +130,7 @@ function hitTestShape(point: Point, element: ShapeElement): boolean {
 /**
  * Check if a point hits an element.
  */
-export function hitTestElement(point: Point, element: CanvasElement): boolean {
+function hitTestElement(point: Point, element: CanvasElement): boolean {
   switch (element.type) {
     case "stroke":
       return hitTestStroke(point, element);

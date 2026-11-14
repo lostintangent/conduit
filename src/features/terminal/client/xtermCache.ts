@@ -80,7 +80,6 @@ export type xtermInstance = {
 
 // Pattern to extract file path from OSC 7 file:// URL format
 // Format: file://hostname/path BEL (hostname may be empty)
-// eslint-disable-next-line no-control-regex
 const OSC_CWD_PATTERN = /^file:\/\/[^/]*(\/.*)$/;
 
 // Map of pane IDs to their xterm terminal instances, which allows

@@ -49,6 +49,14 @@ describe("formatRelativeTime", () => {
     });
   });
 
+  describe("weeks, months and years", () => {
+    it("should format spans of two weeks or more", () => {
+      expect(formatRelativeTime(nowSec - 14 * 86400, nowMs)).toBe("2w");
+      expect(formatRelativeTime(nowSec - 60 * 86400, nowMs)).toBe("2mo");
+      expect(formatRelativeTime(nowSec - 400 * 86400, nowMs)).toBe("1y");
+    });
+  });
+
   describe("edge cases", () => {
     it("should handle future timestamps by showing 0s", () => {
       expect(formatRelativeTime(nowSec + 5, nowMs)).toBe("0s");

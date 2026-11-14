@@ -8,7 +8,7 @@
 
 import { ipcMain } from "electron";
 
-// biome-ignore lint/suspicious/noExplicitAny: services accept any arguments
+// Services accept any arguments.
 type Service = Record<string, (...args: any[]) => unknown>;
 type Dispose = () => void | Promise<void>;
 type Startup = () => void | Dispose | Promise<void | Dispose>;
