@@ -49,21 +49,12 @@ const mockBranches: GitBranch[] = [
 ];
 
 // ============================================================================
-// Mock Git API
+// Tests
 // ============================================================================
 
 const CWD = "/repo";
-
-function createMockGitAPI(): GitSubscription {
-  return {
-    cwd: CWD,
-    whenReady: vi.fn().mockResolvedValue(undefined),
-  } as unknown as GitSubscription;
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
+const whenReady = vi.fn(async () => {});
+const git = { cwd: CWD, whenReady } as unknown as GitSubscription;
 
 describe("BranchSwitcher", () => {
   const mockOnBranchSwitch = vi.fn();
@@ -77,31 +68,57 @@ describe("BranchSwitcher", () => {
     writes = mockGitWrites();
   });
 
+  function renderSwitcher(currentBranch: string | null = "main") {
+    return render(
+      <BranchSwitcher
+        git={git}
+        currentBranch={currentBranch}
+        onBranchSwitch={mockOnBranchSwitch}
+      />,
+    );
+  }
+
+  /** Open the dropdown, which Radix does on pointerdown rather than click. */
+  async function openDropdown() {
+    await act(async () => {
+      fireEvent.pointerDown(screen.getByTestId("branch-switcher-trigger"), {
+        button: 0,
+        pointerType: "mouse",
+      });
+    });
+  }
+
+  async function selectBranch(name: string) {
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId(`branch-option-${name}`));
+    });
+  }
+
+  /** Open the dropdown's create-branch input. */
+  async function openCreateInput() {
+    await openDropdown();
+    await act(async () => {
+      fireEvent.click(await screen.findByTestId("create-branch-option"));
+    });
+    return screen.findByTestId("create-branch-input");
+  }
+
+  async function typeBranchName(input: HTMLElement, name: string, key: string) {
+    await act(async () => {
+      fireEvent.change(input, { target: { value: name } });
+      fireEvent.keyDown(input, { key });
+    });
+  }
+
   describe("rendering", () => {
     it("should render current branch name", () => {
-      const mockGit = createMockGitAPI();
-
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
+      renderSwitcher();
 
       expect(screen.getByText("main")).toBeDefined();
     });
 
     it("should render nothing when currentBranch is null", () => {
-      const mockGit = createMockGitAPI();
-
-      const { container } = render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch={null}
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
+      const { container } = renderSwitcher(null);
 
       expect(container.firstChild).toBeNull();
     });
@@ -109,24 +126,14 @@ describe("BranchSwitcher", () => {
 
   describe("dropdown behavior", () => {
     it("should load branches when dropdown opens", async () => {
-      const mockGit = createMockGitAPI();
+      renderSwitcher();
+      await act(async () => {});
+      expect(reads.getBranches).not.toHaveBeenCalled();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      // Click to open dropdown - use pointerDown for Radix components
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
+      await openDropdown();
 
       await waitFor(() => {
-        expect(mockGit.whenReady).toHaveBeenCalled();
+        expect(whenReady).toHaveBeenCalled();
         expect(reads.getBranches).toHaveBeenCalledWith(CWD);
       });
     });
@@ -134,31 +141,15 @@ describe("BranchSwitcher", () => {
     it("should show loading state while fetching branches", async () => {
       // Use fake timers to control async timing
       vi.useFakeTimers();
-
-      const mockGit = createMockGitAPI();
       reads.getBranches.mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(() => resolve(mockBranches), 100),
           ),
       );
+      renderSwitcher();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-
-      // Open dropdown without advancing timers
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-        // Let microtasks (like whenReady) settle, but not setTimeout
-        await Promise.resolve();
-      });
+      await openDropdown();
 
       // Should show loading state while getBranches is pending
       expect(screen.getByText("Loading branches...")).toBeDefined();
@@ -171,20 +162,8 @@ describe("BranchSwitcher", () => {
     });
 
     it("should filter out remote branches", async () => {
-      const mockGit = createMockGitAPI();
-
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
+      renderSwitcher();
+      await openDropdown();
 
       await waitFor(() => {
         // Local branches should be visible
@@ -197,20 +176,8 @@ describe("BranchSwitcher", () => {
     });
 
     it("should sort branches by last commit date (most recent first), current branch first", async () => {
-      const mockGit = createMockGitAPI();
-
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
+      renderSwitcher();
+      await openDropdown();
 
       await waitFor(() => {
         const branchItems = screen.getAllByTestId(/^branch-option-/);
@@ -224,29 +191,10 @@ describe("BranchSwitcher", () => {
 
   describe("branch selection", () => {
     it("should checkout branch and call onBranchSwitch on success", async () => {
-      const mockGit = createMockGitAPI();
+      renderSwitcher();
+      await openDropdown();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText("develop")).toBeDefined();
-      });
-
-      const developOption = screen.getByTestId("branch-option-develop");
-      await act(async () => {
-        fireEvent.click(developOption);
-      });
+      await selectBranch("develop");
 
       await waitFor(() => {
         expect(writes.checkout).toHaveBeenCalledWith(CWD, "develop", false);
@@ -255,26 +203,10 @@ describe("BranchSwitcher", () => {
     });
 
     it("should not allow selecting current branch", async () => {
-      const mockGit = createMockGitAPI();
+      renderSwitcher();
+      await openDropdown();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("branch-option-main")).toBeDefined();
-      });
-
-      const mainOption = screen.getByTestId("branch-option-main");
+      const mainOption = await screen.findByTestId("branch-option-main");
       expect(mainOption.getAttribute("aria-disabled")).toBe("true");
 
       fireEvent.click(mainOption);
@@ -285,25 +217,12 @@ describe("BranchSwitcher", () => {
 
   describe("error handling", () => {
     it("should show error message when branch loading fails", async () => {
-      const mockGit = createMockGitAPI();
       reads.getBranches.mockRejectedValue(new Error("Network error"));
+      renderSwitcher();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
+      await openDropdown();
 
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText("Failed to load branches")).toBeDefined();
-      });
+      expect(await screen.findByText("Failed to load branches")).toBeDefined();
     });
 
     it.each([
@@ -314,31 +233,16 @@ describe("BranchSwitcher", () => {
       async (buttonId, failingMethod) => {
         let fail!: (error: Error) => void;
         const hanging = new Promise((_, reject) => (fail = reject));
-        const mockGit = createMockGitAPI();
         writes.checkout.mockRejectedValueOnce(
           new Error("Your local changes would be overwritten"),
         );
         writes[failingMethod].mockReturnValueOnce(hanging);
+        renderSwitcher();
 
-        render(
-          <BranchSwitcher
-            git={mockGit}
-            currentBranch="main"
-            onBranchSwitch={mockOnBranchSwitch}
-          />,
-        );
+        await openDropdown();
+        await selectBranch("develop");
 
-        await act(async () => {
-          fireEvent.pointerDown(screen.getByTestId("branch-switcher-trigger"), {
-            button: 0,
-            pointerType: "mouse",
-          });
-        });
-        await act(async () => {
-          fireEvent.click(await screen.findByTestId("branch-option-develop"));
-        });
-
-        const button = () => screen.getByTestId(buttonId) as HTMLButtonElement;
+        const button = () => screen.getByTestId<HTMLButtonElement>(buttonId);
         await waitFor(() => expect(button().disabled).toBe(false));
 
         await act(async () => {
@@ -356,59 +260,19 @@ describe("BranchSwitcher", () => {
 
   describe("create branch", () => {
     it("should show create branch option", async () => {
-      const mockGit = createMockGitAPI();
+      renderSwitcher();
+      await openDropdown();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-option")).toBeDefined();
-      });
-
+      expect(await screen.findByTestId("create-branch-option")).toBeDefined();
       expect(screen.getByText("Create new branch...")).toBeDefined();
     });
 
     it("should create branch and switch when enter is pressed", async () => {
-      const mockGit = createMockGitAPI();
-
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-option")).toBeDefined();
-      });
-
-      const createOption = screen.getByTestId("create-branch-option");
-      await act(async () => {
-        fireEvent.click(createOption);
-      });
-
-      const input = await screen.findByTestId("create-branch-input");
+      renderSwitcher();
+      const input = await openCreateInput();
       await waitFor(() => expect(document.activeElement).toBe(input));
-      await act(async () => {
-        fireEvent.change(input, { target: { value: "feature/new-feature" } });
-        fireEvent.keyDown(input, { key: "Enter" });
-      });
+
+      await typeBranchName(input, "feature/new-feature", "Enter");
 
       await waitFor(() => {
         expect(writes.createBranch).toHaveBeenCalledWith(
@@ -420,79 +284,24 @@ describe("BranchSwitcher", () => {
     });
 
     it("should cancel create branch when escape is pressed", async () => {
-      const mockGit = createMockGitAPI();
+      renderSwitcher();
+      const input = await openCreateInput();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-option")).toBeDefined();
-      });
-
-      const createOption = screen.getByTestId("create-branch-option");
-      await act(async () => {
-        fireEvent.click(createOption);
-      });
-
-      const input = await screen.findByTestId("create-branch-input");
-      await act(async () => {
-        fireEvent.change(input, { target: { value: "test-branch" } });
-        fireEvent.keyDown(input, { key: "Escape" });
-      });
+      await typeBranchName(input, "test-branch", "Escape");
 
       // Should go back to showing the create option
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-option")).toBeDefined();
-      });
-
+      expect(await screen.findByTestId("create-branch-option")).toBeDefined();
       expect(writes.createBranch).not.toHaveBeenCalled();
     });
 
     it("should show error when branch creation fails", async () => {
-      const mockGit = createMockGitAPI();
       writes.createBranch.mockRejectedValue(new Error("Branch already exists"));
+      renderSwitcher();
+      const input = await openCreateInput();
 
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
+      await typeBranchName(input, "main", "Enter");
 
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-option")).toBeDefined();
-      });
-
-      const createOption = screen.getByTestId("create-branch-option");
-      await act(async () => {
-        fireEvent.click(createOption);
-      });
-
-      const input = await screen.findByTestId("create-branch-input");
-      await act(async () => {
-        fireEvent.change(input, { target: { value: "main" } });
-        fireEvent.keyDown(input, { key: "Enter" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText("Branch already exists")).toBeDefined();
-      });
+      expect(await screen.findByText("Branch already exists")).toBeDefined();
     });
   });
 });
