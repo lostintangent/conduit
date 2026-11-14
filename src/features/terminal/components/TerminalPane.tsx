@@ -446,14 +446,6 @@ export const TerminalPane = ({
       setDimensions,
     });
 
-    // If font size was changed, trigger a fit after a short delay
-    // to ensure the terminal has rendered with the new font size
-    if (fontSize !== undefined) {
-      setTimeout(() => {
-        terminal.fit.fit();
-      }, 0);
-    }
-
     detachKeyHandler = registerTerminalKeyHandler({
       entry: terminal,
       showSearchWidget,
@@ -465,13 +457,6 @@ export const TerminalPane = ({
     return () => {
       detachKeyHandler?.();
       controller?.dispose();
-
-      const terminal = terminalRef.current;
-      // Reset font size to default when unmounting
-      if (terminal && fontSize !== undefined) {
-        terminal.terminal.options.fontSize = 13;
-      }
-
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
