@@ -34,6 +34,8 @@ export type TerminalPromptStreamChunk = {
 /** Every event is broadcast, so each carries the session it belongs to. */
 export type TerminalEvents = {
   data: { sessionId: string; data: string };
+  /** The shell printed, but its output waits in main until a pane shows it. */
+  activity: { sessionId: string };
   exit: { sessionId: string; exitCode: number | null; signal: number | null };
   promptStream: { sessionId: string; chunk: TerminalPromptStreamChunk };
 };

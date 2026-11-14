@@ -59,6 +59,13 @@ const COALESCE_MS = 5;
  */
 const HIDDEN_COALESCE_MS = 250;
 
+/**
+ * A pane that hasn't shown has no terminal to parse its shell's output, so
+ * main tells the renderer the shell printed, at most this often, which is
+ * enough for its tab to show it running.
+ */
+const ACTIVITY_MS = 500;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
@@ -144,9 +151,27 @@ function setupTerminalListeners(terminal: TerminalInstance) {
   };
   terminal.flushOutput = flush;
 
+  // The last output of a burst is reported too, so its tab doesn't go idle
+  // early.
+  let reporting: NodeJS.Timeout | undefined;
+  let printedSinceReport = false;
+  const reportActivity = () => {
+    if (reporting) {
+      printedSinceReport = true;
+      return;
+    }
+    emit("activity", { sessionId: id });
+    reporting = setTimeout(() => {
+      reporting = undefined;
+      if (printedSinceReport && !terminal.isRendererReady) reportActivity();
+      printedSinceReport = false;
+    }, ACTIVITY_MS);
+  };
+
   pty.onData((data) => {
     if (!terminal.isRendererReady) {
       bufferOutput(terminal, data);
+      reportActivity();
     } else if (terminal.isHidden) {
       pending += data;
       coalescing ??= setTimeout(flush, HIDDEN_COALESCE_MS);
@@ -165,6 +190,7 @@ function setupTerminalListeners(terminal: TerminalInstance) {
 
   pty.onExit(({ exitCode, signal }) => {
     clearTimeout(coalescing);
+    clearTimeout(reporting);
     clearInterval(terminal.exitCheck);
     if (pending) emit("data", { sessionId: id, data: pending });
     removeTerminal(id);

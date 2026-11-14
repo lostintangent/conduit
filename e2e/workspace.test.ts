@@ -4,13 +4,44 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type Conduit, launch, until } from "./app";
 import { expectStartedAtPaneWidth, zshenv } from "./shells";
 
+const terminalTab = (id: string, command?: string) => ({
+  id,
+  name: id,
+  activePaneId: `${id}-pane`,
+  panes: [{ id: `${id}-pane`, type: "terminal", cwd: null, command }],
+  layout: { id: `${id}-layout`, type: "pane", paneId: `${id}-pane` },
+});
+
+/**
+ * Its first tab's command prints until ~/agent-done exists, and it opens to
+ * its second tab. zselect waits without forking, which CI's runners are slow
+ * at.
+ */
+const agents = {
+  name: "E2E Agents",
+  lastModified: 0,
+  activeTabId: "Shell",
+  tabs: [
+    terminalTab(
+      "Agent",
+      "zmodload zsh/zselect; until [[ -e ~/agent-done ]]; do print -n .; zselect -t 20; done",
+    ),
+    terminalTab("Shell"),
+  ],
+};
+
 describe("workspaces", () => {
   let app: Conduit;
 
   beforeAll(async () => {
     app = await launch({
       name: "workspace",
-      files: { ".zshenv": zshenv, "one/.keep": "", "two/.keep": "" },
+      files: {
+        ".zshenv": zshenv,
+        "one/.keep": "",
+        "two/.keep": "",
+        ".conduit/workspaces.json": JSON.stringify({ workspaces: [agents] }),
+      },
       // Large enough that a shell started at the default 80 columns would be
       // wider than its pane.
       settings: { terminalFontSize: 24 },
@@ -136,6 +167,26 @@ describe("workspaces", () => {
       .waitFor();
     expect(await pwd()).toBe(path.join(app.home, "one"));
     await expectStartedAtPaneWidth(app, await app.terminal());
+  });
+
+  it("shows a tab running while its command prints, before it's been opened", async () => {
+    await choose("E2E Agents");
+    const agent = tabs().nth(0);
+    await tabs()
+      .nth(1)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+    // Hovering a tab previews it, which would show its terminal.
+    await (await app.terminal()).locator.hover();
+    const running = agent.locator(".animate-shiny-text");
+    await running.waitFor({ timeout: 10_000 });
+
+    fs.writeFileSync(path.join(app.home, "agent-done"), "");
+    const stopped = Date.now();
+    await running.waitFor({ state: "detached", timeout: 10_000 });
+    // It goes idle once its shell has printed nothing for 2 seconds.
+    expect(Date.now() - stopped).toBeGreaterThan(1_500);
+    expect(await agent.getAttribute("aria-selected")).toBe("false");
   });
 
   it("had no uncaught errors or failed loads", () => {

@@ -7,7 +7,9 @@ const { mockApi, getTerminalSize } = vi.hoisted(() => {
       create: vi.fn(),
       captureCommand: vi.fn(),
       input: vi.fn(),
+      on: vi.fn(),
     },
+    onNewTabRequest: vi.fn(),
   };
 
   // Set up window.conduit in hoisted scope
@@ -35,12 +37,18 @@ vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
 
 // Import after setting up mocks
 import {
+  notifyDataReceived,
+  trackSession,
+  untrackSession,
+} from "@features/terminal/client/stateTracker";
+import {
   duplicateTab,
   openTab,
   openTabFromExistingAgentSession,
+  registerTabEventHandlers,
   translateFilePath,
 } from "@/store/actions/tab";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import { activeTabIdAtom, tabStateAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { enableMapSet } from "immer";
 
@@ -1055,5 +1063,87 @@ describe("openTabFromExistingAgentSession", () => {
       cwd: "/repo/.worktrees/fix",
       waitForSize: true,
     });
+  });
+});
+
+describe("a tab whose terminal hasn't shown yet", () => {
+  const terminalTab = (id: string, sessionId: string): Tab => ({
+    id,
+    name: id,
+    activePaneId: `${id}-pane`,
+    panes: {
+      [`${id}-pane`]: {
+        id: `${id}-pane`,
+        type: "terminal",
+        sessionId,
+        cwd: "/repo",
+        title: "zsh",
+      },
+    },
+    layout: { id: `${id}-layout`, type: "pane", paneId: `${id}-pane` },
+  });
+
+  // Main reports a hidden shell's output at most every 500 ms. Its last
+  // report comes 500 ms before the end.
+  const print = (ms: number, report: () => void) => {
+    for (let elapsed = 0; elapsed < ms; elapsed += 500) {
+      report();
+      vi.advanceTimersByTime(500);
+    }
+  };
+  const reportActivity = () => {
+    const [, listener] = mockApi.terminal.on.mock.calls.find(
+      ([event]) => event === "activity",
+    )!;
+    listener({ sessionId: "session-1" });
+  };
+  const state = () => tabStateAtom.get().get("hidden-tab");
+
+  let unregister: () => void;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockApi.terminal.on.mockReturnValue(() => {});
+    mockApi.onNewTabRequest.mockReturnValue(() => {});
+    tabsAtom.set([
+      terminalTab("hidden-tab", "session-1"),
+      terminalTab("shown-tab", "session-2"),
+    ]);
+    activeTabIdAtom.set("shown-tab");
+    unregister = registerTabEventHandlers();
+  });
+
+  afterEach(() => {
+    unregister();
+    untrackSession("session-1");
+    tabsAtom.set([]);
+    activeTabIdAtom.set(null);
+    tabStateAtom.set(new Map());
+    vi.useRealTimers();
+  });
+
+  it("shows running while its shell prints, and idle once it stops", () => {
+    print(4_000, reportActivity);
+    expect(state()).toBe("running");
+
+    vi.advanceTimersByTime(1_000);
+    expect(state()).toBe("running");
+    vi.advanceTimersByTime(500);
+    expect(state()).toBe("idle-unseen");
+  });
+
+  it("stays running when its pane shows partway through", () => {
+    print(4_000, reportActivity);
+
+    // Its pane's terminal takes over from main's reports.
+    trackSession("session-1");
+    print(2_500, () => notifyDataReceived("session-1"));
+    expect(state()).toBe("running");
+
+    vi.advanceTimersByTime(1_000);
+    expect(state()).toBe("running");
+    vi.advanceTimersByTime(500);
+    expect(state()).toBe("idle-unseen");
   });
 });

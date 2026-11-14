@@ -95,10 +95,12 @@ export function getRuntimeTimestamps(sessionId: string): RuntimeTimestamps {
 
 /**
  * Start tracking state for a terminal session.
- * Called when a new terminal session is created.
- * Initializes the session in the "idle" state.
+ * Called when a session's first pane is created, or when main reports that a
+ * session no pane has shown yet printed. Initializes the session in the
+ * "idle" state, and a session that's already tracked keeps its state.
  */
 export function trackSession(sessionId: string): void {
+  if (sessionStateMap.has(sessionId)) return;
   sessionStateMap.set(sessionId, {
     state: "idle",
     progressState: "hidden",

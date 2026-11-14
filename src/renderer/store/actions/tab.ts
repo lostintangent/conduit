@@ -3,8 +3,11 @@ import { disposeEditorPane } from "@/components/panes/editor";
 import {
   getSessionState,
   markAsIdle,
+  notifyDataReceived,
   onProgressStateChange,
   onSessionStateChange,
+  trackSession,
+  untrackSession,
 } from "@features/terminal/client/stateTracker";
 import {
   disposeSession,
@@ -777,6 +780,9 @@ function getTabStatePriority(state: TabState | undefined): number {
 
 export function registerTabEventHandlers() {
   const unsubscribeExit = api.terminal.on("exit", ({ sessionId }) => {
+    // A session that was never shown has no xterm to stop tracking it.
+    untrackSession(sessionId);
+
     const tabs = tabsAtom.get();
 
     for (const tab of tabs) {
@@ -797,6 +803,13 @@ export function registerTabEventHandlers() {
 
   const unsubscribeNewTab = api.onNewTabRequest(() => {
     void openTab();
+  });
+
+  // A pane that hasn't shown has no xterm to hear its shell print, so main
+  // reports it instead, and the tab can show the session running.
+  const unsubscribeActivity = api.terminal.on("activity", ({ sessionId }) => {
+    trackSession(sessionId);
+    notifyDataReceived(sessionId);
   });
 
   // Track terminal state changes for tab indicators
@@ -873,6 +886,7 @@ export function registerTabEventHandlers() {
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
+    unsubscribeActivity();
     unsubscribeStateChange();
     unsubscribeProgressChange();
   };

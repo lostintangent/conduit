@@ -214,12 +214,43 @@ describe("a restored terminal", () => {
     output("last\n");
     markTerminalReady(id);
 
-    expect(emit).toHaveBeenCalledTimes(1);
-    const { data } = vi.mocked(emit).mock.calls[0][1] as { data: string };
+    const sent = vi
+      .mocked(emit)
+      .mock.calls.filter(([event]) => event === "data");
+    expect(sent).toHaveLength(1);
+    const { data } = sent[0][1] as { data: string };
     expect(data.length).toBeGreaterThan(500_000);
     expect(data.length).toBeLessThanOrEqual(1_000_000);
     expect(data.startsWith("x")).toBe(true);
     expect(data.endsWith(`${line}last\n`)).toBe(true);
+  });
+
+  it("reports that its shell printed, at most every 500 ms, until it shows", async () => {
+    vi.useFakeTimers();
+    const { id } = await createTerminal({ command: "npm run dev" });
+    const reports = () =>
+      vi.mocked(emit).mock.calls.filter(([event]) => event === "activity");
+
+    output("a");
+    output("b");
+    expect(reports()).toEqual([["activity", { sessionId: id }]]);
+
+    // The rest of a burst is reported once the 500 ms are up.
+    vi.advanceTimersByTime(499);
+    expect(reports()).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(reports()).toHaveLength(2);
+
+    // After a quiet 500 ms, the next output is reported right away.
+    vi.advanceTimersByTime(500);
+    output("c");
+    expect(reports()).toHaveLength(3);
+
+    output("d");
+    markTerminalReady(id);
+    output("e");
+    vi.advanceTimersByTime(1_000);
+    expect(reports()).toHaveLength(3);
   });
 });
 
