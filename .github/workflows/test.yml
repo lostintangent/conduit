@@ -48,8 +48,6 @@ jobs:
   e2e:
     name: Run End-to-End Tests
     runs-on: macos-latest
-    # Not a required check until it has passed 20 runs in a row.
-    continue-on-error: true
     permissions:
       contents: read
 
