@@ -32,7 +32,6 @@ import { useDiffContent } from "../hooks/useDiffContent";
 import { useEditorTheme } from "../hooks/useEditorTheme";
 import { useMonacoModel } from "../hooks/useMonacoModel";
 import { usePreventFocusScroll } from "../hooks/usePreventFocusScroll";
-import { createModelKey } from "../../client/MonacoModelRegistry";
 import { ViewStateRegistry } from "../../client/ViewStateRegistry";
 import type { ContentSource } from "../../model";
 import { detectLanguage } from "../utils/languageDetection";
@@ -387,18 +386,6 @@ export function DiffEditorWrapper({
     if (modifiedSource === "workingDirectory") {
       // Working directory: use the shared registry model
       if (!registryModel) {
-        return;
-      }
-
-      // IMPORTANT: Verify the registryModel matches the current filePath before attaching.
-      // When filePath changes, React may re-run this effect with the OLD model
-      // before useMonacoModel updates with the new model.
-      const modelUri = registryModel.uri.toString();
-      const expectedModelKey = createModelKey(filePath);
-      const modelMatchesFile =
-        modelUri === expectedModelKey || registryModel.uri.fsPath === filePath;
-
-      if (!modelMatchesFile) {
         return;
       }
 

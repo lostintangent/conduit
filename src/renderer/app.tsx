@@ -824,7 +824,6 @@ export function App() {
         isOpen={showAgentLauncher}
         agents={agents}
         launchGroups={launchGroups}
-        defaultAgentId={agents.find((agent) => agent.isDefault)?.id}
         onClose={() => setShowAgentLauncher(false)}
         onLaunch={async (payload) => {
           const cwd = getActiveTabCwd(activeTabAtom.get());

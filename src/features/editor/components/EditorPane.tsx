@@ -91,8 +91,6 @@ function isAtFilesystemRoot(path: string): boolean {
 export interface FileChangeData {
   /** File path */
   file: string;
-  /** Full file path (alias for file) */
-  filePath?: string;
   /** Detected language from file extension */
   language: string;
   /** File content (optional - not always loaded for performance) */
@@ -207,12 +205,11 @@ export function EditorPane({
   const {
     cwd: initialCwd,
     file: initialFilePath,
-    filePath,
     treeMode,
     changesViewMode: paneChangesViewMode,
     agentSessionId,
     preview: initialPreview,
-  } = pane as EditorPaneType & { filePath?: string };
+  } = pane;
 
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
@@ -277,10 +274,9 @@ export function EditorPane({
 
   // Selected file state - initialized from pane config if provided
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(() => {
-    const pathToUse = initialFilePath || filePath;
-    if (pathToUse) {
-      const name = pathToUse.split("/").pop() ?? "";
-      return { path: pathToUse, name, type: "file" };
+    if (initialFilePath) {
+      const name = initialFilePath.split("/").pop() ?? "";
+      return { path: initialFilePath, name, type: "file" };
     }
     return null;
   });
@@ -737,9 +733,6 @@ export function EditorPane({
       }
     }
 
-    // Persist to localStorage
-    localStorage.setItem("editor:treeViewMode", mode);
-
     // Notify parent - map internal mode to external format
     onTreeModeChange?.(mode === "changes" ? "changes" : "all");
 
@@ -884,16 +877,6 @@ export function EditorPane({
     git,
     markSeen,
   ]);
-
-  /**
-   * Handle tree width resize.
-   */
-  const handleTreeResize = (width: number) => {
-    setTreeWidth(width);
-
-    // Persist to localStorage
-    localStorage.setItem("editor:treeWidth", width.toString());
-  };
 
   /**
    * Handle base branch change for comparison mode.
@@ -1410,7 +1393,7 @@ export function EditorPane({
         {layout === "split" && showTree && (
           <TreeResizer
             currentWidth={treeWidth}
-            onResize={handleTreeResize}
+            onResize={setTreeWidth}
             minWidth={MIN_TREE_WIDTH}
             maxWidth={MAX_TREE_WIDTH}
           />

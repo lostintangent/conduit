@@ -368,13 +368,13 @@ describe("EditorPane", () => {
   });
 
   describe("initial state", () => {
-    it("should initialize with no file selected when pane has no filePath", () => {
+    it("should initialize with no file selected when pane has no file", () => {
       renderPane();
 
       expect(text("editor-file-path")).toBe("no-file");
     });
 
-    it("should initialize with file selected when pane has filePath", () => {
+    it("should initialize with file selected when pane has a file", () => {
       renderPane({ file: "/project/src/index.ts" });
 
       expect(text("editor-file-path")).toBe("/project/src/index.ts");
@@ -413,14 +413,6 @@ describe("EditorPane", () => {
 
       expect(text("tree-view-mode")).toBe("changes");
     });
-
-    it("should persist tree view mode to localStorage", () => {
-      renderPane();
-
-      fireEvent.click(screen.getByTestId("toggle-tree-mode"));
-
-      expect(localStorage.getItem("editor:treeViewMode")).toBe("changes");
-    });
   });
 
   describe("tree resizing", () => {
@@ -432,14 +424,6 @@ describe("EditorPane", () => {
       fireEvent.click(resizer);
 
       expect(resizer.textContent).toContain("270px"); // 220 + 50
-    });
-
-    it("should persist tree width to localStorage", () => {
-      renderPane();
-
-      fireEvent.click(screen.getByTestId("mock-tree-resizer"));
-
-      expect(localStorage.getItem("editor:treeWidth")).toBe("270");
     });
   });
 

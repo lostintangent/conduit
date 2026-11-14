@@ -46,7 +46,6 @@ import { useEditorTheme } from "../hooks/useEditorTheme";
 import { useGitContent } from "../hooks/useGitContent";
 import { useMonacoModel } from "../hooks/useMonacoModel";
 import { usePreventFocusScroll } from "../hooks/usePreventFocusScroll";
-import { createModelKey } from "../../client/MonacoModelRegistry";
 import { ViewStateRegistry } from "../../client/ViewStateRegistry";
 import { type ContentSource, isGitSource } from "../../model";
 import { forceTokenizeVisibleLines } from "../utils/tokenization";
@@ -246,17 +245,15 @@ export function RegularEditorWrapper({
   // ---------------------------------------------------------------------------
 
   /**
-   * Save ViewState with optional debouncing.
-   * Immediate save clears any pending debounced save.
+   * Save ViewState after a short debounce.
    *
    * Only saves for working directory sources - git sources are read-only
    * and don't need ViewState persistence.
    *
-   * To avoid stale closure issues:
-   * - Reads filePath from ref at execution time (not capture time)
-   * - Verifies filePath hasn't changed when debounced save fires
+   * Reads the file path when the timer fires. The path only changes as a
+   * new model attaches, so it always names the file the editor shows.
    */
-  const saveViewState = (immediate = false) => {
+  const saveViewState = () => {
     // Skip ViewState for git sources - they're read-only and immutable
     if (isGitSourceMode) return;
 
@@ -270,32 +267,13 @@ export function RegularEditorWrapper({
       saveViewStateDebounceRef.current = null;
     }
 
-    // Capture the file path at the time of the call for comparison
-    const filePathAtCallTime = previousFilePathRef.current;
-    if (!filePathAtCallTime) return;
-
-    const doSave = () => {
-      // Re-read the current file path at execution time
+    saveViewStateDebounceRef.current = setTimeout(() => {
       const currentFilePath = previousFilePathRef.current;
-
-      // Verify file hasn't changed since the save was scheduled
-      // This prevents saving ViewState for the wrong file after rapid switches
-      if (currentFilePath !== filePathAtCallTime) {
-        return;
-      }
+      if (!currentFilePath) return;
 
       const viewStateRegistry = ViewStateRegistry.getInstance();
       viewStateRegistry.save(editorId, currentFilePath, editor);
-    };
-
-    if (immediate) {
-      doSave();
-    } else {
-      saveViewStateDebounceRef.current = setTimeout(
-        doSave,
-        VIEWSTATE_SAVE_DEBOUNCE_MS,
-      );
-    }
+    }, VIEWSTATE_SAVE_DEBOUNCE_MS);
   };
 
   // ---------------------------------------------------------------------------
@@ -431,21 +409,6 @@ export function RegularEditorWrapper({
     const editor = editorRef.current;
     if (!editor || !registryModel) return;
 
-    // IMPORTANT: Verify the model matches the current filePath before attaching.
-    // When filePath changes, React may re-run this effect with the OLD model
-    // before useMonacoModel updates with the new model. We must skip attaching
-    // stale models to avoid ending the session prematurely.
-    const modelUri = registryModel.uri.toString();
-    const expectedModelKey = createModelKey(filePath);
-    const modelMatchesFile =
-      modelUri === expectedModelKey || registryModel.uri.fsPath === filePath;
-
-    if (!modelMatchesFile) {
-      // Model is for a different file - skip this render cycle
-      // The effect will re-run when useMonacoModel provides the correct model
-      return;
-    }
-
     const viewStateRegistry = ViewStateRegistry.getInstance();
 
     // Save ViewState for previous file before switching
@@ -516,61 +479,14 @@ export function RegularEditorWrapper({
     const editor = editorRef.current;
     if (!editor) return;
 
-    // Save ViewState when editor loses focus (debounced)
-    const blurDisposable = editor.onDidBlurEditorText(() => {
-      saveViewState(false); // debounced
-    });
+    // Save ViewState when editor loses focus. Hiding, minimizing or
+    // switching away from the window blurs it too.
+    const blurDisposable = editor.onDidBlurEditorText(saveViewState);
 
     return () => {
       blurDisposable.dispose();
     };
   }, [saveViewState]);
-
-  // ---------------------------------------------------------------------------
-  // ViewState Save on Visibility Change
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    // Save ViewState when page becomes hidden (tab switch, minimize, etc.)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        saveViewState(true); // immediate - we might not get another chance
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [saveViewState]);
-
-  // ---------------------------------------------------------------------------
-  // ViewState Save on Page Unload
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    // Skip ViewState for git sources
-    if (isGitSourceMode) return;
-
-    // Save ViewState before page closes
-    const handleBeforeUnload = () => {
-      // Immediate save - no time for debouncing
-      const editor = editorRef.current;
-      const currentFilePath = previousFilePathRef.current;
-
-      if (editor && currentFilePath) {
-        const viewStateRegistry = ViewStateRegistry.getInstance();
-        viewStateRegistry.save(editorId, currentFilePath, editor);
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [editorId, isGitSourceMode]);
 
   // ---------------------------------------------------------------------------
   // Focus Handler

@@ -20,7 +20,6 @@ type AgentLauncherDialogProps = {
   isOpen: boolean;
   agents: AgentConfig[];
   launchGroups?: LaunchGroup[];
-  defaultAgentId?: string;
   onClose: () => void;
   onLaunch: (payload: {
     prompt: string;
@@ -39,7 +38,6 @@ export function AgentLauncherDialog({
   isOpen,
   agents,
   launchGroups = [],
-  defaultAgentId,
   onClose,
   onLaunch,
 }: AgentLauncherDialogProps) {
@@ -50,6 +48,8 @@ export function AgentLauncherDialog({
       if (!a.isDefault && b.isDefault) return 1;
       return a.name.localeCompare(b.name);
     });
+  // The default agent sorts first, so it's the one preselected on open.
+  const initialAgentId = sortedAgents[0]?.id;
 
   const [mode, setMode] = useState<"team" | "custom">("custom");
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -76,12 +76,6 @@ export function AgentLauncherDialog({
       return;
     }
 
-    const initialAgentId =
-      defaultAgentId &&
-      sortedAgents.find((agent) => agent.id === defaultAgentId)
-        ? defaultAgentId
-        : sortedAgents[0]?.id;
-
     setPrompt("");
     setLaunchTarget("worktree");
     setMode("custom");
@@ -99,7 +93,7 @@ export function AgentLauncherDialog({
     );
     setExpandedInstructions(new Set());
     setIsSubmitting(false);
-  }, [defaultAgentId, isOpen, sortedAgents]);
+  }, [isOpen, initialAgentId]);
 
   const toggleAgent = (agentId: string) => {
     setSelectedAgents((current) => {
