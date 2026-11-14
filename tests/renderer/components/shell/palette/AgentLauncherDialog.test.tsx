@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
 import type { AgentConfig, LaunchGroup } from "@shared/types";
@@ -471,6 +477,46 @@ describe("AgentLauncherDialog", () => {
       await waitFor(() => {
         expect(mockOnClose).toHaveBeenCalled();
       });
+    });
+
+    it("should stay open and re-enable Launch when launch fails", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      let fail!: (error: Error) => void;
+      mockOnLaunch.mockReturnValueOnce(
+        new Promise((_, reject) => (fail = reject)),
+      );
+
+      render(
+        <AgentLauncherDialog
+          isOpen={true}
+          agents={mockAgents}
+          onClose={mockOnClose}
+          onLaunch={mockOnLaunch}
+        />,
+      );
+
+      const textarea = screen.getByPlaceholderText(/Describe what you want/);
+      fireEvent.change(textarea, { target: { value: "Test task" } });
+      fireEvent.click(screen.getByRole("button", { name: "Launch" }));
+
+      await waitFor(() => expect(mockOnLaunch).toHaveBeenCalled());
+      const busyButton = screen
+        .getByText("Launching...")
+        .closest("button") as HTMLButtonElement;
+      expect(busyButton.disabled).toBe(true);
+      expect(busyButton.className).toContain("celebration-pulse");
+
+      await act(async () => fail(new Error("boom")));
+
+      await waitFor(() => {
+        const launchButton = screen.getByRole("button", {
+          name: "Launch",
+        }) as HTMLButtonElement;
+        expect(launchButton.disabled).toBe(false);
+        expect(launchButton.className).not.toContain("celebration-pulse");
+      });
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect((textarea as HTMLTextAreaElement).value).toBe("Test task");
     });
   });
 

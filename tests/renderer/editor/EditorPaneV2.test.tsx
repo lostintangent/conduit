@@ -141,9 +141,33 @@ vi.mock(
       onCommitFileSelect,
       onToggleCollapse,
       showCollapseButton,
+      onPull,
+      onPush,
+      isPulling,
+      isPushing,
+      onCommit,
+      isCommitting,
+      onCommitMessageChange,
     }) => (
       <div data-testid="mock-file-tree-panel">
         <span data-testid="tree-cwd">{cwd}</span>
+        <button data-testid="pull-button" disabled={isPulling} onClick={onPull}>
+          Pull
+        </button>
+        <button data-testid="push-button" disabled={isPushing} onClick={onPush}>
+          Push
+        </button>
+        <input
+          data-testid="commit-message-input"
+          onChange={(e) => onCommitMessageChange(e.target.value)}
+        />
+        <button
+          data-testid="commit-button"
+          disabled={isCommitting}
+          onClick={() => onCommit()}
+        >
+          Commit
+        </button>
         {showCollapseButton && (
           <button
             data-testid="collapse-toggle-button"
@@ -980,6 +1004,82 @@ describe("EditorPaneV2", () => {
       expect(screen.getByTestId("tree-cwd").textContent).toBe(
         "/project/updated",
       );
+    });
+  });
+
+  describe("git action failures", () => {
+    const hang = () => {
+      let fail!: (error: Error) => void;
+      const promise = new Promise((_, reject) => (fail = reject));
+      return { promise, fail: (error: Error) => act(async () => fail(error)) };
+    };
+
+    beforeEach(() => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      mockGit.getStatus.mockResolvedValue({ files: new Map(), branch: "main" });
+    });
+
+    it.each(["pull", "push"])("can retry a failed %s", async (method) => {
+      const buttonId = `${method}-button`;
+      const call = hang();
+      mockGit[method].mockReturnValueOnce(call.promise);
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+
+      fireEvent.click(screen.getByTestId(buttonId));
+      await waitFor(() => {
+        expect(screen.getByTestId(buttonId).hasAttribute("disabled")).toBe(
+          true,
+        );
+      });
+
+      await call.fail(new Error("boom"));
+      await waitFor(() => {
+        expect(screen.getByTestId(buttonId).hasAttribute("disabled")).toBe(
+          false,
+        );
+      });
+
+      fireEvent.click(screen.getByTestId(buttonId));
+      await waitFor(() => expect(mockGit[method]).toHaveBeenCalledTimes(2));
+    });
+
+    it("can retry a failed commit", async () => {
+      const staged = {
+        files: new Map([
+          ["a.ts", { path: "a.ts", status: "modified", staged: true }],
+        ]),
+        branch: "main",
+      };
+      mockGit.getStatus.mockResolvedValue(staged);
+      const call = hang();
+      mockGit.commit.mockReturnValueOnce(call.promise);
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      await reportStatus(staged);
+
+      fireEvent.change(screen.getByTestId("commit-message-input"), {
+        target: { value: "Fix bug" },
+      });
+      fireEvent.click(screen.getByTestId("commit-button"));
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("commit-button").hasAttribute("disabled"),
+        ).toBe(true);
+      });
+
+      await call.fail(new Error("boom"));
+      await waitFor(() => {
+        expect(
+          screen.getByTestId("commit-button").hasAttribute("disabled"),
+        ).toBe(false);
+      });
+
+      fireEvent.click(screen.getByTestId("commit-button"));
+      await waitFor(() => {
+        expect(mockGit.commit).toHaveBeenNthCalledWith(2, "Fix bug");
+      });
     });
   });
 

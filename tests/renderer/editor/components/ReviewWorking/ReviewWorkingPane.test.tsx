@@ -637,6 +637,49 @@ describe("ReviewWorkingPane", () => {
         expect(mockCommit).toHaveBeenCalledWith("Test commit message");
       });
     });
+
+    it("should re-enable commit and keep the message when commit fails", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      mockGetStatus.mockResolvedValue(
+        createMockStatus([
+          { path: "src/file.ts", status: "modified", staged: true },
+        ]),
+      );
+      let fail!: (error: Error) => void;
+      mockCommit.mockReturnValueOnce(
+        new Promise((_, reject) => (fail = reject)),
+      );
+
+      renderWithProviders(
+        <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+      });
+      fireEvent.change(screen.getByTestId("commit-message-input"), {
+        target: { value: "Test commit message" },
+      });
+
+      const commitButton = () => screen.getByTestId("commit-button");
+      await waitFor(() => {
+        expect(commitButton().hasAttribute("disabled")).toBe(false);
+      });
+      fireEvent.click(commitButton());
+      await waitFor(() => {
+        expect(commitButton().hasAttribute("disabled")).toBe(true);
+      });
+
+      await act(async () => fail(new Error("boom")));
+
+      await waitFor(() => {
+        expect(commitButton().hasAttribute("disabled")).toBe(false);
+      });
+      expect(
+        (screen.getByTestId("commit-message-input") as HTMLTextAreaElement)
+          .value,
+      ).toBe("Test commit message");
+    });
   });
 
   describe("real-time updates", () => {

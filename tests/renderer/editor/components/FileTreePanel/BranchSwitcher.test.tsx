@@ -321,6 +321,56 @@ describe("BranchSwitcher", () => {
         expect(screen.getByText("Failed to load branches")).toBeDefined();
       });
     });
+
+    it.each([
+      ["checkout-conflict-stash", "stash"],
+      ["checkout-conflict-force", "checkout"],
+    ] as const)(
+      "should re-enable the conflict dialog when %s fails",
+      async (buttonId, failingMethod) => {
+        let fail!: (error: Error) => void;
+        const hanging = new Promise((_, reject) => (fail = reject));
+        const mockGit = createMockGitAPI({
+          checkout: vi
+            .fn()
+            .mockRejectedValueOnce(
+              new Error("Your local changes would be overwritten"),
+            ),
+        });
+        vi.mocked(mockGit[failingMethod]).mockReturnValueOnce(hanging as never);
+
+        render(
+          <BranchSwitcher
+            git={mockGit}
+            currentBranch="main"
+            onBranchSwitch={mockOnBranchSwitch}
+          />,
+        );
+
+        await act(async () => {
+          fireEvent.pointerDown(screen.getByTestId("branch-switcher-trigger"), {
+            button: 0,
+            pointerType: "mouse",
+          });
+        });
+        await act(async () => {
+          fireEvent.click(await screen.findByTestId("branch-option-develop"));
+        });
+
+        const button = () => screen.getByTestId(buttonId) as HTMLButtonElement;
+        await waitFor(() => expect(button().disabled).toBe(false));
+
+        await act(async () => {
+          fireEvent.click(button());
+        });
+        expect(button().disabled).toBe(true);
+
+        await act(async () => fail(new Error("boom")));
+
+        await waitFor(() => expect(button().disabled).toBe(false));
+        expect(mockOnBranchSwitch).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("create branch", () => {
