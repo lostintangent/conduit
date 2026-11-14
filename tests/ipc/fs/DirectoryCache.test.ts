@@ -157,20 +157,16 @@ describe("DirectoryCache", () => {
     it("should update timestamp on invalidate", async () => {
       const cache = await getCleanCache();
 
+      const now = vi.spyOn(Date, "now").mockReturnValue(1000);
+
       cache.set("/project", []);
-      const firstEntry = cache.get("/project");
-      expect(firstEntry).toBeDefined();
-      const firstTimestamp = firstEntry?.timestamp ?? 0;
+      expect(cache.get("/project")?.timestamp).toBe(1000);
 
-      // Small delay to ensure timestamp difference
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
+      now.mockReturnValue(2000);
       cache.invalidate("/project");
-      const secondEntry = cache.get("/project");
-      expect(secondEntry).toBeDefined();
-      const secondTimestamp = secondEntry?.timestamp ?? 0;
+      expect(cache.get("/project")?.timestamp).toBe(2000);
 
-      expect(secondTimestamp).toBeGreaterThan(firstTimestamp);
+      now.mockRestore();
     });
 
     it("should do nothing for non-existent paths", async () => {

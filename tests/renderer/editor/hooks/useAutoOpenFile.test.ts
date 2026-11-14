@@ -127,6 +127,7 @@ describe("useAutoOpenFile", () => {
       };
       const setSelectedFile = vi.fn();
       const setViewMode = vi.fn();
+      const git = createMockGit();
 
       renderHook(() =>
         useAutoOpenFile({
@@ -135,16 +136,15 @@ describe("useAutoOpenFile", () => {
           setSelectedFile,
           cwd: "/project",
           fs: createMockFs() as any,
-          git: createMockGit() as any,
+          git: git as any,
           baseBranch: null,
           preferDiffForModified: false,
           setViewMode,
         }),
       );
 
-      // Wait a tick for any async effects
-      await new Promise((r) => setTimeout(r, 10));
-
+      // Auto-open calls whenReady synchronously when it starts
+      expect(git.whenReady).not.toHaveBeenCalled();
       expect(selectNextAvailableFile).not.toHaveBeenCalled();
       expect(setSelectedFile).not.toHaveBeenCalled();
     });
@@ -366,11 +366,10 @@ describe("useAutoOpenFile", () => {
       const setSelectedFile = vi.fn();
       const setViewMode = vi.fn();
 
-      vi.mocked(selectNextAvailableFile).mockRejectedValue(
-        new Error("Git error"),
-      );
+      const error = new Error("Git error");
+      vi.mocked(selectNextAvailableFile).mockRejectedValue(error);
+      const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
 
-      // Should not throw
       renderHook(() =>
         useAutoOpenFile({
           initialFilePath: undefined,
@@ -385,11 +384,14 @@ describe("useAutoOpenFile", () => {
         }),
       );
 
-      // Wait for async error to be caught
-      await new Promise((r) => setTimeout(r, 50));
-
-      // Should not have called setSelectedFile due to error
+      await waitFor(() =>
+        expect(debug).toHaveBeenCalledWith(
+          "[useAutoOpenFile] Auto-open failed:",
+          error,
+        ),
+      );
       expect(setSelectedFile).not.toHaveBeenCalled();
+      debug.mockRestore();
     });
   });
 });

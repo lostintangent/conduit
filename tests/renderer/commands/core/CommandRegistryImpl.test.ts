@@ -184,7 +184,7 @@ describe("CommandRegistry", () => {
         id: "test.command",
         title: "Test Command",
         run: async () => {
-          await new Promise((resolve) => setTimeout(resolve, 10));
+          await Promise.resolve();
           return "async-result";
         },
       };

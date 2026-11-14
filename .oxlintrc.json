@@ -36,7 +36,23 @@
       "rules": {
         "@typescript-eslint/no-unused-vars": "off",
         "@typescript-eslint/no-empty-function": "off",
-        "@typescript-eslint/no-explicit-any": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "NewExpression[callee.name='Promise'] > ArrowFunctionExpression CallExpression[callee.name='setTimeout'][arguments.0.type='Identifier']",
+            "message": "Don't sleep for a fixed time. Wait for the outcome with waitFor, or use a signal the code under test emits."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "tests/renderer/api/FileSystemV2API.test.ts",
+        "tests/renderer/api/GitV2API.test.ts"
+      ],
+      "rules": {
+        "no-restricted-syntax": "off"
       }
     },
     {
