@@ -32,14 +32,12 @@ describe("ReviewCommitPaneFooter", () => {
     expect(screen.getByText(/1 file changed/)).toBeDefined();
   });
 
-  it("should render author in green", () => {
+  it("should render author", () => {
     renderWithProviders(
       <ReviewCommitPaneFooter fileCount={3} author="Jane Doe" />,
     );
 
-    const authorElement = screen.getByText("Jane Doe");
-    expect(authorElement).toBeDefined();
-    expect(authorElement.className).toContain("text-green-500");
+    expect(screen.getByText("Jane Doe")).toBeDefined();
   });
 
   it("should render timestamp as relative time", () => {

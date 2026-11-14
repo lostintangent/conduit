@@ -532,6 +532,31 @@ describe("calculateGraphCell", () => {
     expect(cell.paths.length).toBe(1);
   });
 
+  it("should draw nothing for a merge parent missing from the output lanes", () => {
+    const lanes = {
+      input: [createSwimlane("m")],
+      output: [createSwimlane("p1")],
+    };
+    const single = calculateGraphCell(
+      createNode(createCommit("m", ["p1"]), 0, lanes.input, lanes.output),
+      44,
+      defaultConfig,
+    );
+    const merge = calculateGraphCell(
+      createNode(
+        createCommit("m", ["p1", "p2"]),
+        0,
+        lanes.input,
+        lanes.output,
+        { isMerge: true },
+      ),
+      44,
+      defaultConfig,
+    );
+
+    expect(merge.paths).toEqual(single.paths);
+  });
+
   it("should handle commit not in input (orphan start)", () => {
     const commit = createCommit("a", ["b"]);
     const node = createNode(

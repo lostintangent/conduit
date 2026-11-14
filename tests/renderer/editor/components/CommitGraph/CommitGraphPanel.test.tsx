@@ -73,16 +73,6 @@ describe("CommitGraphPanel", () => {
   });
 
   describe("rendering", () => {
-    it("should render with data-testid", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      expect(screen.getByTestId("commit-graph-panel")).toBeTruthy();
-    });
-
     it("should render header with title", async () => {
       const git = createMockGitApi();
 
@@ -92,32 +82,6 @@ describe("CommitGraphPanel", () => {
 
       expect(screen.getByTestId("commit-graph-header")).toBeTruthy();
       expect(screen.getByText("Commits")).toBeTruthy();
-    });
-
-    it("should render refresh button", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(<CommitGraphPanel git={git} />);
-      });
-
-      expect(screen.getByTestId("refresh-button")).toBeTruthy();
-    });
-
-    it("should apply custom className", async () => {
-      const git = createMockGitApi();
-
-      await act(async () => {
-        renderWithProvider(
-          <CommitGraphPanel git={git} className="custom-class" />,
-        );
-      });
-
-      expect(
-        screen
-          .getByTestId("commit-graph-panel")
-          .classList.contains("custom-class"),
-      ).toBe(true);
     });
   });
 

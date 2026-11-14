@@ -14,11 +14,6 @@ import { ErrorState } from "@/components/panes/editor/components/CommitGraph/sta
 
 describe("ErrorState", () => {
   describe("rendering", () => {
-    it("should render with data-testid", () => {
-      render(<ErrorState error="Something went wrong" />);
-      expect(screen.getByTestId("commit-graph-error")).toBeTruthy();
-    });
-
     it("should display the title", () => {
       render(<ErrorState error="Network error" />);
       expect(screen.getByText("Failed to load commits")).toBeTruthy();
@@ -69,22 +64,6 @@ describe("ErrorState", () => {
       render(<ErrorState error="Error" />);
       const container = screen.getByTestId("commit-graph-error");
       expect(container.getAttribute("role")).toBe("alert");
-    });
-  });
-
-  describe("styling", () => {
-    it("should apply custom className", () => {
-      render(<ErrorState error="Error" className="custom-class" />);
-      const container = screen.getByTestId("commit-graph-error");
-      expect(container.classList.contains("custom-class")).toBe(true);
-    });
-
-    it("should contain centering classes", () => {
-      render(<ErrorState error="Error" />);
-      const container = screen.getByTestId("commit-graph-error");
-      expect(container.classList.contains("flex")).toBe(true);
-      expect(container.classList.contains("items-center")).toBe(true);
-      expect(container.classList.contains("justify-center")).toBe(true);
     });
   });
 

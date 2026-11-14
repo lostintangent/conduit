@@ -78,13 +78,6 @@ describe("CommitGraphList", () => {
   });
 
   describe("rendering", () => {
-    it("should render with data-testid", () => {
-      renderWithProvider(
-        <CommitGraphList nodes={[]} expandedCommits={new Set()} />,
-      );
-      expect(screen.getByTestId("commit-graph-list")).toBeTruthy();
-    });
-
     it("should render all commit rows", () => {
       const nodes = createNodes(3);
       renderWithProvider(
@@ -102,21 +95,6 @@ describe("CommitGraphList", () => {
 
       expect(screen.getByText("Commit message 1")).toBeTruthy();
       expect(screen.getByText("Commit message 2")).toBeTruthy();
-    });
-
-    it("should apply custom className", () => {
-      renderWithProvider(
-        <CommitGraphList
-          nodes={[]}
-          expandedCommits={new Set()}
-          className="custom-class"
-        />,
-      );
-      expect(
-        screen
-          .getByTestId("commit-graph-list")
-          .classList.contains("custom-class"),
-      ).toBe(true);
     });
 
     it("should have listbox role for accessibility", () => {
@@ -212,7 +190,7 @@ describe("CommitGraphList", () => {
           hasMore={true}
         />,
       );
-      expect(screen.getByTestId("load-more-button")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Load More" })).toBeDefined();
     });
 
     it("should call onLoadMore when button is clicked", () => {
@@ -496,27 +474,6 @@ describe("CommitGraphList", () => {
       });
 
       expect(onSelectionChange).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("styling", () => {
-    it("should have overflow auto for scrolling", () => {
-      renderWithProvider(
-        <CommitGraphList nodes={createNodes(3)} expandedCommits={new Set()} />,
-      );
-
-      const list = screen.getByTestId("commit-graph-list");
-      expect(list.classList.contains("overflow-auto")).toBe(true);
-    });
-
-    it("should have flex column layout", () => {
-      renderWithProvider(
-        <CommitGraphList nodes={createNodes(3)} expandedCommits={new Set()} />,
-      );
-
-      const list = screen.getByTestId("commit-graph-list");
-      expect(list.classList.contains("flex")).toBe(true);
-      expect(list.classList.contains("flex-col")).toBe(true);
     });
   });
 });

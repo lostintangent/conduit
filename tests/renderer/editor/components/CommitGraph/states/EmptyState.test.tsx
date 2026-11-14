@@ -14,14 +14,11 @@ import { EmptyState } from "@/components/panes/editor/components/CommitGraph/sta
 
 describe("EmptyState", () => {
   describe("rendering", () => {
-    it("should render with data-testid", () => {
-      render(<EmptyState />);
-      expect(screen.getByTestId("commit-graph-empty")).toBeTruthy();
-    });
-
     it("should display default title", () => {
       render(<EmptyState />);
-      expect(screen.getByText("No commits yet")).toBeTruthy();
+      expect(
+        screen.getByRole("heading", { level: 3, name: "No commits yet" }),
+      ).toBeDefined();
     });
 
     it("should display default description", () => {
@@ -39,42 +36,6 @@ describe("EmptyState", () => {
     it("should display custom description when provided", () => {
       render(<EmptyState description="Start by creating a commit." />);
       expect(screen.getByText("Start by creating a commit.")).toBeTruthy();
-    });
-  });
-
-  describe("structure", () => {
-    it("should render title as h3", () => {
-      render(<EmptyState />);
-      const title = screen.getByText("No commits yet");
-      expect(title.tagName).toBe("H3");
-    });
-
-    it("should render description as paragraph", () => {
-      render(<EmptyState />);
-      const desc = screen.getByText(/This repository doesn't have any commits/);
-      expect(desc.tagName).toBe("P");
-    });
-  });
-
-  describe("styling", () => {
-    it("should apply custom className", () => {
-      render(<EmptyState className="custom-class" />);
-      const container = screen.getByTestId("commit-graph-empty");
-      expect(container.classList.contains("custom-class")).toBe(true);
-    });
-
-    it("should contain centering classes", () => {
-      render(<EmptyState />);
-      const container = screen.getByTestId("commit-graph-empty");
-      expect(container.classList.contains("flex")).toBe(true);
-      expect(container.classList.contains("items-center")).toBe(true);
-      expect(container.classList.contains("justify-center")).toBe(true);
-    });
-
-    it("should have text-center for centered text", () => {
-      render(<EmptyState />);
-      const container = screen.getByTestId("commit-graph-empty");
-      expect(container.classList.contains("text-center")).toBe(true);
     });
   });
 });

@@ -4,13 +4,12 @@
  * These tests verify the tooltip that displays commit details
  * when hovering over a commit row, similar to VS Code's behavior.
  *
- * Note: Tooltip hover interactions are provided by radix-ui and are
- * tested in their library. We focus on testing that our component
- * renders correctly and passes the right props.
+ * Radix opens the tooltip immediately when its trigger receives focus,
+ * so tests focus the trigger to read the tooltip's content.
  */
 
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CommitTooltip } from "@/components/panes/editor/components/CommitGraph/commit/CommitTooltip";
 import type { HistoryCommit } from "@/components/panes/editor/components/CommitGraph/types";
@@ -27,6 +26,11 @@ function TestWrapper({ children }: { children: React.ReactNode }) {
 
 function renderWithProvider(ui: React.ReactElement) {
   return render(ui, { wrapper: TestWrapper });
+}
+
+function openTooltip() {
+  act(() => screen.getByRole("button").focus());
+  return screen.getByRole("tooltip");
 }
 
 function createCommit(overrides: Partial<HistoryCommit> = {}): HistoryCommit {
@@ -49,18 +53,7 @@ function createCommit(overrides: Partial<HistoryCommit> = {}): HistoryCommit {
 
 describe("CommitTooltip", () => {
   describe("Tracked Branch Props", () => {
-    it("should accept isHead prop", () => {
-      const commit = createCommit();
-      renderWithProvider(
-        <CommitTooltip commit={commit} isHead={true}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should accept trackedBranches prop", () => {
+    it("should show tracked branch badges", () => {
       const commit = createCommit();
       const trackedBranches: TrackedBranchInfo = {
         current: trackedBranch("current", "main", commit.id),
@@ -78,18 +71,7 @@ describe("CommitTooltip", () => {
         </CommitTooltip>,
       );
 
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should handle null trackedBranches", () => {
-      const commit = createCommit();
-      renderWithProvider(
-        <CommitTooltip commit={commit} isHead={false} trackedBranches={null}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
+      expect(within(openTooltip()).getByText("main")).toBeDefined();
     });
   });
 
@@ -103,150 +85,17 @@ describe("CommitTooltip", () => {
       );
 
       expect(screen.getByRole("button", { name: "Trigger" })).toBeTruthy();
-    });
 
-    it("should pass through children as trigger", () => {
-      const commit = createCommit();
-      renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <span data-testid="custom-trigger">Custom Trigger</span>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByTestId("custom-trigger")).toBeTruthy();
-    });
-  });
-
-  describe("Props", () => {
-    it("should accept side prop", () => {
-      const commit = createCommit();
-
-      // Just verify it renders without error with different sides
-      const { rerender } = renderWithProvider(
-        <CommitTooltip commit={commit} side="top">
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-
-      rerender(
-        <TestWrapper>
-          <CommitTooltip commit={commit} side="bottom">
-            <button>Trigger</button>
-          </CommitTooltip>
-        </TestWrapper>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-
-      rerender(
-        <TestWrapper>
-          <CommitTooltip commit={commit} side="left">
-            <button>Trigger</button>
-          </CommitTooltip>
-        </TestWrapper>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-
-      rerender(
-        <TestWrapper>
-          <CommitTooltip commit={commit} side="right">
-            <button>Trigger</button>
-          </CommitTooltip>
-        </TestWrapper>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should accept delayDuration prop", () => {
-      const commit = createCommit();
-
-      // Just verify it renders without error
-      renderWithProvider(
-        <CommitTooltip commit={commit} delayDuration={1000}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should use default side of right", () => {
-      const commit = createCommit();
-
-      // Renders without specifying side
-      renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should use default delayDuration of 400", () => {
-      const commit = createCommit();
-
-      // Renders without specifying delayDuration
-      renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
+      const tooltip = within(openTooltip());
+      expect(tooltip.getByText("John Doe,")).toBeDefined();
+      expect(
+        tooltip.getByText("Fix authentication bug in login flow"),
+      ).toBeDefined();
+      expect(tooltip.getByText("abc123d")).toBeDefined();
     });
   });
 
   describe("Commit Data Handling", () => {
-    it("should handle commit with empty subject", () => {
-      const commit = createCommit({
-        subject: "",
-        message: "",
-      });
-
-      renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should handle commit with missing authorEmail", () => {
-      const commit = createCommit({
-        authorEmail: undefined,
-      });
-
-      renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
-    it("should handle commit with long message", () => {
-      const longBody = "This is a very long commit message. ".repeat(100);
-      const commit = createCommit({
-        subject: "Short subject",
-        message: `Short subject\n\n${longBody}`,
-      });
-
-      renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <button>Trigger</button>
-        </CommitTooltip>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-
     it("should handle commit with multiline body", () => {
       const commit = createCommit({
         message: "Subject line\n\nBody line 1\nBody line 2\nBody line 3",
@@ -258,7 +107,9 @@ describe("CommitTooltip", () => {
         </CommitTooltip>,
       );
 
-      expect(screen.getByRole("button")).toBeTruthy();
+      expect(openTooltip().querySelector("p")!.textContent).toBe(
+        "Subject line\n\nBody line 1\nBody line 2\nBody line 3",
+      );
     });
 
     it("should handle commit without blank line between subject and body", () => {
@@ -272,32 +123,9 @@ describe("CommitTooltip", () => {
         </CommitTooltip>,
       );
 
-      expect(screen.getByRole("button")).toBeTruthy();
-    });
-  });
-
-  describe("Memoization", () => {
-    it("should be memoized (exported as memo component)", () => {
-      // CommitTooltip is exported with memo() wrapper
-      // This test just verifies it renders consistently
-      const commit = createCommit();
-
-      const { rerender } = renderWithProvider(
-        <CommitTooltip commit={commit}>
-          <button>Trigger</button>
-        </CommitTooltip>,
+      expect(openTooltip().querySelector("p")!.textContent).toBe(
+        "Subject\n\nBody without blank line separator",
       );
-
-      // Re-render with same commit
-      rerender(
-        <TestWrapper>
-          <CommitTooltip commit={commit}>
-            <button>Trigger</button>
-          </CommitTooltip>
-        </TestWrapper>,
-      );
-
-      expect(screen.getByRole("button")).toBeTruthy();
     });
   });
 });

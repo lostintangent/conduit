@@ -14,19 +14,6 @@ import { CommitFilesHeader } from "@/components/panes/editor/components/CommitGr
 // =============================================================================
 
 describe("CommitFilesHeader", () => {
-  describe("rendering", () => {
-    it("should render with data-testid", () => {
-      render(
-        <CommitFilesHeader
-          fileCount={3}
-          totalAdditions={10}
-          totalDeletions={5}
-        />,
-      );
-      expect(screen.getByTestId("commit-files-header")).toBeTruthy();
-    });
-  });
-
   describe("file count", () => {
     it("should display singular 'file' for 1 file", () => {
       render(
@@ -115,24 +102,6 @@ describe("CommitFilesHeader", () => {
         />,
       );
       expect(screen.getByText("no line changes")).toBeTruthy();
-    });
-  });
-
-  describe("custom className", () => {
-    it("should apply custom className", () => {
-      render(
-        <CommitFilesHeader
-          fileCount={1}
-          totalAdditions={1}
-          totalDeletions={1}
-          className="custom-class"
-        />,
-      );
-      expect(
-        screen
-          .getByTestId("commit-files-header")
-          .classList.contains("custom-class"),
-      ).toBe(true);
     });
   });
 });

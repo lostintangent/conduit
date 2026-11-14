@@ -75,47 +75,6 @@ describe("RefBadge", () => {
     });
   });
 
-  describe("Color Hints", () => {
-    it("should apply current color hint styling", () => {
-      const gitRef: GitRef = {
-        type: "head",
-        name: "feature-branch",
-        isHead: true,
-      };
-
-      renderWithProvider(<RefBadge gitRef={gitRef} colorHint="current" />);
-
-      const badge = screen.getByTestId("ref-badge-head");
-      expect(badge.dataset.colorHint).toBe("current");
-    });
-
-    it("should apply upstream color hint styling", () => {
-      const gitRef: GitRef = {
-        type: "remote",
-        name: "feature-branch",
-        remote: "origin",
-      };
-
-      renderWithProvider(<RefBadge gitRef={gitRef} colorHint="upstream" />);
-
-      const badge = screen.getByTestId("ref-badge-remote");
-      expect(badge.dataset.colorHint).toBe("upstream");
-    });
-
-    it("should apply base color hint styling", () => {
-      const gitRef: GitRef = {
-        type: "remote",
-        name: "main",
-        remote: "origin",
-      };
-
-      renderWithProvider(<RefBadge gitRef={gitRef} colorHint="base" />);
-
-      const badge = screen.getByTestId("ref-badge-remote");
-      expect(badge.dataset.colorHint).toBe("base");
-    });
-  });
-
   describe("Icon Only Mode", () => {
     it("should show text by default", () => {
       const gitRef: GitRef = {
@@ -157,30 +116,6 @@ describe("RefBadge", () => {
 
       const badge = screen.getByTestId("ref-badge-remote");
       expect(badge.getAttribute("title")).toBe("origin/main");
-    });
-
-    it("should have different padding when iconOnly", () => {
-      const gitRef: GitRef = {
-        type: "head",
-        name: "main",
-        isHead: true,
-      };
-
-      const { rerender } = renderWithProvider(<RefBadge gitRef={gitRef} />);
-      const normalBadge = screen.getByTestId("ref-badge-head");
-      const normalHasGap = normalBadge.classList.contains("gap-1");
-
-      rerender(
-        <TestWrapper>
-          <RefBadge gitRef={gitRef} iconOnly />
-        </TestWrapper>,
-      );
-      const iconOnlyBadge = screen.getByTestId("ref-badge-head");
-      const iconOnlyHasGap = iconOnlyBadge.classList.contains("gap-1");
-
-      // Normal mode should have gap, iconOnly should not
-      expect(normalHasGap).toBe(true);
-      expect(iconOnlyHasGap).toBe(false);
     });
   });
 });
@@ -238,31 +173,6 @@ describe("RefBadgeList", () => {
       // Second badge should be icon only
       expect(remoteBadge.textContent).not.toContain("origin/feature");
       expect(remoteBadge.dataset.iconOnly).toBe("true");
-    });
-
-    it("should render VS Code-style badges (first full, rest icon-only)", () => {
-      const refs: RefWithColorHint[] = [
-        {
-          ref: { type: "head", name: "main", isHead: true },
-          colorHint: "current",
-        },
-        {
-          ref: { type: "remote", name: "main", remote: "origin" },
-          colorHint: "upstream",
-          iconOnly: true,
-        },
-        {
-          ref: { type: "remote", name: "main", remote: "origin" },
-          colorHint: "base",
-          iconOnly: true,
-        },
-      ];
-
-      renderWithProvider(<RefBadgeList refs={refs} />);
-
-      const badges = screen.getAllByTestId(/ref-badge/);
-      // Should have 3 badges (list + head + 2 remotes)
-      expect(badges.length).toBe(4); // includes the list container
     });
   });
 

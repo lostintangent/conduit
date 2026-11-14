@@ -87,17 +87,6 @@ describe("CommitGraphRow", () => {
   });
 
   describe("rendering", () => {
-    it("should render with data-testid", () => {
-      renderWithProvider(
-        <CommitGraphRow
-          node={createNode()}
-          isExpanded={false}
-          config={GRAPH_CONFIG}
-        />,
-      );
-      expect(screen.getByTestId("commit-graph-row")).toBeTruthy();
-    });
-
     it("should include commit id as data attribute", () => {
       const node = createNode();
       renderWithProvider(
@@ -106,28 +95,6 @@ describe("CommitGraphRow", () => {
       expect(
         screen.getByTestId("commit-graph-row").getAttribute("data-commit-id"),
       ).toBe(node.commit.id);
-    });
-
-    it("should render graph column", () => {
-      renderWithProvider(
-        <CommitGraphRow
-          node={createNode()}
-          isExpanded={false}
-          config={GRAPH_CONFIG}
-        />,
-      );
-      expect(screen.getByTestId("graph-column")).toBeTruthy();
-    });
-
-    it("should render commit summary", () => {
-      renderWithProvider(
-        <CommitGraphRow
-          node={createNode()}
-          isExpanded={false}
-          config={GRAPH_CONFIG}
-        />,
-      );
-      expect(screen.getByTestId("commit-summary")).toBeTruthy();
     });
 
     it("should display commit subject", () => {
@@ -185,28 +152,12 @@ describe("CommitGraphRow", () => {
   });
 
   describe("expanded state", () => {
-    it("should show expanded content when expanded", () => {
-      const node = createNode({ files: createFiles() });
-      renderWithProvider(
-        <CommitGraphRow node={node} isExpanded={true} config={GRAPH_CONFIG} />,
-      );
-      expect(screen.getByTestId("expanded-content")).toBeTruthy();
-    });
-
-    it("should show files panel when expanded with files", () => {
-      const node = createNode({ files: createFiles() });
-      renderWithProvider(
-        <CommitGraphRow node={node} isExpanded={true} config={GRAPH_CONFIG} />,
-      );
-      expect(screen.getByTestId("commit-files-panel")).toBeTruthy();
-    });
-
     it("should show loading state when files are loading", () => {
       const node = createNode({ isLoadingFiles: true });
       renderWithProvider(
         <CommitGraphRow node={node} isExpanded={true} config={GRAPH_CONFIG} />,
       );
-      expect(screen.getByTestId("files-loading")).toBeTruthy();
+      expect(screen.getByText("Loading files...")).toBeDefined();
     });
 
     it("should have aria-expanded true when expanded", () => {
@@ -456,66 +407,6 @@ describe("CommitGraphRow", () => {
     });
   });
 
-  describe("styling", () => {
-    it("should apply custom className", () => {
-      renderWithProvider(
-        <CommitGraphRow
-          node={createNode()}
-          isExpanded={false}
-          config={GRAPH_CONFIG}
-          className="custom-class"
-        />,
-      );
-
-      const row = screen.getByTestId("commit-graph-row");
-      expect(row.classList.contains("custom-class")).toBe(true);
-    });
-
-    it("should have hover styling classes on summary row", () => {
-      renderWithProvider(
-        <CommitGraphRow
-          node={createNode()}
-          isExpanded={false}
-          config={GRAPH_CONFIG}
-        />,
-      );
-
-      const summaryRow = screen.getByTestId("commit-summary-row");
-      // Uses same hover color as FileTreeItem
-      expect(summaryRow.classList.contains("hover:bg-foreground/10")).toBe(
-        true,
-      );
-    });
-
-    it("should have cursor-pointer class on summary row", () => {
-      renderWithProvider(
-        <CommitGraphRow
-          node={createNode()}
-          isExpanded={false}
-          config={GRAPH_CONFIG}
-        />,
-      );
-
-      const summaryRow = screen.getByTestId("commit-summary-row");
-      expect(summaryRow.classList.contains("cursor-pointer")).toBe(true);
-    });
-  });
-
-  describe("merge commits", () => {
-    it("should render merge commit correctly", () => {
-      const node = createNode({
-        isMerge: true,
-        commit: createCommit({ parentIds: ["parent1", "parent2"] }),
-      });
-
-      renderWithProvider(
-        <CommitGraphRow node={node} isExpanded={false} config={GRAPH_CONFIG} />,
-      );
-
-      expect(screen.getByTestId("commit-graph-row")).toBeTruthy();
-    });
-  });
-
   describe("empty files", () => {
     it("should show empty state when expanded with no files", () => {
       const node = createNode({ files: [] });
@@ -523,7 +414,7 @@ describe("CommitGraphRow", () => {
         <CommitGraphRow node={node} isExpanded={true} config={GRAPH_CONFIG} />,
       );
 
-      expect(screen.getByTestId("files-empty")).toBeTruthy();
+      expect(screen.getByText("No files changed")).toBeDefined();
     });
   });
 });

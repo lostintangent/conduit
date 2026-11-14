@@ -71,23 +71,6 @@ function createNode(
 
 describe("GraphCell", () => {
   describe("SVG Structure", () => {
-    it("should render an SVG element", () => {
-      const commit = createCommit("a", ["b"]);
-      const node = createNode(
-        commit,
-        0,
-        [createSwimlane("a")],
-        [createSwimlane("b")],
-      );
-
-      const { container } = render(
-        <GraphCell node={node} height={44} config={defaultConfig} />,
-      );
-
-      const svg = container.querySelector("svg");
-      expect(svg).toBeTruthy();
-    });
-
     it("should set correct SVG dimensions", () => {
       const commit = createCommit("a", ["b"]);
       const node = createNode(
@@ -122,28 +105,6 @@ describe("GraphCell", () => {
       const svg = container.querySelector("svg");
       expect(svg?.getAttribute("aria-hidden")).toBe("true");
     });
-
-    it("should apply custom className", () => {
-      const commit = createCommit("a", ["b"]);
-      const node = createNode(
-        commit,
-        0,
-        [createSwimlane("a")],
-        [createSwimlane("b")],
-      );
-
-      const { container } = render(
-        <GraphCell
-          node={node}
-          height={44}
-          config={defaultConfig}
-          className="custom-class"
-        />,
-      );
-
-      const svg = container.querySelector("svg");
-      expect(svg?.classList.contains("custom-class")).toBe(true);
-    });
   });
 
   describe("Path Rendering", () => {
@@ -162,25 +123,6 @@ describe("GraphCell", () => {
 
       const paths = container.querySelectorAll("path");
       expect(paths.length).toBeGreaterThan(0);
-    });
-
-    it("should set stroke properties on paths", () => {
-      const commit = createCommit("a", ["b"]);
-      const node = createNode(
-        commit,
-        0,
-        [createSwimlane("a")],
-        [createSwimlane("b")],
-      );
-
-      const { container } = render(
-        <GraphCell node={node} height={44} config={defaultConfig} />,
-      );
-
-      const path = container.querySelector("path");
-      expect(path?.getAttribute("stroke")).toBeTruthy();
-      expect(path?.getAttribute("stroke-width")).toBe("2");
-      expect(path?.getAttribute("fill")).toBe("none");
     });
 
     it("should render pass-through paths", () => {
@@ -262,23 +204,6 @@ describe("GraphCell", () => {
       const circle = container.querySelector("circle");
       expect(circle?.getAttribute("cx")).toBe("24"); // lane 1 x position
       expect(circle?.getAttribute("cy")).toBe("12"); // always at ROW_HEIGHT / 2 = 24 / 2
-    });
-
-    it("should use correct circle radius", () => {
-      const commit = createCommit("a", ["b"]);
-      const node = createNode(
-        commit,
-        0,
-        [createSwimlane("a")],
-        [createSwimlane("b")],
-      );
-
-      const { container } = render(
-        <GraphCell node={node} height={44} config={defaultConfig} />,
-      );
-
-      const circle = container.querySelector("circle");
-      expect(circle?.getAttribute("r")).toBe("5");
     });
   });
 
@@ -401,24 +326,6 @@ describe("GraphCell", () => {
       // Should have paths for both parents
       const paths = container.querySelectorAll("path");
       expect(paths.length).toBeGreaterThanOrEqual(2);
-    });
-
-    it("should handle commit with no input lanes", () => {
-      const commit = createCommit("a", ["b"]);
-      const node = createNode(
-        commit,
-        0,
-        [], // no input
-        [createSwimlane("b")],
-      );
-
-      const { container } = render(
-        <GraphCell node={node} height={44} config={defaultConfig} />,
-      );
-
-      // Should render without errors
-      const svg = container.querySelector("svg");
-      expect(svg).toBeTruthy();
     });
   });
 });

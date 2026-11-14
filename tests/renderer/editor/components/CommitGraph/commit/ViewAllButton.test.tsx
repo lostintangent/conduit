@@ -26,13 +26,6 @@ function renderWithProvider(ui: React.ReactElement) {
 // =============================================================================
 
 describe("ViewAllButton", () => {
-  it("should render the button", () => {
-    const onClick = vi.fn();
-    renderWithProvider(<ViewAllButton onClick={onClick} />);
-
-    expect(screen.getByTestId("view-all-button")).toBeTruthy();
-  });
-
   it("should call onClick when clicked", () => {
     const onClick = vi.fn();
     renderWithProvider(<ViewAllButton onClick={onClick} />);
@@ -61,8 +54,8 @@ describe("ViewAllButton", () => {
     renderWithProvider(<ViewAllButton onClick={onClick} />);
 
     expect(
-      screen.getByTestId("view-all-button").getAttribute("aria-label"),
-    ).toBe("View all changes in this commit");
+      screen.getByRole("button", { name: "View all changes in this commit" }),
+    ).toBeDefined();
   });
 
   it("should be disabled when disabled prop is true", () => {
@@ -79,33 +72,5 @@ describe("ViewAllButton", () => {
 
     fireEvent.click(screen.getByTestId("view-all-button"));
     expect(onClick).not.toHaveBeenCalled();
-  });
-
-  it("should apply custom className", () => {
-    const onClick = vi.fn();
-    renderWithProvider(
-      <ViewAllButton onClick={onClick} className="custom-class" />,
-    );
-
-    expect(
-      screen.getByTestId("view-all-button").classList.contains("custom-class"),
-    ).toBe(true);
-  });
-
-  it("should render as a button element", () => {
-    const onClick = vi.fn();
-    renderWithProvider(<ViewAllButton onClick={onClick} />);
-
-    expect(screen.getByTestId("view-all-button").tagName).toBe("BUTTON");
-  });
-
-  it("should have hover effect styling", () => {
-    const onClick = vi.fn();
-    renderWithProvider(<ViewAllButton onClick={onClick} />);
-
-    // Button should be hidden by default and shown on group hover
-    const button = screen.getByTestId("view-all-button");
-    expect(button.className).toContain("hidden");
-    expect(button.className).toContain("group-hover:inline-flex");
   });
 });

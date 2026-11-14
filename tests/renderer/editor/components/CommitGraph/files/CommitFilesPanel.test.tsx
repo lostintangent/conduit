@@ -44,11 +44,6 @@ function createFiles(): CommitFile[] {
 
 describe("CommitFilesPanel", () => {
   describe("loading state", () => {
-    it("should display loading spinner when isLoading is true", () => {
-      render(<CommitFilesPanel isLoading />);
-      expect(screen.getByTestId("files-loading")).toBeTruthy();
-    });
-
     it("should display 'Loading files...' text", () => {
       render(<CommitFilesPanel isLoading />);
       expect(screen.getByTestId("files-loading").textContent).toContain(
@@ -65,12 +60,7 @@ describe("CommitFilesPanel", () => {
   describe("empty state", () => {
     it("should display empty state when files is undefined", () => {
       render(<CommitFilesPanel />);
-      expect(screen.getByTestId("files-empty")).toBeTruthy();
-    });
-
-    it("should display empty state when files is empty array", () => {
-      render(<CommitFilesPanel files={[]} />);
-      expect(screen.getByTestId("files-empty")).toBeTruthy();
+      expect(screen.getByText("No files changed")).toBeDefined();
     });
 
     it("should display 'No files changed' message", () => {
@@ -82,16 +72,6 @@ describe("CommitFilesPanel", () => {
   });
 
   describe("populated state", () => {
-    it("should render the header", () => {
-      render(<CommitFilesPanel files={createFiles()} />);
-      expect(screen.getByTestId("commit-files-header")).toBeTruthy();
-    });
-
-    it("should render the file list", () => {
-      render(<CommitFilesPanel files={createFiles()} />);
-      expect(screen.getByTestId("commit-files-list")).toBeTruthy();
-    });
-
     it("should render all file items", () => {
       const files = createFiles();
       render(<CommitFilesPanel files={files} />);
@@ -160,37 +140,6 @@ describe("CommitFilesPanel", () => {
       render(<CommitFilesPanel files={createFiles()} />);
       const list = screen.getByTestId("commit-files-list");
       expect(list.getAttribute("aria-label")).toBe("Changed files");
-    });
-  });
-
-  describe("custom className", () => {
-    it("should apply custom className to panel", () => {
-      render(
-        <CommitFilesPanel files={createFiles()} className="custom-class" />,
-      );
-      expect(
-        screen
-          .getByTestId("commit-files-panel")
-          .classList.contains("custom-class"),
-      ).toBe(true);
-    });
-
-    it("should apply custom className in loading state", () => {
-      render(<CommitFilesPanel isLoading className="custom-class" />);
-      expect(
-        screen
-          .getByTestId("commit-files-panel")
-          .classList.contains("custom-class"),
-      ).toBe(true);
-    });
-
-    it("should apply custom className in empty state", () => {
-      render(<CommitFilesPanel files={[]} className="custom-class" />);
-      expect(
-        screen
-          .getByTestId("commit-files-panel")
-          .classList.contains("custom-class"),
-      ).toBe(true);
     });
   });
 

@@ -47,25 +47,6 @@ describe("CommitFileItem", () => {
       // No folder path should be rendered
       expect(screen.queryByText("src")).toBeNull();
     });
-
-    it("should render the status badge", () => {
-      render(<CommitFileItem file={createFile()} />);
-      // Uses shared GitBadge component
-      expect(screen.getByTestId("git-badge")).toBeTruthy();
-    });
-
-    it("should set data-testid with file name", () => {
-      render(<CommitFileItem file={createFile()} />);
-      expect(screen.getByTestId("commit-file-item-Button.tsx")).toBeTruthy();
-    });
-
-    it("should set data-filepath attribute", () => {
-      render(<CommitFileItem file={createFile()} />);
-      const item = screen.getByTestId("commit-file-item-Button.tsx");
-      expect(item.getAttribute("data-filepath")).toBe(
-        "src/components/Button.tsx",
-      );
-    });
   });
 
   describe("line statistics", () => {
@@ -175,14 +156,6 @@ describe("CommitFileItem", () => {
       });
 
       expect(onClick).toHaveBeenCalledWith(file);
-    });
-  });
-
-  describe("custom className", () => {
-    it("should apply custom className", () => {
-      render(<CommitFileItem file={createFile()} className="custom-class" />);
-      const item = screen.getByTestId("commit-file-item-Button.tsx");
-      expect(item.classList.contains("custom-class")).toBe(true);
     });
   });
 

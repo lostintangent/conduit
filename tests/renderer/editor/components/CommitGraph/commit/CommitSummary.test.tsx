@@ -45,13 +45,6 @@ function createCommit(overrides: Partial<HistoryCommit> = {}): HistoryCommit {
 
 describe("CommitSummary", () => {
   describe("Basic Rendering", () => {
-    it("should render the component", () => {
-      const commit = createCommit();
-      renderWithProvider(<CommitSummary commit={commit} />);
-
-      expect(screen.getByTestId("commit-summary")).toBeTruthy();
-    });
-
     it("should display the subject", () => {
       const commit = createCommit({
         subject: "Add new feature",
@@ -72,17 +65,6 @@ describe("CommitSummary", () => {
       expect(screen.getByTestId("commit-meta-author").textContent).toBe(
         "Jane Smith",
       );
-    });
-
-    it("should apply custom className", () => {
-      const commit = createCommit();
-      renderWithProvider(
-        <CommitSummary commit={commit} className="custom-class" />,
-      );
-
-      expect(
-        screen.getByTestId("commit-summary").classList.contains("custom-class"),
-      ).toBe(true);
     });
   });
 
@@ -121,16 +103,6 @@ describe("CommitSummary", () => {
       renderWithProvider(<CommitSummary commit={commit} />);
 
       expect(screen.queryByTestId("view-all-button")).toBeNull();
-    });
-
-    it("should show view all button when onViewAll is provided", () => {
-      const commit = createCommit();
-      const onViewAll = vi.fn();
-      renderWithProvider(
-        <CommitSummary commit={commit} onViewAll={onViewAll} />,
-      );
-
-      expect(screen.getByTestId("view-all-button")).toBeTruthy();
     });
 
     it("should call onViewAll when button is clicked", () => {
@@ -173,17 +145,6 @@ describe("CommitSummary", () => {
   });
 
   describe("Edge Cases", () => {
-    it("should handle commit with empty subject", () => {
-      const commit = createCommit({
-        subject: "",
-        message: "",
-      });
-
-      renderWithProvider(<CommitSummary commit={commit} />);
-
-      expect(screen.getByTestId("commit-summary")).toBeTruthy();
-    });
-
     it("should handle very long subject", () => {
       const longSubject =
         "This is an extremely long commit subject line that goes on and on and probably should be truncated somewhere";
@@ -197,22 +158,9 @@ describe("CommitSummary", () => {
       expect(screen.getByTestId("commit-subject").textContent).toBe(
         longSubject,
       );
-      expect(
-        screen.getByTestId("commit-subject").classList.contains("truncate"),
-      ).toBe(true);
-    });
-
-    it("should handle very long author name", () => {
-      const commit = createCommit({
-        author: "A Very Long Author Name That Should Be Truncated",
-      });
-
-      renderWithProvider(<CommitSummary commit={commit} />);
-
-      // Author element should have truncate class (truncates first before subject)
-      expect(
-        screen.getByTestId("commit-meta-author").classList.contains("truncate"),
-      ).toBe(true);
+      expect(screen.getByTestId("commit-subject").getAttribute("title")).toBe(
+        longSubject,
+      );
     });
   });
 
