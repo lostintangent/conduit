@@ -11,7 +11,7 @@
  * - Expand/collapse all controls
  * - Staged and unstaged sections with bulk actions
  * - Summary footer with file counts
- * - Real-time updates via git status subscription
+ * - Real-time updates from the shared git status
  *
  * This is an alternative to the file tree + single file view,
  * useful for reviewing all changes before committing.
@@ -32,10 +32,12 @@
  * ```
  */
 
-import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
+import { gitQueries } from "@/api/gitQueries";
+import type { GitFileStatus } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
+import { useQuery } from "@tanstack/react-query";
 import { Check, GitCommit, Minus } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   DISABLED_UNSEEN_TRACKING,
   type UnseenTrackingResult,
@@ -131,8 +133,9 @@ export function ReviewWorkingPane({
   // Git Status State
   // ---------------------------------------------------------------------------
 
-  const [gitStatus, setGitStatus] = useState<GitStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: gitStatus = null, isPending: isLoading } = useQuery(
+    gitQueries.status(git),
+  );
 
   // ---------------------------------------------------------------------------
   // Commit State
@@ -258,54 +261,6 @@ export function ReviewWorkingPane({
     setStagedSectionExpanded,
     setUnstagedSectionExpanded,
   });
-
-  // ---------------------------------------------------------------------------
-  // Initial Load
-  // ---------------------------------------------------------------------------
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadStatus() {
-      setIsLoading(true);
-      try {
-        // Wait for git API to be ready before querying
-        await git.whenReady();
-
-        if (cancelled) return;
-
-        const status = await git.getStatus();
-        if (!cancelled) {
-          setGitStatus(status);
-        }
-      } catch (err) {
-        console.error("Failed to load git status:", err);
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [git]);
-
-  // ---------------------------------------------------------------------------
-  // Git Status Subscription
-  // ---------------------------------------------------------------------------
-
-  // Subscribe to git status changes to keep our local status in sync
-  // Note: Unseen tracking subscriptions are handled by useUnseenTracking in EditorPaneV2
-  useEffect(() => {
-    const cleanup = git.onStatusChanged((event) => {
-      setGitStatus(event.status);
-    });
-    return cleanup;
-  }, [git]);
 
   // ---------------------------------------------------------------------------
   // Handlers: Commit

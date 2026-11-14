@@ -6,9 +6,11 @@
  * 2. Auto-opens the most recently modified file if no valid file is specified
  */
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { gitKeys } from "@/api/gitQueries";
+import { createQueryClient } from "@/query";
 import { useAutoOpenFile } from "@/components/panes/editor/hooks/useAutoOpenFile";
 import type { FileNode, ViewMode } from "@/components/panes/editor/types";
 
@@ -18,6 +20,7 @@ vi.mock("@/components/panes/editor/utils/fileSelectionHelpers", () => ({
 }));
 
 import { selectNextAvailableFile } from "@/components/panes/editor/utils/fileSelectionHelpers";
+import { renderHook } from "../../queryRender";
 
 // Mock file system API
 function createMockFs(fileExists = true) {
@@ -29,6 +32,8 @@ function createMockFs(fileExists = true) {
 // Mock git API
 function createMockGit() {
   return {
+    cwd: "/project",
+    watchedSince: 0,
     whenReady: vi.fn().mockResolvedValue(undefined),
     getStatus: vi.fn().mockResolvedValue({
       files: new Map(),
@@ -117,6 +122,50 @@ describe("useAutoOpenFile", () => {
           baseBranch: "main",
         });
       });
+    });
+
+    it("reads modified status from the shared cache instead of git", async () => {
+      const mockFile: FileNode = {
+        name: "index.ts",
+        path: "/project/src/index.ts",
+        type: "file",
+      };
+      const setViewMode = vi.fn();
+      const mockGit = createMockGit();
+      const queryClient = createQueryClient();
+      queryClient.setQueryData(gitKeys.status("/project"), {
+        files: new Map([["src/index.ts", { status: "modified" }]]),
+      } as any);
+
+      vi.mocked(selectNextAvailableFile).mockResolvedValue({
+        file: mockFile,
+        relativePath: "src/index.ts",
+      });
+
+      renderHook(
+        () =>
+          useAutoOpenFile({
+            initialFilePath: undefined,
+            selectedFile: null,
+            setSelectedFile: vi.fn(),
+            cwd: "/project",
+            fs: createMockFs() as any,
+            git: mockGit as any,
+            baseBranch: "main",
+            preferDiffForModified: true,
+            setViewMode,
+          }),
+        { queryClient },
+      );
+
+      await waitFor(() => {
+        expect(setViewMode).toHaveBeenCalledWith({
+          type: "diff",
+          filePath: "/project/src/index.ts",
+          baseBranch: "main",
+        });
+      });
+      expect(mockGit.getStatus).not.toHaveBeenCalled();
     });
 
     it("should not auto-open if file is already selected", async () => {

@@ -17,6 +17,7 @@ const { mockGit, emit } = vi.hoisted(() => {
     getStatus: vi.fn(),
     getStatusFromBranch: vi.fn(),
     getUncommittedDiffStats: vi.fn(),
+    getPerFileDiffStats: vi.fn(),
     onStatusChanged: on("status"),
     onBranchChanged: on("branch"),
     onCommitCreated: on("commit"),
@@ -81,6 +82,7 @@ beforeEach(() => {
     removed: 0,
     files: 1,
   });
+  mockGit.getPerFileDiffStats.mockResolvedValue({ staged: {}, unstaged: {} });
 });
 
 afterEach(() => {
@@ -143,6 +145,7 @@ describe("installGitQueryBridge", () => {
     const observers = [
       new QueryObserver(queryClient, gitQueries.statusFromBranch(git, "main")),
       new QueryObserver(queryClient, gitQueries.diffStats(git)),
+      new QueryObserver(queryClient, gitQueries.perFileDiffStats(git)),
     ];
     const unsubscribes = observers.map((observer) =>
       observer.subscribe(() => {}),
@@ -150,6 +153,7 @@ describe("installGitQueryBridge", () => {
     await vi.waitFor(() => {
       expect(mockGit.getStatusFromBranch).toHaveBeenCalledTimes(1);
       expect(mockGit.getUncommittedDiffStats).toHaveBeenCalledTimes(1);
+      expect(mockGit.getPerFileDiffStats).toHaveBeenCalledTimes(1);
     });
 
     emit("status", statusEvent("sub-1", "main"));
@@ -157,6 +161,7 @@ describe("installGitQueryBridge", () => {
     await vi.waitFor(() => {
       expect(mockGit.getStatusFromBranch).toHaveBeenCalledTimes(2);
       expect(mockGit.getUncommittedDiffStats).toHaveBeenCalledTimes(2);
+      expect(mockGit.getPerFileDiffStats).toHaveBeenCalledTimes(2);
     });
     for (const unsubscribe of unsubscribes) unsubscribe();
   });

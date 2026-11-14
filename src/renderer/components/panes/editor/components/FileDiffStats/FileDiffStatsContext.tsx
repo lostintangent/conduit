@@ -2,8 +2,8 @@
  * FileDiffStatsContext - Provides per-file diff statistics to the component tree.
  *
  * This context handles:
- * - Fetching diff stats from the git API
- * - Subscribing to git status and file content changes to refresh stats
+ * - Reading per-file diff stats from the cwd's shared git cache
+ * - Re-reading them when git status or file content changes
  * - Providing stats to any component that needs them
  *
  * Usage:
@@ -35,15 +35,16 @@
 import {
   createContext,
   useContext,
-  useState,
   useCallback,
   useMemo,
   type ReactNode,
 } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { gitKeys, gitQueries } from "@/api/gitQueries";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import { useGitDiffSubscription } from "@/hooks/useGitDiffSubscription";
-import type { FileDiffStat, SplitPerFileDiffStats } from "@/api/GitV2API";
+import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
+import type { FileDiffStat } from "@/api/GitV2API";
 
 // Re-export for convenience
 export type { FileDiffStat };
@@ -71,9 +72,6 @@ interface FileDiffStatsContextValue {
    * Memoized to avoid O(n) iteration on every component render.
    */
   sectionTotals: SectionTotals;
-
-  /** Whether stats are currently being loaded */
-  isLoading: boolean;
 }
 
 // =============================================================================
@@ -98,9 +96,9 @@ export interface FileDiffStatsProviderProps {
 }
 
 /**
- * Provider that fetches and maintains per-file diff statistics.
+ * Provider for per-file diff statistics, read from the cwd's shared git cache.
  *
- * Automatically refreshes stats when:
+ * Stats are re-read when:
  * - Git status changes (files added/removed, staging changes)
  * - File content changes (lines added/removed in editor)
  *
@@ -111,35 +109,21 @@ export function FileDiffStatsProvider({
   fs,
   children,
 }: FileDiffStatsProviderProps) {
-  const [stats, setStats] = useState<SplitPerFileDiffStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: root } = useQuery(gitQueries.root(git));
+  const isGitRepo = !!root;
+  const { data: stats = null } = useQuery({
+    ...gitQueries.perFileDiffStats(git),
+    enabled: isGitRepo,
+  });
 
-  // Fetch diff stats
-  const fetchStats = useCallback(async () => {
-    try {
-      // Check if this is a git repo first
-      const root = await git.findRoot();
-      if (!root) {
-        setStats(null);
-        setIsLoading(false);
-        return;
-      }
-
-      const diffStats = await git.getPerFileDiffStats();
-      setStats(diffStats);
-    } catch (error) {
-      console.error(
-        "[FileDiffStatsProvider] Failed to fetch diff stats:",
-        error,
-      );
-      setStats(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [git]);
-
-  // Subscribe to git and file system changes
-  useGitDiffSubscription(git, fs, fetchStats);
+  // Status events re-read the stats, but edits that keep a file's status
+  // only change its line counts
+  useFileEditsSettled(fs, isGitRepo, () => {
+    void queryClient.invalidateQueries({
+      queryKey: gitKeys.perFileDiffStats(git.cwd),
+    });
+  });
 
   // Memoized getter function for per-file stats
   const getStats = useCallback(
@@ -202,7 +186,6 @@ export function FileDiffStatsProvider({
   const value: FileDiffStatsContextValue = {
     getStats,
     sectionTotals,
-    isLoading,
   };
 
   return (

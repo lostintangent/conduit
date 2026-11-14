@@ -25,13 +25,10 @@
 
 import { gitKeys, gitQueries } from "@/api/gitQueries";
 import type { GitFileStatus } from "@/api/GitV2API";
+import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-
-/** Debounce delay for file content changes, so typing doesn't re-read stats (ms) */
-const FILE_CHANGE_DEBOUNCE_MS = 300;
 
 export interface UncommittedDiffStats {
   added: number;
@@ -75,29 +72,12 @@ export function useUncommittedDiffStats(
   // Editing a file changes its line counts, which status events don't carry,
   // so re-read the stats once typing settles. Status is re-read with them so
   // the file summary and the counts describe the same moment.
-  useEffect(() => {
-    if (!isGitRepo || !fs.onAnyFileContentChanged) {
-      return;
-    }
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const cleanup = fs.onAnyFileContentChanged(() => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        void queryClient.invalidateQueries({
-          queryKey: gitKeys.diffStats(git.cwd),
-        });
-        void queryClient.invalidateQueries({
-          queryKey: gitKeys.status(git.cwd),
-        });
-      }, FILE_CHANGE_DEBOUNCE_MS);
+  useFileEditsSettled(fs, isGitRepo === true, () => {
+    void queryClient.invalidateQueries({
+      queryKey: gitKeys.diffStats(git.cwd),
     });
-
-    return () => {
-      clearTimeout(timer);
-      cleanup();
-    };
-  }, [fs, git, isGitRepo, queryClient]);
+    void queryClient.invalidateQueries({ queryKey: gitKeys.status(git.cwd) });
+  });
 
   return {
     stats: (isGitRepo && stats) || null,

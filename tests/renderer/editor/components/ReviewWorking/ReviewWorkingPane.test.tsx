@@ -2,12 +2,22 @@
 /**
  * @vitest-environment jsdom
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { gitKeys } from "@/api/gitQueries";
 import type { GitFileStatus, GitStatus } from "@/api/GitV2API";
+import { createQueryClient } from "@/query";
 import { ReviewWorkingPane } from "../../../../../src/renderer/components/panes/editor/components/ReviewWorking/ReviewWorkingPane";
 import { FileEditor } from "../../../../../src/renderer/components/panes/editor/components/shared/FileEditor";
 import { TooltipProvider } from "../../../../../src/renderer/components/ui/tooltip";
+import { queryWrapper } from "../../../queryRender";
 
 // ============================================================================
 // Test Utilities
@@ -16,8 +26,13 @@ import { TooltipProvider } from "../../../../../src/renderer/components/ui/toolt
 /**
  * Custom render that wraps components with required providers.
  */
-function renderWithProviders(ui: React.ReactElement) {
-  return render(<TooltipProvider>{ui}</TooltipProvider>);
+function renderWithProviders(
+  ui: React.ReactElement,
+  queryClient?: QueryClient,
+) {
+  return render(<TooltipProvider>{ui}</TooltipProvider>, {
+    wrapper: queryWrapper(queryClient),
+  });
 }
 
 // ============================================================================
@@ -26,16 +41,16 @@ function renderWithProviders(ui: React.ReactElement) {
 
 // Mock git API (passed as prop)
 const mockGetStatus = vi.fn();
-const mockOnStatusChanged = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 const mockCommit = vi.fn();
 
 const mockGitApi = {
+  cwd: "/project",
+  watchedSince: 0,
   whenReady: vi.fn().mockResolvedValue(undefined),
   getStatus: mockGetStatus,
-  onStatusChanged: mockOnStatusChanged,
   stage: mockStage,
   unstage: mockUnstage,
   revert: mockRevert,
@@ -278,7 +293,6 @@ describe("ReviewWorkingPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetStatus.mockReset();
-    mockOnStatusChanged.mockReturnValue(() => {});
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
     mockRevert.mockResolvedValue(undefined);
@@ -639,45 +653,36 @@ describe("ReviewWorkingPane", () => {
   });
 
   describe("real-time updates", () => {
-    it("should subscribe to git status changes", async () => {
-      mockGetStatus.mockResolvedValue(createMockStatus([]));
-
-      renderWithProviders(
-        <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
-      );
-
-      await waitFor(() => {
-        expect(mockOnStatusChanged).toHaveBeenCalled();
-      });
-    });
-
-    it("should register callback with onStatusChanged", async () => {
-      // Store the callback that gets passed to onStatusChanged
-      let capturedCallback:
-        ((event: { status: GitStatus }) => void) | undefined;
-      mockOnStatusChanged.mockImplementation((callback) => {
-        capturedCallback = callback;
-        return () => {};
-      });
-
+    it("lists the status the watcher writes to the shared cache", async () => {
+      const queryClient = createQueryClient();
       mockGetStatus.mockResolvedValue(
         createMockStatus([
-          { path: "src/file.ts", status: "modified", staged: false },
+          { path: "src/before.ts", status: "modified", staged: false },
         ]),
       );
 
       renderWithProviders(
         <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
+        queryClient,
       );
-
-      // Wait for component to render
       await waitFor(() => {
-        expect(screen.getByTestId("changes-review-pane")).toBeDefined();
+        expect(screen.getByText("src/before.ts")).toBeDefined();
       });
 
-      // Verify the callback was registered
-      expect(capturedCallback).toBeDefined();
-      expect(typeof capturedCallback).toBe("function");
+      act(() => {
+        queryClient.setQueryData(
+          gitKeys.status(TEST_CWD),
+          createMockStatus([
+            { path: "src/after.ts", status: "added", staged: true },
+          ]),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("src/after.ts")).toBeDefined();
+      });
+      expect(screen.queryByText("src/before.ts")).toBeNull();
+      expect(mockGetStatus).toHaveBeenCalledTimes(1);
     });
   });
 

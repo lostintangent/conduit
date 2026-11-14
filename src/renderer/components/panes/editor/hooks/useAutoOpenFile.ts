@@ -26,6 +26,8 @@
  */
 
 import { useEffect, useEffectEvent, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { gitQueries } from "@/api/gitQueries";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, ViewMode } from "../types";
@@ -83,6 +85,8 @@ export function useAutoOpenFile({
   setViewMode,
   markSeen,
 }: UseAutoOpenFileOptions): void {
+  const queryClient = useQueryClient();
+
   // Track whether each step has been attempted (one-time execution)
   const autoOpenAttemptedRef = useRef(false);
   const initialFileValidatedRef = useRef(!initialFilePath); // true if no validation needed
@@ -129,8 +133,9 @@ export function useAutoOpenFile({
       // Mark the auto-opened file as seen
       markSeen?.(relativePath);
 
-      // Show diff view for modified files if user prefers
-      const status = await git.getStatus();
+      // Show diff view for modified files if user prefers. The pane reads
+      // the same status, so this usually comes from the cache.
+      const status = await queryClient.fetchQuery(gitQueries.status(git));
       const fileStatus = status?.files.get(relativePath);
       if (fileStatus?.status === "modified" && preferDiffForModified) {
         setViewMode({

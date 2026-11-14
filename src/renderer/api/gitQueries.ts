@@ -21,6 +21,8 @@ export const gitKeys = {
   branches: (cwd: string) => [...gitKeys.all(cwd), "branches"] as const,
   root: (cwd: string) => [...gitKeys.all(cwd), "root"] as const,
   diffStats: (cwd: string) => [...gitKeys.all(cwd), "diffStats"] as const,
+  perFileDiffStats: (cwd: string) =>
+    [...gitKeys.all(cwd), "perFileDiffStats"] as const,
   statusFromBranch: (cwd: string, baseBranch?: string) =>
     baseBranch === undefined
       ? ([...gitKeys.all(cwd), "statusFromBranch"] as const)
@@ -92,6 +94,14 @@ export const gitQueries = {
       staleTime: whileWatched(git),
     }),
 
+  /** Lines added and removed per file, split by staged and unstaged. */
+  perFileDiffStats: (git: GitV2API) =>
+    queryOptions({
+      queryKey: gitKeys.perFileDiffStats(git.cwd),
+      queryFn: read(git, () => git.getPerFileDiffStats()),
+      staleTime: whileWatched(git),
+    }),
+
   /** Status relative to a base branch, overlaid with working tree changes. */
   statusFromBranch: (git: GitV2API, baseBranch: string) =>
     queryOptions({
@@ -136,6 +146,9 @@ export function applyGitStatus(
     queryKey: gitKeys.statusFromBranch(cwd),
   });
   void queryClient.invalidateQueries({ queryKey: gitKeys.diffStats(cwd) });
+  void queryClient.invalidateQueries({
+    queryKey: gitKeys.perFileDiffStats(cwd),
+  });
 }
 
 /**
