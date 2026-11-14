@@ -2,6 +2,7 @@
   "compilerOptions": {
     "noImplicitAny": true,
     "strict": false,
+    "strictNullChecks": true,
 
     "target": "ES2021",
     "useDefineForClassFields": true,

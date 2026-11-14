@@ -46,18 +46,20 @@ export interface LaunchOptions {
   settings?: Record<string, unknown>;
 }
 
+type Truthy<T> = Exclude<T, false | 0 | "" | null | undefined>;
+
 /** Polls `check` until it returns a truthy value, and returns that value. */
 export async function until<T>(
   check: () => T | Promise<T>,
   what: string,
   timeout = 15_000,
-): Promise<NonNullable<T>> {
+): Promise<Truthy<T>> {
   const deadline = Date.now() + timeout;
   let last: unknown;
   while (Date.now() < deadline) {
     try {
       const value = await check();
-      if (value) return value;
+      if (value) return value as Truthy<T>;
       last = value;
     } catch (error) {
       last = error;

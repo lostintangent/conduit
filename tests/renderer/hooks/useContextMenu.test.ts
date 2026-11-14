@@ -18,7 +18,7 @@ const {
   };
 
   const menuRegistry = {
-    getSortedMenuItems: vi.fn(() => []),
+    getSortedMenuItems: vi.fn((): unknown[] => []),
   };
 
   const contextKeyService = {
@@ -41,7 +41,7 @@ const {
   };
 
   const keybindingRegistry = {
-    getKeybindingsForCommand: vi.fn(() => []),
+    getKeybindingsForCommand: vi.fn((): unknown[] => []),
     registerKeybinding: vi.fn(),
     getAllKeybindings: vi.fn(() => []),
     handleKeyEvent: vi.fn(),

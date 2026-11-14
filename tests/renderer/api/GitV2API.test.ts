@@ -917,7 +917,7 @@ describe("GitV2API", () => {
     });
 
     it("should deserialize status in events", async () => {
-      let statusListener: ((payload: unknown) => void) | null = null;
+      let statusListener = null as ((payload: unknown) => void) | null;
       mockGit.onStatusChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           statusListener = listener;
@@ -960,7 +960,7 @@ describe("GitV2API", () => {
 
   describe("onBranchChanged", () => {
     it("should forward branch change events", async () => {
-      let branchListener: ((payload: unknown) => void) | null = null;
+      let branchListener = null as ((payload: unknown) => void) | null;
       mockGit.onBranchChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           branchListener = listener;
@@ -994,7 +994,7 @@ describe("GitV2API", () => {
 
   describe("onCommitCreated", () => {
     it("should deserialize commit in events", async () => {
-      let commitListener: ((payload: unknown) => void) | null = null;
+      let commitListener = null as ((payload: unknown) => void) | null;
       mockGit.onCommitCreated.mockImplementation(
         (listener: (payload: unknown) => void) => {
           commitListener = listener;
@@ -1034,7 +1034,7 @@ describe("GitV2API", () => {
 
   describe("onHeadChanged", () => {
     it("should forward HEAD change events", async () => {
-      let headListener: ((payload: unknown) => void) | null = null;
+      let headListener = null as ((payload: unknown) => void) | null;
       mockGit.onHeadChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           headListener = listener;
@@ -1261,7 +1261,7 @@ describe("GitV2API", () => {
     });
 
     it("should isolate listener errors", async () => {
-      let statusListener: ((payload: unknown) => void) | null = null;
+      let statusListener = null as ((payload: unknown) => void) | null;
       mockGit.onStatusChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           statusListener = listener;

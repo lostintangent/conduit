@@ -26,7 +26,7 @@ const mockRegistry = {
   addReference: vi.fn(),
   removeReference: vi.fn(),
   getModelState: vi.fn(() => null),
-  getModel: vi.fn(() => mockModel),
+  getModel: vi.fn((): typeof mockModel | undefined => mockModel),
   subscribeToModelAvailability: vi.fn(
     (modelKey: string, callback: () => void) => {
       if (!modelAvailabilitySubscribers.has(modelKey)) {

@@ -315,7 +315,7 @@ describe("FileSystemV2API", () => {
 
     it("should call callback when directory changes", async () => {
       // Capture the listener function
-      let directoryListener: ((payload: unknown) => void) | null = null;
+      let directoryListener = null as ((payload: unknown) => void) | null;
       mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
@@ -349,7 +349,7 @@ describe("FileSystemV2API", () => {
     });
 
     it("should filter events by subscription ID", async () => {
-      let directoryListener: ((payload: unknown) => void) | null = null;
+      let directoryListener = null as ((payload: unknown) => void) | null;
       mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
@@ -380,7 +380,7 @@ describe("FileSystemV2API", () => {
 
   describe("onAnyDirectoryListingChanged", () => {
     it("should receive events for any path", async () => {
-      let directoryListener: ((payload: unknown) => void) | null = null;
+      let directoryListener = null as ((payload: unknown) => void) | null;
       mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
@@ -536,7 +536,7 @@ describe("FileSystemV2API", () => {
     });
 
     it("should isolate listener errors", async () => {
-      let directoryListener: ((payload: unknown) => void) | null = null;
+      let directoryListener = null as ((payload: unknown) => void) | null;
       mockFs.onDirectoryListingChanged.mockImplementation(
         (listener: (payload: unknown) => void) => {
           directoryListener = listener;
