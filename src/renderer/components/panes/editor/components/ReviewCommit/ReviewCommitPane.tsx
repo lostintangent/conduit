@@ -84,15 +84,14 @@ export function ReviewCommitPane({
     return [...files].sort((a, b) => a.path.localeCompare(b.path));
   }, [files]);
 
-  // Track which files are expanded - initialize with ALL files expanded immediately
-  // so files render expanded on first paint (no flash of collapsed state)
-  const [expandedFiles, setExpandedFiles] = useState<Set<string>>(
-    () => new Set(files.map((f) => f.path)),
+  // Files start expanded, so track the ones the user collapsed
+  const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(
+    () => new Set(),
   );
 
   // Toggle file expansion
   const toggleFile = useCallback((path: string) => {
-    setExpandedFiles((prev) => {
+    setCollapsedFiles((prev) => {
       const next = new Set(prev);
       if (next.has(path)) {
         next.delete(path);
@@ -140,7 +139,7 @@ export function ReviewCommitPane({
             commitFile={file}
             commitId={commitId}
             parentCommitId={parentCommitId}
-            isExpanded={expandedFiles.has(file.path)}
+            isExpanded={!collapsedFiles.has(file.path)}
             onToggle={() => toggleFile(file.path)}
           />
         ))}

@@ -561,7 +561,8 @@ export const EditorPane = memo(function EditorPane({
 
   // Commit review mode - read-only view of all changes in a commit
   // This shows the full commit with all file diffs in a scrollable list
-  // Uses ReviewCommitPane for consistent UI
+  // Uses ReviewCommitPane for consistent UI. Keyed by commit, since a cached
+  // commit loads without an intervening loading state.
   if (viewMode.type === "commitReview" && git) {
     const { commitId, parentCommitId } = viewMode;
 
@@ -595,6 +596,7 @@ export const EditorPane = memo(function EditorPane({
         data-testid="editor-pane"
       >
         <ReviewCommitPane
+          key={commitId}
           cwd={cwd}
           commitId={commitId}
           parentCommitId={parentCommitId}
