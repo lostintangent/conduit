@@ -8,14 +8,11 @@
  *
  * Arguments after `bun start` are passed through to Electron.
  */
-import { rebuild } from "@electron/rebuild";
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import { watch } from "node:fs";
 import path from "node:path";
 import electronBinary from "electron";
-import electronPackage from "electron/package.json";
-import forgeConfig from "../forge.config";
 import index from "../src/renderer/index.html";
 import {
   buildCli,
@@ -24,17 +21,13 @@ import {
   buildPreloads,
   monacoWorkerDir,
 } from "./bun.build";
+import { makeSpawnHelperExecutable } from "./scripts/spawn-helper";
 
 const root = path.resolve(import.meta.dir, "..");
 // Outside Electron, the electron package exports the binary's path.
 const electronPath = electronBinary as unknown as string;
 
-// Same native-module step `electron-forge start` runs before launching.
-await rebuild({
-  ...forgeConfig.rebuildConfig,
-  buildPath: root,
-  electronVersion: electronPackage.version,
-});
+makeSpawnHelperExecutable(root);
 
 await buildMonacoWorkers({ dev: true });
 

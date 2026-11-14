@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
+import { makeSpawnHelperExecutable } from "./build/scripts/spawn-helper";
 
 const NATIVE_MODULES = ["node-pty", "@parcel/watcher", "@vscode/ripgrep"];
 
@@ -59,13 +60,8 @@ const config: ForgeConfig = {
         }
       : undefined,
   },
-  rebuildConfig: {
-    // @parcel/watcher always loads its prebuilt @parcel/watcher-<platform>-<arch>
-    // package, so building it from source would only ship an unused copy.
-    onlyModules: ["node-pty"],
-    // Only force rebuild during packaging, not during dev (bun start)
-    force: !!process.env.ELECTRON_FORGE_PACKAGING,
-  },
+  // Every native module ships N-API prebuilds, so skip Forge's rebuild.
+  rebuildConfig: { onlyModules: [] },
   hooks: {
     prePackage: async () => {
       execFileSync("bun", ["build/bun.build.ts"], { stdio: "inherit" });
@@ -75,6 +71,7 @@ const config: ForgeConfig = {
         cwd: buildPath,
         stdio: "inherit",
       });
+      makeSpawnHelperExecutable(buildPath);
       // Electron reads name, version and main from the app's package.json.
       fs.copyFileSync(
         path.resolve(__dirname, "package.json"),
