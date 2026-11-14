@@ -11,7 +11,7 @@
  */
 import type { BuildConfig } from "bun";
 import tailwind from "./bun.tailwind";
-import { rm } from "node:fs/promises";
+import { cp, rm } from "node:fs/promises";
 import path from "node:path";
 
 const root = path.resolve(import.meta.dir, "..");
@@ -19,6 +19,7 @@ const distDir = path.join(root, "dist");
 const mainDir = path.join(distDir, "main");
 const rendererDir = path.join(distDir, "renderer");
 export const monacoWorkerDir = path.join(rendererDir, "monaco");
+export const katexDir = path.join(rendererDir, "katex");
 
 // Native modules stay external and are resolved from
 // node_modules at runtime (packageAfterCopy installs them into the app).
@@ -121,6 +122,23 @@ export function buildMonacoWorkers({ dev = false }: Options = {}) {
   });
 }
 
+// KaTeX's stylesheet and fonts are copied as plain files that MarkdownPreview
+// links. Bun hoists every CSS import into the startup stylesheet, even behind
+// import(), and inlines fonts under 128 KB, so importing it would put all 60
+// fonts (1.4 MB) in front of first paint. Only the woff2 fonts are copied,
+// since Chromium never falls back to the woff and ttf sources after them.
+export async function copyKatex() {
+  const katex = path.join(root, "node_modules/katex/dist");
+  await cp(
+    path.join(katex, "katex.min.css"),
+    path.join(katexDir, "katex.min.css"),
+  );
+  await cp(path.join(katex, "fonts"), path.join(katexDir, "fonts"), {
+    recursive: true,
+    filter: (file) => !/\.(woff|ttf)$/.test(file),
+  });
+}
+
 export function buildRenderer() {
   return run("renderer", {
     entrypoints: [path.join(root, "src/renderer/index.html")],
@@ -130,8 +148,6 @@ export function buildRenderer() {
     splitting: true,
     minify: true,
     // Bun emits relative URLs (index.html is loaded from file:// in app.asar).
-    // `[name]` also avoids a Bun error when katex.min.css is reached via two
-    // import paths and yields two identical CSS chunks with the same hash.
     naming: {
       entry: "[dir]/[name].[ext]",
       chunk: "assets/[name]-[hash].[ext]",
@@ -151,7 +167,7 @@ if (import.meta.main) {
     buildPreloads(),
     buildRenderer(),
   ]);
-  await buildMonacoWorkers();
+  await Promise.all([buildMonacoWorkers(), copyKatex()]);
   const files = results.flat().flatMap((r) => r.outputs).length;
   console.log(
     `Built ${files} files in ${Math.round(performance.now() - started)}ms`,

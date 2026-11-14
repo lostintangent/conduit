@@ -19,6 +19,8 @@ import {
   buildMain,
   buildMonacoWorkers,
   buildPreloads,
+  copyKatex,
+  katexDir,
   monacoWorkerDir,
 } from "./bun.build";
 import { makeSpawnHelperExecutable } from "./scripts/spawn-helper";
@@ -29,7 +31,7 @@ const electronPath = electronBinary as unknown as string;
 
 makeSpawnHelperExecutable(root);
 
-await buildMonacoWorkers({ dev: true });
+await Promise.all([buildMonacoWorkers({ dev: true }), copyKatex()]);
 
 // Any free port, so concurrent dev loops don't collide.
 const server = Bun.serve({
@@ -41,6 +43,12 @@ const server = Bun.serve({
     "/monaco/:file": (req) =>
       new Response(
         Bun.file(path.join(monacoWorkerDir, path.basename(req.params.file))),
+      ),
+    "/katex/katex.min.css": () =>
+      new Response(Bun.file(path.join(katexDir, "katex.min.css"))),
+    "/katex/fonts/:file": (req) =>
+      new Response(
+        Bun.file(path.join(katexDir, "fonts", path.basename(req.params.file))),
       ),
   },
 });
