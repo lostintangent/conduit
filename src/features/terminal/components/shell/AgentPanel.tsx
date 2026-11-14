@@ -39,18 +39,15 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   const dragStartY = useRef<number>(0);
   const dragStartPosition = useRef<PanelPosition>("bottom");
 
-  // Focus input when panel opens
+  // Clear and focus the prompt when the panel opens. Effects also run again
+  // when the pane's tab is shown, and that should keep the draft and focus.
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  // Clear prompt when panel opens
-  useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
       setPromptValue("");
+      inputRef.current?.focus();
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen]);
 
   // Auto-scroll to bottom when content changes
