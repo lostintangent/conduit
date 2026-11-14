@@ -81,14 +81,6 @@ describe("ParcelFileWatcher", () => {
   });
 
   describe("constructor", () => {
-    it("should resolve real path for symlinks", () => {
-      vi.mocked(fs.realpathSync).mockReturnValueOnce("/real/path");
-
-      new ParcelFileWatcher("/symlink/path");
-
-      expect(fs.realpathSync).toHaveBeenCalledWith("/symlink/path");
-    });
-
     it("should fallback to resolved path on realpath error", () => {
       vi.mocked(fs.realpathSync).mockImplementationOnce(() => {
         throw new Error("Realpath error");
@@ -528,6 +520,34 @@ describe("ParcelFileWatcher", () => {
       });
       expect(deleteListener).not.toHaveBeenCalled();
       expect(createListener).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("symlinked watch path", () => {
+    it("should report events under the path it was given", async () => {
+      // FSEvents reports /tmp/project as /private/tmp/project.
+      vi.mocked(fs.realpathSync).mockReturnValueOnce("/private/tmp/project");
+      const linked = new ParcelFileWatcher("/tmp/project");
+      const created = vi.fn();
+      const modified = vi.fn();
+      linked.onCreated(created);
+      linked.onModified(modified);
+      await linked.watch();
+
+      capturedCallback!(null, [
+        { type: "create", path: "/private/tmp/project/new.ts" },
+        { type: "update", path: "/private/tmp/project/src/old.ts" },
+      ]);
+      vi.advanceTimersByTime(200);
+
+      expect(created).toHaveBeenCalledWith({
+        path: "/tmp/project/new.ts",
+        isDirectory: false,
+      });
+      expect(modified).toHaveBeenCalledWith({
+        path: "/tmp/project/src/old.ts",
+      });
+      await linked.dispose();
     });
   });
 

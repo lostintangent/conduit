@@ -279,7 +279,7 @@ export class ParcelFileWatcher {
   /** The directory being watched */
   readonly path: string;
 
-  /** Resolved real path (handles symlinks) */
+  /** `path` with symlinks resolved, which is how FSEvents reports it */
   private readonly realPath: string;
 
   /** Ignore patterns */
@@ -335,8 +335,6 @@ export class ParcelFileWatcher {
     this.path = watchPath;
     this.ignored = options.ignored ?? DEFAULT_IGNORED_PATTERNS;
 
-    // Resolve symlinks for consistent path matching
-    // Handles macOS /var → /private/var edge case
     try {
       this.realPath = fs.realpathSync(watchPath);
     } catch {
@@ -434,23 +432,39 @@ export class ParcelFileWatcher {
     events: Array<{ type: "create" | "update" | "delete"; path: string }>,
   ): void {
     for (const event of events) {
+      const filePath = this.toWatchedPath(event.path);
+
       // Double-check ignore patterns (parcel's ignore is best-effort)
-      if (this.shouldIgnore(event.path)) {
+      if (this.shouldIgnore(filePath)) {
         continue;
       }
 
       switch (event.type) {
         case "create":
-          this.handleCreate(event.path);
+          this.handleCreate(filePath);
           break;
         case "update":
-          this.handleUpdate(event.path);
+          this.handleUpdate(filePath);
           break;
         case "delete":
-          this.handleDelete(event.path);
+          this.handleDelete(filePath);
           break;
       }
     }
+  }
+
+  /**
+   * FSEvents reports realpaths, so a folder opened through a symlink (such as
+   * /tmp → /private/tmp) gets events under a path its callers never used.
+   * Map them back under the watched path, so they match callers' keys.
+   */
+  private toWatchedPath(filePath: string): string {
+    const inside =
+      filePath === this.realPath ||
+      filePath.startsWith(this.realPath + path.sep);
+    return inside
+      ? path.join(this.path, filePath.slice(this.realPath.length))
+      : filePath;
   }
 
   /**
