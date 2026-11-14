@@ -1,3 +1,4 @@
+import { type Atom, shallow, useCreateAtom } from "@tanstack/react-store";
 import React, {
   createContext,
   useCallback,
@@ -31,6 +32,12 @@ type TabContentPortalContextValue = {
   previewTab: (tabId: string, container: HTMLElement) => () => void;
 
   isTabInPreview: (tabId: string) => boolean;
+
+  /**
+   * The size of the panel tabs show in, so a preview can lay a tab out as it
+   * is there
+   */
+  panelSize: Atom<{ width: number; height: number }>;
 };
 
 const TabContentPortalContext =
@@ -48,6 +55,25 @@ export function TabContentPortalProvider({
   const [contents] = useState(() => new Map<string, TabContent>());
   const [previewTabIds, setPreviewTabIds] = useState<ReadonlySet<string>>(
     () => new Set(),
+  );
+  // The window is the closest guess until a panel is measured
+  const panelSize = useCreateAtom(
+    { width: window.innerWidth, height: window.innerHeight },
+    { compare: shallow },
+  );
+  const [panelObserver] = useState(
+    () =>
+      new ResizeObserver((entries) => {
+        for (const { contentRect } of entries) {
+          // Hidden tabs' panels measure 0×0
+          if (contentRect.width > 0 && contentRect.height > 0) {
+            panelSize.set({
+              width: contentRect.width,
+              height: contentRect.height,
+            });
+          }
+        }
+      }),
   );
 
   const update = useCallback(
@@ -70,9 +96,13 @@ export function TabContentPortalProvider({
   const attachPanel = useCallback(
     (tabId: string, panel: HTMLElement, host: HTMLElement) => {
       update(tabId, { panel, host });
-      return () => update(tabId, { panel: undefined, host: undefined });
+      panelObserver.observe(panel);
+      return () => {
+        panelObserver.unobserve(panel);
+        update(tabId, { panel: undefined, host: undefined });
+      };
     },
-    [update],
+    [update, panelObserver],
   );
 
   const previewTab = useCallback(
@@ -102,8 +132,8 @@ export function TabContentPortalProvider({
   );
 
   const value = useMemo<TabContentPortalContextValue>(
-    () => ({ attachPanel, previewTab, isTabInPreview }),
-    [attachPanel, previewTab, isTabInPreview],
+    () => ({ attachPanel, previewTab, isTabInPreview, panelSize }),
+    [attachPanel, previewTab, isTabInPreview, panelSize],
   );
 
   return (

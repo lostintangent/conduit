@@ -41,7 +41,7 @@ export function TabsOverview() {
             <TabPreviewItem
               tabId={tab.id}
               onClick={() => focusTab(tab.id)}
-              scale={0.6}
+              size={{ width: 548, height: 343 }}
               isHovered={hoveredTabId === tab.id}
             />
             <div className="mx-auto flex items-center justify-center gap-4 px-1">

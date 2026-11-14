@@ -150,6 +150,8 @@ describe("TabLayout pane controls", () => {
 });
 
 describe("TabLayout tab switching", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("keeps each tab's panes mounted while other tabs show", () => {
     tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
     activeTabIdAtom.set("tab-1");
@@ -204,6 +206,50 @@ describe("TabLayout tab switching", () => {
 
     expect(panelOf("tab-2")).not.toBeNull();
     expect(terminalMounts.sort()).toEqual(["tab-1", "tab-2"]);
+  });
+
+  it("lays a tab out in its preview at the size of its panel, scaled down", () => {
+    let resized: (sizes: [width: number, height: number][]) => void;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(callback: ResizeObserverCallback) {
+          resized = (sizes) =>
+            callback(
+              sizes.map(([width, height]) => ({
+                contentRect: { width, height },
+              })) as ResizeObserverEntry[],
+              this as unknown as ResizeObserver,
+            );
+        }
+        observe() {}
+        unobserve() {}
+      },
+    );
+    tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
+    activeTabIdAtom.set("tab-1");
+    const { container } = render(tabLayout(<TabPreviewItem tabId="tab-2" />), {
+      queryClient,
+    });
+
+    // The active tab's panel, then the hidden one's
+    act(() =>
+      resized([
+        [1600, 900],
+        [0, 0],
+      ]),
+    );
+
+    const preview = container.lastElementChild as HTMLElement;
+    const content = preview.firstElementChild!.firstElementChild as HTMLElement;
+    expect([content.style.width, content.style.height]).toEqual([
+      "1600px",
+      "900px",
+    ]);
+    expect([preview.style.width, preview.style.height]).toEqual([
+      "320px",
+      "180px",
+    ]);
   });
 
   it("flashes a tab's active pane each time the tab shows", async () => {

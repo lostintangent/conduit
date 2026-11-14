@@ -4,10 +4,6 @@
 
 const EPSILON = 0.001;
 
-export const PREVIEW_WIDTH = 320;
-export const PREVIEW_HEIGHT = 200;
-export const PREVIEW_SCALE = 0.35;
-
 export interface ScalingDimensions {
   layoutWidth: number;
   layoutHeight: number;
@@ -21,13 +17,6 @@ export interface ScalingResult {
   isScaled: boolean;
   targetWidth: number;
   targetHeight: number;
-}
-
-export interface PreviewDimensions {
-  displayWidth: number;
-  displayHeight: number;
-  contentWidth: number;
-  contentHeight: number;
 }
 
 /**
@@ -77,24 +66,4 @@ export function applyWebviewScaling(
     element.style.transformOrigin = "";
     element.style.transform = "";
   }
-}
-
-/**
- * Calculate dimensions for tab preview items
- *
- * @param scale - The scale factor to apply
- * @returns Display and content dimensions for the preview
- */
-export function calculatePreviewDimensions(scale: number): PreviewDimensions {
-  const displayWidth = PREVIEW_WIDTH * (scale / PREVIEW_SCALE);
-  const displayHeight = PREVIEW_HEIGHT * (scale / PREVIEW_SCALE);
-  const contentWidth = PREVIEW_WIDTH / PREVIEW_SCALE;
-  const contentHeight = PREVIEW_HEIGHT / PREVIEW_SCALE;
-
-  return {
-    displayWidth,
-    displayHeight,
-    contentWidth,
-    contentHeight,
-  };
 }

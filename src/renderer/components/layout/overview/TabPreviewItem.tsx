@@ -1,14 +1,14 @@
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
-import {
-  calculatePreviewDimensions,
-  PREVIEW_SCALE,
-} from "@/utils/preview-scaling";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback } from "react";
+
+const HOVER_PREVIEW_SIZE = { width: 320, height: 200 };
 
 type TabPreviewItemProps = {
   tabId: string;
   onClick?: (tabId: string) => void;
-  scale?: number;
+  /** The box the tab scales down to fit, keeping its shape */
+  size?: { width: number; height: number };
   isHovered?: boolean;
 };
 
@@ -19,10 +19,10 @@ type TabPreviewItemProps = {
 export function TabPreviewItem({
   tabId,
   onClick,
-  scale = PREVIEW_SCALE,
+  size = HOVER_PREVIEW_SIZE,
   isHovered = false,
 }: TabPreviewItemProps) {
-  const { previewTab } = useTabContentPortal();
+  const { previewTab, panelSize } = useTabContentPortal();
   // Shows the tab's content here for as long as the preview is mounted
   const contentRef = useCallback(
     (container: HTMLDivElement) => previewTab(tabId, container),
@@ -35,9 +35,13 @@ export function TabPreviewItem({
     }
   };
 
-  // Calculate the actual display size based on scale
-  const { displayWidth, displayHeight, contentWidth, contentHeight } =
-    calculatePreviewDimensions(scale);
+  // Lays the tab out at its panel's size and scales it down, so its panes
+  // look as they do in the tab, and don't change layout when it shows
+  const content = useSelector(panelSize);
+  const scale = Math.min(
+    size.width / content.width,
+    size.height / content.height,
+  );
 
   const borderClass = isHovered
     ? "border-accent shadow-lg"
@@ -51,8 +55,8 @@ export function TabPreviewItem({
     <div
       className={`flex overflow-hidden rounded border ${borderClass} ${interactivityClass}`}
       style={{
-        width: displayWidth,
-        height: displayHeight,
+        width: content.width * scale,
+        height: content.height * scale,
       }}
       onClick={handleClick}
     >
@@ -61,16 +65,16 @@ export function TabPreviewItem({
         style={{
           transform: `scale(${scale})`,
           transformOrigin: "top left",
-          width: contentWidth,
-          height: contentHeight,
+          width: content.width,
+          height: content.height,
         }}
       >
         <div
           ref={contentRef}
           className="flex w-full h-full min-h-0 min-w-0 pointer-events-auto"
           style={{
-            width: contentWidth,
-            height: contentHeight,
+            width: content.width,
+            height: content.height,
           }}
         />
       </div>
