@@ -81,11 +81,25 @@ export interface GitStatus {
   /**
    * Map of file paths to their status.
    *
-   * Key is relative path from git root.
+   * Key is relative path from git root, plus UNSTAGED_KEY_SUFFIX for the
+   * unstaged entry of a partially staged file.
    * Only includes files with changes (not unchanged files).
    */
   files: Map<string, GitFileStatus>;
 }
+
+/**
+ * Suffix appended to Map keys for unstaged entries of partially staged files.
+ *
+ * When a file has both staged and unstaged changes (e.g., git status "MM"),
+ * it has two entries:
+ * - Staged entry: key = path
+ * - Unstaged entry: key = path + UNSTAGED_KEY_SUFFIX
+ *
+ * This lets consumers iterating over entries see both states while
+ * `.get(path)` still finds the file.
+ */
+export const UNSTAGED_KEY_SUFFIX = "\0unstaged";
 
 // ============================================================================
 // Git Commit Types

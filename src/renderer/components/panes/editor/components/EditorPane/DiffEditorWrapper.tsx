@@ -10,6 +10,7 @@
  * - Uses useDiffContent hook to fetch original (git) and modified content
  * - Original side is read-only (from git)
  * - Modified side uses shared model from MonacoModelRegistry (editable)
+ * - Edits a re-read git side into its model in place, keeping the view
  * - Shows loading state while fetching content
  * - Properly disposes on unmount
  *
@@ -25,7 +26,13 @@
  */
 
 import * as monaco from "monaco-editor";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import {
   useAutoSizeEditor,
   useDiffContent,
@@ -36,7 +43,11 @@ import {
 import { createModelKey } from "../../registry";
 import { ViewStateRegistry } from "../../registry/ViewStateRegistry";
 import type { ContentSource } from "../../types";
-import { detectLanguage, forceTokenizeVisibleLines } from "../../utils";
+import {
+  detectLanguage,
+  forceTokenizeVisibleLines,
+  replaceModelContent,
+} from "../../utils";
 import { ReadOnlyBadge, SourceBadge } from "../shared";
 
 export interface DiffEditorWrapperProps {
@@ -229,6 +240,12 @@ export function DiffEditorWrapper({
   const viewModelRef = useRef<monaco.editor.IDiffEditorViewModel | null>(null);
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const modifiedModelRef = useRef<monaco.editor.ITextModel | null>(null);
+  // Which diff the models show, and the content they hold
+  const shownRef = useRef<{
+    diff: string;
+    original: string;
+    modified: string;
+  } | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
   const currentFilePathRef = useRef<string>(filePath);
 
@@ -255,6 +272,19 @@ export function DiffEditorWrapper({
     modifiedSource,
     originalFilePath,
   });
+
+  const { original, modified } = diffContent;
+  const hasContent =
+    !diffContent.isLoading && original !== null && modified !== null;
+  const readContent = useEffectEvent(() => ({ original, modified }));
+  // The models are made once per diff, and later reads edited into them
+  const diffKey = [
+    editorId,
+    filePath,
+    originalFilePath,
+    originalSource,
+    modifiedSource,
+  ].join("\n");
 
   // Effective read-only state: read-only if explicitly set OR if modified source is not editable
   const effectiveReadOnly = readOnly || !diffContent.isModifiedEditable;
@@ -355,11 +385,8 @@ export function DiffEditorWrapper({
     if (!diffEditor) return;
 
     // Need both original and modified content to set up the diff
-    if (
-      diffContent.isLoading ||
-      diffContent.original === null ||
-      diffContent.modified === null
-    ) {
+    const content = readContent();
+    if (!hasContent || content.original === null || content.modified === null) {
       return;
     }
 
@@ -402,7 +429,7 @@ export function DiffEditorWrapper({
         `inmemory://original/${editorId}/${filePath}`,
       );
       originalModelRef.current = monaco.editor.createModel(
-        diffContent.original,
+        content.original,
         language,
         originalUri,
       );
@@ -413,7 +440,7 @@ export function DiffEditorWrapper({
           `inmemory://modified/${editorId}/${filePath}`,
         );
         modifiedModelRef.current = monaco.editor.createModel(
-          diffContent.modified,
+          content.modified,
           language,
           modifiedUri,
         );
@@ -430,6 +457,11 @@ export function DiffEditorWrapper({
         modified: modifiedModel,
       });
       diffEditor.setModel(viewModelRef.current);
+      shownRef.current = {
+        diff: diffKey,
+        original: content.original,
+        modified: content.modified,
+      };
 
       // Force immediate tokenization to prevent white flash before syntax highlighting
       forceTokenizeVisibleLines(originalModelRef.current);
@@ -477,14 +509,29 @@ export function DiffEditorWrapper({
   }, [
     editorId,
     filePath,
+    diffKey,
     language,
     modifiedSource,
-    diffContent.isLoading,
-    diffContent.original,
-    diffContent.modified,
+    hasContent,
     registryModel,
     effectiveReadOnly,
   ]);
+
+  // A git side re-read after it changed, by a stage or commit say, is edited
+  // into its model, so the diff keeps its scroll position and selection
+  useEffect(() => {
+    const shown = shownRef.current;
+    if (shown?.diff !== diffKey || original === null || modified === null) {
+      return;
+    }
+    if (original !== shown.original && originalModelRef.current) {
+      replaceModelContent(originalModelRef.current, original);
+    }
+    if (modified !== shown.modified && modifiedModelRef.current) {
+      replaceModelContent(modifiedModelRef.current, modified);
+    }
+    shownRef.current = { diff: diffKey, original, modified };
+  }, [diffKey, original, modified]);
 
   // ---------------------------------------------------------------------------
   // Editor Options Update

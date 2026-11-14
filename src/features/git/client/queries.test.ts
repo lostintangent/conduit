@@ -13,6 +13,7 @@ const { mockGit, emit } = vi.hoisted(() => {
     getPerFileDiffStats: vi.fn(),
     getCommitHistory: vi.fn(),
     getTrackedBranches: vi.fn(),
+    getFileAtRef: vi.fn(),
     on: vi.fn((event: string, listener: (payload: unknown) => void) => {
       const eventListeners = listeners.get(event) ?? new Set();
       listeners.set(event, eventListeners);
@@ -34,6 +35,7 @@ const { mockGit, emit } = vi.hoisted(() => {
   };
 });
 
+import { UNSTAGED_KEY_SUFFIX } from "../model";
 import { GitV2API } from "./GitV2API";
 import {
   gitKeys,
@@ -119,6 +121,43 @@ async function observeHistory(queryClient: QueryClient, git: GitV2API) {
     expect(mockGit.getTrackedBranches).toHaveBeenCalledTimes(1);
   });
   return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+}
+
+/**
+ * Observe the given diff sides, each read as its ref, path and `version`,
+ * resolving once all have loaded.
+ */
+async function observeFileSides(
+  queryClient: QueryClient,
+  git: GitV2API,
+  sides: [ref: string, filePath: string][],
+) {
+  const version = { current: 1 };
+  mockGit.getFileAtRef.mockImplementation(
+    async (_cwd: string, filePath: string, ref: string) =>
+      `${ref}:${filePath}:${version.current}`,
+  );
+  const observers = sides.map(
+    ([ref, filePath]) =>
+      new QueryObserver(queryClient, gitQueries.fileAtRef(git, filePath, ref)),
+  );
+  const unsubscribes = observers.map((observer) =>
+    observer.subscribe(() => {}),
+  );
+  await vi.waitFor(() =>
+    expect(mockGit.getFileAtRef).toHaveBeenCalledTimes(sides.length),
+  );
+  mockGit.getFileAtRef.mockClear();
+  version.current = 2;
+  return {
+    reRead: () =>
+      mockGit.getFileAtRef.mock.calls.map(
+        ([, filePath, ref]) => `${ref}:${filePath}`,
+      ),
+    content: (ref: string, filePath: string) =>
+      queryClient.getQueryData(gitKeys.fileAtRef(git.cwd, ref, filePath)),
+    unobserve: () => unsubscribes.forEach((unsubscribe) => unsubscribe()),
+  };
 }
 
 afterEach(() => {
@@ -254,6 +293,62 @@ describe("installGitQueryBridge", () => {
       expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(3),
     );
     unobserve();
+  });
+
+  it("re-reads the index side of an open diff whose file was staged outside, and no other side", async () => {
+    const queryClient = createQueryClient();
+    uninstall = installGitQueryBridge(queryClient);
+    const git = await watch("/repo");
+    const sides = await observeFileSides(queryClient, git, [
+      ["", "/repo/a.ts"],
+      ["", "/repo/b.ts"],
+      ["HEAD", "/repo/a.ts"],
+    ]);
+
+    // Staging the rest of a partially staged file drops its unstaged entry
+    emit("statusChanged", {
+      ...statusEvent("sub-1", "main"),
+      added: [],
+      removed: [`a.ts${UNSTAGED_KEY_SUFFIX}`],
+    });
+
+    await vi.waitFor(() =>
+      expect(sides.content("", "/repo/a.ts")).toBe(":/repo/a.ts:2"),
+    );
+    expect(sides.reRead()).toEqual([":/repo/a.ts"]);
+    expect(sides.content("", "/repo/b.ts")).toBe(":/repo/b.ts:1");
+    expect(sides.content("HEAD", "/repo/a.ts")).toBe("HEAD:/repo/a.ts:1");
+    sides.unobserve();
+  });
+
+  it("re-reads the HEAD, index and branch sides of open diffs when HEAD moves, but not those at a commit", async () => {
+    const queryClient = createQueryClient();
+    uninstall = installGitQueryBridge(queryClient);
+    const git = await watch("/repo");
+    const commit = "a".repeat(40);
+    const sides = await observeFileSides(queryClient, git, [
+      ["HEAD", "/repo/a.ts"],
+      ["", "/repo/a.ts"],
+      ["main", "/repo/a.ts"],
+      [commit, "/repo/a.ts"],
+    ]);
+
+    emit("headChanged", {
+      subscriptionId: "sub-1",
+      previousHead: "a",
+      currentHead: "b",
+      isBranchSwitch: false,
+    });
+
+    await vi.waitFor(() =>
+      expect(sides.reRead().sort()).toEqual([
+        ":/repo/a.ts",
+        "HEAD:/repo/a.ts",
+        "main:/repo/a.ts",
+      ]),
+    );
+    expect(sides.content(commit, "/repo/a.ts")).toBe(`${commit}:/repo/a.ts:1`);
+    sides.unobserve();
   });
 });
 

@@ -165,6 +165,7 @@ describe("DiffEditorWrapper", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   // ===========================================================================
@@ -357,6 +358,68 @@ describe("DiffEditorWrapper", () => {
       expect(mockDiffEditor.setModel).toHaveBeenCalledWith(
         mockDiffEditor.createViewModel.mock.results[0]?.value,
       );
+    });
+
+    // A stage or commit outside re-reads a git side, which used to rebuild
+    // the diff and scroll it back to its first change
+    it("should edit a re-read git side into its model, keeping the diff", () => {
+      vi.useFakeTimers();
+      mockCreateModel.mockImplementation((value: string) => {
+        const lines = value.split("\n");
+        return {
+          dispose: vi.fn(),
+          getLinesContent: () => lines,
+          getEOL: () => "\n",
+          getLineMaxColumn: (line: number) => lines[line - 1].length + 1,
+          applyEdits: vi.fn(),
+        };
+      });
+      mockState.diffContent = {
+        original: "a\nb\nc",
+        modified: "a\nB\nc",
+        isLoading: false,
+        error: null,
+        isModifiedEditable: false,
+      };
+      const diff = (originalSource: string) => (
+        <DiffEditorWrapper
+          editorId="test-diff"
+          cwd="/test"
+          filePath="/test/file.ts"
+          originalSource={originalSource}
+          modifiedSource="index"
+        />
+      );
+      const { rerender } = render(diff("head"));
+      vi.advanceTimersByTime(100);
+      expect(mockDiffEditor.revealFirstDiff).toHaveBeenCalledTimes(1);
+
+      mockState.diffContent = { ...mockState.diffContent, original: "a\nB\nc" };
+      rerender(diff("head"));
+      vi.advanceTimersByTime(100);
+
+      const [original, modified] = mockCreateModel.mock.results.map(
+        (result) => result.value,
+      );
+      expect(original.applyEdits).toHaveBeenCalledWith([
+        {
+          range: {
+            startLineNumber: 1,
+            startColumn: 2,
+            endLineNumber: 2,
+            endColumn: 2,
+          },
+          text: "\nB",
+        },
+      ]);
+      expect(modified.applyEdits).not.toHaveBeenCalled();
+      expect(mockCreateModel).toHaveBeenCalledTimes(2);
+      expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(1);
+      expect(mockDiffEditor.revealFirstDiff).toHaveBeenCalledTimes(1);
+
+      // Comparing with another source is another diff
+      rerender(diff("index"));
+      expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(2);
     });
   });
 

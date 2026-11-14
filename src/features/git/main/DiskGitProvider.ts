@@ -46,6 +46,7 @@ import type {
   TrackedBranch,
   TrackedBranchInfo,
 } from "../model";
+import { UNSTAGED_KEY_SUFFIX } from "../model";
 import { createGit } from "./createGit";
 
 // ============================================================================
@@ -54,19 +55,6 @@ import { createGit } from "./createGit";
 
 /** Delay before refreshing status after a .git/ change (ms) */
 const STATUS_REFRESH_DEBOUNCE_MS = 100;
-
-/**
- * Suffix appended to Map keys for unstaged entries of partially staged files.
- *
- * When a file has both staged and unstaged changes (e.g., git status "MM"),
- * we create two entries:
- * - Staged entry: key = path
- * - Unstaged entry: key = path + UNSTAGED_KEY_SUFFIX
- *
- * This allows consumers iterating over entries to see both states while
- * maintaining backward compatibility for .get(path) lookups.
- */
-const UNSTAGED_KEY_SUFFIX = "\0unstaged";
 
 /**
  * Paths within .git/ to ignore when watching.

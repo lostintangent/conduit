@@ -4,7 +4,11 @@ import {
   type QueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import type { GitFileStatus, GitStatus } from "../model";
+import {
+  type GitFileStatus,
+  type GitStatus,
+  UNSTAGED_KEY_SUFFIX,
+} from "../model";
 import { cwdForGitSubscription, type GitV2API } from "./GitV2API";
 
 type ChangedFiles = Map<string, GitFileStatus>;
@@ -192,9 +196,10 @@ export const gitQueries = {
   /**
    * A file's content at a ref, where "" is the index. Main reads it only once
    * the cwd is watched. It throws when the file or ref isn't there, which
-   * callers expect, so that isn't logged. Nothing reports when a ref moves, so
-   * it's re-read on every mount and dropped when unused, rather than shown
-   * stale.
+   * callers expect, so that isn't logged. The bridge re-reads open ones when
+   * their file's status or their ref moves. Nothing reports some moves (a ref
+   * that isn't HEAD's, say), so it's also re-read on every mount and dropped
+   * when unused.
    */
   fileAtRef: (git: GitV2API, filePath: string, ref: string) =>
     queryOptions({
@@ -338,12 +343,61 @@ export function applyGitStatus(
   });
 }
 
-function invalidateHistory(queryClient: QueryClient, cwd: string): void {
+/**
+ * Re-read the open git sides of `cwd`'s diffs that `moved` picks by ref and
+ * file. Each keeps its content until the new read lands, and a read that
+ * comes back the same keeps its data, so only diffs that changed redraw.
+ */
+function refreshFileSides(
+  queryClient: QueryClient,
+  cwd: string,
+  moved: (ref: string, filePath: string) => boolean,
+): void {
+  void queryClient.invalidateQueries({
+    queryKey: [...gitKeys.all(cwd), "fileAtRef"],
+    predicate: ({ queryKey }) =>
+      moved(String(queryKey[3]), String(queryKey[4])),
+  });
+}
+
+/** A full commit id, which never moves, as opposed to a branch's name. */
+const isCommitId = (ref: string) => /^[0-9a-f]{40}([0-9a-f]{24})?$/.test(ref);
+
+/**
+ * Re-read what a branch or HEAD moving changes: the history, and the open
+ * diff sides read at a branch rather than at a commit.
+ */
+function refsMoved(queryClient: QueryClient, cwd: string): void {
   void queryClient.invalidateQueries({ queryKey: gitKeys.commitHistory(cwd) });
   void queryClient.invalidateQueries({
     queryKey: gitKeys.trackedBranches(cwd),
   });
+  refreshFileSides(
+    queryClient,
+    cwd,
+    (ref) => ref !== "" && ref !== "HEAD" && !isCommitId(ref),
+  );
 }
+
+/**
+ * The files a status event's delta names. A partially staged file's unstaged
+ * entry is keyed with a suffix, which is dropped.
+ */
+function changedFiles(keys: string[]): string[] {
+  return keys.map((key) =>
+    key.endsWith(UNSTAGED_KEY_SUFFIX)
+      ? key.slice(0, -UNSTAGED_KEY_SUFFIX.length)
+      : key,
+  );
+}
+
+/**
+ * Whether `filePath` may be `file`, which is relative to git's root. The root
+ * isn't known here, so a file of the same name further down matches too,
+ * which costs it a read.
+ */
+const mayBeFile = (filePath: string, file: string) =>
+  filePath === file || filePath.endsWith(`/${file}`);
 
 /**
  * Write git watcher events into the cache. Call once at startup: a single
@@ -358,17 +412,32 @@ export function installGitQueryBridge(queryClient: QueryClient): () => void {
 
   const { git } = window.conduit;
   const cleanups = [
-    git.on("statusChanged", ({ subscriptionId, status }) => {
-      const cwd = cwdForGitSubscription(subscriptionId);
+    git.on("statusChanged", (event) => {
+      const cwd = cwdForGitSubscription(event.subscriptionId);
       if (cwd === undefined) return;
 
+      const { status } = event;
       applyGitStatus(queryClient, cwd, status);
+
+      // A file staged, unstaged or reverted changes status, and its index
+      // side may have changed with it
+      const files = changedFiles([
+        ...event.added,
+        ...event.modified,
+        ...event.removed,
+      ]);
+      refreshFileSides(
+        queryClient,
+        cwd,
+        (ref, filePath) =>
+          ref === "" && files.some((file) => mayBeFile(filePath, file)),
+      );
 
       const refs = [status.ahead, status.behind, status.upstream].join(" ");
       const previous = reportedRefs.get(cwd);
       reportedRefs.set(cwd, refs);
       if (previous !== undefined && previous !== refs) {
-        invalidateHistory(queryClient, cwd);
+        refsMoved(queryClient, cwd);
       }
     }),
 
@@ -376,14 +445,20 @@ export function installGitQueryBridge(queryClient: QueryClient): () => void {
       const cwd = cwdForGitSubscription(subscriptionId);
       if (cwd !== undefined) {
         queryClient.setQueryData(gitKeys.currentBranch(cwd), currentBranch);
-        invalidateHistory(queryClient, cwd);
+        refsMoved(queryClient, cwd);
       }
     }),
 
     git.on("headChanged", ({ subscriptionId }) => {
       const cwd = cwdForGitSubscription(subscriptionId);
       if (cwd !== undefined) {
-        invalidateHistory(queryClient, cwd);
+        refsMoved(queryClient, cwd);
+        // A checkout or reset moves the index with HEAD
+        refreshFileSides(
+          queryClient,
+          cwd,
+          (ref) => ref === "HEAD" || ref === "",
+        );
       }
     }),
   ];

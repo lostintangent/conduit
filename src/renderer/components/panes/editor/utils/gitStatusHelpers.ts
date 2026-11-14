@@ -13,7 +13,11 @@
  * Use the branded types (MapKey, FilePath) from types.ts for type safety.
  */
 
-import type { CommitFile, GitFileStatus } from "@features/git/model";
+import {
+  type CommitFile,
+  type GitFileStatus,
+  UNSTAGED_KEY_SUFFIX,
+} from "@features/git/model";
 import {
   type FileChangeDisplay,
   type FilePath,
@@ -22,18 +26,7 @@ import {
   asMapKey,
 } from "../types";
 
-// ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Suffix used to distinguish unstaged entries of partially staged files
- * in the git status Map.
- *
- * This suffix is appended to file paths to create unique MapKeys for
- * unstaged entries when a file has both staged and unstaged changes.
- */
-export const UNSTAGED_KEY_SUFFIX = "\0unstaged";
+export { UNSTAGED_KEY_SUFFIX };
 
 // ============================================================================
 // MapKey Helpers - Centralized operations for MapKey <-> FilePath conversion

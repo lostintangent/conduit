@@ -34,6 +34,7 @@ export {
 } from "./pathUtils";
 export { formatRelativeTime, formatFullDate } from "@/utils/time";
 export { forceTokenizeVisibleLines } from "./tokenization";
+export { replaceModelContent } from "./modelContent";
 export {
   filterDirtyFilesForStaging,
   notifyDirtyFilesSkipped,
