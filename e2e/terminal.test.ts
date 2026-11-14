@@ -79,6 +79,7 @@ describe("terminal and CLI", () => {
 
     await pane.type("conduit duplicate\n");
     await count(tabs(), before + 2, "tabs after a duplicate");
+    // A shell, not a replay of the running `conduit duplicate`.
     const copy = await app.terminal();
     expect(await pane.locator.isVisible()).toBe(false);
 

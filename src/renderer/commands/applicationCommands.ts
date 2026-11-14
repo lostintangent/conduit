@@ -351,10 +351,11 @@ export function registerApplicationCommands(
       group: "2_tab",
       order: 2,
     },
-    run: (context, tabId?: string) => {
+    run: async (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       if (targetTabId) {
-        void duplicateTab(targetTabId);
+        // Awaited so `conduit duplicate` returns once the copy exists.
+        await duplicateTab(targetTabId);
       }
     },
   });

@@ -48,6 +48,16 @@ const isShellProcess = (command: string): boolean => {
 };
 
 /**
+ * Checks if a command is the `conduit` CLI, which runs as this app's own
+ * binary (see ipc/cli/launchers.ts). Replaying it outside the CLI's launcher
+ * starts a second Conduit, so it's never a command to capture.
+ */
+const isConduitCli = (command: string): boolean =>
+  command === process.execPath ||
+  command.startsWith(`${process.execPath} `) ||
+  command === path.basename(process.execPath);
+
+/**
  * Parses the output of `ps` command into structured process information.
  * Expected format: "pid ppid stat command"
  */
@@ -135,6 +145,7 @@ const getProcessesForTty = async (tty: string): Promise<ProcessInfo[]> => {
  * Skips:
  * - Shell processes (bash, zsh, etc.)
  * - Zombie processes (stat starts with 'Z')
+ * - The `conduit` CLI
  */
 const pickActiveCommand = (
   processes: ProcessInfo[],
@@ -180,8 +191,7 @@ const pickActiveCommand = (
         continue;
       }
 
-      const isShell = isShellProcess(command);
-      if (!isShell) {
+      if (!isShellProcess(command) && !isConduitCli(command)) {
         if (child.stat.includes("+")) {
           return command;
         }
@@ -264,7 +274,7 @@ const commandFromProcessTitle = (
     return null;
   }
 
-  if (isShellProcess(trimmed)) {
+  if (isShellProcess(trimmed) || isConduitCli(trimmed)) {
     return null;
   }
 

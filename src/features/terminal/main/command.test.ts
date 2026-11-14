@@ -1,26 +1,30 @@
-import { describe, it, expect } from "vitest";
+import path from "node:path";
+import { describe, it, expect, vi } from "vitest";
 import { captureTerminalCommand } from "./command";
 import type { TerminalInstance } from "./types";
 import type { IPty } from "node-pty";
 
+const execFile = vi.hoisted(() => vi.fn());
+vi.mock("node:child_process", () => ({ execFile, default: { execFile } }));
+
+/** Answers `ps` as if `processes` ("pid ppid stat command" rows) ran on a tty. */
+function fakePs(processes: string) {
+  execFile.mockImplementation(
+    (_file: string, args: string[], callback: Function) => {
+      const stdout = args[0] === "-p" ? "ttys001\n" : processes;
+      callback(null, { stdout, stderr: "" });
+    },
+  );
+}
+
 /**
  * Unit tests for captureTerminalCommand utility.
- *
- * Note: These tests focus on the testable logic (invalid states, fallback behavior,
- * shell detection) without mocking child_process. The core process introspection
- * logic (detectActiveCommand) that uses `ps` commands is better suited for
- * integration testing or manual QA.
  *
  * What's tested:
  * - Invalid terminal states (bad PIDs)
  * - lastProcessName fallback behavior
  * - Shell name filtering
- *
- * What's not tested (requires complex mocking or integration tests):
- * - TTY detection via `ps -p <pid> -o tty=`
- * - Process tree analysis via `ps -t <tty>`
- * - Foreground process prioritization
- * - Zombie process filtering
+ * - The foreground command in the shell's process tree, from a fake `ps`
  */
 describe("captureTerminalCommand", () => {
   describe("invalid terminal state", () => {
@@ -144,6 +148,36 @@ describe("captureTerminalCommand", () => {
         const result = await captureTerminalCommand(mockTerminal);
         expect(result).toBe(program);
       }
+    });
+  });
+
+  describe("process introspection", () => {
+    const shell = (lastProcessName = "zsh"): TerminalInstance => ({
+      id: "terminal-1",
+      pty: { pid: 100 } as IPty,
+      cwd: "/home/user",
+      lastProcessName,
+      isRendererReady: true,
+      bufferedOutput: [],
+    });
+
+    it("captures the shell's foreground command", async () => {
+      fakePs("100 1 Ss -zsh\n200 100 S+ npm run dev\n");
+      expect(await captureTerminalCommand(shell())).toBe("npm run dev");
+    });
+
+    // A copy that replays the CLI, like `conduit duplicate`, starts a second
+    // Conduit, since it runs without the launcher's ELECTRON_RUN_AS_NODE.
+    it("doesn't capture the conduit CLI", async () => {
+      const cli = `${process.execPath} /app/dist/main/cli.js duplicate`;
+      fakePs(`100 1 Ss -zsh\n200 100 S+ ${cli}\n`);
+      expect(await captureTerminalCommand(shell())).toBeNull();
+    });
+
+    it("doesn't fall back to the conduit CLI's process name", async () => {
+      fakePs("100 1 Ss -zsh\n");
+      const title = path.basename(process.execPath);
+      expect(await captureTerminalCommand(shell(title))).toBeNull();
     });
   });
 });
