@@ -37,6 +37,8 @@ export const gitKeys = {
     [...gitKeys.all(cwd), "commit", commitId] as const,
   commitFiles: (cwd: string, commitId: string) =>
     [...gitKeys.all(cwd), "commitFiles", commitId] as const,
+  fileAtRef: (cwd: string, ref: string, filePath: string) =>
+    [...gitKeys.all(cwd), "fileAtRef", ref, filePath] as const,
 };
 
 /** Wait for the watcher before reading, so no change lands in between unseen. */
@@ -185,6 +187,23 @@ export const gitQueries = {
       queryKey: gitKeys.commitFiles(git.cwd, commitId),
       queryFn: () => window.conduit.git.getCommitFiles(git.cwd, commitId),
       staleTime: Infinity,
+    }),
+
+  /**
+   * A file's content at a ref, where "" is the index. Main reads it only once
+   * the cwd is watched. It throws when the file or ref isn't there, which
+   * callers expect, so that isn't logged. Nothing reports when a ref moves, so
+   * it's re-read on every mount and dropped when unused, rather than shown
+   * stale.
+   */
+  fileAtRef: (git: GitV2API, filePath: string, ref: string) =>
+    queryOptions({
+      queryKey: gitKeys.fileAtRef(git.cwd, ref, filePath),
+      queryFn: read(git, (cwd) =>
+        window.conduit.git.getFileAtRef(cwd, filePath, ref),
+      ),
+      gcTime: 0,
+      meta: { quiet: true },
     }),
 };
 

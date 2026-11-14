@@ -10,6 +10,10 @@
  * - 'workingDirectory': Content from filesystem (only valid for modified side)
  * - Any other string: Content from that git ref
  *
+ * Git sides are read through `gitQueries.fileAtRef` once the cwd is watched,
+ * so diffs of the same file share a read. The working directory side comes
+ * from the model editors share.
+ *
  * @example
  * ```tsx
  * // Staged changes: HEAD → Index
@@ -32,7 +36,11 @@
  * ```
  */
 
-import { useEffect, useRef, useState } from "react";
+import type { GitV2API } from "@features/git/client/GitV2API";
+import { gitQueries } from "@features/git/client/queries";
+import { useGitV2 } from "@features/git/components/useGitV2";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { MonacoModelRegistry, createModelKey } from "../registry";
 import { type ContentSource, contentSourceToGitRef } from "../types";
 import { isBinaryContent } from "../utils";
@@ -183,6 +191,9 @@ function createDiffError(
   };
 }
 
+/** What one side of the diff read: its content, or why it couldn't. */
+type Read = { content: string | null } | { error: unknown };
+
 export function useDiffContent(
   filePath: string | null,
   cwd: string,
@@ -197,225 +208,171 @@ export function useDiffContent(
   // Determine if modified side is editable (only workingDirectory is editable)
   const isModifiedEditable = modifiedSource === "workingDirectory";
 
-  const [state, setState] = useState<DiffContent>({
-    original: null,
-    modified: null,
-    isLoading: filePath !== null,
-    error: null,
-    errorMessage: null,
-    isModifiedEditable,
-  });
+  const git = useGitV2(cwd);
+  const originalRef = contentSourceToGitRef(originalSource);
+  const modifiedRef = isModifiedEditable
+    ? null
+    : contentSourceToGitRef(modifiedSource);
 
-  // Track mounted state to avoid state updates after unmount
-  const isMountedRef = useRef(true);
+  // For renamed files, the original side is read at the path before the rename
+  const originalPath = filePath === null ? null : originalFilePath || filePath;
+  const original = useFileAtRef(git, originalPath, originalRef);
+  const modifiedFromGit = useFileAtRef(
+    git,
+    modifiedRef === null ? null : filePath,
+    modifiedRef ?? "",
+  );
+  const workingCopy = useWorkingCopy(isModifiedEditable ? filePath : null, cwd);
+  const modified = isModifiedEditable ? workingCopy : modifiedFromGit;
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    // If no file path, reset state
-    if (filePath === null) {
-      setState({
-        original: null,
-        modified: null,
-        isLoading: false,
-        error: null,
-        errorMessage: null,
-        isModifiedEditable,
-      });
-      return;
-    }
-
-    // Track if this specific effect instance is still current
-    // This prevents race conditions when filePath changes rapidly
-    let isStale = false;
-
-    // Start loading
-    setState((prev) => ({
-      ...prev,
-      isLoading: true,
+  if (
+    filePath === null ||
+    originalPath === null ||
+    original === undefined ||
+    modified === undefined
+  ) {
+    return {
+      original: null,
+      modified: null,
+      isLoading: filePath !== null,
       error: null,
       errorMessage: null,
-    }));
-
-    const loadContent = async () => {
-      const registry = MonacoModelRegistry.getInstance();
-      const modelKey = createModelKey(filePath);
-      const originalRef = contentSourceToGitRef(originalSource);
-
-      // For renamed files, use originalFilePath to fetch from original source
-      const pathForOriginal = originalFilePath || filePath;
-
-      let originalContent: string | null = null;
-      let modifiedContent: string | null = null;
-      let diffError: DiffError | null = null;
-
-      // 1. Fetch original content from git
-      try {
-        originalContent = await window.conduit.git.getFileAtRef(
-          cwd,
-          pathForOriginal,
-          originalRef,
-        );
-      } catch (error) {
-        // Create specific error for git fetch failure
-        diffError = createDiffError(error, originalRef, pathForOriginal);
-      }
-
-      // Check if effect was cleaned up during async operation
-      if (isStale) {
-        return;
-      }
-
-      // 2. Check for binary content in original
-      if (originalContent !== null && isBinaryContent(originalContent)) {
-        diffError = {
-          type: "binary_file",
-          message: `File "${filePath}" appears to be a binary file`,
-        };
-        originalContent = null;
-      }
-
-      // 3. Get modified content based on source
-      // Also load modified content for not_tracked and not_committed files
-      // so we can show them as "added" in the diff
-      if (
-        diffError === null ||
-        diffError.type === "not_tracked" ||
-        diffError.type === "not_committed"
-      ) {
-        if (modifiedSource === "workingDirectory") {
-          // Working directory: use MonacoModelRegistry for shared, editable model
-          const modelState = registry.getModelState(modelKey);
-
-          if (modelState !== undefined) {
-            // Model exists - get content from it
-            const model = registry.getModel(modelKey);
-            modifiedContent = model?.getValue() ?? null;
-          } else {
-            // Model doesn't exist - try to create it
-            try {
-              const model = await registry.getOrCreateModel(filePath, cwd);
-
-              // Check if effect was cleaned up during async operation
-              if (isStale) {
-                return;
-              }
-
-              modifiedContent = model.getValue();
-            } catch {
-              // File doesn't exist in working directory either
-              if (diffError === null) {
-                diffError = {
-                  type: "file_not_found",
-                  message: `File "${filePath}" not found`,
-                };
-              }
-            }
-          }
-        } else {
-          // Git source: fetch from git (read-only)
-          const modifiedRef = contentSourceToGitRef(modifiedSource);
-          try {
-            modifiedContent = await window.conduit.git.getFileAtRef(
-              cwd,
-              filePath,
-              modifiedRef,
-            );
-          } catch (error) {
-            // Only set error if we don't already have one from original
-            if (diffError === null) {
-              diffError = createDiffError(error, modifiedRef, filePath);
-            }
-          }
-        }
-
-        // Check if effect was cleaned up during async operation
-        if (isStale) {
-          return;
-        }
-
-        // 4. Check for binary content in modified
-        if (
-          modifiedContent !== null &&
-          diffError === null &&
-          isBinaryContent(modifiedContent)
-        ) {
-          diffError = {
-            type: "binary_file",
-            message: `File "${filePath}" appears to be a binary file`,
-          };
-          modifiedContent = null;
-        }
-      }
-
-      // 5. Handle case where file is new (not in original source but exists in modified)
-      // This applies to:
-      // - not_tracked: file is completely new and never been committed
-      // - not_committed: file exists but not in the original source
-      if (
-        (diffError?.type === "not_tracked" ||
-          diffError?.type === "not_committed") &&
-        modifiedContent !== null
-      ) {
-        // This is okay - it's a new file being added
-        // Clear the error since we can still show a diff (empty original vs modified)
-        originalContent = "";
-        diffError = null;
-      }
-
-      // Only update state if still mounted AND this effect is still current
-      // The isStale check prevents race conditions when rapidly switching files
-      if (isMountedRef.current && !isStale) {
-        setState({
-          original: originalContent,
-          modified: modifiedContent,
-          isLoading: false,
-          error: diffError,
-          errorMessage: diffError?.message ?? null,
-          isModifiedEditable,
-        });
-      }
+      isModifiedEditable,
     };
+  }
 
-    // Call loadContent with error handling to prevent unhandled rejections
-    loadContent().catch((error) => {
-      // Handle any unexpected errors that weren't caught inside loadContent
-      console.error("Unexpected error loading diff content:", error);
-      if (isMountedRef.current && !isStale) {
-        setState({
-          original: null,
-          modified: null,
-          isLoading: false,
-          error: {
-            type: "unknown",
-            message:
-              error instanceof Error ? error.message : "Failed to load diff",
-          },
-          errorMessage:
-            error instanceof Error ? error.message : "Failed to load diff",
-          isModifiedEditable,
-        });
-      }
-    });
-
-    // Cleanup: mark this effect as stale when dependencies change
-    // This prevents older fetches from overwriting newer results
-    return () => {
-      isStale = true;
-    };
-  }, [
+  const diff = compare(
     filePath,
-    cwd,
-    originalSource,
-    modifiedSource,
+    { read: original, ref: originalRef, path: originalPath },
+    { read: modified, ref: modifiedRef },
+  );
+  return {
+    ...diff,
+    isLoading: false,
+    errorMessage: diff.error?.message ?? null,
     isModifiedEditable,
-    originalFilePath,
-  ]);
+  };
+}
 
-  return state;
+/** A file's content at a git ref, or undefined while it loads. */
+function useFileAtRef(
+  git: GitV2API,
+  filePath: string | null,
+  ref: string,
+): Read | undefined {
+  const query = useQuery({
+    ...gitQueries.fileAtRef(git, filePath ?? "", ref),
+    enabled: filePath !== null,
+  });
+  if (query.isSuccess) return { content: query.data };
+  if (query.isError) return { error: query.error };
+  return undefined;
+}
+
+/**
+ * The working copy's content when the diff opens, from the model editors
+ * share, or undefined while it loads. Later edits reach the diff through that
+ * model rather than through this.
+ */
+function useWorkingCopy(
+  filePath: string | null,
+  cwd: string,
+): Read | undefined {
+  const [loaded, setLoaded] = useState<{
+    filePath: string;
+    cwd: string;
+    read: Read;
+  } | null>(null);
+
+  useEffect(() => {
+    if (filePath === null) return;
+    let current = true;
+    void readWorkingCopy(filePath, cwd).then((read) => {
+      if (current) setLoaded({ filePath, cwd, read });
+    });
+    return () => {
+      current = false;
+    };
+  }, [filePath, cwd]);
+
+  return loaded?.filePath === filePath && loaded.cwd === cwd
+    ? loaded.read
+    : undefined;
+}
+
+async function readWorkingCopy(filePath: string, cwd: string): Promise<Read> {
+  const registry = MonacoModelRegistry.getInstance();
+  const modelKey = createModelKey(filePath);
+
+  // An open model has the content, along with any unsaved edits
+  if (registry.getModelState(modelKey) !== undefined) {
+    return { content: registry.getModel(modelKey)?.getValue() ?? null };
+  }
+  try {
+    return {
+      content: (await registry.getOrCreateModel(filePath, cwd)).getValue(),
+    };
+  } catch (error) {
+    return { error };
+  }
+}
+
+/**
+ * Diff what each side read. A file that's missing from the original side but
+ * present on the modified side is shown as added. Otherwise the original
+ * side's error wins, and the modified side isn't shown.
+ */
+function compare(
+  filePath: string,
+  original: { read: Read; ref: string; path: string },
+  modified: { read: Read; ref: string | null },
+): Pick<DiffContent, "original" | "modified" | "error"> {
+  let originalContent: string | null = null;
+  let modifiedContent: string | null = null;
+  let error: DiffError | null = null;
+
+  if ("error" in original.read) {
+    error = createDiffError(original.read.error, original.ref, original.path);
+  } else if (
+    original.read.content !== null &&
+    isBinaryContent(original.read.content)
+  ) {
+    error = binaryFile(filePath);
+  } else {
+    originalContent = original.read.content;
+  }
+
+  if (error === null || isMissing(error)) {
+    if ("error" in modified.read) {
+      error ??=
+        modified.ref === null
+          ? { type: "file_not_found", message: `File "${filePath}" not found` }
+          : createDiffError(modified.read.error, modified.ref, filePath);
+    } else if (
+      error === null &&
+      modified.read.content !== null &&
+      isBinaryContent(modified.read.content)
+    ) {
+      error = binaryFile(filePath);
+    } else {
+      modifiedContent = modified.read.content;
+    }
+  }
+
+  if (error !== null && isMissing(error) && modifiedContent !== null) {
+    return { original: "", modified: modifiedContent, error: null };
+  }
+  return { original: originalContent, modified: modifiedContent, error };
+}
+
+/** Whether the original side lacks the file, as it does for a new one. */
+function isMissing(error: DiffError): boolean {
+  return error.type === "not_tracked" || error.type === "not_committed";
+}
+
+function binaryFile(filePath: string): DiffError {
+  return {
+    type: "binary_file",
+    message: `File "${filePath}" appears to be a binary file`,
+  };
 }

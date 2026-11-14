@@ -9,6 +9,10 @@ import { enqueueNotification } from "@/store/actions/notifications";
 
 declare module "@tanstack/react-query" {
   interface Register {
+    queryMeta: {
+      /** Don't log failures, which the component expects and shows. */
+      quiet?: boolean;
+    };
     mutationMeta: {
       /**
        * Notify when the mutation fails, with this message and the error as
@@ -30,8 +34,11 @@ declare module "@tanstack/react-query" {
 export function createQueryClient(): QueryClient {
   return new QueryClient({
     queryCache: new QueryCache({
-      onError: (error, query) =>
-        console.error("[query] Failed to load", query.queryKey, error),
+      onError: (error, query) => {
+        if (!query.meta?.quiet) {
+          console.error("[query] Failed to load", query.queryKey, error);
+        }
+      },
     }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _onMutateResult, mutation) => {
