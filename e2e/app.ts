@@ -387,6 +387,15 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       page = found;
     };
     await connect();
+    // A feature whose startup throws no longer keeps the window from opening,
+    // so the log is the only sign of it.
+    const failedStartups = fs
+      .readFileSync(path.join(home, "app.log"), "utf8")
+      .split("\n")
+      .filter((line) => /^Feature ".+" didn't start/.test(line));
+    if (failedStartups.length > 0) {
+      throw new Error(`${failedStartups.join("\n")}\nSee ${home}/app.log`);
+    }
     return {
       home,
       get page() {

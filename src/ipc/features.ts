@@ -54,11 +54,18 @@ export const featuresArgument = `--features=${JSON.stringify(
 
 /**
  * Runs every startup, then serves each method as `<feature>:<method>`.
- * Returns the disposer that quit awaits.
+ * Returns the disposer that quit awaits. A startup that throws is logged and
+ * skipped, so one feature can't keep the window from opening.
  */
 export async function startFeatures(): Promise<() => Promise<void>> {
   const disposers = await Promise.all(
-    Object.values(startups).map((startup) => startup()),
+    Object.entries(startups).map(async ([name, startup]) => {
+      try {
+        return await startup();
+      } catch (error) {
+        console.error(`Feature "${name}" didn't start:`, error);
+      }
+    }),
   );
 
   for (const [name, service] of Object.entries(services)) {

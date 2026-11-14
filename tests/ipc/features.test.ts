@@ -23,9 +23,13 @@ vi.mock("../../src/features/workspaces/main/startup", () => ({
   },
 }));
 
-// These read and watch the user's real settings and dotfiles.
+// These read and watch the user's real settings and dotfiles. The settings
+// startup throws when a test asks it to.
+const settingsStartup = vi.hoisted(() => ({ throws: false }));
 vi.mock("../../src/features/settings/main/startup", () => ({
-  default: () => {},
+  default: () => {
+    if (settingsStartup.throws) throw new Error("Couldn't watch settings.json");
+  },
 }));
 vi.mock("../../src/features/dotfiles/main/startup", () => ({
   default: () => {},
@@ -74,5 +78,20 @@ describe("feature discovery", () => {
     workspaces.release();
     await stopping;
     expect(workspaces.stopped).toBe(true);
+  });
+
+  it("serves every feature even when one feature's startup throws", async () => {
+    handlers.clear();
+    settingsStartup.throws = true;
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await startFeatures();
+
+    expect(handlers.size).toBe(Object.values(manifest).flat().length);
+    expect(logged).toHaveBeenCalledWith(
+      'Feature "settings" didn\'t start:',
+      expect.any(Error),
+    );
+    logged.mockRestore();
   });
 });
