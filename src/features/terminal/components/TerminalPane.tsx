@@ -126,12 +126,11 @@ const registerTerminalKeyHandler = ({
  *
  * 1. React renders <TerminalPane/>.
  * 2. We call getOrCreate(sessionId, paneId) to reuse or construct an xterm instance and its addons
- *    (fit/search/weblinks). The instance keeps a ready flag so we don’t re-signal readiness later.
+ *    (fit/search/weblinks).
  * 3. attach(paneId, container) mounts the xterm DOM into the pane.
  * 4. The fit controller owns a ResizeObserver and a single RAF-driven loop. It fits the terminal DOM
- *    to the container, resizes the PTY only when cols/rows change, and marks the session ready after
- *    the first successful fit. terminal.markReady() forwards that signal to the main process so it
- *    can flush buffered PTY output.
+ *    to the container and resizes the PTY on its first fit and whenever cols/rows change. The first
+ *    resize also tells the main process it can send the PTY output it kept.
  * 5. As the terminal receives data it renders inside the pane; keypresses send input to the PTY via IPC.
  * 6. When the pane unmounts we dispose, removing event listeners and releasing the xterm instance.
  */

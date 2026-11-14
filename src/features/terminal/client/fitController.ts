@@ -71,8 +71,6 @@ export function createFitController({
       showDimensionsOverlay(cols, rows);
     }
     hasFit = true;
-
-    entry.markReady();
   }
 
   function scheduleFit() {

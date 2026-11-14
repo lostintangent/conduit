@@ -4,7 +4,9 @@ export type TerminalInstance = {
   id: string;
   pty: IPty;
 
+  /** A pane has fit this shell, so it can show its output. */
   isRendererReady: boolean;
+  /** What the shell printed before a pane fit it. */
   bufferedOutput: string;
   /** Characters sent to the renderer that it hasn't parsed yet. */
   unacknowledged: number;

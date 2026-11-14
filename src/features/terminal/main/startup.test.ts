@@ -8,7 +8,6 @@ vi.mock("./store/actions", async () => {
   const store = await import("./store");
   return {
     createTerminal: vi.fn(),
-    markTerminalReady: vi.fn(),
     killTerminal: vi.fn(async (id: string) => {
       const terminal = store.getTerminal(id);
       store.removeTerminal(id);

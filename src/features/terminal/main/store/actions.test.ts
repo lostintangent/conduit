@@ -16,7 +16,6 @@ import {
   acknowledgeTerminalOutput,
   createTerminal,
   killTerminal,
-  markTerminalReady,
   resizeTerminal,
   setTerminalVisible,
   writeTerminal,
@@ -68,7 +67,6 @@ describe("a terminal that waits for its size", () => {
       expect(spawnTerminalProcess).not.toHaveBeenCalled();
 
       resizeTerminal(id, cols, rows);
-      markTerminalReady(id);
       pty.onData.mock.calls[0][0](PROMPT);
 
       expect(spawnTerminalProcess).toHaveBeenCalledTimes(1);
@@ -80,21 +78,12 @@ describe("a terminal that waits for its size", () => {
       );
       expect(pty.resize).not.toHaveBeenCalled();
       expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
+      expect(emit).toHaveBeenCalledWith("data", {
+        sessionId: id,
+        data: PROMPT,
+      });
     },
   );
-
-  it("runs its command even if the pane is ready before it's sized", async () => {
-    const { id } = await createTerminal({
-      command: "npm run dev",
-      waitForSize: true,
-    });
-
-    markTerminalReady(id);
-    resizeTerminal(id, 69, 24);
-    pty.onData.mock.calls[0][0](PROMPT);
-
-    expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
-  });
 
   it("keeps input sent before its first fit, like an agent's command", async () => {
     const { id } = await createTerminal({ waitForSize: true });
@@ -174,7 +163,7 @@ describe("a restored terminal", () => {
     output(PROMPT);
     expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
 
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     expect(pty.write).toHaveBeenCalledTimes(1);
   });
 
@@ -182,7 +171,7 @@ describe("a restored terminal", () => {
   it("waits for the shell's first prompt when its pane shows first", async () => {
     const { id } = await createTerminal({ command: "npm run dev" });
 
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     expect(pty.write).not.toHaveBeenCalled();
 
     output(PROMPT);
@@ -195,7 +184,7 @@ describe("a restored terminal", () => {
     vi.useFakeTimers();
     const { id } = await createTerminal({ command: "npm run dev" });
 
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     output("bash-3.2$ ");
     vi.advanceTimersByTime(2_999);
     expect(pty.write).not.toHaveBeenCalled();
@@ -206,13 +195,13 @@ describe("a restored terminal", () => {
     expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
   });
 
-  it("keeps only its latest output until it shows", async () => {
+  it("keeps only its latest output until a pane fits it", async () => {
     const { id } = await createTerminal({ command: "npm run dev" });
 
     const line = `${"x".repeat(99)}\n`;
     for (let i = 0; i < 30_000; i++) output(line);
     output("last\n");
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
 
     const sent = vi
       .mocked(emit)
@@ -247,7 +236,7 @@ describe("a restored terminal", () => {
     expect(reports()).toHaveLength(3);
 
     output("d");
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     output("e");
     vi.advanceTimersByTime(1_000);
     expect(reports()).toHaveLength(3);
@@ -279,7 +268,7 @@ describe("a terminal's output", () => {
 
   it("sends a burst's first read right away and the rest every 5 ms as one message", async () => {
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
 
     output("a");
     output("b");
@@ -296,7 +285,7 @@ describe("a terminal's output", () => {
 
   it("sends what it holds before its shell's exit", async () => {
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
 
     output("a");
     output("b");
@@ -312,7 +301,7 @@ describe("a terminal's output", () => {
 
   it("pauses its shell 100,000 characters ahead of the renderer until the renderer catches up", async () => {
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
 
     const chunk = "x".repeat(1_000);
     for (let i = 0; i < 100; i++) output(chunk);
@@ -330,7 +319,7 @@ describe("a terminal's output", () => {
 
   it("holds a hidden shell's output for 250 ms, and sends it once the shell shows", async () => {
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     setTerminalVisible(id, false);
 
     output("a");
@@ -352,7 +341,7 @@ describe("a terminal's output", () => {
 
   it("sends a hidden shell's output early once it holds 100,000 characters", async () => {
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     setTerminalVisible(id, false);
 
     const chunk = "x".repeat(1_000);
@@ -366,7 +355,7 @@ describe("a terminal's output", () => {
   it("reads a paused shell's pty to the end once the shell exits", async () => {
     const kill = vi.spyOn(process, "kill").mockReturnValue(true);
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     output("x".repeat(100_001));
     expect(pty.pause).toHaveBeenCalledTimes(1);
 
@@ -390,19 +379,19 @@ describe("a terminal's output", () => {
     const foreground = vi.fn(() => "zsh");
     Object.defineProperty(pty, "process", { get: foreground });
     const { id } = await createTerminal();
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     foreground.mockClear();
 
     for (let i = 0; i < 10; i++) output("x");
     expect(foreground).not.toHaveBeenCalled();
   });
 
-  it("counts what it kept before its pane showed once it sends it", async () => {
+  it("counts what it kept before its pane fit once it sends it", async () => {
     const { id } = await createTerminal();
     output("x".repeat(100_001));
     expect(pty.pause).not.toHaveBeenCalled();
 
-    markTerminalReady(id);
+    resizeTerminal(id, 80, 24);
     expect(pty.pause).toHaveBeenCalled();
   });
 });

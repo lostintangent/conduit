@@ -6,7 +6,6 @@ const api = vi.hoisted(() => {
       on: vi.fn(),
       ack: vi.fn(),
       input: vi.fn(),
-      ready: vi.fn(),
       resize: vi.fn(),
       setVisible: vi.fn(),
     },

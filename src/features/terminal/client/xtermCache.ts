@@ -75,9 +75,8 @@ export type xtermInstance = {
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
   setInputHandler: (handler: ((input: string) => void) | null) => void;
 
-  ready: boolean;
-  markReady: () => void;
-
+  /** Whether a pane has fit the terminal, which also sizes its shell. */
+  hasFit: boolean;
   resize: (cols: number, rows: number) => void;
   dispose: () => void;
 };
@@ -344,20 +343,17 @@ export function getOrCreate(
       fit,
       search,
       serializer,
-      ready: false,
+      hasFit: false,
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
       },
       setInputHandler: (handler) => {
         inputHandlerRef.current = handler;
       },
-      markReady: () => {
-        if (newInstance.ready) return;
-
-        newInstance.ready = true;
-        api.terminal.ready(sessionId);
+      resize: (cols, rows) => {
+        newInstance.hasFit = true;
+        api.terminal.resize(sessionId, cols, rows);
       },
-      resize: (cols, rows) => api.terminal.resize(sessionId, cols, rows),
       dispose: () => {
         osc7Disposable.dispose();
         osc9Disposable.dispose();
@@ -400,7 +396,7 @@ export function getTerminalSize(
 ): { cols: number; rows: number } | undefined {
   const instance = xtermInstancesByPane.get(paneId);
   // Hidden panes skip fitting, so their last size can be stale.
-  if (!instance?.ready || !instance.terminal.element?.clientWidth) {
+  if (!instance?.hasFit || !instance.terminal.element?.clientWidth) {
     return undefined;
   }
   const { cols, rows } = instance.terminal;

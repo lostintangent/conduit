@@ -33,7 +33,6 @@ describe("createFitController", () => {
       terminal,
       fit: { fit: () => Object.assign(terminal, fitTo) },
       resize: vi.fn(),
-      markReady: vi.fn(),
     };
     const container = document.createElement("div");
     Object.defineProperty(container, "clientWidth", { value: 500 });

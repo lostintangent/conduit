@@ -6,7 +6,6 @@ import {
   acknowledgeTerminalOutput,
   createTerminal,
   killTerminal,
-  markTerminalReady,
   resizeTerminal,
   setTerminalVisible,
   writeTerminal,
@@ -18,9 +17,6 @@ const service = {
     return { sessionId: id, title, cwd };
   },
 
-  /** Called once the renderer can show output, which flushes what buffered. */
-  ready: markTerminalReady,
-
   input: writeTerminal,
 
   /** The renderer has parsed this much output, which can resume a paused shell. */
@@ -29,6 +25,7 @@ const service = {
   /** Output for a shell no pane shows is sent less often. */
   setVisible: setTerminalVisible,
 
+  /** The first resize from a pane also sends the output its shell kept. */
   resize: resizeTerminal,
 
   close: killTerminal,

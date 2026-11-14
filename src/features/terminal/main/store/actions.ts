@@ -11,7 +11,6 @@ type UnsizedTerminal = {
   cwd: string;
   command?: string;
   input: string[];
-  isRendererReady: boolean;
 };
 
 /** Terminals whose shell waits for their pane's first fit to start. */
@@ -78,7 +77,6 @@ export async function createTerminal(options?: TerminalCreateOptions) {
       cwd,
       command: options.command,
       input: [],
-      isRendererReady: false,
     });
     return { id, cwd, title: path.basename(resolveShell()) };
   }
@@ -290,6 +288,11 @@ export function writeTerminal(terminalId: string, data: string) {
   getTerminal(terminalId)?.pty.write(data);
 }
 
+/**
+ * A pane sizes its shell when it first fits, which is also when it can show
+ * the shell's output, so what the shell printed before then goes out as one
+ * message.
+ */
 export function resizeTerminal(terminalId: string, cols: number, rows: number) {
   cols = Math.max(1, Math.floor(cols));
   rows = Math.max(1, Math.floor(rows));
@@ -302,12 +305,21 @@ export function resizeTerminal(terminalId: string, cols: number, rows: number) {
       cols,
       rows,
     });
+    terminal.isRendererReady = true;
     if (unsized.input.length > 0) terminal.pty.write(unsized.input.join(""));
-    if (unsized.isRendererReady) markTerminalReady(terminalId);
     return;
   }
 
-  getTerminal(terminalId)?.pty.resize(cols, rows);
+  const terminal = getTerminal(terminalId);
+  if (!terminal) return;
+  terminal.pty.resize(cols, rows);
+  if (terminal.isRendererReady) return;
+
+  terminal.isRendererReady = true;
+  if (terminal.bufferedOutput) {
+    emitOutput(terminal, terminal.bufferedOutput);
+    terminal.bufferedOutput = "";
+  }
 }
 
 export async function killTerminal(terminalId: string) {
@@ -322,24 +334,5 @@ export async function killTerminal(terminalId: string) {
     terminal.pty.kill();
   } catch (error) {
     console.error("Failed to terminate PTY session", error);
-  }
-}
-
-export function markTerminalReady(terminalId: string) {
-  const unsized = unsizedTerminals.get(terminalId);
-  if (unsized) {
-    unsized.isRendererReady = true;
-    return;
-  }
-
-  const terminal = getTerminal(terminalId);
-  if (!terminal) return;
-
-  terminal.isRendererReady = true;
-
-  // Flush all buffered output as a single message to avoid race conditions
-  if (terminal.bufferedOutput) {
-    emitOutput(terminal, terminal.bufferedOutput);
-    terminal.bufferedOutput = "";
   }
 }
