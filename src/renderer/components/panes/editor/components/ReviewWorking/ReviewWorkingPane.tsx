@@ -192,7 +192,6 @@ export function ReviewWorkingPane({
     markSeen,
     markAllSeen,
     getUnseenCount,
-    unseenCount,
     sortByTimestamp,
   } = unseenTrackingProp ?? DISABLED_UNSEEN_TRACKING;
 
@@ -365,8 +364,9 @@ export function ReviewWorkingPane({
         // Sort order props
         sortByLastEdited={sortByLastEdited}
         onToggleSortOrder={toggleSortOrder}
-        // Unseen tracking props (always active)
-        unseenCount={unseenCount}
+        // Unseen tracking props (always active). Tracking keeps files that
+        // have left the changes, like committed ones, so only these count.
+        unseenCount={stagedUnseenCount + unstagedUnseenCount}
         onMarkAllSeen={markAllSeen}
       />
 

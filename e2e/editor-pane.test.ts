@@ -246,6 +246,8 @@ describe("editor pane", () => {
       await tree().waitFor({ state: "hidden" });
       const review = pane().getByTestId("changes-review-toolbar");
       await review.getByText("Review Changes (2)").waitFor();
+      const unseen = review.getByText(/^• \d+ new$/);
+      await unseen.waitFor();
 
       await pane().getByRole("button", { name: "Stage all" }).click();
       await until(
@@ -265,6 +267,8 @@ describe("editor pane", () => {
       fs.writeFileSync(gate, "");
 
       await review.getByText("Review Changes (0)").waitFor();
+      // It used to keep counting committed files as new.
+      await unseen.waitFor({ state: "detached" });
       expect(git(project, "log", "-1", "--format=%s %an")).toBe(
         "Commit from review E2E\n",
       );
