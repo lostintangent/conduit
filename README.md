@@ -9,7 +9,7 @@
 1. Run `bun install`
 1. Run `bun start`
 
-Run the tests with `bun run test`. Plain `bun test` doesn't isolate test files from each other, which the tests need. `bun lint` lints, `bun check` typechecks the app, and `bun check -p build` typechecks the files that run under Bun.
+Run the tests with `bun run test`. Plain `bun test` doesn't isolate test files from each other, which the tests need. `bun lint` lints, `bun fmt` formats, `bun check` typechecks the app, and `bun check -p build` typechecks the files that run under Bun. `bun install` sets up a pre-commit hook that fixes lint problems in your staged files and formats them.
 
 ## 🚀 Releasing
 

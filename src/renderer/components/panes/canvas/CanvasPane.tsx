@@ -525,7 +525,7 @@ export const CanvasPane = memo(function CanvasPane({
   // ---------------------------------------------------------------------------
   // Sync canvas when dependencies change
   // ---------------------------------------------------------------------------
-  // biome-ignore lint/correctness/useExhaustiveDependencies: canvasSize is intentional trigger
+  // canvasSize is an intentional trigger
   useLayoutEffect(() => {
     renderCanvas();
   }, [canvasSize, renderCanvas]);
@@ -1661,7 +1661,6 @@ export const CanvasPane = memo(function CanvasPane({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: hover detection for design mode
     <div
       className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background outline-none"
       tabIndex={0}
