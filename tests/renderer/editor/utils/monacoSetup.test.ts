@@ -1,10 +1,11 @@
+import type * as monaco from "monaco-editor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { editor, languages, json, typescript, loadMarkdown } = vi.hoisted(() => {
   const loadMarkdown = vi.fn(async () => ({}));
   return {
     loadMarkdown,
-    editor: { addKeybindingRules: vi.fn() },
+    editor: { addKeybindingRules: vi.fn(), registerCommand: vi.fn() },
     languages: {
       register: vi.fn(),
       setMonarchTokensProvider: vi.fn(),
@@ -28,14 +29,16 @@ const { editor, languages, json, typescript, loadMarkdown } = vi.hoisted(() => {
   };
 });
 
-vi.mock("monaco-editor", () => ({
-  editor,
-  languages,
-  json,
-  typescript,
-  KeyMod: { CtrlCmd: 2048, Alt: 512 },
-  KeyCode: { UpArrow: 16, DownArrow: 18 },
-}));
+vi.mock("monaco-editor", async () => {
+  const { KeyMod, KeyCode } = await import("../../../setup/monaco-keys");
+  return { editor, languages, json, typescript, KeyMod, KeyCode };
+});
+
+function addedKeybindingRules(): monaco.editor.IKeybindingRule[] {
+  return editor.addKeybindingRules.mock.calls.flatMap(
+    ([rules]: [monaco.editor.IKeybindingRule[]]) => rules,
+  );
+}
 
 // configureMonaco only runs once per module instance, so each test loads a fresh one
 async function configureFreshMonaco() {
@@ -99,19 +102,50 @@ describe("configureMonaco", () => {
     }
   });
 
-  it("leaves Cmd+Option+Up and Down to pane navigation", async () => {
+  // Each removal has to match one of Monaco's own macOS defaults exactly, or
+  // Monaco ignores it. Checking against the real ones catches a Monaco upgrade
+  // that renames a command or moves its key.
+  it.each([
+    ["alt+cmd+up", "editor.action.insertCursorAbove"],
+    ["alt+cmd+down", "editor.action.insertCursorBelow"],
+    ["cmd+e", "actions.findWithSelection"],
+    ["alt+cmd+w", "toggleFindWholeWord"],
+    ["ctrl+shift+cmd+left", "editor.action.smartSelect.shrink"],
+    ["ctrl+shift+cmd+right", "editor.action.smartSelect.expand"],
+  ])("leaves %s to the app instead of %s", async (key, command) => {
     await configureFreshMonaco();
+    const { keybindingLabel, monacoDefaultKeybindings } =
+      await import("../../../setup/monaco-keys");
 
-    expect(editor.addKeybindingRules).toHaveBeenCalledWith([
-      {
-        keybinding: 2048 | 512 | 16,
-        command: "-editor.action.insertCursorAbove",
-      },
-      {
-        keybinding: 2048 | 512 | 18,
-        command: "-editor.action.insertCursorBelow",
-      },
-    ]);
+    const removals = addedKeybindingRules()
+      .filter((rule) => rule.command === `-${command}`)
+      .map((rule) => keybindingLabel(rule.keybinding));
+    expect(removals).toEqual([key]);
+    expect(await monacoDefaultKeybindings()).toContainEqual(
+      expect.objectContaining({ command, keybinding: key }),
+    );
+  });
+
+  it("keeps Cmd+Option+W for whole-word find while the find widget has focus", async () => {
+    await configureFreshMonaco();
+    const { keybindingLabel, monacoDefaultKeybindings } =
+      await import("../../../setup/monaco-keys");
+    await monacoDefaultKeybindings();
+
+    const readded = addedKeybindingRules().filter(
+      (rule) => rule.command === "toggleFindWholeWord",
+    );
+    expect(readded).toHaveLength(1);
+    expect(keybindingLabel(readded[0].keybinding)).toBe("alt+cmd+w");
+    expect(readded[0].when).toBe("findWidgetFocused");
+
+    const { RawContextKey } = await import(
+      // @ts-expect-error -- untyped ESM internals, imported by path to bypass the monaco-editor alias
+      "../../../../node_modules/monaco-editor/esm/vs/platform/contextkey/common/contextkey.js"
+    );
+    expect(
+      [...RawContextKey.all()].map(({ key }: { key: string }) => key),
+    ).toContain("findWidgetFocused");
   });
 
   // Monaco's markdown contribution registers its own handler at import time.

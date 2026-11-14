@@ -10,7 +10,8 @@
  * - Zig, TOML, Makefile and diff: Monarch tokenizers Monaco doesn't ship
  * - JSONC: .jsonc files open as JSON with comments and trailing commas allowed
  * - TypeScript/JavaScript: diagnostics disabled (custom URI schemes not supported)
- * - Keybindings: Cmd+Option+Up/Down navigate panes instead of adding cursors
+ * - Keybindings: app shortcuts Monaco would take (Cmd+Option+Up/Down, Cmd+E,
+ *   Cmd+Option+W, Ctrl+Shift+Cmd+Left/Right) reach the app
  */
 
 import * as monaco from "monaco-editor";
@@ -112,10 +113,12 @@ export function configureMonaco(): void {
     });
   });
 
-  // Cmd+Option+Arrow navigates panes. Monaco only binds Up and Down (to add a
-  // cursor), and removing those lets the keys reach the app.
+  // App shortcuts that Monaco would otherwise take while an editor has focus.
+  // Removing Monaco's binding lets the key reach the app.
   const { KeyMod, KeyCode } = monaco;
   monaco.editor.addKeybindingRules([
+    // Cmd+Option+Arrow navigates panes. Monaco only binds Up and Down (to add
+    // a cursor).
     {
       keybinding: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.UpArrow,
       command: "-editor.action.insertCursorAbove",
@@ -123,6 +126,35 @@ export function configureMonaco(): void {
     {
       keybinding: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.DownArrow,
       command: "-editor.action.insertCursorBelow",
+    },
+    // Cmd+E toggles the sidebar. Cmd+F already seeds find from the selection.
+    {
+      keybinding: KeyMod.CtrlCmd | KeyCode.KeyE,
+      command: "-actions.findWithSelection",
+    },
+    // Cmd+Option+W duplicates a tab into a worktree. Monaco toggles whole-word
+    // find with it even when the find widget is closed, so keep that only
+    // while the widget has focus.
+    {
+      keybinding: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.KeyW,
+      command: "-toggleFindWholeWord",
+    },
+    {
+      keybinding: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.KeyW,
+      command: "toggleFindWholeWord",
+      when: "findWidgetFocused",
+    },
+    // Ctrl+Shift+Cmd+Arrow splits an agent session pane. Monaco's other
+    // binding, Ctrl+Shift+Left/Right, still shrinks and expands the selection.
+    {
+      keybinding:
+        KeyMod.WinCtrl | KeyMod.Shift | KeyMod.CtrlCmd | KeyCode.LeftArrow,
+      command: "-editor.action.smartSelect.shrink",
+    },
+    {
+      keybinding:
+        KeyMod.WinCtrl | KeyMod.Shift | KeyMod.CtrlCmd | KeyCode.RightArrow,
+      command: "-editor.action.smartSelect.expand",
     },
   ]);
 
