@@ -89,8 +89,9 @@ export const isInAgentSession = new ContextKey<boolean>(
 export const hasCwd = new ContextKey<boolean>("hasCwd", false);
 
 /**
- * Whether the active pane's working directory is a git repository
- * Used by: agent split commands (menu visibility)
+ * Whether the targeted pane's working directory is a git repository. Only the
+ * tab and pane menu builders set it, for the pane they target.
+ * Used by: agent split and worktree menu items (visibility)
  */
 export const hasGitRepo = new ContextKey<boolean>("hasGitRepo", false);
 

@@ -841,7 +841,9 @@ export async function splitPaneWithAgentSession(
   }
 
   const paneCwd =
-    sourcePane.type === "terminal" ? (sourcePane.cwd ?? undefined) : undefined;
+    sourcePane.type === "terminal" || sourcePane.type === "editor"
+      ? (sourcePane.cwd ?? undefined)
+      : undefined;
 
   if (!paneCwd) {
     return;

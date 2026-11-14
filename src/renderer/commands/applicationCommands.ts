@@ -390,11 +390,12 @@ export function registerApplicationCommands(
       "Create an isolated git worktree and duplicate the current tab into it",
     category: "Tab",
     keybinding: { key: "Cmd+Alt+W" },
-    when: When.and(hasGitRepo.isTrue()),
+    // Only menus know hasGitRepo, so the run checks for a repository itself
     menu: {
       id: MenuId.TabContext,
       group: "2_tab/duplicate_into",
       order: 2,
+      when: hasGitRepo.isTrue(),
       title: "Worktree",
     },
     run: async (context, tabId?: string) => {

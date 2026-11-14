@@ -1,16 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createTerminal, getTerminalCellWidth, getTerminalSize } = vi.hoisted(
-  () => {
-    const createTerminal = vi.fn();
-    (window as any).conduit = { terminal: { create: createTerminal } };
-    return {
-      createTerminal,
-      getTerminalCellWidth: vi.fn(),
-      getTerminalSize: vi.fn(),
-    };
-  },
-);
+const {
+  createTerminal,
+  spawnAgentSession,
+  getTerminalCellWidth,
+  getTerminalSize,
+} = vi.hoisted(() => {
+  const createTerminal = vi.fn();
+  const spawnAgentSession = vi.fn();
+  (window as any).conduit = {
+    terminal: { create: createTerminal },
+    spawnAgentSession,
+  };
+  return {
+    createTerminal,
+    spawnAgentSession,
+    getTerminalCellWidth: vi.fn(),
+    getTerminalSize: vi.fn(),
+  };
+});
 
 vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
   ...(await importOriginal<
@@ -20,7 +28,11 @@ vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
   getTerminalSize,
 }));
 
-import { dropPane, splitPane } from "@/store/actions/pane";
+import {
+  dropPane,
+  splitPane,
+  splitPaneWithAgentSession,
+} from "@/store/actions/pane";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { enableMapSet } from "immer";
@@ -227,5 +239,45 @@ describe("splitPane", () => {
     await splitPane("tab-1", "a", "row");
 
     expect(createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
+  });
+});
+
+describe("splitPaneWithAgentSession", () => {
+  it("starts the agent's worktree from an editor pane's folder", async () => {
+    tabsAtom.set([
+      {
+        id: "tab-1",
+        name: "tab-1",
+        panes: { a: { id: "a", type: "editor", cwd: "/repo" } },
+        layout: leaf("a"),
+        activePaneId: "a",
+      },
+    ]);
+    activeTabIdAtom.set("tab-1");
+    spawnAgentSession.mockResolvedValue({
+      id: "agent-1",
+      repoRoot: "/repo",
+      worktreePath: "/worktrees/agent-1",
+      branchName: "agent-1",
+      baseRef: "main",
+      createdAt: 0,
+    });
+    createTerminal.mockReset();
+    createTerminal.mockResolvedValue({ sessionId: "new", title: "zsh" });
+
+    await splitPaneWithAgentSession("tab-1", "a", "row");
+
+    expect(spawnAgentSession).toHaveBeenCalledWith({ cwd: "/repo" });
+    expect(createTerminal).toHaveBeenCalledWith(
+      expect.objectContaining({ cwd: "/worktrees/agent-1" }),
+    );
+    const panes = Object.values(tabsAtom.get()[0].panes);
+    expect(panes).toContainEqual(
+      expect.objectContaining({
+        type: "terminal",
+        agentSessionId: "agent-1",
+        agentWorktreePath: "/worktrees/agent-1",
+      }),
+    );
   });
 });

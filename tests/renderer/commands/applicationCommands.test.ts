@@ -678,4 +678,33 @@ describe("applicationCommands", () => {
       expect(navigatePane).toHaveBeenCalledWith("tab-1", "pane-1", direction);
     });
   });
+
+  // Only the tab and pane menus set hasGitRepo, so the shortcut can't wait on it
+  it("duplicates the tab into a worktree with Cmd+Option+W before any menu opens", async () => {
+    vi.mocked(tabActions.duplicateTabIntoWorktree).mockResolvedValue({
+      tabId: "tab-2",
+      sessionId: "session-2",
+      branchName: "worktree-branch",
+    });
+    const contextKeys = new ContextKeyService();
+    const keybindings = new KeybindingRegistry();
+    const registry = new CommandRegistry(contextKeys, keybindings);
+    registry.setContextBuilder(() =>
+      commandContext({ contextKeys, activeTab: { id: "tab-1" } as Tab }),
+    );
+    registerApplicationCommands(registry);
+    renderHook(() => useKeybindingDispatch(registry, keybindings));
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "w",
+        metaKey: true,
+        altKey: true,
+        bubbles: true,
+      }),
+    );
+    await Promise.resolve();
+
+    expect(tabActions.duplicateTabIntoWorktree).toHaveBeenCalledWith("tab-1");
+  });
 });
