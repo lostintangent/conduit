@@ -11,10 +11,12 @@
  * - JSONC: .jsonc files open as JSON with comments and trailing commas allowed
  * - TypeScript/JavaScript: diagnostics disabled (custom URI schemes not supported)
  * - Keybindings: app shortcuts Monaco would take (Cmd+Option+Up/Down, Cmd+E,
- *   Cmd+Option+W, Ctrl+Shift+Cmd+Left/Right) reach the app
+ *   Cmd+Option+W, Ctrl+Shift+Cmd+Left/Right) reach the app, and the app's
+ *   Cmd+K chords run from editors too
  */
 
 import * as monaco from "monaco-editor";
+import { bridgeAppChords } from "./monacoChordBridge";
 import { MONARCH_LANGUAGES } from "./monarchLanguages";
 
 let isConfigured = false;
@@ -157,6 +159,9 @@ export function configureMonaco(): void {
       command: "-editor.action.smartSelect.expand",
     },
   ]);
+
+  // Cmd+K starts Monaco's own chords, so the app's Cmd+K chords need bridging
+  bridgeAppChords();
 
   // Disable TypeScript/JavaScript diagnostics globally
   // Monaco's TS language service can't resolve imports with custom URI schemes
