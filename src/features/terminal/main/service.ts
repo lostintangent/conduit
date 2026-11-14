@@ -3,6 +3,7 @@ import { captureTerminalCommand } from "./command";
 import { promptTerminal } from "./prompt";
 import { getTerminal } from "./store";
 import {
+  acknowledgeTerminalOutput,
   createTerminal,
   killTerminal,
   markTerminalReady,
@@ -20,6 +21,9 @@ const service = {
   ready: markTerminalReady,
 
   input: writeTerminal,
+
+  /** The renderer has parsed this much output, which can resume a paused shell. */
+  ack: acknowledgeTerminalOutput,
 
   resize: resizeTerminal,
 

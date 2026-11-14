@@ -104,9 +104,28 @@ let dataSubscription: (() => void) | undefined;
 
 function onSessionData(sessionId: string, handler: (data: string) => void) {
   sessionDataHandlers.set(sessionId, handler);
-  dataSubscription ??= api.terminal.on("data", ({ sessionId, data }) =>
-    sessionDataHandlers.get(sessionId)?.(data),
-  );
+  dataSubscription ??= api.terminal.on("data", ({ sessionId, data }) => {
+    const handler = sessionDataHandlers.get(sessionId);
+    if (handler) handler(data);
+    // Nothing shows this session anymore, so its shell shouldn't wait on it.
+    else acknowledge(sessionId, data.length);
+  });
+}
+
+// Main pauses a shell whose output gets too far ahead of what xterm has
+// parsed. Parsed output is acknowledged in batches of at least ACK_CHARS,
+// which stays under main's low watermark so a paused shell always resumes.
+const ACK_CHARS = 5_000;
+const unacknowledged = new Map<string, number>();
+
+function acknowledge(sessionId: string, chars: number) {
+  const total = (unacknowledged.get(sessionId) ?? 0) + chars;
+  if (total < ACK_CHARS) {
+    unacknowledged.set(sessionId, total);
+    return;
+  }
+  unacknowledged.delete(sessionId);
+  api.terminal.ack(sessionId, total);
 }
 
 /**
@@ -218,13 +237,18 @@ export function getOrCreate(
         flushTimer = null;
         if (writeBuffer.length === 0) return;
 
-        const panes = panesBySession.get(sessionId);
-        panes?.forEach((paneId) => {
-          xtermInstancesByPane
-            .get(paneId)
-            ?.terminal.write(writeBuffer.join(""));
-        });
+        const data = writeBuffer.join("");
         writeBuffer = [];
+
+        // Clones parse the same output, so only the first pane's terminal
+        // acknowledges it. A terminal disposed mid-parse still finishes.
+        let parsed: (() => void) | undefined = () =>
+          acknowledge(sessionId, data.length);
+        panesBySession.get(sessionId)?.forEach((paneId) => {
+          xtermInstancesByPane.get(paneId)?.terminal.write(data, parsed);
+          parsed = undefined;
+        });
+        parsed?.();
       };
 
       onSessionData(sessionId, (data) => {
@@ -335,6 +359,7 @@ export function getOrCreate(
           panesBySession.delete(sessionId);
 
           sessionDataHandlers.delete(sessionId);
+          unacknowledged.delete(sessionId);
 
           stateTracker.untrackSession(sessionId);
         }

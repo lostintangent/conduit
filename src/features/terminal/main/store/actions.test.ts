@@ -13,6 +13,7 @@ vi.mock("../events", () => ({ emit: vi.fn() }));
 import { emit } from "../events";
 import { getAllTerminals } from ".";
 import {
+  acknowledgeTerminalOutput,
   createTerminal,
   killTerminal,
   markTerminalReady,
@@ -31,6 +32,8 @@ function fakePty() {
     write: vi.fn(),
     resize: vi.fn(),
     kill: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
   };
 }
 
@@ -215,5 +218,45 @@ describe("a restored terminal", () => {
     expect(data.length).toBeLessThanOrEqual(1_000_000);
     expect(data.startsWith("x")).toBe(true);
     expect(data.endsWith(`${line}last\n`)).toBe(true);
+  });
+});
+
+describe("a terminal's output", () => {
+  let pty: ReturnType<typeof fakePty>;
+  const output = (data: string) => pty.onData.mock.calls[0][0](data);
+
+  beforeEach(() => {
+    pty = fakePty();
+    spawnTerminalProcess.mockReset();
+    spawnTerminalProcess.mockReturnValue(pty);
+  });
+
+  afterEach(() => {
+    getAllTerminals().clear();
+  });
+
+  it("pauses its shell 100,000 characters ahead of the renderer until the renderer catches up", async () => {
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+
+    const chunk = "x".repeat(1_000);
+    for (let i = 0; i < 100; i++) output(chunk);
+    expect(pty.pause).not.toHaveBeenCalled();
+    output(chunk);
+    expect(pty.pause).toHaveBeenCalled();
+
+    acknowledgeTerminalOutput(id, 96_000);
+    expect(pty.resume).not.toHaveBeenCalled();
+    acknowledgeTerminalOutput(id, 1_000);
+    expect(pty.resume).toHaveBeenCalled();
+  });
+
+  it("counts what it kept before its pane showed once it sends it", async () => {
+    const { id } = await createTerminal();
+    output("x".repeat(100_001));
+    expect(pty.pause).not.toHaveBeenCalled();
+
+    markTerminalReady(id);
+    expect(pty.pause).toHaveBeenCalled();
   });
 });

@@ -42,6 +42,20 @@ describe("terminal and CLI", () => {
     expect(await terminal.text()).toContain(`home is ${app.home}\n`);
   });
 
+  it("pauses a shell while the page falls behind its output", async () => {
+    const flooded = path.join(app.home, "flooded");
+    await terminal.type(
+      `sleep 1; yes 0123456789 | head -n 450000; touch ${flooded}; echo E2E-FLOODED\n`,
+    );
+    // A busy page parses nothing, so its paused shell can't write 5 MB yet.
+    await app.page.evaluate(() => {
+      const end = Date.now() + 5_000;
+      while (Date.now() < end) continue;
+    });
+    expect(fs.existsSync(flooded)).toBe(false);
+    await terminal.waitForText(/^E2E-FLOODED$/m, 30_000);
+  });
+
   it("puts a conduit CLI on the PATH that controls this window", async () => {
     expect(await terminal.run("conduit --help | head -3")).toBe(0);
     expect(await terminal.text()).toContain(

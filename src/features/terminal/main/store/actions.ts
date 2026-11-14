@@ -35,6 +35,15 @@ const MAX_BUFFERED_OUTPUT = 1_000_000;
 const LINE_EDITOR_READY = "\x1b[?2004h";
 const LINE_EDITOR_TIMEOUT_MS = 3_000;
 
+/**
+ * A shell whose output gets this many characters ahead of what the renderer
+ * has parsed pauses until the renderer is within the low watermark, so a
+ * flood can't queue up behind a keystroke's echo or overflow xterm. These are
+ * VS Code's values.
+ */
+const HIGH_WATERMARK = 100_000;
+const LOW_WATERMARK = 5_000;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
@@ -81,6 +90,7 @@ function spawnTerminal(
     lastProcessName: pty.process,
     isRendererReady: false,
     bufferedOutput: "",
+    unacknowledged: 0,
     pendingCommand,
     cwd,
   };
@@ -102,7 +112,7 @@ function setupTerminalListeners(terminal: TerminalInstance) {
 
   pty.onData((data) => {
     if (terminal.isRendererReady) {
-      emit("data", { sessionId: id, data });
+      emitOutput(terminal, data);
     } else {
       bufferOutput(terminal, data);
     }
@@ -126,6 +136,20 @@ function setupTerminalListeners(terminal: TerminalInstance) {
       signal: signal ?? null,
     });
   });
+}
+
+function emitOutput(terminal: TerminalInstance, data: string) {
+  emit("data", { sessionId: terminal.id, data });
+  terminal.unacknowledged += data.length;
+  if (terminal.unacknowledged > HIGH_WATERMARK) terminal.pty.pause();
+}
+
+/** The renderer has parsed this many more characters of a shell's output. */
+export function acknowledgeTerminalOutput(terminalId: string, chars: number) {
+  const terminal = getTerminal(terminalId);
+  if (!terminal) return;
+  terminal.unacknowledged = Math.max(0, terminal.unacknowledged - chars);
+  if (terminal.unacknowledged < LOW_WATERMARK) terminal.pty.resume();
 }
 
 function bufferOutput(terminal: TerminalInstance, data: string) {
@@ -209,7 +233,7 @@ export function markTerminalReady(terminalId: string) {
 
   // Flush all buffered output as a single message to avoid race conditions
   if (terminal.bufferedOutput) {
-    emit("data", { sessionId: terminal.id, data: terminal.bufferedOutput });
+    emitOutput(terminal, terminal.bufferedOutput);
     terminal.bufferedOutput = "";
   }
 }
