@@ -3,6 +3,7 @@
 
 ## ⚙️ Developer setup
 
+1. Install Node 22.17 or newer, which Electron Forge needs
 1. Install [Bun](https://bun.sh) canary (`bun upgrade --canary`), which builds and tests the app
 1. Clone this repo
 1. Run `npm install`
