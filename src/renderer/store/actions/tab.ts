@@ -149,7 +149,9 @@ export async function openTab(
   const result = await api.terminal.create({
     cwd: cwd || undefined,
     command: options?.command,
-    ...getNewTabTerminalSize(),
+    // With no pane to measure, as in a fresh window, the shell starts once
+    // the new tab's pane has fit.
+    ...(getNewTabTerminalSize() ?? { waitForSize: true }),
   });
   if (!result) {
     return null;

@@ -3,6 +3,11 @@ export type TerminalCreateOptions = {
   command?: string; // Command to execute when the terminal is ready
   cols?: number;
   rows?: number;
+  /**
+   * With no size, start the shell at the first resize instead of at 80x24, so
+   * a visible pane's first prompt draws at the width the pane fits to.
+   */
+  waitForSize?: boolean;
 };
 
 /* Terminal Prompt Mode types */

@@ -898,4 +898,18 @@ describe("openTab", () => {
       rows: 45,
     });
   });
+
+  it("starts the first terminal in a window once its pane has fit", async () => {
+    mockApi.terminal.create.mockResolvedValue({
+      sessionId: "session-1",
+      cwd: "/home/user",
+      title: "zsh",
+    });
+
+    await openTab();
+
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
+      waitForSize: true,
+    });
+  });
 });

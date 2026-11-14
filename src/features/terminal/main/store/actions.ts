@@ -7,12 +7,40 @@ import { emit } from "../events";
 import { resolveShell, spawnTerminalProcess } from "../pty";
 import type { TerminalInstance } from "../types";
 
+type UnsizedTerminal = {
+  cwd: string;
+  command?: string;
+  isRendererReady: boolean;
+};
+
+/** Terminals whose shell waits for their pane's first fit to start. */
+const unsizedTerminals = new Map<string, UnsizedTerminal>();
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
   const cwd =
     options?.cwd ??
     path.resolve(process.env.HOME ?? process.env.USERPROFILE ?? process.cwd());
+
+  if (options?.waitForSize && !(options.cols && options.rows)) {
+    unsizedTerminals.set(id, {
+      cwd,
+      command: options.command,
+      isRendererReady: false,
+    });
+    return { id, cwd, title: path.basename(resolveShell()) };
+  }
+
+  const terminal = spawnTerminal(id, cwd, options);
+  return { id, cwd, title: terminal.lastProcessName };
+}
+
+function spawnTerminal(
+  id: string,
+  cwd: string,
+  options?: Pick<TerminalCreateOptions, "command" | "cols" | "rows">,
+) {
   const pty = spawnTerminalProcess(id, cwd, options?.cols, options?.rows);
 
   let pendingCommand = options?.command;
@@ -70,7 +98,28 @@ function setupTerminalListeners(terminal: TerminalInstance) {
   });
 }
 
+export function resizeTerminal(terminalId: string, cols: number, rows: number) {
+  cols = Math.max(1, Math.floor(cols));
+  rows = Math.max(1, Math.floor(rows));
+
+  const unsized = unsizedTerminals.get(terminalId);
+  if (unsized) {
+    unsizedTerminals.delete(terminalId);
+    spawnTerminal(terminalId, unsized.cwd, {
+      command: unsized.command,
+      cols,
+      rows,
+    });
+    if (unsized.isRendererReady) markTerminalReady(terminalId);
+    return;
+  }
+
+  getTerminal(terminalId)?.pty.resize(cols, rows);
+}
+
 export async function killTerminal(terminalId: string) {
+  if (unsizedTerminals.delete(terminalId)) return;
+
   const terminal = getTerminal(terminalId);
   if (!terminal) return;
 
@@ -84,6 +133,12 @@ export async function killTerminal(terminalId: string) {
 }
 
 export function markTerminalReady(terminalId: string) {
+  const unsized = unsizedTerminals.get(terminalId);
+  if (unsized) {
+    unsized.isRendererReady = true;
+    return;
+  }
+
   const terminal = getTerminal(terminalId);
   if (!terminal) return;
 

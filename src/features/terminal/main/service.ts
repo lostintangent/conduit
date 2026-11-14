@@ -6,16 +6,13 @@ import {
   createTerminal,
   killTerminal,
   markTerminalReady,
+  resizeTerminal,
 } from "./store/actions";
 
 const service = {
   async create(options?: TerminalCreateOptions) {
-    const terminal = await createTerminal(options);
-    return {
-      sessionId: terminal.id,
-      title: terminal.lastProcessName,
-      cwd: terminal.cwd,
-    };
+    const { id, title, cwd } = await createTerminal(options);
+    return { sessionId: id, title, cwd };
   },
 
   /** Called once the renderer can show output, which flushes what buffered. */
@@ -25,12 +22,7 @@ const service = {
     getTerminal(sessionId)?.pty.write(input);
   },
 
-  resize(sessionId: string, cols: number, rows: number) {
-    getTerminal(sessionId)?.pty.resize(
-      Math.max(1, Math.floor(cols)),
-      Math.max(1, Math.floor(rows)),
-    );
-  },
+  resize: resizeTerminal,
 
   close: killTerminal,
 
