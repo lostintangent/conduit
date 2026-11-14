@@ -1,7 +1,11 @@
 # Plugins for the renderer dev server (build/bun.dev.ts). The production
 # build passes its plugins to Bun.build in build/bun.build.ts.
 [serve.static]
-plugins = ["./build/bun.tailwind.ts", "./build/bun.dev-csp.ts"]
+plugins = [
+  "./build/bun.tailwind.ts",
+  "./build/bun.dev-csp.ts",
+  "./build/bun.dev-react-compiler.ts",
+]
 
 [test]
 environment = "happy-dom"

@@ -155,8 +155,8 @@ export async function buildRenderer() {
     },
     plugins: [tailwind],
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
-    // Bun only compiles .tsx and .jsx files, and its dev server doesn't
-    // compile yet, so dev runs the uncompiled components.
+    // Bun only compiles .tsx and .jsx files. Its dev server can't compile
+    // yet, so build/bun.dev-react-compiler.ts does it for `bun start`.
     reactCompiler: true,
   });
   await pruneUnlinkedCss(result);
