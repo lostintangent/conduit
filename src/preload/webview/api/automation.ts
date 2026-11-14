@@ -10,7 +10,7 @@ import type {
   BrowserWaitArgs,
 } from "@shared/cli/browser";
 import { handles } from "./handlesRegistry";
-import { describeElement } from "./selectors";
+import { describeElement, roleOf } from "./selectors";
 
 function waitForSelector(selector: string, timeout?: number): Promise<boolean> {
   return new Promise<boolean>((resolve, reject) => {
@@ -95,7 +95,7 @@ export const automation = {
 
       const matches = Array.from(root.querySelectorAll(selector)).filter(
         (node) => {
-          if (role && (node as Element).getAttribute("role") !== role) {
+          if (role && roleOf(node) !== role) {
             return false;
           }
           if (text) {

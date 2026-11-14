@@ -625,7 +625,7 @@ async function shutdown() {
   - `-p, --pane <paneId>` - The ID of the pane to query
   - `-c, --context <handle>` - Parent element handle
   - `-t, --text <text>` - Filter by text content
-  - `-r, --role <role>` - ARIA role to filter by
+  - `-r, --role <role>` - ARIA role to filter by, from the `role` attribute or the element itself (an `<input>` is a `textbox`, an `<a href>` a `link`)
   - `-m, --max-results <count>` - Maximum number of results
   - `--timeout <ms>` - Wait up to this long for a match before returning
   - `--dump-tree` - Return accessibility tree snapshot

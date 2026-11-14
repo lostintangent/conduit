@@ -73,6 +73,13 @@ describe("browser automation from the CLI", () => {
     expect(output.map((element) => element.text)).toEqual(["Hello, Ada"]);
   });
 
+  it("finds elements by the role HTML gives them", async () => {
+    const textboxes = await conduit<Element[]>("browser-query --role textbox");
+    expect(textboxes.map((element) => element.text)).toEqual(["Ada"]);
+    const buttons = await conduit<Element[]>("browser-query --role button");
+    expect(buttons.map((element) => element.text)).toEqual(["Greet"]);
+  });
+
   it("keeps quick open in the terminal's directory while the browser is focused", async () => {
     // Outside home, so falling back to the home directory finds nothing.
     const project = fs.mkdtempSync("/tmp/conduit-e2e-project-");

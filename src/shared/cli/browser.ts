@@ -194,7 +194,11 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
           flags: "-t, --text <text>",
           description: "Filter elements whose text includes the value",
         },
-        { flags: "-r, --role <role>", description: "ARIA role to filter by" },
+        {
+          flags: "-r, --role <role>",
+          description:
+            "ARIA role to filter by, explicit or implicit (an <input> is a textbox)",
+        },
         {
           flags: "-m, --max-results <count>",
           description: "Maximum number of results",

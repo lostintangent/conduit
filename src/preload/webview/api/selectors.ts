@@ -125,6 +125,104 @@ function toSelector(element: Element): string {
   return parts.join(" > ");
 }
 
+// The roles HTML gives elements without a role attribute, from HTML-AAM.
+// roleOf handles the ones that depend on an attribute or an ancestor.
+const IMPLICIT_ROLES: Record<string, string> = {
+  article: "article",
+  aside: "complementary",
+  button: "button",
+  datalist: "listbox",
+  details: "group",
+  dialog: "dialog",
+  fieldset: "group",
+  form: "form",
+  h1: "heading",
+  h2: "heading",
+  h3: "heading",
+  h4: "heading",
+  h5: "heading",
+  h6: "heading",
+  hr: "separator",
+  li: "listitem",
+  main: "main",
+  menu: "list",
+  meter: "meter",
+  nav: "navigation",
+  ol: "list",
+  optgroup: "group",
+  option: "option",
+  output: "status",
+  progress: "progressbar",
+  search: "search",
+  table: "table",
+  tbody: "rowgroup",
+  td: "cell",
+  textarea: "textbox",
+  tfoot: "rowgroup",
+  th: "columnheader",
+  thead: "rowgroup",
+  tr: "row",
+  ul: "list",
+};
+
+const INPUT_ROLES: Record<string, string> = {
+  button: "button",
+  checkbox: "checkbox",
+  email: "textbox",
+  image: "button",
+  number: "spinbutton",
+  radio: "radio",
+  range: "slider",
+  reset: "button",
+  search: "searchbox",
+  submit: "button",
+  tel: "textbox",
+  text: "textbox",
+  url: "textbox",
+};
+
+/**
+ * The element's ARIA role: its role attribute's, or else the one HTML gives
+ * it, so an <input> is a textbox and an <a href> is a link.
+ */
+export function roleOf(element: Element): string | undefined {
+  const explicit = element.getAttribute("role")?.trim().split(/\s+/)[0];
+  if (explicit) return explicit;
+
+  const tag = element.tagName.toLowerCase();
+  if (tag === "a" || tag === "area") {
+    return element.hasAttribute("href") ? "link" : undefined;
+  }
+  if (element instanceof HTMLInputElement) {
+    // `type` reads as "text" when it's missing or unknown
+    const role = INPUT_ROLES[element.type];
+    // A text field with suggestions is a combobox
+    const suggests = role === "textbox" || role === "searchbox";
+    return suggests && element.hasAttribute("list") ? "combobox" : role;
+  }
+  if (element instanceof HTMLSelectElement) {
+    return element.multiple || element.size > 1 ? "listbox" : "combobox";
+  }
+  if (tag === "img") {
+    return element.getAttribute("alt") === "" ? "presentation" : "img";
+  }
+  // A page's header and footer, not an article's or a section's
+  if (tag === "header" || tag === "footer") {
+    if (element.closest("article, aside, main, nav, section") !== null) {
+      return undefined;
+    }
+    return tag === "header" ? "banner" : "contentinfo";
+  }
+  // A section is a region only once it has a name
+  if (tag === "section") {
+    const named = ["aria-label", "aria-labelledby", "title"].some((name) =>
+      element.hasAttribute(name),
+    );
+    return named ? "region" : undefined;
+  }
+  return IMPLICIT_ROLES[tag];
+}
+
 /**
  * Creates a complete descriptor for a DOM element, including metadata useful
  * for AI agent automation: handle, selector, bounding box, actions, and attributes.
@@ -157,7 +255,7 @@ export function describeElement(
     tag: element.tagName?.toLowerCase?.() ?? "",
     text: textValue?.slice(0, 500) ?? "",
     name: element.getAttribute("aria-label") ?? undefined,
-    role: element.getAttribute("role") ?? undefined,
+    role: roleOf(element),
     attributes: describeAttributes(element),
     boundingBox: {
       x: rect.left + window.scrollX,

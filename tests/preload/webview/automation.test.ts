@@ -161,6 +161,51 @@ describe("browser automation", () => {
     });
   });
 
+  describe("query --role", () => {
+    it.each([
+      ["textbox", '<input aria-label="Name">'],
+      ["textbox", '<input type="email">'],
+      ["textbox", "<textarea></textarea>"],
+      ["searchbox", '<input type="search">'],
+      ["combobox", '<input list="names">'],
+      ["checkbox", '<input type="checkbox">'],
+      ["button", '<input type="submit">'],
+      ["button", "<button>Save</button>"],
+      ["button", '<div role="button">Save</div>'],
+      ["link", '<a href="/docs">Docs</a>'],
+      ["combobox", "<select></select>"],
+      ["listbox", "<select multiple></select>"],
+      ["heading", "<h2>Title</h2>"],
+      ["banner", "<header></header>"],
+      ["region", '<section aria-label="Results"></section>'],
+    ])("finds a %s from %s", async (role, html) => {
+      document.body.innerHTML = html;
+
+      const results = await automation.query({ role });
+
+      expect(results.map((result) => result.tag)).toEqual([
+        document.body.firstElementChild?.tagName.toLowerCase(),
+      ]);
+      expect(results[0]?.role).toBe(role);
+    });
+
+    it.each([
+      ["a link without an href", "link", "<a>Docs</a>"],
+      ["a password field", "textbox", '<input type="password">'],
+      [
+        "an input whose role attribute says otherwise",
+        "textbox",
+        '<input role="combobox">',
+      ],
+      ["an article's header", "banner", "<article><header></header></article>"],
+      ["a section without a name", "region", "<section></section>"],
+    ])("doesn't take %s for a %s", async (_, role, html) => {
+      document.body.innerHTML = html;
+
+      expect(await automation.query({ role })).toEqual([]);
+    });
+  });
+
   describe("element text", () => {
     it.each([
       ["its trimmed label", "<button>\n  Save\n</button>", "Save"],
