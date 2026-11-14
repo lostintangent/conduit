@@ -108,24 +108,15 @@ describe("CommitFilesPanel", () => {
       expect(onFileSelect).toHaveBeenCalledWith(files[0]);
     });
 
-    it("should highlight selected file", () => {
+    it("should mark only the selected file as current", () => {
       const files = createFiles();
       render(
         <CommitFilesPanel files={files} selectedFilePath="src/index.ts" />,
       );
 
-      const item = screen.getByTestId("commit-file-item-index.ts");
-      expect(item.getAttribute("data-selected")).toBe("true");
-    });
-
-    it("should not highlight non-selected files", () => {
-      const files = createFiles();
-      render(
-        <CommitFilesPanel files={files} selectedFilePath="src/index.ts" />,
+      expect(screen.getByRole("button", { current: true })).toBe(
+        screen.getByTestId("commit-file-item-index.ts"),
       );
-
-      const item = screen.getByTestId("commit-file-item-helper.ts");
-      expect(item.getAttribute("data-selected")).toBe("false");
     });
   });
 

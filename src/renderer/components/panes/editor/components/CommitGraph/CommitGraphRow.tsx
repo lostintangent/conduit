@@ -176,14 +176,7 @@ function CommitGraphRowComponent({
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       // Don't toggle if clicking on interactive elements
-      const target = e.target as HTMLElement;
-      if (
-        target.closest("button") ||
-        target.closest('[role="listitem"]') ||
-        target.closest('[data-testid="commit-files-panel"]')
-      ) {
-        return;
-      }
+      if ((e.target as HTMLElement).closest("button")) return;
       onToggle?.();
     },
     [onToggle],
@@ -207,6 +200,7 @@ function CommitGraphRowComponent({
 
   return (
     <div
+      role="listitem"
       className={cn("flex flex-col", className)}
       data-testid="commit-graph-row"
       data-commit-id={node.commit.id}
@@ -237,6 +231,7 @@ function CommitGraphRowComponent({
           tabIndex={0}
           role="button"
           aria-expanded={isExpanded}
+          aria-current={node.isHead || undefined}
           aria-label={`Commit: ${node.commit.subject}`}
           data-testid="commit-summary-row"
         >

@@ -101,17 +101,15 @@ describe("CommitFileItem", () => {
   });
 
   describe("selection state", () => {
-    it("should set data-selected to false by default", () => {
-      render(<CommitFileItem file={createFile()} />);
-      const item = screen.getByTestId("commit-file-item-Button.tsx");
-      expect(item.getAttribute("data-selected")).toBe("false");
-    });
-
-    it("should set data-selected to true when selected", () => {
-      render(<CommitFileItem file={createFile()} isSelected />);
-      const item = screen.getByTestId("commit-file-item-Button.tsx");
-      expect(item.getAttribute("data-selected")).toBe("true");
-    });
+    it.each([true, false])(
+      "should mark the file as current only when selected (%s)",
+      (isSelected) => {
+        render(<CommitFileItem file={createFile()} isSelected={isSelected} />);
+        expect(screen.getByRole("button", { current: isSelected })).toBe(
+          screen.getByTestId("commit-file-item-Button.tsx"),
+        );
+      },
+    );
   });
 
   describe("click handling", () => {

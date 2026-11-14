@@ -226,7 +226,7 @@ function CommitGraphListComponent({
       className={cn("flex flex-col overflow-auto px-3", className)}
       onKeyDown={handleKeyDown}
       tabIndex={0}
-      role="listbox"
+      role="list"
       aria-label="Commit list"
       data-testid="commit-graph-list"
     >
@@ -258,6 +258,7 @@ function CommitGraphListComponent({
       {/* Load More button */}
       {hasMore && (
         <div
+          role="listitem"
           className="flex justify-center py-3 px-4"
           data-testid="load-more-container"
         >

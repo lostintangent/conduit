@@ -156,7 +156,7 @@ function CommitFileItemComponent({
         title={tooltip}
         data-testid={`commit-file-item-${fileName}`}
         data-filepath={file.path}
-        data-selected={isSelected}
+        aria-current={isSelected || undefined}
       >
         {/* File icon - colored based on status */}
         <FileText

@@ -265,7 +265,7 @@ describe("CommitGraphRow", () => {
       expect(onFileSelect).toHaveBeenCalledWith(files[0]);
     });
 
-    it("should highlight selected file", () => {
+    it("should mark the selected file as current", () => {
       const files = createFiles();
       const node = createNode({ files });
 
@@ -278,9 +278,9 @@ describe("CommitGraphRow", () => {
         />,
       );
 
-      // Test id uses just filename, and selected uses bg-accent/30 class
-      const fileItem = screen.getByTestId("commit-file-item-index.ts");
-      expect(fileItem.getAttribute("data-selected")).toBe("true");
+      expect(screen.getByRole("button", { current: true })).toBe(
+        screen.getByTestId("commit-file-item-index.ts"),
+      );
     });
   });
 
@@ -386,25 +386,21 @@ describe("CommitGraphRow", () => {
   });
 
   describe("HEAD commit", () => {
-    it("should style HEAD commit subject with font-medium", () => {
-      const node = createNode({ isHead: true });
-      renderWithProvider(
-        <CommitGraphRow node={node} isExpanded={false} config={GRAPH_CONFIG} />,
-      );
-      expect(
-        screen.getByTestId("commit-subject").classList.contains("font-medium"),
-      ).toBe(true);
-    });
-
-    it("should not style non-HEAD commit subject with font-medium", () => {
-      const node = createNode({ isHead: false });
-      renderWithProvider(
-        <CommitGraphRow node={node} isExpanded={false} config={GRAPH_CONFIG} />,
-      );
-      expect(
-        screen.getByTestId("commit-subject").classList.contains("font-medium"),
-      ).toBe(false);
-    });
+    it.each([true, false])(
+      "should mark the commit as current only when it's HEAD (%s)",
+      (isHead) => {
+        renderWithProvider(
+          <CommitGraphRow
+            node={createNode({ isHead })}
+            isExpanded={false}
+            config={GRAPH_CONFIG}
+          />,
+        );
+        expect(
+          screen.getByRole("button", { name: /^Commit:/, current: isHead }),
+        ).toBe(screen.getByTestId("commit-summary-row"));
+      },
+    );
   });
 
   describe("empty files", () => {

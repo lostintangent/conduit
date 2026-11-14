@@ -97,22 +97,18 @@ describe("CommitGraphList", () => {
       expect(screen.getByText("Commit message 2")).toBeTruthy();
     });
 
-    it("should have listbox role for accessibility", () => {
+    it("should expose the commits as a named list of items", () => {
       renderWithProvider(
-        <CommitGraphList nodes={[]} expandedCommits={new Set()} />,
+        <CommitGraphList
+          nodes={createNodes(3)}
+          expandedCommits={new Set()}
+          hasMore={true}
+        />,
       );
-      expect(screen.getByTestId("commit-graph-list").getAttribute("role")).toBe(
-        "listbox",
-      );
-    });
-
-    it("should have aria-label for accessibility", () => {
-      renderWithProvider(
-        <CommitGraphList nodes={[]} expandedCommits={new Set()} />,
-      );
+      const list = screen.getByRole("list", { name: "Commit list" });
       expect(
-        screen.getByTestId("commit-graph-list").getAttribute("aria-label"),
-      ).toBe("Commit list");
+        Array.from(list.children, (child) => child.getAttribute("role")),
+      ).toEqual(["listitem", "listitem", "listitem", "listitem"]);
     });
   });
 
@@ -164,8 +160,9 @@ describe("CommitGraphList", () => {
         />,
       );
 
+      // The keyboard cursor has no ARIA state in a plain list (it would need
+      // the listbox or tree focus pattern), so this checks the highlight.
       const summaryRows = screen.getAllByTestId("commit-summary-row");
-      // Uses same selected color as FileTreeItem
       expect(summaryRows[1].classList.contains("bg-accent/20")).toBe(true);
     });
   });
