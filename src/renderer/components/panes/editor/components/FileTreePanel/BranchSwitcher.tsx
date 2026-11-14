@@ -24,7 +24,9 @@
  */
 
 import { useState, useCallback } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { GitBranch, ChevronDown, Check, Plus } from "lucide-react";
+import { gitMutations } from "@/api/gitQueries";
 import type { GitV2API } from "@/api/GitV2API";
 import { cn } from "@/utils";
 import {
@@ -78,8 +80,10 @@ export function BranchSwitcher({
   // Checkout conflict dialog state
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [pendingBranch, setPendingBranch] = useState<string | null>(null);
-  const [isSwitching, setIsSwitching] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const { mutateAsync: checkout, isPending: isSwitching } = useMutation(
+    gitMutations.checkout(git.cwd),
+  );
 
   // Create branch hook
   const { inputRef, ...createBranch } = useCreateBranch(git, {
@@ -102,12 +106,11 @@ export function BranchSwitcher({
     async (branch: string) => {
       if (branch === currentBranch) return;
 
-      setIsSwitching(true);
       setCheckoutError(null);
 
       try {
         // Try normal checkout first
-        await git.checkout(branch);
+        await checkout({ branch });
         setIsOpen(false);
         onBranchSwitch?.(branch);
       } catch (err) {
@@ -127,9 +130,8 @@ export function BranchSwitcher({
           setCheckoutError(`Failed to checkout: ${errorMessage}`);
         }
       }
-      setIsSwitching(false);
     },
-    [git, currentBranch, onBranchSwitch],
+    [checkout, currentBranch, onBranchSwitch],
   );
 
   /**
@@ -138,25 +140,10 @@ export function BranchSwitcher({
   const handleStashAndCheckout = useCallback(async () => {
     if (!pendingBranch) return;
 
-    setIsSwitching(true);
     setCheckoutError(null);
 
     try {
-      // Stash current changes
-      await git.stash(`Auto-stash before switching to ${pendingBranch}`);
-
-      // Checkout the target branch
-      await git.checkout(pendingBranch);
-
-      // Pop the stash to restore changes
-      try {
-        await git.stashPop();
-      } catch (popError) {
-        // If stash pop fails (e.g., conflicts), warn but don't fail
-        console.warn("Stash pop had conflicts:", popError);
-        // The user will see merge conflicts in their working directory
-      }
-
+      await checkout({ branch: pendingBranch, localChanges: "stash" });
       setShowConflictDialog(false);
       setPendingBranch(null);
       setIsOpen(false);
@@ -165,8 +152,7 @@ export function BranchSwitcher({
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckoutError(`Failed to stash and checkout: ${errorMessage}`);
     }
-    setIsSwitching(false);
-  }, [git, pendingBranch, onBranchSwitch]);
+  }, [checkout, pendingBranch, onBranchSwitch]);
 
   /**
    * Handle "Force Checkout" - discard local changes and checkout.
@@ -174,11 +160,10 @@ export function BranchSwitcher({
   const handleForceCheckout = useCallback(async () => {
     if (!pendingBranch) return;
 
-    setIsSwitching(true);
     setCheckoutError(null);
 
     try {
-      await git.checkout(pendingBranch, true); // force = true
+      await checkout({ branch: pendingBranch, localChanges: "discard" });
       setShowConflictDialog(false);
       setPendingBranch(null);
       setIsOpen(false);
@@ -187,8 +172,7 @@ export function BranchSwitcher({
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckoutError(`Failed to force checkout: ${errorMessage}`);
     }
-    setIsSwitching(false);
-  }, [git, pendingBranch, onBranchSwitch]);
+  }, [checkout, pendingBranch, onBranchSwitch]);
 
   /**
    * Handle "Cancel" - close the conflict dialog.

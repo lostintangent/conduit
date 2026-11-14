@@ -148,6 +148,9 @@ export function ReviewWorkingPaneHeader({
   unseenCount = 0,
   onMarkAllSeen,
 }: ReviewWorkingPaneHeaderProps) {
+  // Writes run one at a time, so a commit, pull or push blocks the others
+  const isGitOperationRunning = isPulling || isPushing || isCommitting;
+
   return (
     <div className="flex-shrink-0" data-testid="changes-review-toolbar">
       {/* Error Banner */}
@@ -279,7 +282,7 @@ export function ReviewWorkingPaneHeader({
               "placeholder:text-muted-foreground",
               "disabled:opacity-50 disabled:cursor-not-allowed",
             )}
-            disabled={isCommitting}
+            disabled={isGitOperationRunning}
             data-testid="commit-message-input"
           />
 
@@ -288,7 +291,7 @@ export function ReviewWorkingPaneHeader({
             <TooltipTrigger asChild>
               <button
                 onClick={onCommit}
-                disabled={!canCommit || isCommitting}
+                disabled={!canCommit || isGitOperationRunning}
                 className={cn(
                   "px-3 py-1.5 rounded text-sm",
                   "bg-primary/10 hover:bg-primary/20",
@@ -326,7 +329,7 @@ export function ReviewWorkingPaneHeader({
                     <TooltipTrigger asChild>
                       <button
                         onClick={onPull}
-                        disabled={isPulling || isPushing || !hasUpstream}
+                        disabled={isGitOperationRunning || !hasUpstream}
                         className="p-1.5 rounded hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="pull-button"
                       >
@@ -354,7 +357,7 @@ export function ReviewWorkingPaneHeader({
                     <TooltipTrigger asChild>
                       <button
                         onClick={onPush}
-                        disabled={isPulling || isPushing}
+                        disabled={isGitOperationRunning}
                         className="p-1.5 rounded hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="push-button"
                       >
@@ -378,7 +381,7 @@ export function ReviewWorkingPaneHeader({
                     <TooltipTrigger asChild>
                       <button
                         onClick={onPush}
-                        disabled={isPulling || isPushing}
+                        disabled={isGitOperationRunning}
                         className="p-1.5 rounded hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         data-testid="publish-button"
                       >

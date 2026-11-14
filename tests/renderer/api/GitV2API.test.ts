@@ -15,17 +15,8 @@ const { mockGit } = vi.hoisted(() => {
     hasUnpushedCommits: vi.fn(),
     getFileDiff: vi.fn(),
     getFileAtRef: vi.fn(),
-    stage: vi.fn(),
-    unstage: vi.fn(),
-    commit: vi.fn(),
     getCurrentBranch: vi.fn(),
     getBranches: vi.fn(),
-    checkout: vi.fn(),
-    stash: vi.fn(),
-    stashPop: vi.fn(),
-    // Remote operations
-    push: vi.fn(),
-    pull: vi.fn(),
     hasUpstream: vi.fn(),
     findRoot: vi.fn(),
     // New comparison operations
@@ -34,7 +25,6 @@ const { mockGit } = vi.hoisted(() => {
     getUncommittedDiffStats: vi.fn(),
     getMostRecentDirtyFile: vi.fn(),
     getMostRecentCommittedFile: vi.fn(),
-    revert: vi.fn(),
     // Subscriptions
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
@@ -290,98 +280,6 @@ describe("GitV2API", () => {
   });
 
   // ===========================================================================
-  // Staging Operations
-  // ===========================================================================
-
-  describe("stage", () => {
-    it("should stage files", async () => {
-      mockGit.stage.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.stage(["src/file1.ts", "src/file2.ts"]);
-
-      expect(mockGit.stage).toHaveBeenCalledWith("/test/project", [
-        "src/file1.ts",
-        "src/file2.ts",
-      ]);
-
-      api.release();
-    });
-  });
-
-  describe("unstage", () => {
-    it("should unstage files", async () => {
-      mockGit.unstage.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.unstage(["src/file.ts"]);
-
-      expect(mockGit.unstage).toHaveBeenCalledWith("/test/project", [
-        "src/file.ts",
-      ]);
-
-      api.release();
-    });
-  });
-
-  // ===========================================================================
-  // Commit Operations
-  // ===========================================================================
-
-  describe("commit", () => {
-    it("should create commit and deserialize result", async () => {
-      const serializedCommit = {
-        hash: "abc123def456",
-        shortHash: "abc123d",
-        author: "Test Author",
-        email: "test@example.com",
-        date: 1700000000000,
-        message: "Test commit",
-        parents: ["parent123"],
-      };
-      mockGit.commit.mockResolvedValue(serializedCommit);
-
-      const api = new GitV2API("/test/project");
-      const result = await api.commit("Test commit");
-
-      expect(mockGit.commit).toHaveBeenCalledWith(
-        "/test/project",
-        "Test commit",
-        undefined,
-      );
-
-      expect(result).not.toBeNull();
-      expect(result!.hash).toBe("abc123def456");
-      expect(result!.date).toBeInstanceOf(Date);
-      expect(result!.date.getTime()).toBe(1700000000000);
-
-      api.release();
-    });
-
-    it("should pass commit options", async () => {
-      mockGit.commit.mockResolvedValue({
-        hash: "abc123",
-        shortHash: "abc",
-        author: "Test",
-        email: "test@test.com",
-        date: Date.now(),
-        message: "Test",
-        parents: [],
-      });
-
-      const api = new GitV2API("/test/project");
-      await api.commit("Test", { amend: true, signoff: true });
-
-      expect(mockGit.commit).toHaveBeenCalledWith("/test/project", "Test", {
-        amend: true,
-        signoff: true,
-      });
-
-      api.release();
-    });
-  });
-
-  // ===========================================================================
   // Branch Operations
   // ===========================================================================
 
@@ -474,144 +372,9 @@ describe("GitV2API", () => {
     });
   });
 
-  describe("checkout", () => {
-    it("should checkout ref with default force=false", async () => {
-      mockGit.checkout.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.checkout("feature/new");
-
-      expect(mockGit.checkout).toHaveBeenCalledWith(
-        "/test/project",
-        "feature/new",
-        false,
-      );
-
-      api.release();
-    });
-
-    it("should checkout ref with force=true", async () => {
-      mockGit.checkout.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.checkout("feature/new", true);
-
-      expect(mockGit.checkout).toHaveBeenCalledWith(
-        "/test/project",
-        "feature/new",
-        true,
-      );
-
-      api.release();
-    });
-  });
-
-  // ===========================================================================
-  // Stash Operations
-  // ===========================================================================
-
-  describe("stash", () => {
-    it("should stash without message", async () => {
-      mockGit.stash.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.stash();
-
-      expect(mockGit.stash).toHaveBeenCalledWith("/test/project", undefined);
-
-      api.release();
-    });
-
-    it("should stash with message", async () => {
-      mockGit.stash.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.stash("WIP: feature work");
-
-      expect(mockGit.stash).toHaveBeenCalledWith(
-        "/test/project",
-        "WIP: feature work",
-      );
-
-      api.release();
-    });
-  });
-
-  describe("stashPop", () => {
-    it("should pop stash", async () => {
-      mockGit.stashPop.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.stashPop();
-
-      expect(mockGit.stashPop).toHaveBeenCalledWith("/test/project");
-
-      api.release();
-    });
-  });
-
   // ===========================================================================
   // Remote Operations
   // ===========================================================================
-
-  describe("push", () => {
-    it("should push with default options", async () => {
-      mockGit.push.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.push();
-
-      expect(mockGit.push).toHaveBeenCalledWith("/test/project", false, false);
-
-      api.release();
-    });
-
-    it("should push with force option", async () => {
-      mockGit.push.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.push(true);
-
-      expect(mockGit.push).toHaveBeenCalledWith("/test/project", true, false);
-
-      api.release();
-    });
-
-    it("should push with setUpstream option for new branches", async () => {
-      mockGit.push.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.push(false, true);
-
-      expect(mockGit.push).toHaveBeenCalledWith("/test/project", false, true);
-
-      api.release();
-    });
-  });
-
-  describe("pull", () => {
-    it("should pull with default options", async () => {
-      mockGit.pull.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.pull();
-
-      expect(mockGit.pull).toHaveBeenCalledWith("/test/project", false);
-
-      api.release();
-    });
-
-    it("should pull with rebase option", async () => {
-      mockGit.pull.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.pull(true);
-
-      expect(mockGit.pull).toHaveBeenCalledWith("/test/project", true);
-
-      api.release();
-    });
-  });
 
   describe("hasUpstream", () => {
     it("should return true when upstream is configured", async () => {
@@ -860,42 +623,6 @@ describe("GitV2API", () => {
     });
   });
 
-  describe("revert", () => {
-    it("should revert specified files", async () => {
-      mockGit.revert.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.revert(["src/file1.ts", "src/file2.ts"]);
-
-      expect(mockGit.revert).toHaveBeenCalledWith("/test/project", [
-        "src/file1.ts",
-        "src/file2.ts",
-      ]);
-
-      api.release();
-    });
-
-    it("should handle empty files array", async () => {
-      mockGit.revert.mockResolvedValue(undefined);
-
-      const api = new GitV2API("/test/project");
-      await api.revert([]);
-
-      expect(mockGit.revert).toHaveBeenCalledWith("/test/project", []);
-
-      api.release();
-    });
-
-    it("should throw if released", async () => {
-      const api = new GitV2API("/test/project");
-      api.release();
-
-      await expect(api.revert(["file.ts"])).rejects.toThrow(
-        "GitV2API has been released",
-      );
-    });
-  });
-
   // ===========================================================================
   // Event Subscriptions
   // ===========================================================================
@@ -1118,13 +845,6 @@ describe("GitV2API", () => {
         "GitV2API has been released",
       );
       await expect(api.hasUncommittedChanges()).rejects.toThrow(
-        "GitV2API has been released",
-      );
-      await expect(api.stage([])).rejects.toThrow("GitV2API has been released");
-      await expect(api.commit("msg")).rejects.toThrow(
-        "GitV2API has been released",
-      );
-      await expect(api.checkout("ref")).rejects.toThrow(
         "GitV2API has been released",
       );
     });

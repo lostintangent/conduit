@@ -1,5 +1,6 @@
 import {
   infiniteQueryOptions,
+  mutationOptions,
   type QueryClient,
   queryOptions,
 } from "@tanstack/react-query";
@@ -183,6 +184,109 @@ function toChangedFiles(
 ): ChangedFiles | null {
   return data instanceof Map ? data : (data?.files ?? null);
 }
+
+/**
+ * Key a write under its cwd's queries, so any component can show it pending,
+ * and queue it in `scope`, so a scope's writes run one at a time in the order
+ * they were made.
+ */
+function write(cwd: string, name: string, scope = `git:${cwd}`) {
+  return {
+    mutationKey: [...gitKeys.all(cwd), name],
+    scope: { id: scope },
+  };
+}
+
+/**
+ * A cwd's git writes. Those that change its working tree, index or branch
+ * share a scope. Push only sends commits, so it has its own, and a slow remote
+ * doesn't hold up staging.
+ *
+ * They call git by cwd rather than through a pane's GitV2API, which is
+ * released after its pane closes, so a write queued behind a slow one still
+ * lands. The watcher's next event updates the cache, so they don't on success.
+ */
+export const gitMutations = {
+  stage: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "stage"),
+      mutationFn: (files: string[]) => window.conduit.git.stage(cwd, files),
+    }),
+
+  unstage: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "unstage"),
+      mutationFn: (files: string[]) => window.conduit.git.unstage(cwd, files),
+    }),
+
+  revert: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "revert"),
+      mutationFn: (files: string[]) => window.conduit.git.revert(cwd, files),
+    }),
+
+  commit: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "commit"),
+      mutationFn: (message: string) => window.conduit.git.commit(cwd, message),
+    }),
+
+  pull: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "pull"),
+      mutationFn: () => window.conduit.git.pull(cwd),
+    }),
+
+  /** Publishing pushes a branch with no upstream and tracks it. */
+  push: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "push", `git-remote:${cwd}`),
+      mutationFn: ({ publish }: { publish: boolean }) =>
+        window.conduit.git.push(cwd, false, publish),
+      onSuccess: (_data, { publish }, _onMutateResult, { client }) => {
+        if (publish) {
+          void client.invalidateQueries({ queryKey: gitKeys.status(cwd) });
+        }
+      },
+    }),
+
+  /**
+   * Switch branches. Checkout fails when it would overwrite local changes,
+   * unless they're stashed and reapplied on the new branch, or discarded.
+   */
+  checkout: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "checkout"),
+      mutationFn: async ({
+        branch,
+        localChanges,
+      }: {
+        branch: string;
+        localChanges?: "stash" | "discard";
+      }) => {
+        const { git } = window.conduit;
+        if (localChanges !== "stash") {
+          return git.checkout(cwd, branch, localChanges === "discard");
+        }
+        await git.stash(cwd, `Auto-stash before switching to ${branch}`);
+        await git.checkout(cwd, branch);
+        // Conflicts are left in the working tree to resolve
+        await git.stashPop(cwd).catch((error: unknown) => {
+          console.warn("Stash pop had conflicts:", error);
+        });
+      },
+    }),
+
+  /**
+   * Create a branch and switch to it. Pickers re-read the branch list when
+   * they open, so it isn't invalidated.
+   */
+  createBranch: (cwd: string) =>
+    mutationOptions({
+      ...write(cwd, "createBranch"),
+      mutationFn: (name: string) => window.conduit.git.createBranch(cwd, name),
+    }),
+};
 
 /**
  * Write a status the watcher reported for `cwd`, and re-read what's derived

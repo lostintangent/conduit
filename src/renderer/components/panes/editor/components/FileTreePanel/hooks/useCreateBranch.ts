@@ -30,6 +30,8 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { gitMutations } from "@/api/gitQueries";
 import type { GitV2API } from "@/api/GitV2API";
 
 export interface UseCreateBranchOptions {
@@ -92,7 +94,9 @@ export function useCreateBranch(
   const [isCreating, setIsCreating] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { mutateAsync: createBranch, isPending: isSubmitting } = useMutation(
+    gitMutations.createBranch(git.cwd),
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ---------------------------------------------------------------------------
@@ -134,21 +138,17 @@ export function useCreateBranch(
     const trimmedName = branchName.trim();
     if (!trimmedName) return;
 
-    setIsSubmitting(true);
     setError(null);
 
     try {
-      await git.createBranch(trimmedName);
+      await createBranch(trimmedName);
       setIsCreating(false);
       setBranchName("");
       onBranchCreated?.(trimmedName);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-    } finally {
-      setIsSubmitting(false);
+      setError(err instanceof Error ? err.message : String(err));
     }
-  }, [git, branchName, onBranchCreated]);
+  }, [createBranch, branchName, onBranchCreated]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {

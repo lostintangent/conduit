@@ -1,12 +1,14 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  render,
+  act,
   screen,
   fireEvent,
   waitFor,
   within,
 } from "@testing-library/react";
+import { createQueryClient } from "@/query";
+import { render } from "../../../queryRender";
 
 // ============================================================================
 // Mocks - MUST BE BEFORE COMPONENT IMPORT
@@ -85,14 +87,20 @@ function FileTreeChanges(props) {
 // API Mocks
 // ============================================================================
 
-// Mock git API (passed as prop)
+const TEST_CWD = "/project";
+
+// Mock git API (passed as prop), and the writes gitMutations make over IPC
 const mockGetStatus = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
 
 const mockGitAPI = {
+  cwd: TEST_CWD,
   getStatus: mockGetStatus,
+};
+// @ts-ignore
+globalThis.window.conduit.git = {
   stage: mockStage,
   unstage: mockUnstage,
   revert: mockRevert,
@@ -125,7 +133,6 @@ vi.mock("@/components/panes/editor/registry/EditorPaneRegistry", () => ({
 // ============================================================================
 
 const TEST_PANE_ID = "test-pane";
-const TEST_CWD = "/project";
 
 const MOCK_STATUS_WITH_CHANGES = {
   branch: "main",
@@ -541,7 +548,7 @@ describe("FileTreeChanges", () => {
 
       // Wait for async state updates to complete
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(["src/index.ts"]);
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["src/index.ts"]);
       });
       expect(markSeen).toHaveBeenCalledWith("src/index.ts");
     });
@@ -611,9 +618,50 @@ describe("FileTreeChanges", () => {
 
       // Wait for async state updates to complete
       await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(["src/utils.ts"]);
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["src/utils.ts"]);
       });
       expect(markSeen).toHaveBeenCalledWith("src/utils.ts");
+    });
+
+    it("should unstage only after an earlier stage finishes", async () => {
+      let finishStage!: () => void;
+      mockStage.mockReturnValueOnce(
+        new Promise<void>((resolve) => (finishStage = resolve)),
+      );
+      const queryClient = createQueryClient();
+      render(
+        <FileTreeChanges
+          viewMode="flat"
+          paneId={TEST_PANE_ID}
+          cwd={TEST_CWD}
+          git={mockGitAPI as any}
+          selectedFile={null}
+          onFileSelect={mockOnFileSelect}
+        />,
+        { queryClient },
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+      });
+
+      fireEvent.click(
+        within(screen.getByTestId("change-item-index.ts")).getByTestId(
+          "stage-button",
+        ),
+      );
+      await waitFor(() => expect(mockStage).toHaveBeenCalled());
+      fireEvent.click(
+        within(screen.getByTestId("change-item-utils.ts")).getByTestId(
+          "unstage-button",
+        ),
+      );
+      await waitFor(() => expect(queryClient.isMutating()).toBe(2));
+      expect(mockUnstage).not.toHaveBeenCalled();
+
+      await act(async () => finishStage());
+      await waitFor(() => {
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["src/utils.ts"]);
+      });
     });
   });
 
@@ -645,7 +693,9 @@ describe("FileTreeChanges", () => {
 
       fireEvent.click(revertButton!);
 
-      expect(mockRevert).toHaveBeenCalledWith(["src/index.ts"]);
+      await waitFor(() =>
+        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["src/index.ts"]),
+      );
     });
 
     it("should not show revert button for staged files", async () => {
@@ -704,7 +754,9 @@ describe("FileTreeChanges", () => {
       );
       // Reverting an untracked file deletes it
       fireEvent.click(revertButton!);
-      expect(mockRevert).toHaveBeenCalledWith(["new-file.ts"]);
+      await waitFor(() =>
+        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["new-file.ts"]),
+      );
     });
   });
 
@@ -1084,7 +1136,7 @@ describe("FileTreeChanges", () => {
 
       // Should stage all selected files
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith([
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, [
           "file1.ts",
           "file2.ts",
           "file3.ts",
@@ -1132,7 +1184,7 @@ describe("FileTreeChanges", () => {
 
       // Should unstage all selected files
       await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith([
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, [
           "file1.ts",
           "file2.ts",
           "file3.ts",
@@ -1172,6 +1224,7 @@ describe("FileTreeChanges", () => {
       // Should revert all selected files (order may vary, so use arrayContaining)
       await waitFor(() => {
         expect(mockRevert).toHaveBeenCalledWith(
+          TEST_CWD,
           expect.arrayContaining(["file1.ts", "file2.ts"]),
         );
       });
@@ -1296,7 +1349,7 @@ describe("FileTreeChanges", () => {
 
       // Git stage should be called with actual file path (not mapKey with suffix)
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(["src/other.ts"]);
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["src/other.ts"]);
       });
     });
   });
@@ -1332,7 +1385,10 @@ describe("FileTreeChanges", () => {
       fireEvent.click(stageAllButton!);
 
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(["file1.ts", "file2.ts"]);
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, [
+          "file1.ts",
+          "file2.ts",
+        ]);
       });
     });
 
@@ -1362,7 +1418,10 @@ describe("FileTreeChanges", () => {
       fireEvent.click(unstageAllButton!);
 
       await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(["file1.ts", "file2.ts"]);
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, [
+          "file1.ts",
+          "file2.ts",
+        ]);
       });
     });
   });

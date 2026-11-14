@@ -6,7 +6,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
+import { mockGitWrites } from "../../../../gitWrites";
+import { renderHook } from "../../../../queryRender";
 import { useCreateBranch } from "@/components/panes/editor/components/FileTreePanel/hooks/useCreateBranch";
 import type { GitV2API } from "@/api/GitV2API";
 
@@ -14,11 +16,10 @@ import type { GitV2API } from "@/api/GitV2API";
 // Mock Git API
 // ============================================================================
 
-function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
-  return {
-    createBranch: vi.fn().mockResolvedValue(undefined),
-    ...overrides,
-  } as unknown as GitV2API;
+const CWD = "/repo";
+
+function createMockGitAPI(): GitV2API {
+  return { cwd: CWD } as GitV2API;
 }
 
 // ============================================================================
@@ -26,8 +27,11 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
 // ============================================================================
 
 describe("useCreateBranch", () => {
+  let writes: ReturnType<typeof mockGitWrites>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    writes = mockGitWrites();
   });
 
   describe("initial state", () => {
@@ -61,9 +65,8 @@ describe("useCreateBranch", () => {
     });
 
     it("should clear any previous error", () => {
-      const mockGit = createMockGitAPI({
-        createBranch: vi.fn().mockRejectedValue(new Error("Failed")),
-      });
+      const mockGit = createMockGitAPI();
+      writes.createBranch.mockRejectedValue(new Error("Failed"));
 
       const { result } = renderHook(() =>
         useCreateBranch(mockGit, { isOpen: true }),
@@ -137,7 +140,10 @@ describe("useCreateBranch", () => {
         await result.current.submit();
       });
 
-      expect(mockGit.createBranch).toHaveBeenCalledWith("feature/new-branch");
+      expect(writes.createBranch).toHaveBeenCalledWith(
+        CWD,
+        "feature/new-branch",
+      );
       expect(onBranchCreated).toHaveBeenCalledWith("feature/new-branch");
     });
 
@@ -158,7 +164,7 @@ describe("useCreateBranch", () => {
         await result.current.submit();
       });
 
-      expect(mockGit.createBranch).not.toHaveBeenCalled();
+      expect(writes.createBranch).not.toHaveBeenCalled();
       expect(onBranchCreated).not.toHaveBeenCalled();
     });
 
@@ -183,11 +189,8 @@ describe("useCreateBranch", () => {
     });
 
     it("should set error on failure", async () => {
-      const mockGit = createMockGitAPI({
-        createBranch: vi
-          .fn()
-          .mockRejectedValue(new Error("Branch already exists")),
-      });
+      const mockGit = createMockGitAPI();
+      writes.createBranch.mockRejectedValue(new Error("Branch already exists"));
 
       const { result } = renderHook(() =>
         useCreateBranch(mockGit, { isOpen: true }),
@@ -212,9 +215,8 @@ describe("useCreateBranch", () => {
         resolveCreate = resolve;
       });
 
-      const mockGit = createMockGitAPI({
-        createBranch: vi.fn().mockReturnValue(createPromise),
-      });
+      const mockGit = createMockGitAPI();
+      writes.createBranch.mockReturnValue(createPromise);
 
       const { result } = renderHook(() =>
         useCreateBranch(mockGit, { isOpen: true }),
@@ -297,7 +299,7 @@ describe("useCreateBranch", () => {
 
       expect(mockEvent.preventDefault).toHaveBeenCalled();
       expect(mockEvent.stopPropagation).toHaveBeenCalled();
-      expect(mockGit.createBranch).toHaveBeenCalledWith("new-branch");
+      expect(writes.createBranch).toHaveBeenCalledWith(CWD, "new-branch");
     });
 
     it("should call cancel on Escape", () => {

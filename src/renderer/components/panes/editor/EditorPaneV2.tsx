@@ -17,21 +17,16 @@
  * ```
  */
 
-import { gitKeys, gitQueries } from "@/api/gitQueries";
+import { gitMutations, gitQueries } from "@/api/gitQueries";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { enqueueNotification } from "@/store/actions/notifications";
 import { userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
 import {
   startTransition,
@@ -458,12 +453,10 @@ export function EditorPaneV2({
   // ---------------------------------------------------------------------------
 
   // HEAD status (null outside a repository)
-  const queryClient = useQueryClient();
   const { data: headStatus } = useQuery(gitQueries.status(git));
   const { data: currentBranch = null } = useQuery(
     gitQueries.currentBranch(git),
   );
-  const hasUpstream = headStatus ? !!headStatus.upstream : true;
 
   // Full git status map (for GitBranchToolbar): HEAD's changes, or the
   // comparison against baseBranch. Switching keeps the last list until the
@@ -504,11 +497,10 @@ export function EditorPaneV2({
 
   // Commit message state
   const [commitMessage, setCommitMessage] = useState("");
-
-  // Git operation states
-  const [isCommitting, setIsCommitting] = useState(false);
-  const [isPulling, setIsPulling] = useState(false);
-  const [isPushing, setIsPushing] = useState(false);
+  const { mutate: commit } = useMutation({
+    ...gitMutations.commit(git.cwd),
+    meta: { errorMessage: getFriendlyGitError },
+  });
 
   // Branch selector state
   const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
@@ -967,77 +959,11 @@ export function EditorPaneV2({
   /**
    * Handle commit action.
    */
-  const handleCommit = useCallback(async () => {
-    if (!commitMessage.trim() || stagedCount === 0) return;
-
-    setIsCommitting(true);
-    try {
-      await git.commit(commitMessage.trim());
-      setCommitMessage("");
-    } catch (error) {
-      const friendlyError = getFriendlyGitError(error);
-      console.error("[EditorPaneV2] Commit failed:", friendlyError.rawMessage);
-      enqueueNotification({
-        kind: "error",
-        message: friendlyError.message,
-        details: friendlyError.details,
-      });
-    }
-    setIsCommitting(false);
-  }, [commitMessage, stagedCount, git]);
-
-  /**
-   * Handle pull action.
-   */
-  const handlePull = useCallback(async () => {
-    if (isPulling || isPushing || isCommitting) return;
-
-    setIsPulling(true);
-    try {
-      await git.pull();
-    } catch (error) {
-      const friendlyError = getFriendlyGitError(error);
-      console.error("[EditorPaneV2] Pull failed:", friendlyError.rawMessage);
-      enqueueNotification({
-        kind: "error",
-        message: friendlyError.message,
-        details: friendlyError.details,
-      });
-    }
-    setIsPulling(false);
-  }, [git, isPulling, isPushing, isCommitting]);
-
-  /**
-   * Handle push action (or publish if no upstream).
-   */
-  const handlePush = useCallback(async () => {
-    if (isPulling || isPushing || isCommitting) return;
-
-    setIsPushing(true);
-    try {
-      // If no upstream exists, push with --set-upstream to create/track remote branch
-      const isPublishing = !hasUpstream;
-      await git.push(false, isPublishing);
-
-      if (isPublishing) {
-        void queryClient.invalidateQueries({
-          queryKey: gitKeys.status(git.cwd),
-        });
-      }
-    } catch (error) {
-      const friendlyError = getFriendlyGitError(error);
-      console.error(
-        `[EditorPaneV2] ${hasUpstream ? "Push" : "Publish"} failed:`,
-        friendlyError.rawMessage,
-      );
-      enqueueNotification({
-        kind: "error",
-        message: friendlyError.message,
-        details: friendlyError.details,
-      });
-    }
-    setIsPushing(false);
-  }, [git, queryClient, hasUpstream, isPulling, isPushing, isCommitting]);
+  const handleCommit = useCallback(() => {
+    const message = commitMessage.trim();
+    if (!message || stagedCount === 0) return;
+    commit(message, { onSuccess: () => setCommitMessage("") });
+  }, [commitMessage, stagedCount, commit]);
 
   /**
    * Handle branch switch callback.
@@ -1501,15 +1427,9 @@ export function EditorPaneV2({
             onBranchSwitch={handleBranchSwitch}
             // Git Operations Props
             stagedCount={stagedCount}
-            onPull={handlePull}
-            onPush={handlePush}
-            isPulling={isPulling}
-            isPushing={isPushing}
-            hasUpstream={hasUpstream}
             commitMessage={commitMessage}
             onCommitMessageChange={setCommitMessage}
             onCommit={handleCommit}
-            isCommitting={isCommitting}
             // Navigation Props
             canNavigateUp={canNavigateUp}
             onNavigateUp={handleNavigateUp}
@@ -1584,11 +1504,6 @@ export function EditorPaneV2({
             onTogglePreviewMode={handleTogglePreviewMode}
             previewContent={previewContent}
             // Remote operations
-            hasUpstream={hasUpstream}
-            isPulling={isPulling}
-            isPushing={isPushing}
-            onPull={handlePull}
-            onPush={handlePush}
             // Unseen tracking (when enabled)
             unseenTracking={trackUnseenChanges ? unseenTracking : undefined}
             // Dirty file checking (for preventing staging unsaved files)

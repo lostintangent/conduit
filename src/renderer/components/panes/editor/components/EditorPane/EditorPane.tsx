@@ -175,25 +175,6 @@ export interface EditorPaneProps {
   previewContent?: string;
 
   // ---------------------------------------------------------------------------
-  // Remote Operations (for ReviewWorkingPane)
-  // ---------------------------------------------------------------------------
-
-  /** Whether the current branch has an upstream tracking branch */
-  hasUpstream?: boolean;
-
-  /** Whether a pull operation is in progress */
-  isPulling?: boolean;
-
-  /** Whether a push operation is in progress */
-  isPushing?: boolean;
-
-  /** Callback to trigger a pull operation */
-  onPull?: () => void;
-
-  /** Callback to trigger a push operation */
-  onPush?: () => void;
-
-  // ---------------------------------------------------------------------------
   // Unseen Tracking (shared state from parent)
   // ---------------------------------------------------------------------------
 
@@ -254,12 +235,6 @@ export const EditorPane = memo(function EditorPane({
   isPreviewMode = false,
   onTogglePreviewMode,
   previewContent = "",
-  // Remote operations for ReviewWorkingPane
-  hasUpstream = true,
-  isPulling = false,
-  isPushing = false,
-  onPull,
-  onPush,
   // Unseen tracking
   unseenTracking,
   // Dirty file checking
@@ -508,11 +483,6 @@ export const EditorPane = memo(function EditorPane({
           onExitReview={onExitReview}
           selectedFilePath={displayFilePath || undefined}
           selectedMapKey={selectedMapKey}
-          hasUpstream={hasUpstream}
-          isPulling={isPulling}
-          isPushing={isPushing}
-          onPull={onPull ?? (() => {})}
-          onPush={onPush ?? (() => {})}
           unseenTracking={unseenTracking}
           isFileDirty={isFileDirty}
         />

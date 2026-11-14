@@ -32,8 +32,10 @@ import {
   ChevronDown,
   AlertCircle,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import { useGitAvailable } from "@/hooks/useGitAvailable";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import { gitMutations } from "@/api/gitQueries";
 import type { GitV2API } from "@/api/GitV2API";
 import {
   useScrollPersistence,
@@ -314,6 +316,10 @@ export function FileTreeChanges({
 
   const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
     useGitAvailable();
+
+  const { mutate: stage } = useMutation(gitMutations.stage(git.cwd));
+  const { mutate: unstage } = useMutation(gitMutations.unstage(git.cwd));
+  const { mutate: revert } = useMutation(gitMutations.revert(git.cwd));
 
   // View state (section/folder expansion)
   const {
@@ -597,14 +603,11 @@ export function FileTreeChanges({
         markSeen?.(path);
       }
 
-      git.stage(cleanPaths).catch((error) => {
-        console.error("Failed to stage file(s):", error);
-      });
-
+      stage(cleanPaths);
       clearSelection();
     },
     [
-      git,
+      stage,
       cwd,
       isMultiSelected,
       getSelectedFilePaths,
@@ -631,14 +634,11 @@ export function FileTreeChanges({
         markSeen?.(path);
       }
 
-      git.unstage(actualPaths).catch((error) => {
-        console.error("Failed to unstage file(s):", error);
-      });
-
+      unstage(actualPaths);
       clearSelection();
     },
     [
-      git,
+      unstage,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
@@ -649,7 +649,7 @@ export function FileTreeChanges({
   );
 
   const handleRevert = useCallback(
-    async (mapKey: string) => {
+    (mapKey: string) => {
       // Get Map keys for tracking (may include suffix for partially staged files)
       const mapKeys = isMultiSelected(mapKey)
         ? getSelectedFilePaths()
@@ -658,23 +658,18 @@ export function FileTreeChanges({
       // Convert to actual paths for git operations
       const actualPaths = getActualPaths(mapKeys);
 
-      try {
-        // Mark files as seen when reverting
-        for (const path of actualPaths) {
-          markSeen?.(path);
-        }
-
-        await git.revert(actualPaths);
-        // Note: If the reverted file was untracked/added (deleted on revert),
-        // EditorPaneV2's git status sync effect will auto-select the next file
-      } catch (error) {
-        console.error("Failed to revert file(s):", error);
+      // Mark files as seen when reverting
+      for (const path of actualPaths) {
+        markSeen?.(path);
       }
 
+      // If a reverted file was untracked or added, it's deleted, and
+      // EditorPaneV2's git status sync effect selects the next file
+      revert(actualPaths);
       clearSelection();
     },
     [
-      git,
+      revert,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
@@ -917,19 +912,13 @@ export function FileTreeChanges({
 
     if (allDirty) return;
 
-    const actualPaths = cleanFiles.map(([, status]) => status.path);
-    git.stage(actualPaths).catch((error) => {
-      console.error("Failed to stage all files:", error);
-    });
-  }, [git, cwd, unstagedFiles, isFileDirty]);
+    stage(cleanFiles.map(([, status]) => status.path));
+  }, [stage, cwd, unstagedFiles, isFileDirty]);
 
   const handleUnstageAll = useCallback(() => {
     if (stagedFiles.length === 0) return;
-    const actualPaths = stagedFiles.map(([, status]) => status.path);
-    git.unstage(actualPaths).catch((error) => {
-      console.error("Failed to unstage all files:", error);
-    });
-  }, [git, stagedFiles]);
+    unstage(stagedFiles.map(([, status]) => status.path));
+  }, [unstage, stagedFiles]);
 
   // Auto-expand folders in nested view
   const prevStateRef = useRef<{

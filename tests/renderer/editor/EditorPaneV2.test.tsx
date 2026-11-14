@@ -12,6 +12,7 @@ import { GlobalEditorContainer } from "../../../src/renderer/components/panes/ed
 import { TooltipProvider } from "../../../src/renderer/components/ui/tooltip";
 import { EditorPaneRegistry } from "../../../src/renderer/components/panes/editor/registry/EditorPaneRegistry";
 import { activeTabIdAtom, tabsAtom } from "../../../src/renderer/store/atoms";
+import { mockGitWrites } from "../gitWrites";
 import { render as renderWithQuery } from "../queryRender";
 
 // The tab layout's browser pane reads the preload API when it loads
@@ -125,13 +126,10 @@ const mockGit = {
   getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
   getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
   whenReady: vi.fn().mockResolvedValue(undefined),
-  commit: vi.fn().mockResolvedValue(undefined),
   release: vi.fn(),
   getBranches: vi.fn().mockResolvedValue([]),
   getChangedFilesFromBranch: vi.fn().mockResolvedValue([]),
   hasUpstream: vi.fn().mockResolvedValue(true),
-  pull: vi.fn().mockResolvedValue(undefined),
-  push: vi.fn().mockResolvedValue(undefined),
 };
 vi.mock("../../../src/renderer/hooks/useGitV2", () => ({
   useGitV2: () => mockGit,
@@ -152,31 +150,16 @@ vi.mock(
       onCommitFileSelect,
       onToggleCollapse,
       showCollapseButton,
-      onPull,
-      onPush,
-      isPulling,
-      isPushing,
       onCommit,
-      isCommitting,
       onCommitMessageChange,
     }) => (
       <div data-testid="mock-file-tree-panel">
         <span data-testid="tree-cwd">{cwd}</span>
-        <button data-testid="pull-button" disabled={isPulling} onClick={onPull}>
-          Pull
-        </button>
-        <button data-testid="push-button" disabled={isPushing} onClick={onPush}>
-          Push
-        </button>
         <input
           data-testid="commit-message-input"
           onChange={(e) => onCommitMessageChange(e.target.value)}
         />
-        <button
-          data-testid="commit-button"
-          disabled={isCommitting}
-          onClick={() => onCommit()}
-        >
+        <button data-testid="commit-button" onClick={() => onCommit()}>
           Commit
         </button>
         {showCollapseButton && (
@@ -1031,36 +1014,15 @@ describe("EditorPaneV2", () => {
       return { promise, fail: (error: Error) => act(async () => fail(error)) };
     };
 
+    let writes: ReturnType<typeof mockGitWrites>;
+
     beforeEach(() => {
       vi.spyOn(console, "error").mockImplementation(() => {});
+      writes = mockGitWrites();
     });
 
     afterEach(() => {
       mockGit.getStatus.mockResolvedValue({ files: new Map(), branch: "main" });
-    });
-
-    it.each(["pull", "push"])("can retry a failed %s", async (method) => {
-      const buttonId = `${method}-button`;
-      const call = hang();
-      mockGit[method].mockReturnValueOnce(call.promise);
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      fireEvent.click(screen.getByTestId(buttonId));
-      await waitFor(() => {
-        expect(screen.getByTestId(buttonId).hasAttribute("disabled")).toBe(
-          true,
-        );
-      });
-
-      await call.fail(new Error("boom"));
-      await waitFor(() => {
-        expect(screen.getByTestId(buttonId).hasAttribute("disabled")).toBe(
-          false,
-        );
-      });
-
-      fireEvent.click(screen.getByTestId(buttonId));
-      await waitFor(() => expect(mockGit[method]).toHaveBeenCalledTimes(2));
     });
 
     it("can retry a failed commit", async () => {
@@ -1072,7 +1034,7 @@ describe("EditorPaneV2", () => {
       };
       mockGit.getStatus.mockResolvedValue(staged);
       const call = hang();
-      mockGit.commit.mockReturnValueOnce(call.promise);
+      writes.commit.mockReturnValueOnce(call.promise);
       render(<EditorPaneV2 pane={TEST_PANE} />);
       await reportStatus(staged);
 
@@ -1080,22 +1042,12 @@ describe("EditorPaneV2", () => {
         target: { value: "Fix bug" },
       });
       fireEvent.click(screen.getByTestId("commit-button"));
-      await waitFor(() => {
-        expect(
-          screen.getByTestId("commit-button").hasAttribute("disabled"),
-        ).toBe(true);
-      });
-
+      await waitFor(() => expect(writes.commit).toHaveBeenCalledTimes(1));
       await call.fail(new Error("boom"));
-      await waitFor(() => {
-        expect(
-          screen.getByTestId("commit-button").hasAttribute("disabled"),
-        ).toBe(false);
-      });
 
       fireEvent.click(screen.getByTestId("commit-button"));
       await waitFor(() => {
-        expect(mockGit.commit).toHaveBeenNthCalledWith(2, "Fix bug");
+        expect(writes.commit).toHaveBeenNthCalledWith(2, "/project", "Fix bug");
       });
     });
   });

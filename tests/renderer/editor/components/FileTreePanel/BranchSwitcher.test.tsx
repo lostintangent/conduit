@@ -9,6 +9,7 @@ import type { GitBranch } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { BranchSwitcher } from "@/components/panes/editor/components/FileTreePanel/BranchSwitcher";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { mockGitWrites } from "../../../gitWrites";
 import { render } from "../../../queryRender";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,24 +52,17 @@ const mockBranches: GitBranch[] = [
 // Mock Git API
 // ============================================================================
 
+const CWD = "/repo";
+
 function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
   return {
+    cwd: CWD,
     whenReady: vi.fn().mockResolvedValue(undefined),
     getBranches: vi.fn().mockResolvedValue(mockBranches),
-    checkout: vi.fn().mockResolvedValue(undefined),
-    createBranch: vi.fn().mockResolvedValue(undefined),
-    stash: vi.fn().mockResolvedValue(undefined),
-    stashPop: vi.fn().mockResolvedValue(undefined),
     // Add other required methods as no-ops
     getCurrentBranch: vi.fn().mockResolvedValue("main"),
     getStatus: vi.fn().mockResolvedValue(new Map()),
     getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
-    stage: vi.fn().mockResolvedValue(undefined),
-    unstage: vi.fn().mockResolvedValue(undefined),
-    revert: vi.fn().mockResolvedValue(undefined),
-    commit: vi.fn().mockResolvedValue(undefined),
-    pull: vi.fn().mockResolvedValue(undefined),
-    push: vi.fn().mockResolvedValue(undefined),
     getUpstreamStatus: vi.fn().mockResolvedValue({ ahead: 0, behind: 0 }),
     onStatusChanged: vi.fn().mockReturnValue(() => {}),
     onBranchChanged: vi.fn().mockReturnValue(() => {}),
@@ -84,9 +78,11 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
 
 describe("BranchSwitcher", () => {
   const mockOnBranchSwitch = vi.fn();
+  let writes: ReturnType<typeof mockGitWrites>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    writes = mockGitWrites();
   });
 
   describe("rendering", () => {
@@ -264,7 +260,7 @@ describe("BranchSwitcher", () => {
       });
 
       await waitFor(() => {
-        expect(mockGit.checkout).toHaveBeenCalledWith("develop");
+        expect(writes.checkout).toHaveBeenCalledWith(CWD, "develop", false);
         expect(mockOnBranchSwitch).toHaveBeenCalledWith("develop");
       });
     });
@@ -293,7 +289,7 @@ describe("BranchSwitcher", () => {
       expect(mainOption.getAttribute("aria-disabled")).toBe("true");
 
       fireEvent.click(mainOption);
-      expect(mockGit.checkout).not.toHaveBeenCalled();
+      expect(writes.checkout).not.toHaveBeenCalled();
       expect(mockOnBranchSwitch).not.toHaveBeenCalled();
     });
   });
@@ -330,14 +326,11 @@ describe("BranchSwitcher", () => {
       async (buttonId, failingMethod) => {
         let fail!: (error: Error) => void;
         const hanging = new Promise((_, reject) => (fail = reject));
-        const mockGit = createMockGitAPI({
-          checkout: vi
-            .fn()
-            .mockRejectedValueOnce(
-              new Error("Your local changes would be overwritten"),
-            ),
-        });
-        vi.mocked(mockGit[failingMethod]).mockReturnValueOnce(hanging as never);
+        const mockGit = createMockGitAPI();
+        writes.checkout.mockRejectedValueOnce(
+          new Error("Your local changes would be overwritten"),
+        );
+        writes[failingMethod].mockReturnValueOnce(hanging);
 
         render(
           <BranchSwitcher
@@ -363,7 +356,7 @@ describe("BranchSwitcher", () => {
         await act(async () => {
           fireEvent.click(button());
         });
-        expect(button().disabled).toBe(true);
+        await waitFor(() => expect(button().disabled).toBe(true));
 
         await act(async () => fail(new Error("boom")));
 
@@ -430,7 +423,8 @@ describe("BranchSwitcher", () => {
       });
 
       await waitFor(() => {
-        expect(mockGit.createBranch).toHaveBeenCalledWith(
+        expect(writes.createBranch).toHaveBeenCalledWith(
+          CWD,
           "feature/new-feature",
         );
         expect(mockOnBranchSwitch).toHaveBeenCalledWith("feature/new-feature");
@@ -473,15 +467,12 @@ describe("BranchSwitcher", () => {
         expect(screen.getByTestId("create-branch-option")).toBeDefined();
       });
 
-      expect(mockGit.createBranch).not.toHaveBeenCalled();
+      expect(writes.createBranch).not.toHaveBeenCalled();
     });
 
     it("should show error when branch creation fails", async () => {
-      const mockGit = createMockGitAPI({
-        createBranch: vi
-          .fn()
-          .mockRejectedValue(new Error("Branch already exists")),
-      });
+      const mockGit = createMockGitAPI();
+      writes.createBranch.mockRejectedValue(new Error("Branch already exists"));
 
       render(
         <BranchSwitcher

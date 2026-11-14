@@ -1,8 +1,10 @@
 /**
  * Git v2 Renderer API
  *
- * High-level API for git operations in the renderer process.
+ * High-level API for reading git state in the renderer process.
  * Provides CWD-scoped operations with automatic subscription management.
+ * Writes are `gitMutations` instead, which call git by cwd, so they don't
+ * depend on an instance that's released after its pane closes.
  *
  * This class wraps the low-level IPC methods exposed by the preload script,
  * adding:
@@ -45,7 +47,6 @@ import type {
   GitBranchChangedEvent,
   GitCommit,
   GitCommitCreatedEvent,
-  GitCommitOptions,
   GitDiffStats,
   GitFileStatus,
   GitHeadChangedEvent,
@@ -549,65 +550,6 @@ export class GitV2API {
   }
 
   // ---------------------------------------------------------------------------
-  // Staging Operations
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Stage files for commit.
-   *
-   * @param files - Paths to stage (relative to git root)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If staging fails (file not found, etc.)
-   */
-  async stage(files: string[]): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.stage(this.cwd, files);
-  }
-
-  /**
-   * Unstage files (remove from index).
-   *
-   * @param files - Paths to unstage (relative to git root)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If unstaging fails
-   */
-  async unstage(files: string[]): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.unstage(this.cwd, files);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Commit Operations
-  // ---------------------------------------------------------------------------
-
-  /**
-   * Create a commit.
-   *
-   * @param message - Commit message
-   * @param options - Commit options (amend, signoff, etc.)
-   * @returns The created commit, or null if not a git repo
-   * @throws {Error} If the API has been released
-   * @throws {Error} If commit fails (no staged changes, etc.)
-   */
-  async commit(
-    message: string,
-    options?: GitCommitOptions,
-  ): Promise<GitCommit | null> {
-    this.ensureNotReleased();
-    const serialized = await window.conduit.git.commit(
-      this.cwd,
-      message,
-      options,
-    );
-
-    if (!serialized) {
-      return null;
-    }
-
-    return deserializeGitCommit(serialized);
-  }
-
-  // ---------------------------------------------------------------------------
   // Branch Operations
   // ---------------------------------------------------------------------------
 
@@ -634,99 +576,9 @@ export class GitV2API {
     return serialized.map(deserializeGitBranch);
   }
 
-  /**
-   * Checkout a branch or ref.
-   *
-   * @param ref - Branch name, tag, or commit hash
-   * @param force - If true, force checkout (discards local changes)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If checkout fails (uncommitted changes, invalid ref, etc.)
-   */
-  async checkout(ref: string, force = false): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.checkout(this.cwd, ref, force);
-  }
-
-  /**
-   * Create a new branch and optionally switch to it.
-   *
-   * @param branchName - Name for the new branch
-   * @param checkout - Whether to switch to the new branch (default: true)
-   * @param startPoint - Optional ref to start the branch from (default: HEAD)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If branch creation fails (name exists, invalid name, etc.)
-   */
-  async createBranch(
-    branchName: string,
-    checkout = true,
-    startPoint?: string,
-  ): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.createBranch(
-      this.cwd,
-      branchName,
-      checkout,
-      startPoint,
-    );
-  }
-
-  /**
-   * Stash current uncommitted changes.
-   *
-   * Saves both staged and unstaged changes to the stash.
-   *
-   * @param message - Optional message for the stash entry
-   * @throws {Error} If the API has been released
-   */
-  async stash(message?: string): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.stash(this.cwd, message);
-  }
-
-  /**
-   * Apply and remove the most recent stash entry.
-   *
-   * Restores the previously stashed changes to the working directory.
-   *
-   * @throws {Error} If the API has been released
-   * @throws {Error} If there are no stash entries or applying fails
-   */
-  async stashPop(): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.stashPop(this.cwd);
-  }
-
   // ---------------------------------------------------------------------------
   // Remote Operations
   // ---------------------------------------------------------------------------
-
-  /**
-   * Push commits to remote.
-   *
-   * When setUpstream is true, this will create/track the remote branch,
-   * useful for pushing new branches that don't exist on the remote yet.
-   *
-   * @param force - If true, use --force-with-lease for safer force push
-   * @param setUpstream - If true, set upstream tracking (for new branches)
-   * @throws {Error} If the API has been released
-   * @throws {Error} If push fails (no remote, auth issues, etc.)
-   */
-  async push(force = false, setUpstream = false): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.push(this.cwd, force, setUpstream);
-  }
-
-  /**
-   * Pull changes from remote.
-   *
-   * @param rebase - If true, use rebase instead of merge
-   * @throws {Error} If the API has been released
-   * @throws {Error} If pull fails (merge conflicts, no upstream, etc.)
-   */
-  async pull(rebase = false): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.pull(this.cwd, rebase);
-  }
 
   /**
    * Check if the current branch has an upstream (tracking) branch.
@@ -885,21 +737,6 @@ export class GitV2API {
   async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
     this.ensureNotReleased();
     return window.conduit.git.getDirtyFilesWithTimes(this.cwd);
-  }
-
-  /**
-   * Revert changes to files (discard local modifications).
-   *
-   * For staged files, unstages them first then reverts.
-   * For unstaged files, reverts directly.
-   *
-   * @param files - Relative paths from git root
-   * @throws {Error} If the API has been released
-   * @throws {Error} If revert fails (file not found, etc.)
-   */
-  async revert(files: string[]): Promise<void> {
-    this.ensureNotReleased();
-    return window.conduit.git.revert(this.cwd, files);
   }
 
   // ---------------------------------------------------------------------------

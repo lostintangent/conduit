@@ -53,7 +53,7 @@ export interface UseMultiSelectResult {
  *
  * // When performing actions:
  * const filesToStage = getSelectedFilePaths();
- * await git.stage(filesToStage);
+ * stage(filesToStage);
  * clearSelection();
  * ```
  */

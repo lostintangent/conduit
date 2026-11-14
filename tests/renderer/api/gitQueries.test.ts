@@ -37,14 +37,21 @@ const { mockGit, emit } = vi.hoisted(() => {
 });
 
 import { GitV2API } from "@/api/GitV2API";
-import { gitKeys, gitQueries, installGitQueryBridge } from "@/api/gitQueries";
+import {
+  gitKeys,
+  gitMutations,
+  gitQueries,
+  installGitQueryBridge,
+} from "@/api/gitQueries";
 import { createQueryClient } from "@/query";
 import {
   InfiniteQueryObserver,
   keepPreviousData,
+  MutationObserver,
   QueryClient,
   QueryObserver,
 } from "@tanstack/react-query";
+import { mockGitWrites } from "../gitWrites";
 
 const serializedStatus = (branch: string, files: string[] = []) => ({
   branch,
@@ -304,5 +311,36 @@ describe("gitQueries", () => {
     observer.setOptions(listed(null));
     expect(files()).toEqual(["head.ts"]);
     unsubscribe();
+  });
+});
+
+describe("gitMutations", () => {
+  it("lands a write queued behind a slow one after the pane that made it closes", async () => {
+    const writes = mockGitWrites();
+    let finishCommit!: () => void;
+    writes.commit.mockReturnValueOnce(
+      new Promise<void>((resolve) => (finishCommit = resolve)),
+    );
+    const queryClient = createQueryClient();
+    const git = await watch("/repo");
+    const commit = new MutationObserver(
+      queryClient,
+      gitMutations.commit(git.cwd),
+    );
+    const stage = new MutationObserver(
+      queryClient,
+      gitMutations.stage(git.cwd),
+    );
+
+    const writing = Promise.all([
+      commit.mutate("Fix bug"),
+      stage.mutate(["a.ts"]),
+    ]);
+    // Its pane closed, so the pool released its API before the commit ended
+    git.release();
+    finishCommit();
+
+    await writing;
+    expect(writes.stage).toHaveBeenCalledWith("/repo", ["a.ts"]);
   });
 });

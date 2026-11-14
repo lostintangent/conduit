@@ -28,7 +28,7 @@ import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { cn } from "@/utils";
 import { forwardRef, memo } from "react";
-import { usePanelHeight } from "../../hooks";
+import { useGitSync, usePanelHeight } from "../../hooks";
 import type { FileNode, TreeViewMode } from "../../types";
 import { CommitGraphPanel } from "../CommitGraph";
 import type {
@@ -114,21 +114,6 @@ export interface FileTreePanelProps {
   /** Number of staged files */
   stagedCount?: number;
 
-  /** Callback for pull action */
-  onPull?: () => void;
-
-  /** Callback for push action */
-  onPush?: () => void;
-
-  /** Whether pull is in progress */
-  isPulling?: boolean;
-
-  /** Whether push is in progress */
-  isPushing?: boolean;
-
-  /** Whether the branch has an upstream configured */
-  hasUpstream?: boolean;
-
   /** Current commit message */
   commitMessage?: string;
 
@@ -137,9 +122,6 @@ export interface FileTreePanelProps {
 
   /** Callback for commit action */
   onCommit?: () => void;
-
-  /** Whether commit is in progress */
-  isCommitting?: boolean;
 
   /** Callback for review changes action */
   onReviewChanges?: () => void;
@@ -235,15 +217,9 @@ export const FileTreePanel = memo(
       isReviewModeActive = false,
       // Git Operations Props
       stagedCount = 0,
-      onPull,
-      onPush,
-      isPulling = false,
-      isPushing = false,
-      hasUpstream = true,
       commitMessage = "",
       onCommitMessageChange,
       onCommit,
-      isCommitting = false,
       onReviewChanges,
       onBranchSwitch,
       // Navigation Props
@@ -282,6 +258,8 @@ export const FileTreePanel = memo(
       minHeight: 100,
       maxHeight: 600,
     });
+
+    const gitSync = useGitSync(git);
 
     // ---------------------------------------------------------------------------
     // Handlers
@@ -329,16 +307,16 @@ export const FileTreePanel = memo(
           gitStatus={gitStatus}
           onFilterToggle={handleFilterToggle}
           onOpenBranchPicker={onOpenBranchPicker}
-          onPull={onPull}
-          onPush={onPush}
-          isPulling={isPulling}
-          isPushing={isPushing}
-          hasUpstream={hasUpstream}
+          onPull={gitSync.pull}
+          onPush={gitSync.push}
+          isPulling={gitSync.isPulling}
+          isPushing={gitSync.isPushing}
+          hasUpstream={gitSync.hasUpstream}
           commitMessage={commitMessage}
           onCommitMessageChange={onCommitMessageChange}
           onCommit={onCommit}
           hasStagedFiles={stagedCount > 0}
-          isCommitting={isCommitting}
+          isCommitting={gitSync.isCommitting}
           onReviewChanges={onReviewChanges}
           changesViewMode={changesViewMode}
           onChangesViewModeChange={onChangesViewModeChange}

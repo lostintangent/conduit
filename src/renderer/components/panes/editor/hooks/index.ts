@@ -78,6 +78,7 @@ export {
   useFileChangeTracking,
 } from "./useFileChangeTracking";
 export type { FileChangeTrackingResult } from "./useFileChangeTracking";
+export { useGitSync } from "./useGitSync";
 export {
   DISABLED_UNSEEN_TRACKING,
   useUnseenTracking,

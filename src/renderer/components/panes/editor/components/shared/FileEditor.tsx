@@ -47,7 +47,9 @@
  * ```
  */
 
+import { gitMutations } from "@/api/gitQueries";
 import type { CommitFile, GitFileStatus, GitV2API } from "@/api/GitV2API";
+import { useMutation } from "@tanstack/react-query";
 import * as monaco from "monaco-editor";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -523,7 +525,16 @@ export function FileEditor(props: FileEditorProps) {
   // Git action handlers for EditorToolbar
   // ---------------------------------------------------------------------------
 
-  const handleToolbarStage = useCallback(async () => {
+  // Only the working context has git, and only it shows these actions
+  const { mutate: stage } = useMutation(git ? gitMutations.stage(git.cwd) : {});
+  const { mutate: unstage } = useMutation(
+    git ? gitMutations.unstage(git.cwd) : {},
+  );
+  const { mutate: revert } = useMutation(
+    git ? gitMutations.revert(git.cwd) : {},
+  );
+
+  const handleToolbarStage = useCallback(() => {
     if (!isWorkingContext || !git) return;
 
     if (!canStageFile(fullFilePath, isFileDirty)) {
@@ -531,25 +542,25 @@ export function FileEditor(props: FileEditorProps) {
     }
 
     markSeen?.(filePath);
-    try {
-      await git.stage([filePath]);
-    } catch (error) {
-      console.error("Failed to stage file:", error);
-    }
-  }, [isWorkingContext, git, filePath, fullFilePath, markSeen, isFileDirty]);
+    stage([filePath]);
+  }, [
+    isWorkingContext,
+    git,
+    stage,
+    filePath,
+    fullFilePath,
+    markSeen,
+    isFileDirty,
+  ]);
 
-  const handleToolbarUnstage = useCallback(async () => {
+  const handleToolbarUnstage = useCallback(() => {
     if (!isWorkingContext || !git) return;
 
     markSeen?.(filePath);
-    try {
-      await git.unstage([filePath]);
-    } catch (error) {
-      console.error("Failed to unstage file:", error);
-    }
-  }, [isWorkingContext, git, filePath, markSeen]);
+    unstage([filePath]);
+  }, [isWorkingContext, git, unstage, filePath, markSeen]);
 
-  const handleToolbarRevert = useCallback(async () => {
+  const handleToolbarRevert = useCallback(() => {
     if (!isWorkingContext || !git) return;
 
     const confirmed = window.confirm(
@@ -559,12 +570,8 @@ export function FileEditor(props: FileEditorProps) {
     if (!confirmed) return;
 
     markSeen?.(filePath);
-    try {
-      await git.revert([filePath]);
-    } catch (error) {
-      console.error("Failed to revert file:", error);
-    }
-  }, [isWorkingContext, git, filePath, markSeen]);
+    revert([filePath]);
+  }, [isWorkingContext, git, revert, filePath, markSeen]);
 
   // ---------------------------------------------------------------------------
   // Render Toolbar using EditorToolbar

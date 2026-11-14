@@ -23,24 +23,20 @@
  *   git={git}
  *   baseBranch="main"
  *   onExitReview={() => setViewMode({ type: 'editor' })}
- *   hasUpstream={hasUpstream}
- *   isPulling={isPulling}
- *   isPushing={isPushing}
- *   onPull={handlePull}
- *   onPush={handlePush}
  * />
  * ```
  */
 
-import { gitQueries } from "@/api/gitQueries";
+import { gitMutations, gitQueries } from "@/api/gitQueries";
 import type { GitFileStatus } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Check, GitCommit, Minus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   DISABLED_UNSEEN_TRACKING,
   type UnseenTrackingResult,
+  useGitSync,
 } from "../../hooks";
 import {
   filterDirtyFilesForStaging,
@@ -76,25 +72,6 @@ export interface ReviewWorkingPaneProps {
   selectedMapKey?: string | null;
 
   // ---------------------------------------------------------------------------
-  // Remote Operations (controlled by parent - EditorPaneV2)
-  // ---------------------------------------------------------------------------
-
-  /** Whether the current branch has an upstream tracking branch */
-  hasUpstream: boolean;
-
-  /** Whether a pull operation is in progress */
-  isPulling: boolean;
-
-  /** Whether a push operation is in progress */
-  isPushing: boolean;
-
-  /** Callback to trigger a pull operation */
-  onPull: () => void;
-
-  /** Callback to trigger a push operation */
-  onPush: () => void;
-
-  // ---------------------------------------------------------------------------
   // File Change Tracking (shared state from parent)
   // ---------------------------------------------------------------------------
 
@@ -119,11 +96,6 @@ export function ReviewWorkingPane({
   onExitReview,
   selectedFilePath,
   selectedMapKey,
-  hasUpstream,
-  isPulling,
-  isPushing,
-  onPull,
-  onPush,
   unseenTracking: unseenTrackingProp,
   isFileDirty,
 }: ReviewWorkingPaneProps) {
@@ -142,8 +114,11 @@ export function ReviewWorkingPane({
   // ---------------------------------------------------------------------------
 
   const [commitMessage, setCommitMessage] = useState("");
-  const [isCommitting, setIsCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const gitSync = useGitSync(git);
+  const { mutate: commit } = useMutation(gitMutations.commit(git.cwd));
+  const { mutate: stage } = useMutation(gitMutations.stage(git.cwd));
+  const { mutate: unstage } = useMutation(gitMutations.unstage(git.cwd));
 
   // ---------------------------------------------------------------------------
   // Section Expansion State
@@ -266,31 +241,24 @@ export function ReviewWorkingPane({
   // Handlers: Commit
   // ---------------------------------------------------------------------------
 
-  const handleCommit = useCallback(async () => {
-    if (!commitMessage.trim() || stagedFiles.length === 0) {
+  const handleCommit = useCallback(() => {
+    const message = commitMessage.trim();
+    if (!message || stagedFiles.length === 0) {
       return;
     }
 
-    setIsCommitting(true);
     setError(null);
-
-    try {
-      await git.commit(commitMessage.trim());
-      setCommitMessage("");
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to commit: ${errorMessage}`);
-      console.error("Failed to commit:", err);
-    }
-    setIsCommitting(false);
-  }, [git, commitMessage, stagedFiles.length]);
+    commit(message, {
+      onSuccess: () => setCommitMessage(""),
+      onError: (err) => setError(`Failed to commit: ${err.message}`),
+    });
+  }, [commit, commitMessage, stagedFiles.length]);
 
   // ---------------------------------------------------------------------------
   // Handlers: Bulk Stage/Unstage
   // ---------------------------------------------------------------------------
 
-  const handleStageAll = useCallback(async () => {
+  const handleStageAll = useCallback(() => {
     if (unstagedFiles.length === 0) return;
 
     // Filter out dirty files (files with unsaved changes in editor)
@@ -306,30 +274,19 @@ export function ReviewWorkingPane({
     if (allDirty) return;
 
     const paths = cleanFiles.map(([, status]) => status.path);
+    stage(paths, {
+      onError: (err) => setError(`Failed to stage files: ${err.message}`),
+    });
+  }, [stage, cwd, unstagedFiles, isFileDirty]);
 
-    try {
-      await git.stage(paths);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to stage files: ${errorMessage}`);
-      console.error("Failed to stage files:", err);
-    }
-  }, [git, cwd, unstagedFiles, isFileDirty]);
-
-  const handleUnstageAll = useCallback(async () => {
+  const handleUnstageAll = useCallback(() => {
     const paths = stagedFiles.map(([path]) => path);
     if (paths.length === 0) return;
 
-    try {
-      await git.unstage(paths);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      setError(`Failed to unstage files: ${errorMessage}`);
-      console.error("Failed to unstage files:", err);
-    }
-  }, [git, stagedFiles]);
+    unstage(paths, {
+      onError: (err) => setError(`Failed to unstage files: ${err.message}`),
+    });
+  }, [unstage, stagedFiles]);
 
   // ---------------------------------------------------------------------------
   // Handlers: Error
@@ -375,7 +332,9 @@ export function ReviewWorkingPane({
   const hasChanges = stagedFiles.length > 0 || unstagedFiles.length > 0;
 
   const canCommit =
-    commitMessage.trim().length > 0 && stagedFiles.length > 0 && !isCommitting;
+    commitMessage.trim().length > 0 &&
+    stagedFiles.length > 0 &&
+    !gitSync.isCommitting;
 
   const totalCount = stagedFiles.length + unstagedFiles.length;
 
@@ -393,13 +352,13 @@ export function ReviewWorkingPane({
         onCommitMessageChange={setCommitMessage}
         onCommit={handleCommit}
         canCommit={canCommit}
-        isCommitting={isCommitting}
+        isCommitting={gitSync.isCommitting}
         stagedCount={stagedFiles.length}
-        onPull={onPull}
-        onPush={onPush}
-        isPulling={isPulling}
-        isPushing={isPushing}
-        hasUpstream={hasUpstream}
+        onPull={gitSync.pull}
+        onPush={gitSync.push}
+        isPulling={gitSync.isPulling}
+        isPushing={gitSync.isPushing}
+        hasUpstream={gitSync.hasUpstream}
         onExitReview={onExitReview}
         error={error}
         onDismissError={handleDismissError}

@@ -36,7 +36,7 @@ function renderWithProviders(
 // Mocks
 // ============================================================================
 
-// Mock git API (passed as prop)
+// Mock git API (passed as prop), and the writes gitMutations make over IPC
 const mockGetStatus = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
@@ -48,12 +48,16 @@ const mockGitApi = {
   watchedSince: 0,
   whenReady: vi.fn().mockResolvedValue(undefined),
   getStatus: mockGetStatus,
-  stage: mockStage,
-  unstage: mockUnstage,
-  revert: mockRevert,
-  commit: mockCommit,
   getFileContent: vi.fn(),
   getOriginalContent: vi.fn(),
+};
+(globalThis as any).window.conduit = {
+  git: {
+    stage: mockStage,
+    unstage: mockUnstage,
+    revert: mockRevert,
+    commit: mockCommit,
+  },
 };
 
 // Mock EditorPane components - we don't need to test the actual editors
@@ -182,7 +186,7 @@ describe("FileEditor (inline working mode)", () => {
       fireEvent.click(screen.getByTestId("stage-button"));
 
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(["src/test.ts"]);
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["src/test.ts"]);
       });
     });
 
@@ -192,7 +196,7 @@ describe("FileEditor (inline working mode)", () => {
       fireEvent.click(screen.getByTestId("revert-button"));
 
       await waitFor(() => {
-        expect(mockRevert).toHaveBeenCalledWith(["src/test.ts"]);
+        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["src/test.ts"]);
       });
     });
   });
@@ -220,7 +224,7 @@ describe("FileEditor (inline working mode)", () => {
       fireEvent.click(screen.getByTestId("unstage-button"));
 
       await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(["src/test.ts"]);
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["src/test.ts"]);
       });
     });
   });
@@ -520,7 +524,7 @@ describe("ReviewWorkingPane", () => {
       fireEvent.click(screen.getByTestId("stage-button"));
 
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(["src/file.ts"]);
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["src/file.ts"]);
       });
     });
 
@@ -542,7 +546,7 @@ describe("ReviewWorkingPane", () => {
       fireEvent.click(screen.getByTestId("unstage-button"));
 
       await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(["src/file.ts"]);
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["src/file.ts"]);
       });
     });
   });
@@ -634,7 +638,10 @@ describe("ReviewWorkingPane", () => {
       fireEvent.click(screen.getByTestId("commit-button"));
 
       await waitFor(() => {
-        expect(mockCommit).toHaveBeenCalledWith("Test commit message");
+        expect(mockCommit).toHaveBeenCalledWith(
+          TEST_CWD,
+          "Test commit message",
+        );
       });
     });
 
@@ -679,6 +686,39 @@ describe("ReviewWorkingPane", () => {
         (screen.getByTestId("commit-message-input") as HTMLTextAreaElement)
           .value,
       ).toBe("Test commit message");
+    });
+
+    it("should disable pull and push while committing", async () => {
+      mockGetStatus.mockResolvedValue(
+        createMockStatus([
+          { path: "src/file.ts", status: "modified", staged: true },
+        ]),
+      );
+      let finish!: () => void;
+      mockCommit.mockReturnValueOnce(
+        new Promise<void>((resolve) => (finish = resolve)),
+      );
+
+      renderWithProviders(
+        <ReviewWorkingPane cwd={TEST_CWD} git={mockGitApi as any} />,
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId("commit-message-input")).toBeDefined();
+      });
+      fireEvent.change(screen.getByTestId("commit-message-input"), {
+        target: { value: "Test commit message" },
+      });
+
+      const remoteButtons = () =>
+        ["pull-button", "push-button"].map((id) =>
+          screen.getByTestId(id).hasAttribute("disabled"),
+        );
+      await waitFor(() => expect(remoteButtons()).toEqual([false, false]));
+      fireEvent.click(screen.getByTestId("commit-button"));
+      await waitFor(() => expect(remoteButtons()).toEqual([true, true]));
+
+      await act(async () => finish());
+      await waitFor(() => expect(remoteButtons()).toEqual([false, false]));
     });
   });
 
@@ -740,7 +780,8 @@ describe("ReviewWorkingPane", () => {
 
       await waitFor(() => {
         expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to stage file:",
+          "[mutation] Failed",
+          expect.arrayContaining(["stage"]),
           expect.any(Error),
         );
       });
@@ -772,12 +813,9 @@ describe("ReviewWorkingPane", () => {
       });
       fireEvent.click(screen.getByTestId("commit-button"));
 
-      await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to commit:",
-          expect.any(Error),
-        );
-      });
+      expect(
+        await screen.findByText("Failed to commit: Commit failed"),
+      ).toBeDefined();
 
       consoleSpy.mockRestore();
     });
