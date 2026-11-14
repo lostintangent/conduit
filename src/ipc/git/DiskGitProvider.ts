@@ -23,7 +23,7 @@
 import * as fs from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
-import { simpleGit, type SimpleGit, type StatusResult } from "simple-git";
+import type { SimpleGit, StatusResult } from "simple-git";
 
 import { EventEmitter } from "../../shared/EventEmitter";
 import { ParcelFileWatcher } from "../fs/ParcelFileWatcher";
@@ -49,6 +49,7 @@ import type {
   TrackedBranch,
   TrackedBranchInfo,
 } from "./types";
+import { createGit } from "./createGit";
 
 // ============================================================================
 // Constants
@@ -213,8 +214,7 @@ export class DiskGitProvider implements GitProvider {
     this.gitRoot = path.resolve(gitRoot);
     this.cwd = path.resolve(cwd);
 
-    // Initialize simple-git
-    this.git = simpleGit(this.gitRoot);
+    this.git = createGit(this.gitRoot);
   }
 
   // -------------------------------------------------------------------------

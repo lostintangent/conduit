@@ -24,8 +24,8 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { simpleGit } from "simple-git";
 import { ProviderPool } from "../ProviderPool";
+import { createGit } from "./createGit";
 import { DiskGitProvider } from "./DiskGitProvider";
 
 export class GitProviderService {
@@ -186,7 +186,7 @@ export class GitProviderService {
     }
 
     try {
-      const git = simpleGit();
+      const git = createGit();
       await git.version();
       this.gitAvailableCache = true;
       return true;

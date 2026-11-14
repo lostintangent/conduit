@@ -15,8 +15,9 @@
 import { BrowserWindow, ipcMain } from "electron";
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
-import simpleGit, { SimpleGit } from "simple-git";
+import type { SimpleGit } from "simple-git";
 import type { DotfilesStatus } from "../../shared/types/settings";
+import { createGit } from "../git/createGit";
 import {
   createDotfilesRepo as createRepo,
   discoverDotfilesRepo,
@@ -67,7 +68,7 @@ export function initialize(
   repoPath = path.join(conduitStateDirectory, "dotfiles");
   homeDirectory = home;
   window = win;
-  git = simpleGit();
+  git = createGit();
 
   // Register IPC handlers
   ipcMain.handle("dotfiles:get-path", () => repoPath);
@@ -173,7 +174,7 @@ export async function setDotfilesRepo(url: string | undefined): Promise<void> {
     );
   } else {
     // Repo exists with matching remote - sync latest changes
-    git = simpleGit(repoPath);
+    git = createGit(repoPath);
     await fetchAndPull(git, status, updateStatus, repoPath, homeDirectory);
   }
 

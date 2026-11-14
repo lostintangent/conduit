@@ -4,8 +4,9 @@
 
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
-import simpleGit, { SimpleGit } from "simple-git";
+import type { SimpleGit } from "simple-git";
 import type { DotfilesStatus } from "../../shared/types/settings";
+import { createGit } from "../git/createGit";
 import { createSymlinks, synchronizeSymlinks } from "./symlinks";
 
 /**
@@ -25,7 +26,7 @@ export async function repoExists(repoPath: string): Promise<boolean> {
  */
 export async function getRemoteUrl(repoPath: string): Promise<string | null> {
   try {
-    const git = simpleGit(repoPath);
+    const git = createGit(repoPath);
     const remotes = await git.getRemotes(true);
     const origin = remotes.find((r) => r.name === "origin");
     return origin?.refs.fetch || null;
@@ -49,7 +50,7 @@ export async function cloneRepo(
   try {
     await fs.mkdir(repoPath, { recursive: true });
     await git.clone(url, repoPath);
-    const newGit = simpleGit(repoPath);
+    const newGit = createGit(repoPath);
     await createSymlinks(repoPath, homeDirectory);
     updateStatus("idle");
     return newGit;
