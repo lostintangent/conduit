@@ -20,6 +20,15 @@ describe("useFocusWhenActive", () => {
       { initialProps: { isActive: false } },
     );
     hook.rerender({ isActive: true });
+    return hook;
+  };
+
+  // Another pane takes focus, then this one is active again
+  const reactivate = (hook: ReturnType<typeof renderActivation>) => {
+    hook.rerender({ isActive: false });
+    outside.focus();
+    hook.rerender({ isActive: true });
+    flushFrame();
   };
 
   beforeEach(() => {
@@ -75,6 +84,19 @@ describe("useFocusWhenActive", () => {
     expect(document.activeElement).toBe(outside);
   });
 
+  it("focuses the pane when focus is in a menu that was hidden", () => {
+    const menu = document.createElement("div");
+    menu.setAttribute("role", "menu");
+    menu.append(outside);
+    document.body.append(menu);
+    outside.focus();
+    menu.style.display = "none";
+
+    renderActivation();
+    flushFrame();
+    expect(document.activeElement).toBe(input);
+  });
+
   it("focuses a pane that's inside the focused dialog", () => {
     const dialog = document.createElement("div");
     dialog.setAttribute("role", "dialog");
@@ -126,6 +148,75 @@ describe("useFocusWhenActive", () => {
     flushFrame();
     expect(focus.mock.calls).toEqual([[false], [true]]);
     expect(frames.filter(Boolean)).toHaveLength(0);
+  });
+
+  describe("where focus last was in the pane", () => {
+    let other: HTMLInputElement;
+
+    beforeEach(() => {
+      other = document.createElement("input");
+      pane.append(other);
+    });
+
+    it("gets focus back", () => {
+      const hook = renderActivation();
+      flushFrame();
+      other.focus();
+
+      reactivate(hook);
+      expect(document.activeElement).toBe(other);
+    });
+
+    it("isn't a button that was pressed", () => {
+      const button = document.createElement("button");
+      pane.append(button);
+      const hook = renderActivation();
+      other.focus();
+      button.focus();
+
+      reactivate(hook);
+      expect(document.activeElement).toBe(other);
+    });
+
+    it("gives way to the pane's own target when it can't take focus", () => {
+      const hook = renderActivation();
+      other.focus();
+      other.disabled = true;
+
+      reactivate(hook);
+      expect(document.activeElement).toBe(input);
+    });
+
+    describe("outside the pane, like a browser pane's page,", () => {
+      let page: HTMLTextAreaElement;
+
+      beforeEach(() => {
+        page = document.createElement("textarea");
+        document.body.append(page);
+      });
+
+      it("gets focus back", () => {
+        const hook = renderActivation();
+        other.focus();
+        page.focus();
+        hook.result.current(page);
+
+        reactivate(hook);
+        expect(document.activeElement).toBe(page);
+      });
+
+      it("keeps it without retrying", () => {
+        const hook = renderActivation();
+        page.focus();
+        hook.result.current(page);
+        hook.rerender({ isActive: false });
+
+        hook.rerender({ isActive: true });
+        flushFrame();
+        expect(document.activeElement).toBe(page);
+        expect(frames.filter(Boolean)).toHaveLength(0);
+      });
+    });
   });
 
   it("takes lost focus back when asked", () => {

@@ -47,6 +47,7 @@ type BrowserToolbarProps = {
   onHideToolbar: () => void;
   onCaptureScreenshot: () => Promise<void>;
   tabId?: string;
+  isInPreview?: boolean;
 };
 
 export function BrowserToolbar({
@@ -67,6 +68,7 @@ export function BrowserToolbar({
   onHideToolbar,
   onCaptureScreenshot,
   tabId,
+  isInPreview = false,
 }: BrowserToolbarProps) {
   const urlHistory = useSettings((s) => s.urlHistory);
   const { mutate: addUrlToHistory } = useMutation(
@@ -247,8 +249,12 @@ export function BrowserToolbar({
     );
   };
 
-  // On mount, if URL is blank, auto-focus and select all text
+  // A new pane with a blank page focuses its URL the first time it's shown,
+  // outside a hover preview. Effects run again each time its tab is shown.
+  const didAutoFocusRef = useRef(false);
   useEffect(() => {
+    if (didAutoFocusRef.current || isInPreview) return;
+    didAutoFocusRef.current = true;
     if (currentPage.url === "about:blank" || currentPage.url === "") {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -257,7 +263,7 @@ export function BrowserToolbar({
         setShowHistory(true);
       }
     }
-  }, []);
+  }, [isInPreview]);
 
   // Update input URL when user navigates via in-page links or back/forward buttons
   useEffect(() => {

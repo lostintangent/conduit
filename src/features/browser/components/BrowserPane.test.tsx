@@ -1,3 +1,4 @@
+import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => {
@@ -14,10 +15,11 @@ const nextFrames = async (count: number) => {
   }
 };
 
-function browserPane(isInPreview: boolean) {
+function browserPane(isInPreview: boolean, isActive = false) {
   return (
     <TooltipProvider>
       <BrowserPane
+        isActive={isActive}
         url="https://example.com"
         paneId="browser-1"
         tabId="tab-1"
@@ -79,5 +81,23 @@ describe("BrowserPane", () => {
     unmount();
 
     expect(document.activeElement).not.toBe(webview);
+  });
+
+  it("focuses its page on return after the page was clicked", async () => {
+    webview.tabIndex = 0;
+    const { rerender } = render(browserPane(false, true));
+    screen.getByPlaceholderText(/Enter URL/).focus();
+    webview.dispatchEvent(
+      Object.assign(new Event("ipc-message"), {
+        channel: "browser:pointerdown",
+      }),
+    );
+
+    rerender(browserPane(false, false));
+    document.body.focus();
+    rerender(browserPane(false, true));
+    await nextFrames(1);
+
+    expect(document.activeElement).toBe(webview);
   });
 });

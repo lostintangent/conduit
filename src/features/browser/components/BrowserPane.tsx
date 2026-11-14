@@ -272,6 +272,14 @@ export function BrowserPane({
     };
   }, [webviewAnchorRef, isInPreview, tabId]);
 
+  // Focus goes back to the page if it had focus last, see handleWebViewFocus,
+  // and to the pane otherwise. The webview lives on document.body, outside
+  // this pane's DOM.
+  const focusedOutside = useFocusWhenActive(isActive, paneRef, () => {
+    if (document.activeElement === webviewRef.current) return;
+    paneRef.current?.focus({ preventScroll: true });
+  });
+
   // Once we have a new or existing webview, we need to hook
   // up the event listeners to it (e.g. navigation, title change, etc)
   useEffect(() => {
@@ -347,6 +355,7 @@ export function BrowserPane({
     };
 
     const handleWebViewFocus = () => {
+      focusedOutside(webview);
       // Only activate pane when in tab mode (not sidebar mode)
       if (tabId) {
         activatePane(tabId, paneId);
@@ -434,7 +443,7 @@ export function BrowserPane({
 
       webview.removeEventListener("console-message", handleConsoleMessage);
     };
-  }, [webviewRef]);
+  }, [webviewRef, focusedOutside]);
 
   // Enable/disable pointer events for the wewbview
   // whenever the parent asks for it (e.g. during a resize action)
@@ -473,14 +482,6 @@ export function BrowserPane({
     );
   }, [applicationMode]);
 
-  // Focus the pane rather than the page: keys typed in a webview never reach
-  // the app's keybindings, so focusing it would trap keyboard users. The
-  // webview lives on document.body, outside this pane's DOM.
-  useFocusWhenActive(isActive, paneRef, () => {
-    if (document.activeElement === webviewRef.current) return;
-    paneRef.current?.focus({ preventScroll: true });
-  });
-
   return (
     <div
       ref={paneRef}
@@ -512,6 +513,7 @@ export function BrowserPane({
             await browser.captureScreenshot(webContentsId);
           }}
           tabId={tabId}
+          isInPreview={isInPreview}
         />
       )}
 
