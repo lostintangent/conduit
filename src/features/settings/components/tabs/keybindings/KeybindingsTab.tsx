@@ -64,7 +64,11 @@ export function KeybindingsTab({
   const globalKeybindings = useSelector(keybindingsAtom);
 
   const rows = useMemo<KeybindingRow[]>(() => {
-    const commands = commandRegistry.getAllCommands();
+    // Group rows by category, since registration follows feature folders.
+    // The sort is stable, so each category keeps its registration order.
+    const commands = commandRegistry
+      .getAllCommands()
+      .sort((a, b) => (a.category ?? "").localeCompare(b.category ?? ""));
 
     const keybindingsByCommand = new Map<string, ResolvedKeybinding[]>();
     commands.forEach((cmd) => {

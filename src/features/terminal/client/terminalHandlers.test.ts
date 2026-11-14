@@ -1,4 +1,4 @@
-import { handleOpenInVSCode } from "@/commands/handlers/terminalHandlers";
+import { handleOpenInVSCode } from "@features/terminal/client/terminalHandlers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit

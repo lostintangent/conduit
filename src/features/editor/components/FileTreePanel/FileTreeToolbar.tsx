@@ -7,7 +7,7 @@
  * - size={14} icons
  */
 
-import { ApplicationCommands } from "@/commands/applicationCommands";
+import { ApplicationCommands } from "@shared/commands";
 import {
   getCommandDisplayTitle,
   useCommand,

@@ -44,7 +44,7 @@ import {
   activateFileTreeCallbacks,
   registerFileTreeCallbacks,
   type FileTreeCommandCallbacks,
-} from "@/commands/fileTreeCommands";
+} from "@features/editor/client/fileTreeCommands";
 import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { MenuId } from "@/commands/menus/types";
 import { useCallback, useEffect, useRef } from "react";

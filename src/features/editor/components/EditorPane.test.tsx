@@ -4,7 +4,7 @@ import { createQueryClient } from "@/query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerEditorHandlers } from "@/commands/handlers";
+import { registerEditorHandlers } from "@features/editor/client/editorCommandHandlers";
 import { TabContentPortalProvider } from "@features/workbench/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@features/workbench/components/layout/normal/TabLayout";
 import { EditorPane } from "./EditorPane";
@@ -115,7 +115,7 @@ vi.mock("./hooks/useAutoOpenFile", () => ({
 }));
 
 // Mock registerEditorHandlers
-vi.mock("@/commands/handlers", () => ({
+vi.mock("@features/editor/client/editorCommandHandlers", () => ({
   registerEditorHandlers: vi.fn(() => vi.fn()),
 }));
 

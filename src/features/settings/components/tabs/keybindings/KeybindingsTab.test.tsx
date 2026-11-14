@@ -15,6 +15,41 @@ describe("KeybindingsTab", () => {
     keybindingsAtom.set(new Map());
   });
 
+  it("lists commands by category, keeping registration order within one", () => {
+    const keybindingRegistry = new KeybindingRegistry();
+    const commandRegistry = new CommandRegistry(
+      { getAll: () => ({}) },
+      keybindingRegistry,
+    );
+    for (const [id, category] of [
+      ["view.b", "View"],
+      ["pane.b", "Pane"],
+      ["agent.a", "Agent"],
+      ["view.a", "View"],
+      ["pane.a", "Pane"],
+    ]) {
+      commandRegistry.registerCommand({
+        id,
+        title: id,
+        category,
+        run: () => {},
+      });
+    }
+
+    render(
+      <KeybindingsTab
+        commandRegistry={commandRegistry}
+        keybindingRegistry={keybindingRegistry}
+        homeDirectory="/home"
+      />,
+    );
+
+    const titles = screen
+      .getAllByText(/^(view|pane|agent)\.[ab]$/)
+      .map((element) => element.textContent);
+    expect(titles).toEqual(["agent.a", "pane.b", "pane.a", "view.b", "view.a"]);
+  });
+
   it("shows a keybinding change once the keybindings atom updates", async () => {
     const keybindingRegistry = new KeybindingRegistry();
     const commandRegistry = new CommandRegistry(

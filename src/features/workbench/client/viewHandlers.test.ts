@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   handleToggleDesignMode,
-  handleOpenKeyboardShortcuts,
   handleResetLayout,
-} from "@/commands/handlers/viewHandlers";
+} from "@features/workbench/client/viewHandlers";
 
 describe("viewHandlers", () => {
   describe("handleToggleDesignMode", () => {
@@ -21,16 +20,6 @@ describe("viewHandlers", () => {
       handleToggleDesignMode("design", setApplicationMode);
 
       expect(setApplicationMode).toHaveBeenCalledWith("normal");
-    });
-  });
-
-  describe("handleOpenKeyboardShortcuts", () => {
-    it("should set show keybindings editor to true", () => {
-      const setShowKeybindingsEditor = vi.fn();
-
-      handleOpenKeyboardShortcuts(setShowKeybindingsEditor);
-
-      expect(setShowKeybindingsEditor).toHaveBeenCalledWith(true);
     });
   });
 

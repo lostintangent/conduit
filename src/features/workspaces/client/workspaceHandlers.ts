@@ -1,7 +1,7 @@
 /**
  * Workspace command handlers
  *
- * Handlers for workspace-related commands including save, rename, close, and open.
+ * Handlers for the workspace commands that save, close and reopen workspaces.
  */
 
 import {
@@ -33,45 +33,12 @@ export async function handleSaveWorkspace(
 }
 
 /**
- * Rename the current workspace
- *
- * @param setShowRenameWorkspaceDialog - Function to show rename dialog
- */
-export function handleRenameWorkspace(
-  setShowRenameWorkspaceDialog?: (show: boolean) => void,
-): void {
-  setShowRenameWorkspaceDialog?.(true);
-}
-
-/**
- * Duplicate the current workspace with a new name
- *
- * @param setShowDuplicateWorkspaceDialog - Function to show duplicate workspace dialog
- */
-export function handleDuplicateWorkspace(
-  setShowDuplicateWorkspaceDialog?: (show: boolean) => void,
-): void {
-  setShowDuplicateWorkspaceDialog?.(true);
-}
-
-/**
  * Close the current workspace
  */
 export async function handleCloseWorkspace(): Promise<void> {
   const { closeWorkspace } =
     await import("@features/workspaces/client/actions");
   closeWorkspace();
-}
-
-/**
- * Open workspace picker dialog
- *
- * @param setShowWorkspacePicker - Function to show workspace picker
- */
-export function handleOpenWorkspace(
-  setShowWorkspacePicker?: (show: boolean) => void,
-): void {
-  setShowWorkspacePicker?.(true);
 }
 
 /**

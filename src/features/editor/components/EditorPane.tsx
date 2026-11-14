@@ -18,7 +18,7 @@
  */
 
 import { gitMutations, gitQueries } from "@features/git/client/queries";
-import { registerEditorHandlers } from "@/commands/handlers";
+import { registerEditorHandlers } from "@features/editor/client/editorCommandHandlers";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { useFileSystemSubscription } from "@features/files/components/useFileSystemSubscription";
 import { useGitSubscription } from "@features/git/components/useGitSubscription";

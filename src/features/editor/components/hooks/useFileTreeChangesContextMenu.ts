@@ -45,7 +45,7 @@ import {
   activateFileTreeChangesCallbacks,
   type FileTreeChangesCommandCallbacks,
   registerFileTreeChangesCallbacks,
-} from "@/commands/fileTreeCommands";
+} from "@features/editor/client/fileTreeCommands";
 import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { MenuId } from "@/commands/menus/types";
 

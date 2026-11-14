@@ -27,10 +27,8 @@ vi.mock("@features/workspaces/client/actions", () => ({
 import {
   handleCloseWorkspace,
   handleOpenLastWorkspace,
-  handleOpenWorkspace,
-  handleRenameWorkspace,
   handleSaveWorkspace,
-} from "@/commands/handlers/workspaceHandlers";
+} from "@features/workspaces/client/workspaceHandlers";
 import { workspacesQuery } from "@features/workspaces/client/queries";
 import { queryClient } from "@/query";
 import {
@@ -156,26 +154,6 @@ describe("workspaceHandlers", () => {
       const { closeWorkspace } =
         await import("@features/workspaces/client/actions");
       expect(closeWorkspace).toHaveBeenCalled();
-    });
-  });
-
-  describe("handleRenameWorkspace", () => {
-    it("should set show rename workspace dialog to true", () => {
-      const setShowRenameWorkspaceDialog = vi.fn();
-
-      handleRenameWorkspace(setShowRenameWorkspaceDialog);
-
-      expect(setShowRenameWorkspaceDialog).toHaveBeenCalledWith(true);
-    });
-  });
-
-  describe("handleOpenWorkspace", () => {
-    it("should set show workspace picker to true", () => {
-      const setShowWorkspacePicker = vi.fn();
-
-      handleOpenWorkspace(setShowWorkspacePicker);
-
-      expect(setShowWorkspacePicker).toHaveBeenCalledWith(true);
     });
   });
 

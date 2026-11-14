@@ -7,7 +7,6 @@ globalThis.window = globalThis.window || {};
 globalThis.window.conduit = {};
 
 import {
-  ApplicationCommands,
   registerApplicationCommands,
   _resetCommandRegistration,
 } from "@/commands/applicationCommands";
@@ -15,21 +14,28 @@ import { hasActivePane } from "@/commands/contextKeys/appContextKeys";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { CommandDescriptor } from "@/commands/core/types";
-import * as handlers from "@/commands/handlers";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
+import * as agentHandlers from "@features/agents/client/agentHandlers";
+import * as terminalHandlers from "@features/terminal/client/terminalHandlers";
 import * as focusModeActions from "@features/workbench/client/actions/focusMode";
 import { navigatePane } from "@features/workbench/client/actions/paneNavigation";
 import * as tabActions from "@features/workbench/client/actions/tab";
 import { notificationsAtom } from "@features/workbench/client/atoms";
+import * as viewHandlers from "@features/workbench/client/viewHandlers";
 import type { Tab, TerminalPane } from "@features/workbench/model";
+import * as workspaceHandlers from "@features/workspaces/client/workspaceHandlers";
+import { ApplicationCommands } from "@shared/commands";
 import { renderHook } from "@testing-library/react";
 import { commandContext } from "./fixtures";
 
 // Mock store actions
 vi.mock("@features/workbench/client/actions/focusMode");
 vi.mock("@features/workbench/client/actions/tab");
-vi.mock("@/commands/handlers");
+vi.mock("@features/agents/client/agentHandlers");
+vi.mock("@features/terminal/client/terminalHandlers");
+vi.mock("@features/workbench/client/viewHandlers");
+vi.mock("@features/workspaces/client/workspaceHandlers");
 vi.mock("@features/workbench/client/actions/paneNavigation");
 
 describe("applicationCommands", () => {
@@ -365,7 +371,9 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleOpenInVSCode).toHaveBeenCalledWith(mockActiveTab);
+        expect(terminalHandlers.handleOpenInVSCode).toHaveBeenCalledWith(
+          mockActiveTab,
+        );
       });
     });
 
@@ -382,7 +390,9 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleManageSessions).toHaveBeenCalledWith(mockContext);
+        expect(agentHandlers.handleManageSessions).toHaveBeenCalledWith(
+          mockContext,
+        );
       });
     });
 
@@ -398,7 +408,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleMergeAndClose).toHaveBeenCalledWith(
+        expect(agentHandlers.handleMergeAndClose).toHaveBeenCalledWith(
           mockActiveTab,
         );
       });
@@ -416,7 +426,9 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleTerminate).toHaveBeenCalledWith(mockActiveTab);
+        expect(agentHandlers.handleTerminate).toHaveBeenCalledWith(
+          mockActiveTab,
+        );
       });
     });
 
@@ -470,7 +482,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleToggleDesignMode).toHaveBeenCalledWith(
+        expect(viewHandlers.handleToggleDesignMode).toHaveBeenCalledWith(
           "normal",
           mockContext.setApplicationMode,
         );
@@ -478,7 +490,7 @@ describe("applicationCommands", () => {
     });
 
     describe("VIEW_OPEN_KEYBINDINGS", () => {
-      it("should call handleOpenKeyboardShortcuts handler", () => {
+      it("should open the keybindings editor", () => {
         const command = registeredCommands.get(
           ApplicationCommands.VIEW_OPEN_KEYBINDINGS,
         )!;
@@ -488,9 +500,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleOpenKeyboardShortcuts).toHaveBeenCalledWith(
-          mockContext.setShowKeybindingsEditor,
-        );
+        expect(mockContext.setShowKeybindingsEditor).toHaveBeenCalledWith(true);
       });
     });
 
@@ -522,7 +532,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleResetLayout).toHaveBeenCalledWith("tab-123");
+        expect(viewHandlers.handleResetLayout).toHaveBeenCalledWith("tab-123");
       });
     });
 
@@ -538,7 +548,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleSaveWorkspace).toHaveBeenCalledWith(
+        expect(workspaceHandlers.handleSaveWorkspace).toHaveBeenCalledWith(
           "tab-123",
           mockContext.setShowCreateWorkspaceDialog,
         );
@@ -546,7 +556,7 @@ describe("applicationCommands", () => {
     });
 
     describe("WORKSPACE_RENAME", () => {
-      it("should call handleRenameWorkspace when workspace name exists", () => {
+      it("should open the rename dialog when workspace name exists", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_RENAME,
         )!;
@@ -557,12 +567,12 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleRenameWorkspace).toHaveBeenCalledWith(
-          mockContext.setShowRenameWorkspaceDialog,
+        expect(mockContext.setShowRenameWorkspaceDialog).toHaveBeenCalledWith(
+          true,
         );
       });
 
-      it("should not call handler when workspace name is undefined", () => {
+      it("should not open the dialog when workspace name is undefined", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_RENAME,
         )!;
@@ -573,7 +583,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleRenameWorkspace).not.toHaveBeenCalled();
+        expect(mockContext.setShowRenameWorkspaceDialog).not.toHaveBeenCalled();
       });
     });
 
@@ -588,12 +598,12 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleCloseWorkspace).toHaveBeenCalled();
+        expect(workspaceHandlers.handleCloseWorkspace).toHaveBeenCalled();
       });
     });
 
     describe("WORKSPACE_OPEN", () => {
-      it("should call handleOpenWorkspace handler", () => {
+      it("should open the workspace picker", () => {
         const command = registeredCommands.get(
           ApplicationCommands.WORKSPACE_OPEN,
         )!;
@@ -603,9 +613,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleOpenWorkspace).toHaveBeenCalledWith(
-          mockContext.setShowWorkspacePicker,
-        );
+        expect(mockContext.setShowWorkspacePicker).toHaveBeenCalledWith(true);
       });
     });
 
@@ -618,12 +626,12 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleOpenLastWorkspace).toHaveBeenCalled();
+        expect(workspaceHandlers.handleOpenLastWorkspace).toHaveBeenCalled();
       });
     });
 
     describe("PANE_OPEN_WEB_PAGE", () => {
-      it("should call handleOpenWebPage handler", () => {
+      it("should open the URL dialog", () => {
         const command = registeredCommands.get(
           ApplicationCommands.PANE_OPEN_WEB_PAGE,
         )!;
@@ -633,9 +641,7 @@ describe("applicationCommands", () => {
 
         command.run(mockContext);
 
-        expect(handlers.handleOpenWebPage).toHaveBeenCalledWith(
-          mockContext.setIsUrlDialogOpen,
-        );
+        expect(mockContext.setIsUrlDialogOpen).toHaveBeenCalledWith(true);
       });
     });
   });

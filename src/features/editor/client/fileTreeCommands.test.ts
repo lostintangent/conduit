@@ -3,14 +3,13 @@ import {
   fileTreeCwd,
   fileTreeTargetPath,
 } from "@/commands/contextKeys/appContextKeys";
-import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { CommandDescriptor } from "@/commands/core/types";
 import {
   FileTreeCommands,
-  registerFileTreeCommands,
-} from "@/commands/fileTreeCommands";
+  fileTreeCommands,
+} from "@features/editor/client/fileTreeCommands";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { commandContext } from "./fixtures";
+import { commandContext } from "../../../../tests/renderer/commands/fixtures";
 
 describe("Copy Relative Path", () => {
   const writeClipboard = vi.fn<(text: string) => void>();
@@ -20,14 +19,9 @@ describe("Copy Relative Path", () => {
     writeClipboard.mockClear();
     Object.assign(window, { conduit: { writeClipboard } });
 
-    const commands = new Map<string, CommandDescriptor>();
-    registerFileTreeCommands({
-      registerCommand: (descriptor: CommandDescriptor) => {
-        commands.set(descriptor.id, descriptor);
-        return { dispose: () => {} };
-      },
-    } as unknown as CommandRegistry);
-    copyRelativePath = commands.get(FileTreeCommands.COPY_RELATIVE_PATH)!;
+    copyRelativePath = fileTreeCommands.find(
+      (command) => command.id === FileTreeCommands.COPY_RELATIVE_PATH,
+    )!;
   });
 
   function copy(path: string, cwd: string) {

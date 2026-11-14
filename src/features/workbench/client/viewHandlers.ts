@@ -1,7 +1,7 @@
 /**
  * View command handlers
  *
- * Handlers for view-related commands including design mode and keyboard shortcuts.
+ * Handlers for the view commands: design mode, layout reset and the sidebar.
  */
 
 import {
@@ -59,39 +59,6 @@ export function handleToggleDesignMode(
 
   const newMode = applicationMode === "design" ? "normal" : "design";
   setApplicationMode(newMode);
-}
-
-/**
- * Open the general settings
- *
- * @param setShowGeneralSettings - Function to show the general settings
- */
-export function handleOpenSettings(
-  setShowGeneralSettings?: (show: boolean) => void,
-): void {
-  setShowGeneralSettings?.(true);
-}
-
-/**
- * Open the keyboard shortcuts editor
- *
- * @param setShowKeybindingsEditor - Function to show the keybindings editor
- */
-export function handleOpenKeyboardShortcuts(
-  setShowKeybindingsEditor?: (show: boolean) => void,
-): void {
-  setShowKeybindingsEditor?.(true);
-}
-
-/**
- * Open the Quick Open dialog
- *
- * @param setIsQuickOpenOpen - Function to open the Quick Open dialog
- */
-export function handleQuickOpen(
-  setIsQuickOpenOpen?: (open: boolean) => void,
-): void {
-  setIsQuickOpenOpen?.(true);
 }
 
 /**

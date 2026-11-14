@@ -1,3 +1,4 @@
+import { When } from "../whenClauses/When";
 import { ContextKey } from "./ContextKey";
 
 /**
@@ -71,6 +72,17 @@ export const paneIsCollapsed = new ContextKey<boolean>(
 export const paneCanBeCollapsed = new ContextKey<boolean>(
   "paneCanBeCollapsed",
   false,
+);
+
+/**
+ * Whether actions on the active pane apply: there is one, its tab isn't
+ * locked and it isn't collapsed
+ * Used by: the pane actions that each feature contributes
+ */
+export const paneActionsEnabled = When.and(
+  hasActivePane.isTrue(),
+  tabIsLocked.isFalse(),
+  paneIsCollapsed.isFalse(),
 );
 
 /**

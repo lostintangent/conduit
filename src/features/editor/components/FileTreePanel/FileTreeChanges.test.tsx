@@ -47,7 +47,7 @@ vi.mock("@/commands", () => ({
 }));
 
 // Mock the fileTreeCommands
-vi.mock("@/commands/fileTreeCommands", () => ({
+vi.mock("@features/editor/client/fileTreeCommands", () => ({
   registerFileTreeChangesCallbacks: vi.fn(() => () => {}),
   activateFileTreeChangesCallbacks: vi.fn(),
   registerFileTreeCallbacks: vi.fn(() => () => {}),
@@ -75,7 +75,7 @@ vi.mock("@features/workbench/client/actions/notifications", () => ({
 import { useEffect, useState } from "react";
 import { FileTreeChanges as FileTreeChangesView } from "./FileTreeChanges";
 import { FileTreeNormal } from "./FileTreeNormal";
-import { registerFileTreeChangesCallbacks } from "@/commands/fileTreeCommands";
+import { registerFileTreeChangesCallbacks } from "@features/editor/client/fileTreeCommands";
 import { mockFiles } from "../../../../../tests/renderer/files";
 
 // Supplies gitStatus from the mocked git API the way EditorPane does

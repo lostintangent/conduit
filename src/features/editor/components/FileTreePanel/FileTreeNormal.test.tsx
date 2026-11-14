@@ -48,7 +48,7 @@ vi.mock("@/commands", () => ({
 }));
 
 // Mock the fileTreeCommands
-vi.mock("@/commands/fileTreeCommands", () => ({
+vi.mock("@features/editor/client/fileTreeCommands", () => ({
   registerFileTreeCallbacks: vi.fn(() => () => {}),
   activateFileTreeCallbacks: vi.fn(),
   FileTreeCommands: {
@@ -74,7 +74,7 @@ vi.mock("@features/editor/components/hooks/useScrollPersistence", () => ({
 
 // NOW import component AFTER mocks
 import { FileTreeNormal } from "./FileTreeNormal";
-import { registerFileTreeCallbacks } from "@/commands/fileTreeCommands";
+import { registerFileTreeCallbacks } from "@features/editor/client/fileTreeCommands";
 import { createQueryClient } from "@/query";
 import { installFilesQueryBridge } from "@features/files/client/queries";
 

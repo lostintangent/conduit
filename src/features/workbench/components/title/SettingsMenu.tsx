@@ -1,6 +1,6 @@
 import { Settings } from "lucide-react";
 
-import { ApplicationCommands } from "@/commands/applicationCommands";
+import { ApplicationCommands } from "@shared/commands";
 import {
   getCommandDisplayTitle,
   useCommand,

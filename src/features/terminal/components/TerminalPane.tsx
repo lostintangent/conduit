@@ -1,4 +1,4 @@
-import { ApplicationCommands } from "@/commands/applicationCommands";
+import { ApplicationCommands } from "@shared/commands";
 import { useCommand } from "@/commands/hooks/useCommand";
 import { isChordPending } from "@/commands/hooks/useKeybindingDispatch";
 import { clearPressedKeys } from "@/commands/keybindings/parser";

@@ -17,7 +17,7 @@ import {
   handleManageSessions,
   handleMergeAndClose,
   handleTerminate,
-} from "@/commands/handlers/agentHandlers";
+} from "@features/agents/client/agentHandlers";
 
 // Mock store actions
 vi.mock("@features/workbench/client/actions/notifications", () => ({

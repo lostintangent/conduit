@@ -6,10 +6,7 @@ import {
   getKeybindingRegistry,
   type KeybindingRegistry,
 } from "@/commands";
-import {
-  registerApplicationCommands,
-  registerMenuContextBuilders,
-} from "@/commands/applicationCommands";
+import { registerApplicationCommands } from "@/commands/applicationCommands";
 import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
 import {
   getUserKeybindingsPath,
@@ -24,6 +21,7 @@ import {
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { layoutHasCustomSizes } from "@features/workbench/client/layout";
+import { registerMenuContextBuilders } from "@features/workbench/client/menuContexts";
 import { useEffect, useState } from "react";
 
 export interface CommandSystemState {

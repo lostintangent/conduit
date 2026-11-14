@@ -15,7 +15,7 @@ import {
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import type { Tab } from "@features/workbench/model";
-import { ApplicationCommands } from "@/commands/applicationCommands";
+import { ApplicationCommands } from "@shared/commands";
 import type { ApplicationMode } from "@features/workbench/client/atoms";
 
 describe("useCommandSystem", () => {

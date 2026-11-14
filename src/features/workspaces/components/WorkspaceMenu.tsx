@@ -3,7 +3,7 @@ import { useSelector } from "@tanstack/react-store";
 import { Download, LayoutDashboard, Trash2 } from "lucide-react";
 import { type MouseEvent } from "react";
 
-import { ApplicationCommands } from "@/commands/applicationCommands";
+import { ApplicationCommands } from "@shared/commands";
 import {
   getCommandDisplayTitle,
   useCommand,

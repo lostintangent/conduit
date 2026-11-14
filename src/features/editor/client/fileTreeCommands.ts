@@ -26,7 +26,7 @@
  * the target path and mode-specific behavior.
  */
 
-import type { CommandRegistry } from "@/commands";
+import type { CommandDescriptor } from "@/commands/core/types";
 import { When, getContextKeyService } from "@/commands";
 import {
   dotfilesEnabled,
@@ -198,18 +198,16 @@ function getParentPathForCreate(): string {
 }
 
 /**
- * Register all file tree commands
+ * The file tree's context-menu commands
  */
-export function registerFileTreeCommands(
-  commandRegistry: CommandRegistry,
-): void {
+export const fileTreeCommands = [
   // ==========================================================================
   // Normal Mode Commands (only shown when NOT in changes mode)
   // ==========================================================================
 
   // New File - available in both modes, for files and directories
   // When clicking on a file, creates in the parent directory
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.NEW_FILE,
     title: "New File",
     category: "File Tree",
@@ -233,11 +231,11 @@ export function registerFileTreeCommands(
         fileTreeCallbacks?.onNewFile(parentPath);
       }
     },
-  });
+  },
 
   // New Folder - available in both modes, for files and directories
   // When clicking on a file, creates in the parent directory
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.NEW_FOLDER,
     title: "New Folder",
     category: "File Tree",
@@ -261,14 +259,14 @@ export function registerFileTreeCommands(
         fileTreeCallbacks?.onNewFolder(parentPath);
       }
     },
-  });
+  },
 
   // ==========================================================================
   // Changes Mode Commands (only shown when in changes mode)
   // ==========================================================================
 
   // Stage - only in changes mode, only for unstaged files
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.STAGE,
     title: "Stage",
     category: "File Tree",
@@ -290,10 +288,10 @@ export function registerFileTreeCommands(
         fileTreeChangesCallbacks.onStage(mapKey);
       }
     },
-  });
+  },
 
   // Unstage - only in changes mode, only for staged files
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.UNSTAGE,
     title: "Unstage",
     category: "File Tree",
@@ -315,10 +313,10 @@ export function registerFileTreeCommands(
         fileTreeChangesCallbacks.onUnstage(mapKey);
       }
     },
-  });
+  },
 
   // Revert - only in changes mode, only for unstaged files
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.REVERT,
     title: "Revert",
     category: "File Tree",
@@ -340,7 +338,7 @@ export function registerFileTreeCommands(
         fileTreeChangesCallbacks.onRevert(mapKey);
       }
     },
-  });
+  },
 
   // ==========================================================================
   // Shared Commands (shown in both modes with conditional visibility)
@@ -348,7 +346,7 @@ export function registerFileTreeCommands(
 
   // Rename - normal mode: always, changes mode: unstaged only
   // Note: Enter keybinding is handled locally in FileTreeNormal to avoid conflicts
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.RENAME,
     title: "Rename",
     category: "File Tree",
@@ -381,11 +379,11 @@ export function registerFileTreeCommands(
         fileTreeCallbacks?.onRename(path);
       }
     },
-  });
+  },
 
   // Delete - normal mode: always, changes mode: unstaged only
   // Note: Delete/Backspace keybindings are handled locally in FileTreeNormal to avoid conflicts
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.DELETE,
     title: "Delete",
     category: "File Tree",
@@ -418,10 +416,10 @@ export function registerFileTreeCommands(
         fileTreeCallbacks?.onDelete(path);
       }
     },
-  });
+  },
 
   // Copy Path
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.COPY_PATH,
     title: "Copy Path",
     category: "File Tree",
@@ -440,10 +438,10 @@ export function registerFileTreeCommands(
         window.conduit.writeClipboard(path);
       }
     },
-  });
+  },
 
   // Copy Relative Path
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.COPY_RELATIVE_PATH,
     title: "Copy Relative Path",
     category: "File Tree",
@@ -464,10 +462,10 @@ export function registerFileTreeCommands(
         window.conduit.writeClipboard(relativePath);
       }
     },
-  });
+  },
 
   // Reveal in Finder
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.REVEAL_IN_FINDER,
     title: "Reveal in Finder",
     category: "File Tree",
@@ -485,11 +483,11 @@ export function registerFileTreeCommands(
         await window.conduit.showItemInFolder(path);
       }
     },
-  });
+  },
 
   // Add to Dotfiles - only in normal mode
   // Only shown for files in the home directory that are not symlinks, when dotfiles is enabled
-  commandRegistry.registerCommand({
+  {
     id: FileTreeCommands.ADD_TO_DOTFILES,
     title: "Add to Dotfiles",
     category: "File Tree",
@@ -516,5 +514,5 @@ export function registerFileTreeCommands(
         await window.conduit.dotfiles.addFile(path);
       }
     },
-  });
-}
+  },
+] satisfies CommandDescriptor[];
