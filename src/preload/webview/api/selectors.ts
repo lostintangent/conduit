@@ -141,11 +141,16 @@ export function describeElement(
   const selector = toSelector(element);
   const handle = handles.register(element, selector);
 
+  // A button's `value` is form data (usually empty), not its label.
   const textValue =
-    "value" in element &&
-    typeof (element as HTMLInputElement).value === "string"
-      ? (element as HTMLInputElement).value
-      : (element.textContent ?? "");
+    element instanceof HTMLButtonElement
+      ? element.textContent?.trim() ||
+        element.getAttribute("aria-label") ||
+        element.value
+      : "value" in element &&
+          typeof (element as HTMLInputElement).value === "string"
+        ? (element as HTMLInputElement).value
+        : (element.textContent ?? "");
 
   return {
     handle,
