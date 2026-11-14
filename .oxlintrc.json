@@ -20,6 +20,20 @@
     "react-hooks/invariant": "warn",
     "react-hooks/memo-dependencies": "warn",
     "react-hooks/todo": "warn",
+    // The compiler also silently skips a component whose useCallback is a
+    // named function that calls itself, with no diagnostic above. Test files
+    // replace this with their own no-restricted-syntax in the overrides below.
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.name='useCallback'] > FunctionExpression[id]",
+        "message": "Pass useCallback an arrow function. The React Compiler silently skips the component when a named function here calls itself. For recursion, use a plain arrow in the component body instead."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='useCallback'] > FunctionExpression[id]",
+        "message": "Pass useCallback an arrow function. The React Compiler silently skips the component when a named function here calls itself. For recursion, use a plain arrow in the component body instead."
+      }
+    ],
     "react-hooks/rules-of-hooks": "error",
     "no-await-in-loop": "off",
     "no-constant-condition": "off",
