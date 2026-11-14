@@ -83,6 +83,13 @@ export function resolveShell() {
 function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   const env = { ...process.env };
 
+  // A launch from another terminal inherits that terminal's identity, which
+  // panes shouldn't claim. Terminal.app's zsh integration keys session history
+  // on TERM_SESSION_ID, so every pane would share one history file.
+  delete env.TERM_PROGRAM;
+  delete env.TERM_PROGRAM_VERSION;
+  delete env.TERM_SESSION_ID;
+
   const { commandName, cliDirectory, socketPath } = getCliState();
 
   // Add the Conduit CLI's directory to the $PATH so that commands
