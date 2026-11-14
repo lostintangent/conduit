@@ -73,12 +73,18 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   // ---------------------------------------------------------------------------
   // State
-  // Note: query is initialized from initialValue prop, but the effect below
-  // syncs it when the dialog opens. This allows initialValue to change between
-  // opens (e.g., "" for file mode, ">" for command mode).
   // ---------------------------------------------------------------------------
 
-  const [query, setQuery] = useState(initialValue);
+  const [query, setQuery] = useState(open ? initialValue : "");
+  // Starts the query over each time it opens, and when it's opened again with
+  // a different initialValue (Cmd+Shift+P over quick open). Done while
+  // rendering, so the input already has it when it takes focus.
+  const openedWith = open ? initialValue : null;
+  const [queryStartedFrom, setQueryStartedFrom] = useState(openedWith);
+  if (openedWith !== queryStartedFrom) {
+    setQueryStartedFrom(openedWith);
+    setQuery(openedWith ?? "");
+  }
   const [fileResults, setFileResults] = useState<FileMatch[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -221,30 +227,16 @@ export function CommandPalette({
   // Effects
   // ---------------------------------------------------------------------------
 
-  // Focus input and set initial value when dialog opens
+  // Reset state when dialog closes
   useEffect(() => {
-    if (open) {
-      setQuery(initialValue);
-      const timer = setTimeout(() => {
-        const input = inputRef.current;
-        if (input) {
-          input.focus();
-          // Position cursor at end of input (not selecting all text)
-          const len = initialValue.length;
-          input.setSelectionRange(len, len);
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    } else {
-      // Reset state when dialog closes
-      setQuery("");
+    if (!open) {
       setActiveIndex(0);
       setHoveredIndex(null);
       setHasMouseMoved(false);
       setHoverDelayPassed(false);
       setFileResults([]);
     }
-  }, [open, initialValue]);
+  }, [open]);
 
   // Track mouse movement to prevent hover flash on dialog open
   // Hybrid approach: enable hover after EITHER mouse movement OR 150ms delay
@@ -332,6 +324,15 @@ export function CommandPalette({
     },
     [recentFiles],
   );
+
+  // Radix would select the input's ">", so typing replaced it. The caret goes
+  // after it instead, before a key can land.
+  const handleOpenAutoFocus = useCallback((event: Event) => {
+    event.preventDefault();
+    const input = inputRef.current;
+    input?.focus();
+    input?.setSelectionRange(input.value.length, input.value.length);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -449,6 +450,7 @@ export function CommandPalette({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-[min(90vw,800px)] max-h-[min(70vh,600px)] p-0 flex flex-col gap-0 [&>button]:top-2.5"
+        onOpenAutoFocus={handleOpenAutoFocus}
         onKeyDown={handleKeyDown}
         data-testid="command-palette"
       >
