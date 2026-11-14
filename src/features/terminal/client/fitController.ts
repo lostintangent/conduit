@@ -24,6 +24,10 @@ export function createFitController({
     rows: entry.terminal.rows,
   };
 
+  // A shell can start at a measured size instead of the 80x24 that a new
+  // xterm assumes, so the first fit always sizes the PTY.
+  let hasFit = false;
+
   // Animation frame and timeout IDs
   let fitTimeout: number | null = null;
   let overlayTimeout: NodeJS.Timeout | null = null;
@@ -59,11 +63,14 @@ export function createFitController({
     const terminalSizeChanged =
       cols !== lastTerminalSize.cols || rows !== lastTerminalSize.rows;
 
+    if (terminalSizeChanged || !hasFit) {
+      entry.resize(cols, rows);
+    }
     if (terminalSizeChanged) {
       lastTerminalSize = { cols, rows };
-      entry.resize(cols, rows);
       showDimensionsOverlay(cols, rows);
     }
+    hasFit = true;
 
     entry.markReady();
   }

@@ -4,7 +4,10 @@ import {
   pauseStateTracking,
   resumeStateTracking,
 } from "@features/terminal/client/stateTracker";
-import { disposeSession } from "@features/terminal/client/xtermCache";
+import {
+  disposeSession,
+  getTerminalSize,
+} from "@features/terminal/client/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";
@@ -541,6 +544,46 @@ export function detachPane(
   return { pane: detachedPane, tabClosed };
 }
 
+/**
+ * Estimates the size of a pane split from `paneId`, scaling the source pane's
+ * size by the new pane's share of it. This errs narrow, because a shell that
+ * starts wider than its pane wraps its first prompt when the pane fits.
+ */
+function getSplitTerminalSize(
+  layout: LayoutNode,
+  paneId: string,
+  direction: SplitDirection,
+): { cols: number; rows: number } | undefined {
+  const size = getTerminalSize(paneId);
+  if (!size) return undefined;
+
+  // Splitting into the pane's parent adds a sibling with the default weight,
+  // while splitting anywhere else halves the pane.
+  let share = 1 / 2;
+  walkLayout(layout, ({ node, parent }) => {
+    if (node.type !== "pane" || node.paneId !== paneId) return true;
+    if (parent?.direction === direction) {
+      const total = parent.children
+        .filter((child) => !(child.type === "pane" && child.collapsed))
+        .reduce((sum, child) => sum + (child.size ?? 1), 0);
+      share = total / ((node.size ?? 1) * (total + 1));
+    }
+    return false;
+  });
+
+  if (direction === "column") {
+    return {
+      cols: size.cols,
+      rows: Math.max(1, Math.floor(size.rows * share)),
+    };
+  }
+  // The new pane brings its own divider and scrollbar, about two columns.
+  return {
+    cols: Math.max(1, Math.floor(size.cols * share) - 2),
+    rows: size.rows,
+  };
+}
+
 type SplitPaneOptions = {
   terminalOptions?: TerminalCreateOptions;
   agentSession?: AgentSessionInfo;
@@ -573,13 +616,10 @@ export async function splitPane(
 
   const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
 
-  const requestOptions = options.terminalOptions
-    ? { ...options.terminalOptions }
-    : defaultCwd
-      ? { cwd: defaultCwd }
-      : undefined;
-
-  const result = await api.terminal.create(requestOptions);
+  const result = await api.terminal.create({
+    ...getSplitTerminalSize(tab.layout, paneId, direction),
+    ...(options.terminalOptions ?? { cwd: defaultCwd }),
+  });
   if (!result) {
     return;
   }

@@ -349,6 +349,24 @@ export function getOrCreate(
   return instance;
 }
 
+/**
+ * The size a visible pane's terminal fits to, or undefined if it's hidden or
+ * hasn't fit yet. New shells start at a size measured from an existing pane,
+ * because a shell that starts wider than its pane and then shrinks leaves its
+ * first prompt wrapped onto a stray line.
+ */
+export function getTerminalSize(
+  paneId: string,
+): { cols: number; rows: number } | undefined {
+  const instance = xtermInstancesByPane.get(paneId);
+  // Hidden panes skip fitting, so their last size can be stale.
+  if (!instance?.ready || !instance.terminal.element?.clientWidth) {
+    return undefined;
+  }
+  const { cols, rows } = instance.terminal;
+  return { cols, rows };
+}
+
 export function attach(paneId: string, container: HTMLElement) {
   const instance = xtermInstancesByPane.get(paneId);
   if (!instance) return;

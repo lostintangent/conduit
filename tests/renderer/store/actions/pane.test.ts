@@ -1,10 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.hoisted(() => {
-  (window as any).conduit = {};
+const { createTerminal, getTerminalSize } = vi.hoisted(() => {
+  const createTerminal = vi.fn();
+  (window as any).conduit = { terminal: { create: createTerminal } };
+  return { createTerminal, getTerminalSize: vi.fn() };
 });
 
-import { dropPane } from "@/store/actions/pane";
+vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@features/terminal/client/xtermCache")
+  >()),
+  getTerminalSize,
+}));
+
+import { dropPane, splitPane } from "@/store/actions/pane";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { enableMapSet } from "immer";
@@ -95,5 +104,89 @@ describe("dropPane", () => {
 
     expect(moved).toBe(false);
     expect(tabsAtom.get()).toEqual(before);
+  });
+});
+
+describe("splitPane", () => {
+  const terminalPane = (id: string): Pane => ({
+    id,
+    type: "terminal",
+    sessionId: `session-${id}`,
+    cwd: "/home/user",
+    title: "zsh",
+  });
+
+  function setTab(layout: LayoutNode, paneIds: string[]) {
+    tabsAtom.set([
+      {
+        id: "tab-1",
+        name: "tab-1",
+        panes: Object.fromEntries(paneIds.map((p) => [p, terminalPane(p)])),
+        layout,
+        activePaneId: paneIds[0],
+      },
+    ]);
+  }
+
+  beforeEach(() => {
+    createTerminal.mockReset();
+    createTerminal.mockResolvedValue({ sessionId: "new", title: "zsh" });
+    getTerminalSize.mockReset();
+    getTerminalSize.mockReturnValue({ cols: 127, rows: 45 });
+  });
+
+  it("starts a right split a little narrower than half the pane", async () => {
+    setTab(leaf("a"), ["a"]);
+
+    await splitPane("tab-1", "a", "row");
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      cols: 61,
+      rows: 45,
+    });
+  });
+
+  it("starts a down split at half the pane's rows and its full width", async () => {
+    setTab(leaf("a"), ["a"]);
+
+    await splitPane("tab-1", "a", "column");
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      cols: 127,
+      rows: 22,
+    });
+  });
+
+  it("scales by the new pane's weight when it joins the pane's own row", async () => {
+    // "a" has 3/4 of the row, and the new pane will get 1/5 of it.
+    setTab(
+      {
+        id: "split",
+        type: "split",
+        direction: "row",
+        children: [{ ...leaf("a"), size: 3 }, leaf("b")],
+      },
+      ["a", "b"],
+    );
+    getTerminalSize.mockReturnValue({ cols: 120, rows: 45 });
+
+    await splitPane("tab-1", "a", "row");
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      cols: 30,
+      rows: 45,
+    });
+  });
+
+  it("leaves the size to the shell when the pane has no measured size", async () => {
+    setTab(leaf("a"), ["a"]);
+    getTerminalSize.mockReturnValue(undefined);
+
+    await splitPane("tab-1", "a", "row");
+
+    expect(createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
   });
 });

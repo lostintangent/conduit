@@ -6,7 +6,10 @@ import {
   onProgressStateChange,
   onSessionStateChange,
 } from "@features/terminal/client/stateTracker";
-import { disposeSession } from "@features/terminal/client/xtermCache";
+import {
+  disposeSession,
+  getTerminalSize,
+} from "@features/terminal/client/xtermCache";
 import {
   detachPane,
   inheritAgentSession,
@@ -127,6 +130,15 @@ export function generateIncrementedTabTitle(
   return `${baseName} ${highestNumber}`;
 }
 
+/**
+ * A new tab fills the content area that the active pane fits within, so the
+ * active pane is never wider than the new tab will be.
+ */
+function getNewTabTerminalSize() {
+  const activeTab = activeTabAtom.get();
+  return activeTab && getTerminalSize(activeTab.activePaneId);
+}
+
 export async function openTab(
   options?: NewTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
@@ -137,6 +149,7 @@ export async function openTab(
   const result = await api.terminal.create({
     cwd: cwd || undefined,
     command: options?.command,
+    ...getNewTabTerminalSize(),
   });
   if (!result) {
     return null;
@@ -212,7 +225,10 @@ export async function openTabFromExistingAgentSession(
   session: AgentSessionInfo,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Create a new terminal session in the worktree
-  const result = await api.terminal.create({ cwd: session.worktreePath });
+  const result = await api.terminal.create({
+    cwd: session.worktreePath,
+    ...getNewTabTerminalSize(),
+  });
   if (!result) {
     return null;
   }
@@ -520,6 +536,8 @@ export async function duplicateTab(
       const result = await api.terminal.create({
         cwd: cwdToUse ?? undefined,
         command: capturedCommand ?? undefined,
+        // The copy has the same layout, so each pane keeps its size.
+        ...getTerminalSize(oldPaneId),
       });
       if (!result) {
         continue;
