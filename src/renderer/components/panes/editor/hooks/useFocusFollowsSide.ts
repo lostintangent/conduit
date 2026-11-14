@@ -3,6 +3,10 @@ import { findEditorInput, findTreeTabStop } from "../utils/focusTargets";
 
 export type PaneSide = "tree" | "editor";
 
+// Panes on the same repo can lose their files to one commit, so only the one
+// that last had focus takes it back
+let lastFocusedPane: object | null = null;
+
 /** How long an opened file's editor can take to show */
 const SETTLE_MS = 1000;
 
@@ -10,21 +14,25 @@ const SETTLE_MS = 1000;
  * A single layout shows the tree or the editor, not both, and a split layout
  * can collapse its tree. When a side hides, focus on it would fall to the
  * body, so it moves to the side that's showing: back to where it last was in
- * the tree, or into the editor's text once the file has loaded. The side
- * itself holds focus until then, or when it has nothing else to focus (e.g. a
- * Markdown preview).
+ * the tree, or into the editor's text once the file has loaded. Focus on an
+ * editor side that empties, like when its file is committed, moves to the
+ * tree the same way. The side itself holds focus until then, or when it has
+ * nothing else to focus (e.g. a Markdown preview).
  *
- * Focus that wasn't on the side that hid is left alone, like in a terminal
- * where a commit clears the open file.
+ * Focus elsewhere is left alone, like in a terminal where a commit clears the
+ * open file, or in another editor pane.
  *
  * @param side The only side showing, or null while both are
+ * @param editorContent What the editor side shows, or null while it's empty
  */
 export function useFocusFollowsSide(
   side: PaneSide | null,
+  editorContent: string | null,
   treeRef: RefObject<HTMLElement | null>,
   editorRef: RefObject<HTMLElement | null>,
 ) {
-  const shownSide = useRef(side);
+  const pane = useRef({});
+  const shown = useRef({ side, editorContent });
   const lastFocus = useRef<{
     side: PaneSide | null;
     inTree: HTMLElement | null;
@@ -36,9 +44,11 @@ export function useFocusFollowsSide(
     if (!tree || !editor) return;
 
     const onTreeFocus = (event: FocusEvent) => {
+      lastFocusedPane = pane.current;
       lastFocus.current = { side: "tree", inTree: event.target as HTMLElement };
     };
     const onEditorFocus = () => {
+      lastFocusedPane = pane.current;
       lastFocus.current = { ...lastFocus.current, side: "editor" };
     };
     tree.addEventListener("focusin", onTreeFocus);
@@ -50,30 +60,40 @@ export function useFocusFollowsSide(
   }, [treeRef, editorRef]);
 
   useEffect(() => {
-    const previousSide = shownSide.current;
-    shownSide.current = side;
-    if (!side || side === previousSide) return;
-    const hiddenSide = side === "tree" ? "editor" : "tree";
-    if (lastFocus.current.side !== hiddenSide) return;
+    const previous = shown.current;
+    shown.current = { side, editorContent };
+    const focusedSide = lastFocus.current.side;
+    if (!focusedSide || lastFocusedPane !== pane.current) return;
+    const didSideHide =
+      side !== previous.side && side !== null && side !== focusedSide;
+    const didEditorEmpty =
+      focusedSide === "editor" &&
+      editorContent === null &&
+      previous.editorContent !== null;
+    if (!didSideHide && !didEditorEmpty) return;
 
-    const hidden = (side === "tree" ? editorRef : treeRef).current;
-    const showing = (side === "tree" ? treeRef : editorRef).current;
-    if (!hidden || !showing) return;
+    // The editor side while it has something to show, otherwise the tree
+    const targetSide = side ?? (editorContent === null ? "tree" : "editor");
+    const left = (focusedSide === "tree" ? treeRef : editorRef).current;
+    const showing = (targetSide === "tree" ? treeRef : editorRef).current;
+    if (!left || !showing) return;
 
     const start = performance.now();
     let frame = 0;
     const tryFocus = () => {
-      // Stop once focus is anywhere other than lost or held by the side
+      // Stop once focus is anywhere other than lost or held by a side, or in
+      // what the side it left no longer shows
       const current = document.activeElement;
       const isPending =
         !current ||
         current === document.body ||
         current === showing ||
-        hidden.contains(current);
+        current === left ||
+        (left.contains(current) && (didSideHide || !current.checkVisibility()));
       if (!isPending) return;
 
       const target =
-        side === "tree"
+        targetSide === "tree"
           ? findTreeReturn(showing, lastFocus.current.inTree)
           : findEditorInput(showing);
       (target ?? showing).focus({ preventScroll: true });
@@ -85,7 +105,7 @@ export function useFocusFollowsSide(
 
     tryFocus();
     return () => cancelAnimationFrame(frame);
-  }, [side, treeRef, editorRef]);
+  }, [side, editorContent, treeRef, editorRef]);
 }
 
 // Where focus last was in the tree, or the nearest control around it that's

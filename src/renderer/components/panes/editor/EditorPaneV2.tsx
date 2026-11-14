@@ -1377,6 +1377,7 @@ export function EditorPaneV2({
 
   useFocusFollowsSide(
     showTree && showEditor ? null : showTree ? "tree" : "editor",
+    isEditorSideEmpty ? null : `${viewMode.type} ${selectedFile?.path ?? ""}`,
     treePanelRef,
     editorPanelRef,
   );

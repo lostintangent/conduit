@@ -124,7 +124,7 @@ describe("editor pane", () => {
     await (mode === "changes" ? graph() : fileTree()).waitFor();
   }
 
-  it("opens a changed file's diff on the first click, and keeps it as the tree changes mode", async () => {
+  it("opens a changed file's diff on the first click, keeps it as the tree changes mode, and returns focus to the tree once it's committed", async () => {
     await setWide(true);
     await setTreeMode("changes");
     write("src/a.ts", "export const a = 2;\n");
@@ -150,8 +150,12 @@ describe("editor pane", () => {
     await pane().getByRole("button", { name: "More options" }).click();
     await app.page.getByRole("menuitem", { name: "Tree view" }).click();
     await changes().getByRole("button", { name: "src" }).waitFor();
+    await diffEditor().locator(".editor.modified").click();
+    await waitForFocusIn("editor", "clicking the diff");
     commitAll("Change a");
     await commit("Change a").waitFor();
+    // The emptied editor side can't take focus, which used to fall to the page.
+    await waitForFocusIn("tree", "the file left");
   });
 
   it("returns a narrow pane to its tree, with focus, once its file is committed elsewhere", async () => {
@@ -302,7 +306,7 @@ describe("editor pane", () => {
     await commitReview().getByTestId("back-button").click();
   });
 
-  it("moves focus to the file when Cmd+B hides a wide pane's tree, and shows the tree once the file is committed", async () => {
+  it("moves focus to the file when Cmd+B hides a wide pane's tree, and shows the tree, with focus, once the file is committed", async () => {
     await setWide(true);
     await setTreeMode("changes");
     write("src/b.ts", "export const b = 3;\n");
@@ -319,6 +323,7 @@ describe("editor pane", () => {
     // It used to stay on "Select a file to edit", with the tree hidden.
     await tree().waitFor();
     await commit("Change b again").waitFor();
+    await waitForFocusIn("tree", "the file left");
   });
 
   it("had no uncaught errors or failed loads", () => {
