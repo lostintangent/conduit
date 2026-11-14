@@ -163,6 +163,7 @@ export function NestedFolderItem({
             : undefined
         }
         data-testid={`folder-toggle-${folder.name}`}
+        data-path={folder.path}
       >
         {/* Expand/collapse chevron - always toggles on click */}
         <span

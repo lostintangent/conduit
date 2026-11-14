@@ -761,6 +761,197 @@ describe("FileTreeChanges", () => {
   });
 
   // ===========================================================================
+  // Focus After A Git Write
+  // ===========================================================================
+
+  describe("focus after a git write", () => {
+    const status = (...files: Array<[string, boolean]>) =>
+      new Map(
+        files.map(([path, staged]) => [
+          path,
+          { path, status: "modified", staged },
+        ]),
+      );
+
+    // Renders the tree, and reports a status the way the watcher does
+    function renderTree(
+      gitStatus,
+      viewMode = "flat",
+      queryClient = createQueryClient(),
+    ) {
+      const tree = (nextStatus) => (
+        <FileTreeChangesView
+          viewMode={viewMode}
+          paneId={TEST_PANE_ID}
+          cwd={TEST_CWD}
+          git={mockGitAPI as any}
+          selectedFile={null}
+          onFileSelect={mockOnFileSelect}
+          gitStatus={nextStatus}
+        />
+      );
+      const { rerender } = render(tree(gitStatus), { queryClient });
+      return (nextStatus) => rerender(tree(nextStatus));
+    }
+
+    const STAGED = "section-staged-changes";
+    const CHANGES = "section-changes";
+    const row = (section: string, testId: string) =>
+      within(screen.getByTestId(section)).getByTestId(testId);
+    const button = (section: string, testId: string) =>
+      row(section, testId).querySelector("button");
+    // Enter on a focused button clicks it
+    const press = (section: string, testId: string, action: string) => {
+      const target = within(row(section, testId)).getByTestId(action);
+      target.focus();
+      fireEvent.click(target);
+    };
+
+    it("follows a file staged, then unstaged, to its new row", async () => {
+      const report = renderTree(status(["a.ts", false], ["b.ts", false]));
+
+      press(CHANGES, "change-item-a.ts", "stage-button");
+      await waitFor(() =>
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+      );
+      report(status(["a.ts", true], ["b.ts", false]));
+      await waitFor(() => {
+        expect(document.activeElement).toBe(button(STAGED, "change-item-a.ts"));
+      });
+
+      // This time the watcher reports before the write resolves
+      let finishUnstage!: () => void;
+      mockUnstage.mockReturnValueOnce(
+        new Promise<void>((resolve) => (finishUnstage = resolve)),
+      );
+      press(STAGED, "change-item-a.ts", "unstage-button");
+      await waitFor(() =>
+        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+      );
+      report(status(["a.ts", false], ["b.ts", false]));
+      await act(async () => finishUnstage());
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          button(CHANGES, "change-item-a.ts"),
+        );
+      });
+    });
+
+    it("follows a row however long the watcher takes to report it", async () => {
+      const queryClient = createQueryClient();
+      const report = renderTree(
+        status(["a.ts", false], ["b.ts", false]),
+        "flat",
+        queryClient,
+      );
+      const realNow = performance.now.bind(performance);
+      let later = 0;
+      const now = vi
+        .spyOn(performance, "now")
+        .mockImplementation(() => realNow() + later);
+
+      press(CHANGES, "change-item-a.ts", "stage-button");
+      await waitFor(() =>
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+      );
+      await waitFor(() => expect(queryClient.isMutating()).toBe(0));
+      // A push holds the watcher's reports until it finishes
+      later = 10_000;
+      report(status(["a.ts", true], ["b.ts", false]));
+      await waitFor(() => {
+        expect(document.activeElement).toBe(button(STAGED, "change-item-a.ts"));
+      });
+      now.mockRestore();
+    });
+
+    it("lands on the nearest row left when a file is reverted or its new section is collapsed", async () => {
+      const report = renderTree(
+        status(
+          ["a.ts", false],
+          ["b.ts", false],
+          ["c.ts", false],
+          ["s.ts", true],
+        ),
+      );
+
+      press(CHANGES, "change-item-a.ts", "revert-button");
+      await waitFor(() =>
+        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+      );
+      report(status(["b.ts", false], ["c.ts", false], ["s.ts", true]));
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          button(CHANGES, "change-item-b.ts"),
+        );
+      });
+
+      fireEvent.click(
+        within(screen.getByTestId(STAGED)).getByTestId("section-toggle"),
+      );
+      press(CHANGES, "change-item-c.ts", "stage-button");
+      await waitFor(() =>
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["c.ts"]),
+      );
+      report(status(["b.ts", false], ["c.ts", true], ["s.ts", true]));
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          button(CHANGES, "change-item-b.ts"),
+        );
+      });
+    });
+
+    it("follows a folder staged in the nested view", async () => {
+      const report = renderTree(
+        status(["lib/a.ts", false], ["src/b.ts", false]),
+        "nested",
+      );
+
+      press(CHANGES, "folder-toggle-lib", "stage-button");
+      await waitFor(() =>
+        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["lib/a.ts"]),
+      );
+      report(status(["lib/a.ts", true], ["src/b.ts", false]));
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          button(STAGED, "folder-toggle-lib"),
+        );
+      });
+    });
+
+    it("lands on Staged Changes after Stage All", async () => {
+      const report = renderTree(status(["a.ts", false], ["b.ts", false]));
+
+      const stageAll = within(screen.getByTestId(CHANGES)).getByTestId(
+        "stage-all-button",
+      );
+      stageAll.focus();
+      fireEvent.click(stageAll);
+      await waitFor(() => expect(mockStage).toHaveBeenCalled());
+      report(status(["a.ts", true], ["b.ts", true]));
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          within(screen.getByTestId(STAGED)).getByTestId("section-toggle"),
+        );
+      });
+    });
+
+    it("leaves focus alone once it moves on", async () => {
+      const report = renderTree(status(["a.ts", false], ["b.ts", false]));
+
+      press(CHANGES, "change-item-a.ts", "stage-button");
+      await waitFor(() => expect(mockStage).toHaveBeenCalled());
+      const elsewhere = button(CHANGES, "change-item-b.ts");
+      elsewhere.focus();
+      report(status(["a.ts", true], ["b.ts", false]));
+
+      await waitFor(() => {
+        expect(button(STAGED, "change-item-a.ts")).toBeDefined();
+      });
+      expect(document.activeElement).toBe(elsewhere);
+    });
+  });
+
+  // ===========================================================================
   // Git Status Badge
   // ===========================================================================
 

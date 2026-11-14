@@ -231,6 +231,34 @@ describe("editor", () => {
     await changedOnly.click();
   });
 
+  it("keeps keyboard focus on a file as it's staged, then unstaged", async () => {
+    const changedOnly = app.page.getByTestId("filter-toggle");
+    await changedOnly.click();
+    const inSection = (section: string, name: string | RegExp) =>
+      app.page.getByTestId(section).getByRole("button", { name, exact: true });
+    // Focus that a script moves after a key press still shows as keyboard focus
+    const focusShown = (section: string, name: string | RegExp) =>
+      inSection(section, name).and(app.page.locator(":focus-visible"));
+    const staged = () => git(project, "diff", "--cached", "--name-only");
+
+    await inSection("section-changes", /^b\.txt/).focus();
+    await app.page.keyboard.press("Tab");
+    expect(await focusShown("section-changes", "Stage").count()).toBe(1);
+    await app.page.keyboard.press("Enter");
+    await focusShown("section-staged-changes", /^b\.txt/).waitFor();
+    expect(staged()).toBe("b.txt\n");
+
+    await app.page.keyboard.press("Tab");
+    expect(await focusShown("section-staged-changes", "Unstage").count()).toBe(
+      1,
+    );
+    await app.page.keyboard.press("Enter");
+    await focusShown("section-changes", /^b\.txt/).waitFor();
+    expect(staged()).toBe("");
+
+    await changedOnly.click();
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

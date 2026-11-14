@@ -57,7 +57,7 @@ import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
 
 // Local imports from extracted modules
-import { useMultiSelect } from "./hooks";
+import { useFocusFollowsRow, useMultiSelect } from "./hooks";
 import {
   buildFolderTree,
   buildVisualOrderFromTree,
@@ -120,8 +120,8 @@ interface SectionProps {
   onToggle: () => void;
   children: React.ReactNode;
   actions?: React.ReactNode;
-  /** Whether this is the staged section (for diff stats) */
-  isStaged?: boolean;
+  /** Whether this is the staged section */
+  isStaged: boolean;
 }
 
 /**
@@ -137,7 +137,10 @@ function Section({
   isStaged,
 }: SectionProps) {
   return (
-    <div data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}>
+    <div
+      data-testid={`section-${title.toLowerCase().replace(/\s+/g, "-")}`}
+      data-section={isStaged ? "staged" : "unstaged"}
+    >
       <div className="group flex items-center gap-1.5 w-full py-1 px-1.5 hover:bg-foreground/10 rounded-md text-[13px] font-medium text-foreground transition cursor-pointer">
         <button
           type="button"
@@ -158,11 +161,9 @@ function Section({
         {/* Diff stats / Actions - mutually exclusive via display:none/block */}
         {/* Stats: shown by default, hidden on hover */}
         {/* Right margin aligns with file stats (accounts for GitBadge 14px + gap 6px) */}
-        {isStaged !== undefined && (
-          <div className="block group-hover:hidden group-has-[:focus-visible]:hidden mr-5">
-            <SectionDiffStats staged={isStaged} />
-          </div>
-        )}
+        <div className="block group-hover:hidden group-has-[:focus-visible]:hidden mr-5">
+          <SectionDiffStats staged={isStaged} />
+        </div>
         {/* Actions: shown on hover or keyboard focus (no margin - stays at hard right) */}
         {actions && (
           <div className="flex items-center sr-only group-hover:not-sr-only group-has-[:focus-visible]:not-sr-only">
@@ -311,8 +312,17 @@ export function FileTreeChanges({
 }: FileTreeChangesProps) {
   const showActionButtons = !isComparingToBranch;
 
-  // Scroll persistence
+  // Scroll persistence, and focus that follows a row its git write moves
   const scrollContainerRef = useScrollPersistence(paneId, "changesTree");
+  const treeRef = useRef<HTMLElement | null>(null);
+  const setTreeRef = useCallback(
+    (element: HTMLElement | null) => {
+      treeRef.current = element;
+      scrollContainerRef(element);
+    },
+    [scrollContainerRef],
+  );
+  const followFocus = useFocusFollowsRow(treeRef);
 
   const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
     useGitAvailable();
@@ -603,11 +613,12 @@ export function FileTreeChanges({
         markSeen?.(path);
       }
 
-      stage(cleanPaths);
+      stage(cleanPaths, { onSuccess: followFocus("staged") });
       clearSelection();
     },
     [
       stage,
+      followFocus,
       cwd,
       isMultiSelected,
       getSelectedFilePaths,
@@ -634,11 +645,12 @@ export function FileTreeChanges({
         markSeen?.(path);
       }
 
-      unstage(actualPaths);
+      unstage(actualPaths, { onSuccess: followFocus("unstaged") });
       clearSelection();
     },
     [
       unstage,
+      followFocus,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
@@ -665,11 +677,12 @@ export function FileTreeChanges({
 
       // If a reverted file was untracked or added, it's deleted, and
       // EditorPaneV2's git status sync effect selects the next file
-      revert(actualPaths);
+      revert(actualPaths, { onSuccess: followFocus() });
       clearSelection();
     },
     [
       revert,
+      followFocus,
       isMultiSelected,
       getSelectedFilePaths,
       allFilePaths,
@@ -912,13 +925,19 @@ export function FileTreeChanges({
 
     if (allDirty) return;
 
-    stage(cleanFiles.map(([, status]) => status.path));
-  }, [stage, cwd, unstagedFiles, isFileDirty]);
+    stage(
+      cleanFiles.map(([, status]) => status.path),
+      { onSuccess: followFocus("staged") },
+    );
+  }, [stage, followFocus, cwd, unstagedFiles, isFileDirty]);
 
   const handleUnstageAll = useCallback(() => {
     if (stagedFiles.length === 0) return;
-    unstage(stagedFiles.map(([, status]) => status.path));
-  }, [unstage, stagedFiles]);
+    unstage(
+      stagedFiles.map(([, status]) => status.path),
+      { onSuccess: followFocus("unstaged") },
+    );
+  }, [unstage, followFocus, stagedFiles]);
 
   // Auto-expand folders in nested view
   const prevStateRef = useRef<{
@@ -1126,7 +1145,7 @@ export function FileTreeChanges({
   return (
     <div className="flex flex-col h-full" data-testid="file-tree-changes">
       <nav
-        ref={scrollContainerRef}
+        ref={setTreeRef}
         className="overflow-auto flex-1 h-full px-3 text-[13px] text-white/80"
       >
         {/* Staged Changes Section */}
