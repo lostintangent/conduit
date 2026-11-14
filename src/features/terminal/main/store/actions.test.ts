@@ -109,6 +109,35 @@ describe("a terminal that waits for its size", () => {
   });
 });
 
+describe("a new terminal", () => {
+  beforeEach(() => {
+    spawnTerminalProcess.mockReset();
+    spawnTerminalProcess.mockReturnValue(fakePty());
+  });
+
+  afterEach(() => {
+    getAllTerminals().clear();
+  });
+
+  it("starts in the home directory when its cwd is empty", async () => {
+    const home = process.env.HOME;
+    process.env.HOME = "/Users/me";
+    try {
+      const { id, cwd } = await createTerminal({ cwd: "" });
+
+      expect(cwd).toBe("/Users/me");
+      expect(spawnTerminalProcess).toHaveBeenCalledWith(
+        id,
+        "/Users/me",
+        undefined,
+        undefined,
+      );
+    } finally {
+      process.env.HOME = home;
+    }
+  });
+});
+
 describe("a restored terminal in a tab that hasn't shown", () => {
   let pty: ReturnType<typeof fakePty>;
   const output = (data: string) => pty.onData.mock.calls[0][0](data);

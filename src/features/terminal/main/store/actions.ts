@@ -29,7 +29,7 @@ export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
   const cwd =
-    options?.cwd ??
+    options?.cwd ||
     path.resolve(process.env.HOME ?? process.env.USERPROFILE ?? process.cwd());
 
   if (options?.waitForSize && !(options.cols && options.rows)) {
