@@ -162,12 +162,9 @@ export function getOrCreate(
     // Resolve the color theme and font settings
     const theme = getTerminalTheme();
 
-    const fontFamily = userSettings.terminalFontFamily!;
-    const fontSize = userSettings.terminalFontSize!;
-
     const terminal = new Terminal({
-      fontFamily,
-      fontSize,
+      fontFamily: userSettings.terminalFontFamily,
+      fontSize: userSettings.terminalFontSize,
       theme,
       cursorBlink: true,
       allowProposedApi: true, // Required for us to use the decorations API (for displaying search results in the terminal)
@@ -206,9 +203,11 @@ export function getOrCreate(
     terminal.unicode.activeVersion = "11";
 
     // If this is the first pane for this PTY session, set up data handling
-    if (!panesBySession.has(sessionId)) {
+    let sessionPanes = panesBySession.get(sessionId);
+    if (!sessionPanes) {
       // Initialize state for this session
-      panesBySession.set(sessionId, new Set());
+      sessionPanes = new Set();
+      panesBySession.set(sessionId, sessionPanes);
       stateTracker.trackSession(sessionId);
 
       // Buffer writes to batch them for performance
@@ -243,7 +242,7 @@ export function getOrCreate(
       restoreTerminalBuffer(sessionId, terminal);
     }
 
-    panesBySession.get(sessionId)!.add(paneId);
+    sessionPanes.add(paneId);
 
     const onDataDispose = terminal.onData((input) => {
       // Suppress echo detection for this terminal's upcoming output.
@@ -470,7 +469,10 @@ export function updateTerminalThemes() {
  * Update terminal fonts for all active terminals
  * Called when the terminal font settings change
  */
-export function updateTerminalFonts(fontFamily: string, fontSize: number) {
+export function updateTerminalFonts(
+  fontFamily: string | undefined,
+  fontSize: number | undefined,
+) {
   xtermInstancesByPane.forEach((instance) => {
     instance.terminal.options.fontFamily = fontFamily;
     instance.terminal.options.fontSize = fontSize;

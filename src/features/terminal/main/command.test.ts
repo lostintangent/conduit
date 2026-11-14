@@ -166,6 +166,11 @@ describe("captureTerminalCommand", () => {
       expect(await captureTerminalCommand(shell())).toBe("npm run dev");
     });
 
+    it("captures a foreground command inside a nested shell", async () => {
+      fakePs("100 1 Ss -zsh\n200 100 S bash\n300 200 S+ vim notes.md\n");
+      expect(await captureTerminalCommand(shell())).toBe("vim notes.md");
+    });
+
     // A copy that replays the CLI, like `conduit duplicate`, starts a second
     // Conduit, since it runs without the launcher's ELECTRON_RUN_AS_NODE.
     it("doesn't capture the conduit CLI", async () => {

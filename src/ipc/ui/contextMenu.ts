@@ -69,17 +69,15 @@ function groupMenuItems(items: ContextMenuItemData[]): GroupedItems {
       // Submenu item
       const fullSubmenuPath = `${parentGroup}/${submenuPath}`;
 
-      if (!submenus.has(fullSubmenuPath)) {
+      let submenu = submenus.get(fullSubmenuPath);
+      if (!submenu) {
         // Use submenuLabel from item if provided, otherwise use submenu path as fallback
         const label = item.submenuLabel || submenuPath;
-        submenus.set(fullSubmenuPath, {
-          label,
-          parentGroup,
-          items: [],
-        });
+        submenu = { label, parentGroup, items: [] };
+        submenus.set(fullSubmenuPath, submenu);
       }
 
-      submenus.get(fullSubmenuPath)!.items.push(item);
+      submenu.items.push(item);
     }
   }
 
@@ -129,17 +127,19 @@ export function showContextMenu(
   for (const item of options.menuItems) {
     const { parentGroup, submenuPath } = parseGroupPath(item.group);
 
-    if (!grouped.has(parentGroup)) {
-      grouped.set(parentGroup, []);
+    let existingItems = grouped.get(parentGroup);
+    if (!existingItems) {
+      existingItems = [];
+      grouped.set(parentGroup, existingItems);
     }
 
     if (!submenuPath) {
       // Top-level item - add directly
-      grouped.get(parentGroup)!.push(item);
+      existingItems.push(item);
     } else {
       // Submenu item - check if we already added this submenu placeholder
       const fullSubmenuPath = `${parentGroup}/${submenuPath}`;
-      const existingItems = grouped.get(parentGroup)!;
+      const submenuData = submenus.get(fullSubmenuPath);
       const submenuExists = existingItems.some(
         (entry) =>
           "type" in entry &&
@@ -147,9 +147,8 @@ export function showContextMenu(
           entry.submenu.path === fullSubmenuPath,
       );
 
-      if (!submenuExists) {
+      if (submenuData && !submenuExists) {
         // Add submenu placeholder
-        const submenuData = submenus.get(fullSubmenuPath)!;
         existingItems.push({
           type: "submenu",
           submenu: {
@@ -162,15 +161,13 @@ export function showContextMenu(
     }
   }
 
-  // Sort groups
-  const sortedGroupNames = Array.from(grouped.keys()).sort();
+  // Sort groups by name
+  const sortedGroups = Array.from(grouped).sort(([a], [b]) => (a < b ? -1 : 1));
 
   // Build menu template with separators between groups
   const menuTemplate: MenuItemConstructorOptions[] = [];
 
-  sortedGroupNames.forEach((groupName, groupIndex) => {
-    const items = grouped.get(groupName)!;
-
+  sortedGroups.forEach(([, items], groupIndex) => {
     // Add menu items for this group
     items.forEach((item) => {
       if ("type" in item && item.type === "submenu") {
@@ -200,7 +197,7 @@ export function showContextMenu(
     });
 
     // Add separator after each group except the last
-    if (groupIndex < sortedGroupNames.length - 1) {
+    if (groupIndex < sortedGroups.length - 1) {
       menuTemplate.push({ type: "separator" });
     }
   });

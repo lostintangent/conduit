@@ -169,8 +169,8 @@ const pickActiveCommand = (
   const queue: number[] = [shellPid];
   let fallback: string | null = null;
 
-  while (queue.length > 0) {
-    const currentPid = queue.shift()!;
+  // Breadth-first: the array iterator also visits the pids pushed below.
+  for (const currentPid of queue) {
     const children = childMap.get(currentPid);
     if (!children) {
       continue;
