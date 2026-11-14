@@ -16,6 +16,7 @@ import type {
 import { useSelector } from "@tanstack/react-store";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { shareAppKeys } from "./appKeys";
 import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 
@@ -263,6 +264,9 @@ export function BrowserPane({
         webview.style.transform = "";
         webview.style.transformOrigin = "";
         webview.style.left = "-10000px";
+        // Off screen, its page would keep the keyboard, and the app's keys
+        // it hands over would have no pane to run them
+        if (document.activeElement === webview) webview.blur();
         webviewRef.current = null;
       }
     };
@@ -406,7 +410,11 @@ export function BrowserPane({
 
     webview.addEventListener("console-message", handleConsoleMessage);
 
+    const stopSharingAppKeys = shareAppKeys(webview);
+
     return () => {
+      stopSharingAppKeys();
+
       webview.removeEventListener("dom-ready", handleDomReady);
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);

@@ -4,6 +4,7 @@ import type {
 } from "@shared/cli/browser";
 import { ipcRenderer } from "electron";
 import automation from "./api/automation";
+import { handAppKeys } from "./appKeys";
 
 ipcRenderer.on(
   "browser:request",
@@ -38,3 +39,5 @@ window.addEventListener(
   },
   { capture: true },
 );
+
+handAppKeys();

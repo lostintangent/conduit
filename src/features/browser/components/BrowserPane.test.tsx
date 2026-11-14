@@ -35,7 +35,7 @@ function browserPane(isInPreview: boolean) {
   );
 }
 
-describe("BrowserPane in a preview", () => {
+describe("BrowserPane", () => {
   let webview: HTMLElement;
 
   beforeEach(() => {
@@ -69,5 +69,15 @@ describe("BrowserPane in a preview", () => {
     await nextFrames(3);
 
     expect(webview.style.zIndex).toBe("1");
+  });
+
+  it("takes the keyboard back from its page when its tab is hidden", () => {
+    const { unmount } = render(browserPane(false));
+    webview.tabIndex = 0;
+    webview.focus();
+
+    unmount();
+
+    expect(document.activeElement).not.toBe(webview);
   });
 });

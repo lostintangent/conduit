@@ -204,6 +204,43 @@ describe("KeybindingRegistry", () => {
     });
   });
 
+  describe("getFirstChords()", () => {
+    const firstChords = () =>
+      registry
+        .getFirstChords()
+        .map(({ chord, binding, startsChord }) => [
+          chord.key,
+          binding.commandId,
+          startsChord,
+        ]);
+
+    it("lists each first key once, with the keybinding findCommand runs for it", () => {
+      registry.register("tab.new", { key: "Cmd+T" });
+      registry.register("terminal.new", { key: "Cmd+T" }, 10);
+      registry.register("user.command", { key: "Cmd+T" }, 10);
+      registry.register("pane.split", { key: "Cmd+Shift+B+Left" });
+      registry.register("pane.left", { key: "Cmd+Left" });
+
+      expect(firstChords()).toEqual([
+        ["t", "terminal.new", false],
+        ["left", "pane.split", false],
+        ["left", "pane.left", false],
+      ]);
+    });
+
+    it("says which first keys start a chord", () => {
+      registry.register("workspace.save", { key: "Cmd+K Cmd+S" });
+      registry.register("terminal.clear", { key: "Cmd+K" }, 10);
+      registry.register("workspace.open", { key: "Cmd+K Cmd+O" });
+      registry.register("tab.new", { key: "Cmd+T" });
+
+      expect(firstChords()).toEqual([
+        ["k", "terminal.clear", true],
+        ["t", "tab.new", false],
+      ]);
+    });
+  });
+
   describe("getKeybindingsForCommand()", () => {
     it("should return all keybindings for a command", () => {
       registry.register("test.command", { key: "Ctrl+T" });

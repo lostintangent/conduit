@@ -34,6 +34,12 @@ export function clearPressedKeys(): void {
   pressedKeys.clear();
 }
 
+/** The keys held down while `event`'s key was pressed, like "b" in Cmd+Shift+B+Left */
+export function heldKeys(event: KeyboardEvent): string[] {
+  const trigger = normalizeKey(event.key).toLowerCase();
+  return [...pressedKeys].filter((key) => key !== trigger);
+}
+
 /**
  * Parse a keybinding string into key chords
  * Examples: "Cmd+T", "Cmd+K Cmd+W", "Ctrl+Shift+P"
@@ -124,24 +130,18 @@ export function matchesEvent(chord: KeyChord, event: KeyboardEvent): boolean {
     return false;
   }
 
-  // Get all currently pressed keys excluding the current trigger key
-  const pressedKeysExcludingTrigger = new Set(pressedKeys);
-  pressedKeysExcludingTrigger.delete(normalizeKey(event.key).toLowerCase());
+  const held = heldKeys(event);
 
   // Check required keys (e.g., "b" in "Cmd+Shift+B+Left")
   if (chord.requiredKeys && chord.requiredKeys.length > 0) {
     return chord.requiredKeys.every((requiredKey) =>
-      pressedKeysExcludingTrigger.has(requiredKey.toLowerCase()),
+      held.includes(requiredKey.toLowerCase()),
     );
   }
 
   // If no required keys, ensure NO extra keys are pressed
   // This prevents Cmd+Shift+Up from matching when Cmd+Shift+E+Up is pressed
-  if (pressedKeysExcludingTrigger.size > 0) {
-    return false;
-  }
-
-  return true;
+  return held.length === 0;
 }
 
 /**

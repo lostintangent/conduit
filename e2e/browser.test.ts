@@ -87,6 +87,17 @@ describe("browser automation from the CLI", () => {
     );
   }
 
+  /** Runs a script in the nth webview's page, returning what it evaluates to. */
+  function inPage<T>(index: number, script: string): Promise<T> {
+    return app.page
+      .locator("webview")
+      .nth(index)
+      .evaluate(
+        (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
+        script,
+      );
+  }
+
   it("opens a browser pane and navigates it", async () => {
     expect(await terminal.run("conduit split right -t browser")).toBe(0);
     expect(await terminal.run(`conduit browser-navigate ${url}`)).toBe(0);
@@ -176,6 +187,69 @@ describe("browser automation from the CLI", () => {
       await clickPage(index);
       await expectActivePane(expected);
     }
+  });
+
+  // The File menu has its own Cmd+T, but Playwright's keys never reach menus
+  it("runs the app's shortcuts while a page has focus", async () => {
+    const selectedTab = (index: number) =>
+      app.page
+        .getByRole("tab")
+        .nth(index)
+        .and(app.page.getByRole("tab", { selected: true }));
+
+    await clickPage(0);
+    await app.page.keyboard.press("Meta+p");
+    const quickOpen = app.page.getByPlaceholder(/Search files by name/);
+    await quickOpen.waitFor();
+    await app.page.keyboard.press("Escape");
+    await quickOpen.waitFor({ state: "hidden" });
+
+    await clickPage(0);
+    await app.page.keyboard.press("Meta+t");
+    await selectedTab(1).waitFor();
+    await app.page.keyboard.press("Meta+1");
+    await selectedTab(0).waitFor();
+    await clickPage(0);
+    await app.page.keyboard.press("Meta+2");
+    await selectedTab(1).waitFor();
+    await app.page.keyboard.press("Meta+1");
+    await selectedTab(0).waitFor();
+  });
+
+  it("runs a two-key shortcut started in a page", async () => {
+    await clickPage(0);
+    await app.page.keyboard.press("Meta+k");
+    await app.page.keyboard.press("Meta+s");
+    const shortcuts = app.page.getByPlaceholder(/Search keybindings/);
+    await shortcuts.waitFor();
+    await app.page.keyboard.press("Escape");
+    await shortcuts.waitFor({ state: "hidden" });
+  });
+
+  it("leaves a page its editing keys and the keys the app isn't using", async () => {
+    await clickPage(0);
+    await inPage(
+      0,
+      `window.pressed = [];
+      addEventListener("keydown", (event) => pressed.push(event.key));
+      const input = document.querySelector("input");
+      input.value = "Ada";
+      input.focus();`,
+    );
+
+    // The app moves between panes with Cmd+Left
+    await app.page.keyboard.press("Meta+a");
+    await app.page.keyboard.type("Grace");
+    await app.page.keyboard.press("Meta+ArrowLeft");
+    await app.page.keyboard.type("Hi ");
+    // The app's Cmd+B is only for editors
+    await app.page.keyboard.press("Meta+b");
+
+    expect(await inPage(0, `document.querySelector("input").value`)).toBe(
+      "Hi Grace",
+    );
+    expect(await inPage(0, `pressed.includes("b")`)).toBe(true);
+    await expectActivePane(url);
   });
 
   it("had no uncaught errors or failed loads", () => {
