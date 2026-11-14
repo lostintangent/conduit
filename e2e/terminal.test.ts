@@ -28,6 +28,8 @@ interface Output {
     };
   };
   output?: string[];
+  /** When each message arrived, from `Date.now()`. */
+  arrivals?: number[];
   /** Whether the hidden-output step's pane was last seen on screen. */
   onScreen?: boolean;
 }
@@ -56,7 +58,11 @@ describe("terminal and CLI", () => {
       const scope = window as unknown as Output;
       if (scope.output) return;
       const output: string[] = (scope.output = []);
-      scope.conduit.terminal.on("data", ({ data }) => output.push(data));
+      const arrivals: number[] = (scope.arrivals = []);
+      scope.conduit.terminal.on("data", ({ data }) => {
+        output.push(data);
+        arrivals.push(Date.now());
+      });
     });
   const recorded = () =>
     app.page.evaluate(() => (window as unknown as Output).output ?? []);
@@ -132,8 +138,7 @@ describe("terminal and CLI", () => {
           )) === expected,
         `the pane ${expected ? "on" : "off"} screen`,
       );
-    // Two lines 120 ms apart, about half of what main holds a hidden tab's
-    // output for. `zselect` waits without forking a slow `sleep`.
+    // Two lines 120 ms apart. `zselect` waits without forking a slow `sleep`.
     const twoLines = (name: string) =>
       `printf 'E2E-${name}-%s\\n' A; zselect -t 12; printf 'E2E-${name}-%s\\n' B`;
     const messageWith = (line: string) =>
@@ -142,16 +147,30 @@ describe("terminal and CLI", () => {
         line,
       );
 
-    // The shell waits until main has heard that its tab hid.
+    // Once main has heard that its tab hid, the shell prints the time it
+    // printed. A busy runner can only make that line arrive later, never
+    // sooner than main holds it for.
     const hid = path.join(app.home, "tab-hid");
     await shell.type(
-      `zmodload zsh/zselect; until [[ -e ${hid} ]]; do zselect -t 5; done; ${twoLines("HELD")}\n`,
+      `zmodload zsh/zselect zsh/datetime; until [[ -e ${hid} ]]; do zselect -t 5; done; printf 'E2E-HELD %s\\n' $EPOCHREALTIME\n`,
     );
     await onScreen(true);
     await app.page.getByRole("tab").first().click();
     await onScreen(false);
     fs.writeFileSync(hid, "");
-    expect(await messageWith("E2E-HELD-A\r\n")).toContain("E2E-HELD-B\r\n");
+    const held = await until(
+      () =>
+        app.page.evaluate(() => {
+          const { output = [], arrivals = [] } = window as unknown as Output;
+          const index = output.findIndex((data) =>
+            /E2E-HELD \d+\.\d+\r\n/.test(data),
+          );
+          return index >= 0 && { data: output[index], at: arrivals[index] };
+        }),
+      "E2E-HELD",
+    );
+    const printed = Number(held.data.match(/E2E-HELD (\d+\.\d+)/)![1]);
+    expect(held.at - printed * 1_000).toBeGreaterThanOrEqual(200);
 
     await tab.click();
     await onScreen(true);
