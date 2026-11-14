@@ -1,7 +1,9 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { UserSettings } from "../model";
 import { openSettings } from "./settings";
 
 vi.mock("electron", () => ({ app: {} }));
@@ -132,12 +134,15 @@ describe("settings", () => {
   it("tells the watcher when the file changes on disk", async () => {
     settings = openSettings(() => home, 10);
     settings.get();
-    const changed = new Promise((resolve) =>
-      stops.push(settings.watch(resolve)),
-    );
+    let changed: UserSettings | undefined;
+    stops.push(settings.watch((next) => (changed = next)));
 
-    await writeFile(file, JSON.stringify({ theme: "light" }));
-
-    expect(await changed).toMatchObject({ theme: "light" });
+    // The watcher takes its first look at the file in the background, and an
+    // edit that lands before that look is never a change to it. People edit
+    // long after the app starts watching, so this edits until one counts.
+    await waitFor(async () => {
+      await writeFile(file, JSON.stringify({ theme: "light" }));
+      expect(changed).toMatchObject({ theme: "light" });
+    });
   });
 });
