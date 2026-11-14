@@ -32,7 +32,6 @@ type TrackedSession = {
   state: SessionState;
   progressState: ProgressState;
   progressPercent: number;
-  notificationsPaused: boolean;
   pendingWaitRequests: Set<() => void>;
 
   // Suppress activity that occurs directly after user input
@@ -60,6 +59,9 @@ const progressChangeSubscribers = new Set<
   (sessionId: string, state: ProgressState, percent: number) => void
 >();
 const runtimeResetSubscribers = new Set<(sessionId: string) => void>();
+// Sessions whose state changes go unannounced, like a collapsed pane's. A
+// restored workspace pauses its collapsed panes before they're tracked.
+const pausedSessions = new Set<string>();
 
 // ============================================================================
 // Public API
@@ -105,7 +107,6 @@ export function trackSession(sessionId: string): void {
     state: "idle",
     progressState: "hidden",
     progressPercent: 0,
-    notificationsPaused: false,
     pendingWaitRequests: new Set(),
     inputSuppressionUntil: null,
     runningToIdleTimer: null,
@@ -123,6 +124,7 @@ export function trackSession(sessionId: string): void {
  * Clears all timers and resolves any pending wait requests.
  */
 export function untrackSession(sessionId: string): void {
+  pausedSessions.delete(sessionId);
   const session = sessionStateMap.get(sessionId);
   if (!session) return;
 
@@ -281,7 +283,7 @@ export function updateProgressState(
     session.progressState = newState;
     session.progressPercent = percent;
 
-    if (!session.notificationsPaused) {
+    if (!pausedSessions.has(sessionId)) {
       progressChangeSubscribers.forEach((cb) =>
         cb(sessionId, newState, percent),
       );
@@ -314,20 +316,14 @@ export function markAsIdle(sessionId: string): void {
  * Pause state notifications for a session.
  */
 export function pauseStateTracking(sessionId: string): void {
-  const session = sessionStateMap.get(sessionId);
-  if (session) {
-    session.notificationsPaused = true;
-  }
+  pausedSessions.add(sessionId);
 }
 
 /**
  * Resume state notifications for a session.
  */
 export function resumeStateTracking(sessionId: string): void {
-  const session = sessionStateMap.get(sessionId);
-  if (session) {
-    session.notificationsPaused = false;
-  }
+  pausedSessions.delete(sessionId);
 }
 
 /**
@@ -400,7 +396,7 @@ function checkForSustainedActivity(
       session.state = "running";
       session.runningStartedAt = Date.now();
       session.idleSince = null;
-      if (!session.notificationsPaused) {
+      if (!pausedSessions.has(sessionId)) {
         stateChangeSubscribers.forEach((cb) => cb(sessionId, "running"));
       }
       startIdleTimer(session, sessionId);
@@ -452,7 +448,7 @@ function transitionToIdle(session: TrackedSession): void {
 function startIdleTimer(session: TrackedSession, sessionId: string): void {
   session.runningToIdleTimer = setTimeout(() => {
     transitionToIdle(session);
-    if (!session.notificationsPaused) {
+    if (!pausedSessions.has(sessionId)) {
       stateChangeSubscribers.forEach((cb) => cb(sessionId, "idle"));
     }
   }, RUNNING_TO_IDLE_MS);

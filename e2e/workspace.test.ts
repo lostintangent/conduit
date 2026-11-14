@@ -30,6 +30,49 @@ const agents = {
   ],
 };
 
+const printFor5Seconds =
+  "zmodload zsh/zselect; repeat 25 { print -n .; zselect -t 20 }";
+
+/**
+ * Its first tab has a shell beside a collapsed pane, and its second tab has
+ * one pane. Both print for 5 seconds. It opens to its third tab.
+ */
+const collapsed = {
+  name: "E2E Collapsed",
+  lastModified: 0,
+  activeTabId: "Shell",
+  tabs: [
+    {
+      ...terminalTab("Split"),
+      panes: [
+        { id: "Split-pane", type: "terminal", cwd: null },
+        {
+          id: "Split-agent",
+          type: "terminal",
+          cwd: null,
+          command: printFor5Seconds,
+        },
+      ],
+      layout: {
+        id: "Split-layout",
+        type: "split",
+        direction: "row",
+        children: [
+          { id: "Split-pane-node", type: "pane", paneId: "Split-pane" },
+          {
+            id: "Split-agent-node",
+            type: "pane",
+            paneId: "Split-agent",
+            collapsed: true,
+          },
+        ],
+      },
+    },
+    terminalTab("Open", printFor5Seconds),
+    terminalTab("Shell"),
+  ],
+};
+
 describe("workspaces", () => {
   let app: Conduit;
 
@@ -40,7 +83,9 @@ describe("workspaces", () => {
         ".zshenv": zshenv,
         "one/.keep": "",
         "two/.keep": "",
-        ".conduit/workspaces.json": JSON.stringify({ workspaces: [agents] }),
+        ".conduit/workspaces.json": JSON.stringify({
+          workspaces: [agents, collapsed],
+        }),
       },
       // Large enough that a shell started at the default 80 columns would be
       // wider than its pane.
@@ -187,6 +232,29 @@ describe("workspaces", () => {
     // It goes idle once its shell has printed nothing for 2 seconds.
     expect(Date.now() - stopped).toBeGreaterThan(1_500);
     expect(await agent.getAttribute("aria-selected")).toBe("false");
+  });
+
+  it("keeps a collapsed pane's output out of its tab's state", async () => {
+    await choose("E2E Collapsed");
+    const [split, open] = [tabs().nth(0), tabs().nth(1)];
+    await tabs()
+      .nth(2)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+    await (await app.terminal()).locator.hover();
+    // The split tab's panes start first, so it would shimmer and go idle
+    // before the other tab does.
+    let shimmered = false;
+    await until(
+      async () => {
+        shimmered ||= (await split.locator(".animate-shiny-text").count()) > 0;
+        return (await open.locator(".bg-blue-400").count()) > 0;
+      },
+      "the uncollapsed pane's tab to go idle, unseen",
+      20_000,
+    );
+    expect(shimmered).toBe(false);
+    expect(await split.locator(".bg-blue-400").count()).toBe(0);
   });
 
   it("had no uncaught errors or failed loads", () => {
