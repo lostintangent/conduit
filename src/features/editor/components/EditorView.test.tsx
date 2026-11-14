@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { EditorPane } from "@shared/types/panes";
 import { EditorView } from "@features/editor/components/EditorView";
 import {
   clearCwdEditorFile,
@@ -9,7 +9,7 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@features/editor/components/EditorPaneAnchor", () => ({
-  EditorPaneAnchor: ({ pane }) => (
+  EditorPaneAnchor: ({ pane }: { pane: EditorPane }) => (
     <span data-testid="pane-file">{pane.file ?? "no-file"}</span>
   ),
 }));

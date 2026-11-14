@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import { parseKeybinding } from "@/commands/keybindings/parser";
@@ -8,7 +8,9 @@ import { keybindingsAtom } from "@features/workbench/client/atoms";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-const display = (key) => formatKeybindingForDisplay(parseKeybinding(key));
+const contextKeys = { getAll: () => ({}) } as unknown as ContextKeyService;
+const display = (key: string) =>
+  formatKeybindingForDisplay(parseKeybinding(key));
 
 describe("KeybindingsTab", () => {
   afterEach(() => {
@@ -18,7 +20,7 @@ describe("KeybindingsTab", () => {
   it("lists commands by category, keeping registration order within one", () => {
     const keybindingRegistry = new KeybindingRegistry();
     const commandRegistry = new CommandRegistry(
-      { getAll: () => ({}) },
+      contextKeys,
       keybindingRegistry,
     );
     for (const [id, category] of [
@@ -53,14 +55,14 @@ describe("KeybindingsTab", () => {
   it("shows a keybinding change once the keybindings atom updates", async () => {
     const keybindingRegistry = new KeybindingRegistry();
     const commandRegistry = new CommandRegistry(
-      { getAll: () => ({}) },
+      contextKeys,
       keybindingRegistry,
     );
     commandRegistry.registerCommand({
       id: "test.command",
       title: "Test Command",
       keybinding: { key: "cmd+k" },
-      handler: () => {},
+      run: () => {},
     });
     keybindingsAtom.set(keybindingRegistry.getAllKeybindings());
 

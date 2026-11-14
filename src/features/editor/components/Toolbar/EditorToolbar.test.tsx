@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { EditorToolbar } from "./EditorToolbar";
@@ -221,7 +220,9 @@ describe("EditorToolbar", () => {
       );
 
       expect(screen.getByTitle("Unsaved changes")).toBeDefined();
-      expect(screen.getByTestId("save-button").disabled).toBe(false);
+      expect(
+        screen.getByTestId<HTMLButtonElement>("save-button").disabled,
+      ).toBe(false);
     });
 
     it("should not show dirty indicator when file is clean", () => {
@@ -238,7 +239,9 @@ describe("EditorToolbar", () => {
       );
 
       expect(screen.queryByTitle("Unsaved changes")).toBeNull();
-      expect(screen.getByTestId("save-button").disabled).toBe(true);
+      expect(
+        screen.getByTestId<HTMLButtonElement>("save-button").disabled,
+      ).toBe(true);
     });
   });
 });

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * useScrollPersistence Hook Tests
  *
@@ -34,7 +33,7 @@ describe("useScrollPersistence", () => {
 
     // Create pane in registry
     registry.getOrCreate("test-pane", {
-      pane: { id: "test-pane", type: "editor", cwd: "/test", filePath: null },
+      pane: { id: "test-pane", type: "editor", cwd: "/test" },
     });
   });
 
@@ -64,7 +63,7 @@ describe("useScrollPersistence", () => {
       const callbackRef = result.current;
       callbackRef(mockScrollElement);
 
-      const entry = registry.get("test-pane");
+      const entry = registry.get("test-pane")!;
       expect(entry.scrollContainers.has("testScroll")).toBe(true);
     });
 
@@ -77,7 +76,7 @@ describe("useScrollPersistence", () => {
       callbackRef(mockScrollElement);
       callbackRef(null);
 
-      const entry = registry.get("test-pane");
+      const entry = registry.get("test-pane")!;
       const scrollEntry = entry.scrollContainers.get("testScroll");
       // Entry exists but element is null
       expect(scrollEntry?.element).toBeNull();
@@ -101,8 +100,8 @@ describe("useScrollPersistence", () => {
       // Register new element (simulates conditional rendering)
       callbackRef(newElement);
 
-      const entry = registry.get("test-pane");
-      const scrollEntry = entry.scrollContainers.get("testScroll");
+      const entry = registry.get("test-pane")!;
+      const scrollEntry = entry.scrollContainers.get("testScroll")!;
       expect(scrollEntry.element).toBe(newElement);
     });
   });
@@ -154,8 +153,8 @@ describe("useScrollPersistence", () => {
       // Fast-forward past throttle delay
       vi.advanceTimersByTime(150);
 
-      const entry = registry.get("test-pane");
-      const scrollEntry = entry.scrollContainers.get("testScroll");
+      const entry = registry.get("test-pane")!;
+      const scrollEntry = entry.scrollContainers.get("testScroll")!;
       expect(scrollEntry.savedScrollTop).toBe(250);
     });
 
@@ -271,7 +270,7 @@ describe("useScrollPersistence", () => {
       const removeEventListenerSpy = vi.spyOn(element, "removeEventListener");
 
       expect(
-        registry.get("test-pane").scrollContainers.get("testScroll")?.element,
+        registry.get("test-pane")!.scrollContainers.get("testScroll")?.element,
       ).toBe(element);
 
       unmount();
@@ -281,7 +280,7 @@ describe("useScrollPersistence", () => {
         expect.any(Function),
       );
       expect(
-        registry.get("test-pane").scrollContainers.get("testScroll")?.element,
+        registry.get("test-pane")!.scrollContainers.get("testScroll")?.element,
       ).toBeNull();
     });
   });
@@ -314,16 +313,16 @@ describe("useScrollPersistence", () => {
       vi.advanceTimersByTime(150);
 
       // Verify position was saved to registry
-      const entry = registry.get("test-pane");
-      const scrollEntry = entry.scrollContainers.get("testScroll");
+      const entry = registry.get("test-pane")!;
+      const scrollEntry = entry.scrollContainers.get("testScroll")!;
       expect(scrollEntry.savedScrollTop).toBe(250);
 
       // Unregister
       callbackRef(null);
 
       // Verify entry still exists with saved position
-      const entryAfter = registry.get("test-pane");
-      const scrollEntryAfter = entryAfter.scrollContainers.get("testScroll");
+      const entryAfter = registry.get("test-pane")!;
+      const scrollEntryAfter = entryAfter.scrollContainers.get("testScroll")!;
       expect(scrollEntryAfter.savedScrollTop).toBe(250);
     });
   });
@@ -355,7 +354,7 @@ describe("useScrollPersistence", () => {
 
       // Create pane-2 in registry
       registry.getOrCreate("pane-2", {
-        pane: { id: "pane-2", type: "editor", cwd: "/test", filePath: null },
+        pane: { id: "pane-2", type: "editor", cwd: "/test" },
       });
 
       const firstRef = result.current;

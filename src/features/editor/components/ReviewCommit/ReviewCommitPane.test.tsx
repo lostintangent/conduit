@@ -1,11 +1,22 @@
-// @ts-nocheck
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ReviewCommitPane } from "./ReviewCommitPane";
+import type { CommitFile } from "@features/git/model";
+import {
+  ReviewCommitPane,
+  type ReviewCommitPaneProps,
+} from "./ReviewCommitPane";
 import { TooltipProvider } from "@/ui/tooltip";
 
 vi.mock("../shared/FileEditor", () => ({
-  FileEditor: ({ filePath, isExpanded, onToggle }) => (
+  FileEditor: ({
+    filePath,
+    isExpanded,
+    onToggle,
+  }: {
+    filePath: string;
+    isExpanded: boolean;
+    onToggle: () => void;
+  }) => (
     <button
       data-testid={`file-${filePath}`}
       data-expanded={String(isExpanded)}
@@ -16,15 +27,15 @@ vi.mock("../shared/FileEditor", () => ({
   ),
 }));
 
-const file = (path) => ({
+const file = (path: string): CommitFile => ({
   path,
-  status: "M",
+  status: "modified",
   additions: 1,
   deletions: 0,
   isBinary: false,
 });
 
-const pane = (props) => (
+const pane = (props: Partial<ReviewCommitPaneProps>) => (
   <TooltipProvider>
     <ReviewCommitPane
       cwd="/project"
@@ -36,7 +47,7 @@ const pane = (props) => (
   </TooltipProvider>
 );
 
-const expanded = (path) =>
+const expanded = (path: string) =>
   screen.getByTestId(`file-${path}`).getAttribute("data-expanded");
 
 describe("ReviewCommitPane", () => {
