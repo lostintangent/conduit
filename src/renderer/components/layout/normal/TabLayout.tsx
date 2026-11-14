@@ -9,8 +9,8 @@ import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { BrowserPane } from "@/components/panes/browser/BrowserPane";
 import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
 import { EditorPaneAnchor } from "@/components/panes/editor";
-import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
-import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
+import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
+import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import type {
   LayoutResizeAxis,
   LayoutResizeStartConfig,

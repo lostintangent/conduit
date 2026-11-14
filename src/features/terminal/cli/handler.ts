@@ -1,6 +1,6 @@
-import { waitForIdle } from "@/components/panes/terminal/state/stateTracker";
-import { serializeSession } from "@/components/panes/terminal/state/xtermCache";
-import type { HandlerMap } from "./types";
+import { waitForIdle } from "@features/terminal/client/stateTracker";
+import { serializeSession } from "@features/terminal/client/xtermCache";
+import type { HandlerMap } from "@/cli/handlers/types";
 
 export const terminalHandlers: Partial<HandlerMap> = {
   "terminal-read": async (args, context) => {

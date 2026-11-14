@@ -1,4 +1,4 @@
-import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
+import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import {
   Tooltip,
   TooltipContent,

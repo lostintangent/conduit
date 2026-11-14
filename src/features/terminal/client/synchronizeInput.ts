@@ -1,4 +1,4 @@
-import { notifyUserInput } from "@/components/panes/terminal/state/stateTracker";
+import { notifyUserInput } from "@features/terminal/client/stateTracker";
 import { activeTabAtom } from "@/store/atoms";
 
 const api = window.conduit;

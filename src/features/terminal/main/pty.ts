@@ -1,8 +1,8 @@
 import { app } from "electron";
 import { spawn } from "node-pty";
 import path from "node:path";
-import { getCliState } from "../cli";
-import { getCurrentUserSettings } from "../ui";
+import { getCliState } from "../../../ipc/cli";
+import { getCurrentUserSettings } from "../../../ipc/ui";
 
 /**
  * Get the path to the shell integration scripts directory.
@@ -13,7 +13,7 @@ function getShellIntegrationPath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, "shell");
   }
-  return path.join(__dirname, "../../src/ipc/terminal/shell");
+  return path.join(__dirname, "../../src/features/terminal/main/shell");
 }
 
 /**

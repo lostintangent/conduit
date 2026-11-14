@@ -8,7 +8,7 @@ const openExternal = vi.hoisted(() => {
 });
 
 let terminalProps: { onLinkClick: (url: string) => void } | undefined;
-vi.mock("@/components/panes/terminal/TerminalPane", () => ({
+vi.mock("@features/terminal/components/TerminalPane", () => ({
   TerminalPane: (props: { onLinkClick: (url: string) => void }): null => {
     terminalProps = props;
     return null;

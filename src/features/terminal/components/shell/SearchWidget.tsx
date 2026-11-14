@@ -17,7 +17,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import type { xtermInstance } from "../state/xtermCache";
+import type { xtermInstance } from "../../client/xtermCache";
 
 const buildSearchDecorations = (): NonNullable<
   ISearchOptions["decorations"]

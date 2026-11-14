@@ -4,7 +4,7 @@ import { editorHandlers } from "./editor";
 import { notificationHandlers } from "./notification";
 import { paneHandlers } from "./pane";
 import { tabHandlers } from "./tab";
-import { terminalHandlers } from "./terminal";
+import { terminalHandlers } from "@features/terminal/cli/handler";
 import type { HandlerMap } from "./types";
 
 export const handlerMap = {

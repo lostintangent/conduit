@@ -1,6 +1,6 @@
 import type { UpdateState } from "@shared/types";
 import { app, autoUpdater, ipcMain } from "electron";
-import { SendToRendererFn } from "../terminal/types";
+import { SendToRendererFn } from "@features/terminal/main/types";
 
 const CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours
 

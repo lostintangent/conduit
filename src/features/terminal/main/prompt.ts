@@ -4,7 +4,7 @@ import type {
   TerminalPromptRequest,
   TerminalPromptResponse,
   TerminalPromptStreamChunk,
-} from "../../shared/types";
+} from "@shared/types";
 
 // Track active prompt requests for cleanup
 const activeRequests = new Map<string, ChildProcess>();

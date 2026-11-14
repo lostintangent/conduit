@@ -4,18 +4,18 @@ const { spawn } = vi.hoisted(() => ({ spawn: vi.fn() }));
 
 vi.mock("node-pty", () => ({ spawn }));
 vi.mock("electron", () => ({ app: { isPackaged: false } }));
-vi.mock("../../../src/ipc/cli", () => ({
+vi.mock("../../../ipc/cli", () => ({
   getCliState: () => ({
     commandName: "conduit",
     cliDirectory: "/conduit/bin",
     socketPath: "/conduit/socket",
   }),
 }));
-vi.mock("../../../src/ipc/ui", () => ({
+vi.mock("../../../ipc/ui", () => ({
   getCurrentUserSettings: () => ({ terminalShell: "/bin/zsh" }),
 }));
 
-import { spawnTerminalProcess } from "../../../src/ipc/terminal/pty";
+import { spawnTerminalProcess } from "./pty";
 
 describe("spawnTerminalProcess", () => {
   const originalEnv = { ...process.env };

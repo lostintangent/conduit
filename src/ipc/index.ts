@@ -21,7 +21,7 @@ import {
 import {
   cleanupTerminalSessions,
   initializeTerminalHandlers,
-} from "./terminal";
+} from "@features/terminal/main";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
 

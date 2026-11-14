@@ -1,4 +1,4 @@
-import { updateTerminalFonts } from "@/components/panes/terminal/state/xtermCache";
+import { updateTerminalFonts } from "@features/terminal/client/xtermCache";
 import { useDotfiles } from "@/hooks/useDotfiles";
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { quickPaneAtom } from "@/store/atoms";

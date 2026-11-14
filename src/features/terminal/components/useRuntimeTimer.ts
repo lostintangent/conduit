@@ -4,7 +4,7 @@ import {
   getSessionState,
   onRuntimeReset,
   onSessionStateChange,
-} from "./state/stateTracker";
+} from "../client/stateTracker";
 
 /**
  * Format elapsed milliseconds as human-readable duration.

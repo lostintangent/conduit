@@ -86,7 +86,7 @@ vi.mock("@/components/ui/separator", () => ({
 // Import after mocks
 // ============================================================================
 
-import { TerminalGitStats } from "@/components/panes/terminal/shell/TerminalGitStats";
+import { TerminalGitStats } from "@features/terminal/components/shell/TerminalGitStats";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 
 // ============================================================================

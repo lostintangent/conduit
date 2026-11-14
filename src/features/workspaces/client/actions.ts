@@ -1,4 +1,4 @@
-import { pauseStateTracking } from "@/components/panes/terminal/state/stateTracker";
+import { pauseStateTracking } from "@features/terminal/client/stateTracker";
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import { walkLayout } from "@/utils/layout";

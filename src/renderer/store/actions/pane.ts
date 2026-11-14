@@ -3,8 +3,8 @@ import { disposeEditorPane } from "@/components/panes/editor";
 import {
   pauseStateTracking,
   resumeStateTracking,
-} from "@/components/panes/terminal/state/stateTracker";
-import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
+} from "@features/terminal/client/stateTracker";
+import { disposeSession } from "@features/terminal/client/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { closeTab } from "@/store/actions/tab";

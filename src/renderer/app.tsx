@@ -15,7 +15,7 @@ import { GlobalEditorContainer } from "@/components/panes/editor";
 import {
   disposeSession,
   updateTerminalThemes,
-} from "@/components/panes/terminal/state/xtermCache";
+} from "@features/terminal/client/xtermCache";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
 import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";

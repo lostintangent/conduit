@@ -34,7 +34,7 @@ const config: ForgeConfig = {
     icon: "./build/assets/icon",
     extraResource: [
       path.resolve(__dirname, "dist/main/webview-preload.js"),
-      path.resolve(__dirname, "src/ipc/terminal/shell"),
+      path.resolve(__dirname, "src/features/terminal/main/shell"),
     ],
     appBundleId: "dev.conduit",
     appCategoryType: "public.app-category.developer-tools",

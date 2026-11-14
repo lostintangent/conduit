@@ -5,7 +5,7 @@ import registerCanvasCommands from "./commands/canvas";
 import registerEditorCommands from "./commands/editor";
 import registerPaneCommands from "./commands/pane";
 import registerTabCommands from "./commands/tab";
-import registerTerminalCommands from "./commands/terminal";
+import registerTerminalCommands from "@features/terminal/cli/command";
 
 // Import the cliCommand extension to commander
 // that allows defining CLI command handlers

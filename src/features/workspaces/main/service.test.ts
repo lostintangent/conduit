@@ -19,8 +19,8 @@ vi.mock("electron", () => ({
 vi.mock("../../../ipc/ui", () => ({ refreshApplicationMenu: async () => {} }));
 
 import type { Tab } from "@/types";
-import { removeTerminal, storeTerminal } from "../../../ipc/terminal/store";
-import type { TerminalInstance } from "../../../ipc/terminal/types";
+import { removeTerminal, storeTerminal } from "@features/terminal/main/store";
+import type { TerminalInstance } from "@features/terminal/main/types";
 import service from "./service";
 
 beforeAll(() => {

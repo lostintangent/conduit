@@ -1,5 +1,5 @@
 import { EditorPaneAnchor } from "@/components/panes/editor";
-import { TerminalPane } from "@/components/panes/terminal/TerminalPane";
+import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Tooltip,

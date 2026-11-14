@@ -165,7 +165,7 @@ The launcher scripts:
 - Set `ELECTRON_RUN_AS_NODE=1` to run Electron as a Node.js process
 - Execute the CLI entry point with all provided arguments
 
-### 7. Terminal Environment Setup (`src/ipc/terminal/pty.ts`)
+### 7. Terminal Environment Setup (`src/features/terminal/main/pty.ts`)
 
 When spawning terminal sessions, Conduit injects specific environment variables:
 

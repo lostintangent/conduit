@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { parseSeconds } from "../options";
+import { parseSeconds } from "../../../cli/options";
 
 // Process escape sequences like \t, \n, \e, \x1b, etc.
 function processEscapes(str: string): string {

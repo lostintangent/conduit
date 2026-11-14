@@ -5,7 +5,7 @@ import type {
   TerminalInputPayload,
   TerminalPayload,
   TerminalResizePayload,
-} from "../../shared/types";
+} from "@shared/types";
 import { captureTerminalCommand } from "./command";
 import { initializePromptHandlers } from "./prompt";
 import { getAllTerminals, getTerminal } from "./store";

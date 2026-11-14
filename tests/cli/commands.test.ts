@@ -11,7 +11,7 @@ vi.mock("../../src/cli/ipc/ipc", () => ({ sendCliCommand }));
 
 import registerBrowserCommands from "../../src/cli/commands/browser";
 import registerPaneCommands from "../../src/cli/commands/pane";
-import registerTerminalCommands from "../../src/cli/commands/terminal";
+import registerTerminalCommands from "@features/terminal/cli/command";
 import "../../src/cli/ipc";
 
 async function run(args: string[]) {

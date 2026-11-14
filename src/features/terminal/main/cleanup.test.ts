@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TerminalInstance } from "../../../src/ipc/terminal/types";
+import type { TerminalInstance } from "./types";
 
 vi.mock("electron", () => ({ ipcMain: { handle: vi.fn(), on: vi.fn() } }));
-vi.mock("../../../src/ipc/terminal/store/actions", async () => {
-  const store = await import("../../../src/ipc/terminal/store");
+vi.mock("./store/actions", async () => {
+  const store = await import("./store");
   return {
     createTerminal: vi.fn(),
     markTerminalReady: vi.fn(),
@@ -15,11 +15,8 @@ vi.mock("../../../src/ipc/terminal/store/actions", async () => {
   };
 });
 
-import { cleanupTerminalSessions } from "../../../src/ipc/terminal";
-import {
-  getAllTerminals,
-  storeTerminal,
-} from "../../../src/ipc/terminal/store";
+import { cleanupTerminalSessions } from ".";
+import { getAllTerminals, storeTerminal } from "./store";
 
 function fakePty({ ignoresHangup = false } = {}) {
   const exitListeners: Array<() => void> = [];

@@ -1,4 +1,4 @@
-import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
+import { disposeSession } from "@features/terminal/client/xtermCache";
 import { openTabFromExistingSession } from "@/store/actions/tab";
 import { hyperTerminalsAtom } from "@/store/atoms";
 import type { HyperTerminalPosition } from "@shared/types";

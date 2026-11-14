@@ -5,8 +5,8 @@ import {
   markAsIdle,
   onProgressStateChange,
   onSessionStateChange,
-} from "@/components/panes/terminal/state/stateTracker";
-import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
+} from "@features/terminal/client/stateTracker";
+import { disposeSession } from "@features/terminal/client/xtermCache";
 import {
   detachPane,
   inheritAgentSession,

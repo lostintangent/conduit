@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { captureTerminalCommand } from "../../../src/ipc/terminal/command";
-import type { TerminalInstance } from "../../../src/ipc/terminal/types";
+import { captureTerminalCommand } from "./command";
+import type { TerminalInstance } from "./types";
 import type { IPty } from "node-pty";
 
 /**
