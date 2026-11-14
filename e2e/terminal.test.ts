@@ -154,6 +154,18 @@ describe("terminal and CLI", () => {
     expect(notified).not.toContain(before[1]);
   });
 
+  it("reloads the page when it crashes, and closes the dead page's shells", async () => {
+    const pid = await shellPid(await app.terminal());
+    expect(isRunning(pid)).toBe(true);
+
+    const devtools = await app.page.context().newCDPSession(app.page);
+    // The crash takes the reply with it.
+    void devtools.send("Page.crash").catch(() => {});
+    await until(() => !isRunning(pid), "the crashed page's shell to exit");
+    await app.reconnect();
+    expect(await (await app.terminal()).run("true")).toBe(0);
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

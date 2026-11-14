@@ -194,9 +194,15 @@ export class Terminal {
 export interface Conduit {
   /** The isolated home, with symlinks resolved. */
   home: string;
-  page: Page;
+  /** The window's page, which is a new object after `reconnect()`. */
+  readonly page: Page;
   /** The nth visible terminal in the active tab, once its shell is ready. */
   terminal(index?: number): Promise<Terminal>;
+  /**
+   * Connects to the window's page again. Playwright can't use a page whose
+   * renderer crashed, even once the app has reloaded it.
+   */
+  reconnect(): Promise<void>;
   /** Uncaught exceptions in the window since launch. */
   pageErrors: string[];
   /** Requests from the window that failed since launch, like a missing asset. */
@@ -361,27 +367,34 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       "the window's page",
       30_000,
     );
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
-    page = browser
-      .contexts()
-      .flatMap((context) => context.pages())
-      .find((candidate) => candidate.url().startsWith("file:"))!;
-    page.setDefaultTimeout(15_000);
-    page.on("pageerror", (error) =>
-      pageErrors.push(String(error.stack ?? error)),
-    );
-    page.on("requestfailed", (request) =>
-      failedRequests.push(`${request.url()} ${request.failure()?.errorText}`),
-    );
-    await page.waitForFunction(() => "conduit" in window, null, {
-      timeout: 30_000,
-    });
-    const connected = page;
+    const connect = async () => {
+      await browser?.close().catch(() => {});
+      browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+      const found = browser
+        .contexts()
+        .flatMap((context) => context.pages())
+        .find((candidate) => candidate.url().startsWith("file:"))!;
+      found.setDefaultTimeout(15_000);
+      found.on("pageerror", (error) =>
+        pageErrors.push(String(error.stack ?? error)),
+      );
+      found.on("requestfailed", (request) =>
+        failedRequests.push(`${request.url()} ${request.failure()?.errorText}`),
+      );
+      await found.waitForFunction(() => "conduit" in window, null, {
+        timeout: 30_000,
+      });
+      page = found;
+    };
+    await connect();
     return {
       home,
-      page,
+      get page() {
+        return page!;
+      },
       terminal: async (index = 0) =>
-        (await Terminal.find(connected, index)).ready(),
+        (await Terminal.find(page!, index)).ready(),
+      reconnect: connect,
       pageErrors,
       failedRequests,
       close,

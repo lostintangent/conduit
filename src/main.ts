@@ -6,6 +6,7 @@ import {
   initializeIpcHandlers,
   shutdownIpcHandlers,
 } from "./ipc";
+import { reloadAfterCrashes } from "./ipc/crashRecovery";
 import { closeContextMenu } from "./ipc/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
@@ -105,6 +106,8 @@ async function createWindow() {
   mainWindow.on("closed", () => {
     app.quit();
   });
+
+  reloadAfterCrashes(mainWindow);
 
   await initializeIpcHandlers(mainWindow);
 
