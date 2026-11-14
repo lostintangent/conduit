@@ -5,6 +5,10 @@
  * Used by editors that need to display content from git rather than
  * the working directory.
  *
+ * It reads through `gitQueries.fileAtRef`, as diffs do, so an editor and a
+ * diff showing the same side share a read, and the git bridge re-reads it
+ * when a stage or commit moves it.
+ *
  * @example
  * ```tsx
  * function GitFileViewer({ filePath, source, cwd }: Props) {
@@ -18,8 +22,14 @@
  * ```
  */
 
-import { useEffect, useRef, useState } from "react";
-import { type ContentSource, contentSourceToGitRef } from "../types";
+import { gitQueries } from "@features/git/client/queries";
+import { useGitV2 } from "@features/git/components/useGitV2";
+import { useQuery } from "@tanstack/react-query";
+import {
+  type ContentSource,
+  contentSourceToGitRef,
+  isGitSource,
+} from "../types";
 import { isBinaryContent } from "../utils";
 
 // ============================================================================
@@ -142,108 +152,42 @@ export function useGitContent(
   source: ContentSource,
   cwd: string,
 ): GitContentResult {
-  const [state, setState] = useState<GitContentResult>({
-    content: null,
-    isLoading: filePath !== null,
-    error: null,
+  const git = useGitV2(cwd);
+  const ref = isGitSource(source) ? contentSourceToGitRef(source) : null;
+  const query = useQuery({
+    ...gitQueries.fileAtRef(git, filePath ?? "", ref ?? ""),
+    enabled: filePath !== null && ref !== null,
   });
 
-  // Track mounted state to avoid state updates after unmount
-  const isMountedRef = useRef(true);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
+  if (filePath === null) {
+    return { content: null, isLoading: false, error: null };
+  }
+  if (ref === null) {
+    return {
+      content: null,
+      isLoading: false,
+      error: {
+        type: "unknown",
+        message: "useGitContent cannot be used with 'workingDirectory' source",
+      },
     };
-  }, []);
-
-  useEffect(() => {
-    // If no file path, reset state
-    if (filePath === null) {
-      setState({
-        content: null,
-        isLoading: false,
-        error: null,
-      });
-      return;
-    }
-
-    // workingDirectory should not use this hook
-    if (source === "workingDirectory") {
-      setState({
-        content: null,
-        isLoading: false,
-        error: {
-          type: "unknown",
-          message:
-            "useGitContent cannot be used with 'workingDirectory' source",
-        },
-      });
-      return;
-    }
-
-    // Track if this specific effect instance is still current
-    let isStale = false;
-
-    // Start loading
-    setState((prev) => ({
-      ...prev,
-      isLoading: true,
-      error: null,
-    }));
-
-    const loadContent = async () => {
-      const ref = contentSourceToGitRef(source);
-
-      try {
-        const content = await window.conduit.git.getFileAtRef(
-          cwd,
-          filePath,
-          ref,
-        );
-
-        if (isStale || !isMountedRef.current) {
-          return;
-        }
-
-        // Check for binary content
-        if (content !== null && isBinaryContent(content)) {
-          setState({
-            content: null,
-            isLoading: false,
-            error: {
-              type: "binary_file",
-              message: "File appears to be binary",
-            },
-          });
-          return;
-        }
-
-        setState({
-          content,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error) {
-        if (isStale || !isMountedRef.current) {
-          return;
-        }
-
-        setState({
-          content: null,
-          isLoading: false,
-          error: createGitContentError(error, ref, filePath),
-        });
-      }
+  }
+  if (query.isError) {
+    return {
+      content: null,
+      isLoading: false,
+      error: createGitContentError(query.error, ref, filePath),
     };
-
-    loadContent();
-
-    return () => {
-      isStale = true;
+  }
+  if (!query.isSuccess) {
+    return { content: null, isLoading: true, error: null };
+  }
+  if (query.data !== null && isBinaryContent(query.data)) {
+    return {
+      content: null,
+      isLoading: false,
+      error: { type: "binary_file", message: "File appears to be binary" },
     };
-  }, [filePath, source, cwd]);
-
-  return state;
+  }
+  return { content: query.data, isLoading: false, error: null };
 }

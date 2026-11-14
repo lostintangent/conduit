@@ -210,6 +210,75 @@ describe("RegularEditorWrapper", () => {
         expect(mockEditor.setModel).toHaveBeenCalledWith(mockModel);
       });
     });
+
+    // A stage or commit outside re-reads a git side, which used to replace
+    // the editor's model and reset its scroll position and selection
+    it("should edit a re-read git side into its model", async () => {
+      const { useGitContent } =
+        await import("../../../../../src/renderer/components/panes/editor/hooks");
+      vi.mocked(monaco.editor.createModel).mockImplementation((value) => {
+        const lines = value.split("\n");
+        return {
+          dispose: vi.fn(),
+          getLinesContent: () => lines,
+          getEOL: () => "\n",
+          getLineMaxColumn: (line: number) => lines[line - 1].length + 1,
+          applyEdits: vi.fn(),
+        };
+      });
+      const show = (content: string, source = "index") => {
+        vi.mocked(useGitContent).mockReturnValue({
+          content,
+          isLoading: false,
+          error: null,
+        });
+        return (
+          <RegularEditorWrapper
+            editorId="test-editor"
+            cwd="/test"
+            filePath="/test/file.ts"
+            source={source}
+          />
+        );
+      };
+      try {
+        const { rerender } = render(show("a\nb\nc"));
+        await waitFor(() =>
+          expect(mockEditor.setModel).toHaveBeenCalledTimes(1),
+        );
+
+        rerender(show("a\nB\nc"));
+
+        const model = vi.mocked(monaco.editor.createModel).mock.results[0]
+          .value;
+        expect(model.applyEdits).toHaveBeenCalledWith([
+          {
+            range: {
+              startLineNumber: 1,
+              startColumn: 2,
+              endLineNumber: 2,
+              endColumn: 2,
+            },
+            text: "\nB",
+          },
+        ]);
+        expect(monaco.editor.createModel).toHaveBeenCalledTimes(1);
+        expect(mockEditor.setModel).toHaveBeenCalledTimes(1);
+
+        // Another source is another model
+        rerender(show("a\nB\nc", "head"));
+        expect(monaco.editor.createModel).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.mocked(monaco.editor.createModel).mockImplementation(
+          () => mockModel,
+        );
+        vi.mocked(useGitContent).mockReturnValue({
+          content: null,
+          isLoading: false,
+          error: null,
+        });
+      }
+    });
   });
 
   // ===========================================================================

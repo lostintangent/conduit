@@ -50,7 +50,7 @@ import {
 } from "../../hooks";
 import { createModelKey, ViewStateRegistry } from "../../registry";
 import { type ContentSource, isGitSource } from "../../types";
-import { forceTokenizeVisibleLines } from "../../utils";
+import { forceTokenizeVisibleLines, replaceModelContent } from "../../utils";
 import { detectLanguage } from "../../utils/languageDetection";
 import { ReadOnlyBadge, SourceBadge } from "../shared";
 
@@ -199,6 +199,8 @@ export function RegularEditorWrapper({
   );
   // Standalone model ref for git sources (needs manual disposal)
   const standaloneModelRef = useRef<monaco.editor.ITextModel | null>(null);
+  // The source and file the standalone model holds
+  const standaloneShownRef = useRef<string | null>(null);
 
   // Callback refs - keeps callbacks stable to avoid unnecessary effect re-runs
   const onMountRef = useRef(onMount);
@@ -375,6 +377,14 @@ export function RegularEditorWrapper({
     // Wait for content to load
     if (gitContent.isLoading || gitContent.content === null) return;
 
+    // A re-read of the same side, after a stage or commit say, is edited into
+    // its model, so the editor keeps its scroll position and selection
+    const shown = `${source}:${filePath}`;
+    if (standaloneModelRef.current && standaloneShownRef.current === shown) {
+      replaceModelContent(standaloneModelRef.current, gitContent.content);
+      return;
+    }
+
     // Create a unique URI for this git content to avoid conflicts
     const modelUri = monaco.Uri.parse(
       `git://${source}/${filePath}?t=${Date.now()}`,
@@ -393,6 +403,7 @@ export function RegularEditorWrapper({
     );
 
     standaloneModelRef.current = newModel;
+    standaloneShownRef.current = shown;
 
     // Attach to editor if it exists
     const editor = editorRef.current;
