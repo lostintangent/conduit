@@ -8,6 +8,7 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import * as stateTracker from "./stateTracker";
+import { broadcastTerminalInput } from "./synchronizeInput";
 
 const api = window.conduit;
 
@@ -73,7 +74,6 @@ export type xtermInstance = {
   serializer: SerializeAddon;
 
   setLinkHandler: (handler: ((url: string) => void) | null) => void;
-  setInputHandler: (handler: ((input: string) => void) | null) => void;
 
   /** Whether a pane has fit the terminal, which also sizes its shell. */
   hasFit: boolean;
@@ -229,9 +229,6 @@ export function getOrCreate(
     const linkHandlerRef: { current: ((url: string) => void) | null } = {
       current: null,
     };
-    const inputHandlerRef: { current: ((input: string) => void) | null } = {
-      current: null,
-    };
 
     const webLinksAddon = new WebLinksAddon((_event, uri) => {
       const handler = linkHandlerRef.current;
@@ -287,7 +284,7 @@ export function getOrCreate(
       // See also: synchronizeInput.ts which does the same for broadcast targets.
       stateTracker.notifyUserInput(sessionId);
       api.terminal.input(sessionId, input);
-      inputHandlerRef.current?.(input);
+      broadcastTerminalInput(paneId, input);
     });
 
     // Register OSC 7 handler for CWD changes
@@ -346,9 +343,6 @@ export function getOrCreate(
       hasFit: false,
       setLinkHandler: (handler) => {
         linkHandlerRef.current = handler;
-      },
-      setInputHandler: (handler) => {
-        inputHandlerRef.current = handler;
       },
       resize: (cols, rows) => {
         newInstance.hasFit = true;

@@ -46,6 +46,8 @@ const screen = vi.hoisted(() => {
 });
 
 import type { UserSettings } from "@features/settings/model";
+import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
+import type { Tab } from "@/types";
 import { attach, disposeSession, getOrCreate } from "./xtermCache";
 
 const settings = {
@@ -150,5 +152,46 @@ describe("a terminal's visibility", () => {
       "session",
       false,
     );
+  });
+});
+
+describe("a synchronized tab", () => {
+  afterEach(() => {
+    disposeSession("left");
+    disposeSession("right");
+    tabsAtom.set([]);
+    activeTabIdAtom.set(null);
+    api.terminal.input.mockClear();
+  });
+
+  it("sends what's typed in its active pane to every pane's shell", () => {
+    const pane = (id: string) => ({
+      id,
+      type: "terminal" as const,
+      sessionId: id,
+      cwd: null,
+    });
+    tabsAtom.set([
+      {
+        id: "tab",
+        name: "Tab",
+        synchronized: true,
+        activePaneId: "left",
+        panes: { left: pane("left"), right: pane("right") },
+        layout: { id: "layout", type: "pane", paneId: "left" },
+      } as Tab,
+    ]);
+    activeTabIdAtom.set("tab");
+    const left = getOrCreate("left", "left", settings).terminal;
+    const right = getOrCreate("right", "right", settings).terminal;
+
+    left.input("ls\r");
+    right.input("x");
+
+    expect(api.terminal.input.mock.calls).toEqual([
+      ["left", "ls\r"],
+      ["right", "ls\r"],
+      ["right", "x"],
+    ]);
   });
 });

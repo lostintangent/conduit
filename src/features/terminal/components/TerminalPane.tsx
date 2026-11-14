@@ -28,7 +28,6 @@ import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
 import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { createFitController } from "../client/fitController";
-import { broadcastTerminalInput } from "../client/synchronizeInput";
 import { attach, getOrCreate, serializeSession } from "../client/xtermCache";
 import { pasteImage } from "./pasteImage";
 import { useRuntimeTimer } from "./useRuntimeTimer";
@@ -40,16 +39,12 @@ type TerminalInstance = ReturnType<typeof getOrCreate>;
 
 const registerTerminalKeyHandler = ({
   entry,
-  sessionId,
   showSearchWidget,
   togglePromptMode,
-  onSynchronizedInput,
 }: {
   entry: TerminalInstance;
-  sessionId: string;
   showSearchWidget: () => void;
   togglePromptMode: () => void;
-  onSynchronizedInput?: (input: string) => void;
 }): (() => void) => {
   const terminal = entry.terminal;
 
@@ -106,8 +101,8 @@ const registerTerminalKeyHandler = ({
         return true;
       }
 
-      api.terminal.input(sessionId, "\u0003");
-      onSynchronizedInput?.("\u0003");
+      // Typed like Ctrl+C, so a synchronized tab sends it to every pane.
+      terminal.input("\u0003");
       return false;
     }
 
@@ -221,17 +216,6 @@ export const TerminalPane = ({
       sessionId,
       enabled: isTabSynchronized,
     });
-
-  const handleSynchronizedInput = useCallback(
-    (input: string) => {
-      if (!isActive) {
-        return;
-      }
-
-      broadcastTerminalInput(paneId, input);
-    },
-    [isActive, paneId],
-  );
 
   const focusTerminal = useCallback(
     () => requestAnimationFrame(() => terminalRef.current?.terminal.focus()),
@@ -472,12 +456,8 @@ export const TerminalPane = ({
 
     detachKeyHandler = registerTerminalKeyHandler({
       entry: terminal,
-      sessionId,
       showSearchWidget,
       togglePromptMode: handleTogglePromptMode,
-      onSynchronizedInput: isTabSynchronized
-        ? handleSynchronizedInput
-        : undefined,
     });
 
     terminalRef.current?.setLinkHandler(onLinkClick ?? null);
@@ -495,30 +475,7 @@ export const TerminalPane = ({
       terminalRef.current = null;
       searchWidgetRef.current = null;
     };
-  }, [
-    handleTogglePromptMode,
-    showSearchWidget,
-    sessionId,
-    isTabSynchronized,
-    handleSynchronizedInput,
-    fontSize,
-  ]);
-
-  // Update the terminal's input handler whenever a
-  // tab's synchronization state changes.
-  useEffect(() => {
-    const terminal = terminalRef.current;
-    if (!terminal) {
-      return;
-    }
-
-    terminal.setInputHandler(
-      isTabSynchronized ? handleSynchronizedInput : null,
-    );
-    return () => {
-      terminal.setInputHandler(null);
-    };
-  }, [handleSynchronizedInput, isTabSynchronized]);
+  }, [handleTogglePromptMode, showSearchWidget, sessionId, fontSize]);
 
   useFocusWhenActive(isActive, paneRef, () =>
     terminalRef.current?.terminal.focus(),

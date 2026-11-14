@@ -35,14 +35,14 @@ vi.mock("../client/xtermCache", () => {
     getOrCreate: () => ({
       terminal,
       setLinkHandler: () => {},
-      setInputHandler: () => {},
     }),
     serializeSession: () => "",
   };
 });
-vi.mock("../client/fitController", () => ({
-  createFitController: () => ({ dispose: () => {} }),
-}));
+const createFitController = vi.hoisted(() =>
+  vi.fn(() => ({ dispose: () => {} })),
+);
+vi.mock("../client/fitController", () => ({ createFitController }));
 vi.mock("./shell/RepoScriptsMenu", () => ({ RepoScriptsMenu: () => null }));
 vi.mock("./shell/TerminalGitStats", () => ({ TerminalGitStats: () => null }));
 vi.mock("./shell/sandbox/ComputeTargetIndicator", () => ({
@@ -96,5 +96,34 @@ describe("TerminalPane agent prompt", () => {
 
     expect(screen.getByText(/Because\./)).toBeDefined();
     expect(screen.getByRole("textbox")).toHaveProperty("disabled", false);
+  });
+});
+
+describe("TerminalPane focus", () => {
+  // Rebuilding it on every focus change also sent the shell a resize.
+  it("keeps its terminal set up as the pane gains and loses focus", () => {
+    seedSettings(queryClient, {});
+    const pane = (isActive: boolean) => (
+      <TooltipProvider>
+        <TerminalPane
+          pane={{
+            id: "pane-2",
+            type: "terminal",
+            sessionId: "session-2",
+            cwd: "/repo",
+            title: "zsh",
+          }}
+          isActive={isActive}
+          tabId="tab-1"
+        />
+      </TooltipProvider>
+    );
+    createFitController.mockClear();
+
+    const { rerender } = render(pane(true), { queryClient });
+    rerender(pane(false));
+    rerender(pane(true));
+
+    expect(createFitController).toHaveBeenCalledTimes(1);
   });
 });
