@@ -1344,7 +1344,7 @@ describe("EditorPane in a tab", () => {
 
   it("merges from the editor's pill and closes the session's panes in its tab", async () => {
     const finalize = vi.fn().mockResolvedValue({ status: "merged" });
-    window.conduit.finalizeAgentSession = finalize;
+    window.conduit.agents = { finalizeSession: finalize } as any;
     renderTab(
       [editor, terminal("term", { cwd: "/project" })],
       row("editor", "term"),
@@ -1360,6 +1360,6 @@ describe("EditorPane in a tab", () => {
     await waitFor(() =>
       expect(Object.keys(tabsAtom.get()[0].panes)).toEqual(["term"]),
     );
-    expect(finalize).toHaveBeenCalledWith({ sessionId: "agent-1" });
+    expect(finalize).toHaveBeenCalledWith("agent-1");
   });
 });

@@ -28,8 +28,8 @@ describe("registeredPreCommands", () => {
     // Mock window.conduit
     (global as any).window = {
       conduit: {
-        hasGitRepository: vi.fn(),
-        spawnAgentSession: vi.fn(),
+        git: { findRoot: vi.fn() },
+        agents: { spawnSession: vi.fn() },
       },
     };
     seedSettings(queryClient, { homeDirectory: "/home/user" });
@@ -50,7 +50,7 @@ describe("registeredPreCommands", () => {
 
     it("should succeed when cwd is in a git repository", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
+      mockApi.git.findRoot.mockResolvedValue("/repo");
 
       const config: TerminalConfig = {
         command: "git status",
@@ -62,12 +62,12 @@ describe("registeredPreCommands", () => {
       expect(result.success).toBe(true);
       expect(result.error).toBeUndefined();
       expect(result.paneOptions).toBeUndefined();
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/path/to/repo");
+      expect(mockApi.git.findRoot).toHaveBeenCalledWith("/path/to/repo");
     });
 
     it("should fail when cwd is not in a git repository", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(false);
+      mockApi.git.findRoot.mockResolvedValue(null);
 
       const config: TerminalConfig = {
         command: "git status",
@@ -83,7 +83,7 @@ describe("registeredPreCommands", () => {
 
     it("should use home directory when cwd is not specified", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
+      mockApi.git.findRoot.mockResolvedValue("/repo");
 
       const config: TerminalConfig = {
         command: "git status",
@@ -92,14 +92,12 @@ describe("registeredPreCommands", () => {
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(true);
-      expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/home/user");
+      expect(mockApi.git.findRoot).toHaveBeenCalledWith("/home/user");
     });
 
     it("should handle API errors", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockRejectedValue(
-        new Error("Permission denied"),
-      );
+      mockApi.git.findRoot.mockRejectedValue(new Error("Permission denied"));
 
       const config: TerminalConfig = {
         command: "git status",
@@ -114,7 +112,7 @@ describe("registeredPreCommands", () => {
 
     it("should not return paneOptions on success", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(true);
+      mockApi.git.findRoot.mockResolvedValue("/repo");
 
       const config: TerminalConfig = {
         command: "git status",
@@ -137,7 +135,7 @@ describe("registeredPreCommands", () => {
 
     it("should succeed and return paneOptions with agent session", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockResolvedValue(mockSession);
+      mockApi.agents.spawnSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -153,14 +151,12 @@ describe("registeredPreCommands", () => {
       expect(result.paneOptions?.terminalOptions?.cwd).toBe(
         mockSession.worktreePath,
       );
-      expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
-        cwd: "/path/to/repo",
-      });
+      expect(mockApi.agents.spawnSession).toHaveBeenCalledWith("/path/to/repo");
     });
 
     it("should use home directory when cwd is not specified", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockResolvedValue(mockSession);
+      mockApi.agents.spawnSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -169,14 +165,12 @@ describe("registeredPreCommands", () => {
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(true);
-      expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
-        cwd: "/home/user",
-      });
+      expect(mockApi.agents.spawnSession).toHaveBeenCalledWith("/home/user");
     });
 
     it("should fail when not in a git repository", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockRejectedValue(
+      mockApi.agents.spawnSession.mockRejectedValue(
         new Error("Unable to find a Git repository"),
       );
 
@@ -193,7 +187,7 @@ describe("registeredPreCommands", () => {
 
     it("should handle generic errors", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockRejectedValue(new Error("Network error"));
+      mockApi.agents.spawnSession.mockRejectedValue(new Error("Network error"));
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -208,7 +202,7 @@ describe("registeredPreCommands", () => {
 
     it("should return agentSession in paneOptions", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockResolvedValue(mockSession);
+      mockApi.agents.spawnSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -228,7 +222,7 @@ describe("registeredPreCommands", () => {
 
     it("should override cwd with worktree path", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockResolvedValue(mockSession);
+      mockApi.agents.spawnSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -251,7 +245,7 @@ describe("registeredPreCommands", () => {
   describe("runPreCommand", () => {
     it("should run a pre-command by ID", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.spawnAgentSession.mockResolvedValue(mockSession);
+      mockApi.agents.spawnSession.mockResolvedValue(mockSession);
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -269,7 +263,7 @@ describe("registeredPreCommands", () => {
 
     it("should return the pre-command's failure result", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.hasGitRepository.mockResolvedValue(false);
+      mockApi.git.findRoot.mockResolvedValue(null);
 
       const result = await runPreCommand("verify-git-repo", {
         command: "git status",

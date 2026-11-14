@@ -1,35 +1,21 @@
-import { ipcMain } from "electron";
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir } from "node:fs/promises";
+import { mkdir, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type {
-  AgentSessionCleanupRequest,
   AgentSessionCleanupResult,
-  AgentSessionFinalizeRequest,
   AgentSessionFinalizeResult,
   AgentSessionInfo,
-  AgentSessionSpawnRequest,
 } from "../model";
-import {
-  fileExists,
-  findRepoRoot,
-  hasGitRepository,
-  runGit,
-  safeGitCommand,
-} from "./git";
+import { fileExists, findRepoRoot, runGit, safeGitCommand } from "./git";
 
-export type AgentSessionRecord = AgentSessionInfo & {
-  worktreeSlug: string;
-};
-
-const agentSessions = new Map<string, AgentSessionRecord>();
+const agentSessions = new Map<string, AgentSessionInfo>();
 
 /**
  * Load existing worktrees from disk and populate the sessions map
  * This is called on startup to restore session state after app restart
  */
-async function loadExistingWorktrees(): Promise<void> {
+export async function loadExistingWorktrees(): Promise<void> {
   try {
     const worktreesBase = path.join(os.homedir(), ".conduit", "worktrees");
 
@@ -105,17 +91,13 @@ async function loadExistingWorktrees(): Promise<void> {
             // If we can't get base branch from reflog, that's okay
           }
 
-          // Parse the worktree slug from the directory name
-          const worktreeSlug = worktreeDir.name;
-
-          // Generate a deterministic session ID from the worktree slug
-          // This ensures the same worktree gets the same ID across restarts
+          // Sessions only live as long as the app, so each launch gets new IDs
           const sessionId = randomUUID();
 
           // Get creation time from directory (best effort - fallback to now)
           const createdAt = Date.now();
 
-          const session: AgentSessionRecord = {
+          const session: AgentSessionInfo = {
             id: sessionId,
             repoRoot,
             worktreePath,
@@ -123,7 +105,6 @@ async function loadExistingWorktrees(): Promise<void> {
             baseRef,
             baseBranch,
             createdAt,
-            worktreeSlug,
           };
 
           agentSessions.set(sessionId, session);
@@ -161,19 +142,20 @@ async function ensureParentDirectories(target: string) {
   await mkdir(parent, { recursive: true });
 }
 
-export async function spawnAgentSession(
-  payload: AgentSessionSpawnRequest,
+export async function spawnSession(
+  cwd: string,
+  preferredName?: string,
 ): Promise<AgentSessionInfo> {
-  if (!payload.cwd) {
+  if (!cwd) {
     throw new Error(
       "A current working directory is required to spawn a session",
     );
   }
 
-  const repoRoot = await findRepoRoot(payload.cwd);
+  const repoRoot = await findRepoRoot(cwd);
   if (!repoRoot) {
     throw new Error(
-      `Unable to find a Git repository root above ${path.resolve(payload.cwd)}`,
+      `Unable to find a Git repository root above ${path.resolve(cwd)}`,
     );
   }
 
@@ -208,9 +190,7 @@ export async function spawnAgentSession(
   const now = new Date();
   const timestampSlug = formatTimestampSlug(now);
   const sessionId = randomUUID();
-  let branchBase = payload.preferredName
-    ? sanitizeForBranch(payload.preferredName)
-    : "session";
+  let branchBase = preferredName ? sanitizeForBranch(preferredName) : "session";
   if (!branchBase || branchBase === "-") {
     branchBase = "session";
   }
@@ -248,7 +228,7 @@ export async function spawnAgentSession(
     baseRef,
   ]);
 
-  const session: AgentSessionRecord = {
+  const session: AgentSessionInfo = {
     id: sessionId,
     repoRoot,
     worktreePath,
@@ -256,41 +236,30 @@ export async function spawnAgentSession(
     baseRef,
     baseBranch,
     createdAt: now.getTime(),
-    worktreeSlug,
   };
 
   agentSessions.set(sessionId, session);
 
-  return {
-    id: session.id,
-    repoRoot: session.repoRoot,
-    worktreePath: session.worktreePath,
-    branchName: session.branchName,
-    baseRef: session.baseRef,
-    baseBranch: session.baseBranch,
-    createdAt: session.createdAt,
-  };
+  return session;
 }
 
-export function listAgentSessions(): AgentSessionInfo[] {
-  return Array.from(agentSessions.values()).map(
-    ({ worktreeSlug: _ignored, ...session }) => ({ ...session }),
-  );
+export function listSessions(): AgentSessionInfo[] {
+  return [...agentSessions.values()];
 }
 
-export async function finalizeAgentSession(
-  payload: AgentSessionFinalizeRequest,
+export async function finalizeSession(
+  sessionId: string,
 ): Promise<AgentSessionFinalizeResult> {
-  const session = agentSessions.get(payload.sessionId);
+  const session = agentSessions.get(sessionId);
   if (!session) {
     throw new Error(
-      `Unable to merge agent session ${payload.sessionId}; it no longer exists.`,
+      `Unable to merge agent session ${sessionId}; it no longer exists.`,
     );
   }
 
   const worktreeExists = await fileExists(session.worktreePath);
   if (!worktreeExists) {
-    agentSessions.delete(payload.sessionId);
+    agentSessions.delete(sessionId);
     throw new Error(
       `Worktree ${session.worktreePath} is missing; cannot finalize session.`,
     );
@@ -361,7 +330,7 @@ export async function finalizeAgentSession(
       session.branchName,
     ]);
 
-    agentSessions.delete(payload.sessionId);
+    agentSessions.delete(sessionId);
 
     return {
       status: mergeStdout.includes("Already up to date") ? "noop" : "merged",
@@ -381,13 +350,13 @@ export async function finalizeAgentSession(
   }
 }
 
-export async function cleanupAgentSession(
-  payload: AgentSessionCleanupRequest,
+export async function cleanupSession(
+  sessionId: string,
 ): Promise<AgentSessionCleanupResult> {
-  const session = agentSessions.get(payload.sessionId);
+  const session = agentSessions.get(sessionId);
   if (!session) {
     throw new Error(
-      `Unable to clean up agent session ${payload.sessionId}; it no longer exists.`,
+      `Unable to clean up agent session ${sessionId}; it no longer exists.`,
     );
   }
 
@@ -414,14 +383,13 @@ export async function cleanupAgentSession(
     // Clean up directory if it still exists on disk
     const dirExists = await fileExists(session.worktreePath);
     if (dirExists) {
-      const { rm } = await import("node:fs/promises");
       await rm(session.worktreePath, { recursive: true, force: true });
     }
   }
 
   await safeGitCommand(session.repoRoot, ["branch", "-D", session.branchName]);
 
-  agentSessions.delete(payload.sessionId);
+  agentSessions.delete(sessionId);
 
   return {
     status: isValidWorktree ? "removed" : "missing",
@@ -429,27 +397,4 @@ export async function cleanupAgentSession(
       ? `Removed agent worktree ${session.branchName}.`
       : `Worktree already missing; cleaned up metadata for ${session.branchName}.`,
   };
-}
-
-export async function initializeAgentHandlers() {
-  // Load existing worktrees on startup
-  await loadExistingWorktrees();
-
-  ipcMain.handle("agent:spawn-session", async (_event, payload) => {
-    return await spawnAgentSession(payload);
-  });
-
-  ipcMain.handle("agent:list-sessions", async () => listAgentSessions());
-
-  ipcMain.handle("agent:finalize-session", async (_event, payload) => {
-    return await finalizeAgentSession(payload);
-  });
-
-  ipcMain.handle("agent:cleanup-session", async (_event, payload) => {
-    return await cleanupAgentSession(payload);
-  });
-
-  ipcMain.handle("agent:has-git-repo", async (_event, cwd: string) => {
-    return await hasGitRepository(cwd);
-  });
 }

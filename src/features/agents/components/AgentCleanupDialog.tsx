@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { AgentSessionInfo } from "../model";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type AgentCleanupDialogProps = {
   isOpen: boolean;
@@ -45,16 +45,12 @@ export function AgentCleanupDialog({
     });
   };
 
-  const sortedSessions = useMemo(
-    () =>
-      [...sessions].sort((a, b) => {
-        if (a.createdAt === b.createdAt) {
-          return a.branchName.localeCompare(b.branchName);
-        }
-        return b.createdAt - a.createdAt;
-      }),
-    [sessions],
-  );
+  const sortedSessions = [...sessions].sort((a, b) => {
+    if (a.createdAt === b.createdAt) {
+      return a.branchName.localeCompare(b.branchName);
+    }
+    return b.createdAt - a.createdAt;
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

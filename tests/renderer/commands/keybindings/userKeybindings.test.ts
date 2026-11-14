@@ -49,11 +49,6 @@ function createMockConduit(
     hasLastWorkspace: vi.fn(),
     loadLastWorkspace: vi.fn(),
     saveLastWorkspace: vi.fn(),
-    spawnAgentSession: vi.fn(),
-    listAgentSessions: vi.fn(),
-    hasGitRepository: vi.fn(),
-    finalizeAgentSession: vi.fn(),
-    cleanupAgentSession: vi.fn(),
     files: {
       readTextFile: overrides.files?.readTextFile ?? vi.fn(),
       writeFile: overrides.files?.writeFile ?? vi.fn(),

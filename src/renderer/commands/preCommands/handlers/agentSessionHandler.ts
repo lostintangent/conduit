@@ -22,7 +22,7 @@ export async function createAgentSessionHandler(
   const api = window.conduit;
 
   try {
-    const session = await api.spawnAgentSession({ cwd });
+    const session = await api.agents.spawnSession(cwd);
 
     if (!session) {
       return {

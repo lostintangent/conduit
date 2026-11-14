@@ -1,8 +1,3 @@
-export type AgentSessionSpawnRequest = {
-  cwd: string;
-  preferredName?: string;
-};
-
 export type AgentSessionInfo = {
   id: string;
   repoRoot: string;
@@ -13,17 +8,9 @@ export type AgentSessionInfo = {
   createdAt: number;
 };
 
-export type AgentSessionFinalizeRequest = {
-  sessionId: string;
-};
-
 export type AgentSessionFinalizeResult = {
   status: "merged" | "noop" | "conflict";
   message: string;
-};
-
-export type AgentSessionCleanupRequest = {
-  sessionId: string;
 };
 
 export type AgentSessionCleanupResult = {

@@ -6,10 +6,10 @@ import { verifyGitRepoHandler } from "@/commands/preCommands/handlers/gitRepoHan
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("gitRepoHandler", () => {
-  const hasGitRepository = vi.fn();
+  const findRoot = vi.fn();
 
   beforeEach(() => {
-    (window as any).conduit = { hasGitRepository };
+    (window as any).conduit = { git: { findRoot } };
   });
 
   afterEach(() => {
@@ -18,17 +18,17 @@ describe("gitRepoHandler", () => {
   });
 
   it("should return success when directory is a git repository", async () => {
-    hasGitRepository.mockResolvedValue(true);
+    findRoot.mockResolvedValue("/path/with spaces/repo");
 
     const result = await verifyGitRepoHandler("/path/with spaces/repo");
 
     expect(result).toEqual({ success: true });
-    expect(hasGitRepository).toHaveBeenCalledTimes(1);
-    expect(hasGitRepository).toHaveBeenCalledWith("/path/with spaces/repo");
+    expect(findRoot).toHaveBeenCalledTimes(1);
+    expect(findRoot).toHaveBeenCalledWith("/path/with spaces/repo");
   });
 
   it("should return error including the path when not a git repository", async () => {
-    hasGitRepository.mockResolvedValue(false);
+    findRoot.mockResolvedValue(null);
 
     const result = await verifyGitRepoHandler("/tmp");
 
@@ -43,7 +43,7 @@ describe("gitRepoHandler", () => {
     ["String error", "String error"],
     [new Error(), ""],
   ])("should report API failure %#", async (thrown, message) => {
-    hasGitRepository.mockRejectedValue(thrown);
+    findRoot.mockRejectedValue(thrown);
 
     const result = await verifyGitRepoHandler("/path/to/repo");
 

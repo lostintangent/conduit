@@ -23,8 +23,8 @@ vi.mock("../../src/features/workspaces/main/startup", () => ({
   },
 }));
 
-// These read and watch the user's real settings and dotfiles. The settings
-// startup throws when a test asks it to.
+// These read and watch the user's real settings, dotfiles and agent
+// worktrees. The settings startup throws when a test asks it to.
 const settingsStartup = vi.hoisted(() => ({ throws: false }));
 vi.mock("../../src/features/settings/main/startup", () => ({
   default: () => {
@@ -32,6 +32,9 @@ vi.mock("../../src/features/settings/main/startup", () => ({
   },
 }));
 vi.mock("../../src/features/dotfiles/main/startup", () => ({
+  default: () => {},
+}));
+vi.mock("../../src/features/agents/main/startup", () => ({
   default: () => {},
 }));
 
@@ -44,6 +47,7 @@ const manifest: Record<string, string[]> = JSON.parse(
 describe("feature discovery", () => {
   it("lists every feature's service methods, keyed by folder name", () => {
     expect(Object.keys(manifest).sort()).toEqual([
+      "agents",
       "browser",
       "dotfiles",
       "files",
@@ -53,6 +57,7 @@ describe("feature discovery", () => {
       "updates",
       "workspaces",
     ]);
+    expect(manifest.agents).toContain("spawnSession");
     expect(manifest.browser).toContain("captureScreenshot");
     expect(manifest.dotfiles).toContain("addFile");
     expect(manifest.files).toContain("subscribe");

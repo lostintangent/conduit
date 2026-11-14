@@ -782,7 +782,7 @@ export async function splitPaneWithAgentSession(
   }
 
   try {
-    const session = await api.spawnAgentSession({ cwd: paneCwd });
+    const session = await api.agents.spawnSession(paneCwd);
     if (!session) {
       return;
     }
@@ -1018,7 +1018,7 @@ export async function completeAgentSession(
   tabId: string,
   agentSessionId: string,
 ): Promise<AgentSessionFinalizeResult | null> {
-  const result = await api.finalizeAgentSession({ sessionId: agentSessionId });
+  const result = await api.agents.finalizeSession(agentSessionId);
 
   if (result.status !== "conflict") {
     closeAgentSessionPanes(tabId, agentSessionId);
@@ -1031,7 +1031,7 @@ export async function deleteAgentSession(
   tabId: string,
   agentSessionId: string,
 ): Promise<AgentSessionCleanupResult | null> {
-  const result = await api.cleanupAgentSession({ sessionId: agentSessionId });
+  const result = await api.agents.cleanupSession(agentSessionId);
 
   closeAgentSessionPanes(tabId, agentSessionId);
 

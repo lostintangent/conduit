@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing handlers
 const mockApi = {
-  listAgentSessions: vi.fn(),
+  agents: { listSessions: vi.fn() },
 };
 
 global.window = {
@@ -68,11 +68,11 @@ describe("agentHandlers", () => {
         },
       };
 
-      mockApi.listAgentSessions.mockResolvedValue(mockSessions);
+      mockApi.agents.listSessions.mockResolvedValue(mockSessions);
 
       await handleManageSessions(mockContext);
 
-      expect(mockApi.listAgentSessions).toHaveBeenCalled();
+      expect(mockApi.agents.listSessions).toHaveBeenCalled();
       expect(mockShowDialog).toHaveBeenCalledWith(mockSessions);
       expect(notifications.enqueueNotification).not.toHaveBeenCalled();
     });
@@ -84,11 +84,11 @@ describe("agentHandlers", () => {
         },
       };
 
-      mockApi.listAgentSessions.mockResolvedValue([]);
+      mockApi.agents.listSessions.mockResolvedValue([]);
 
       await handleManageSessions(mockContext);
 
-      expect(mockApi.listAgentSessions).toHaveBeenCalled();
+      expect(mockApi.agents.listSessions).toHaveBeenCalled();
       expect(notifications.enqueueNotification).toHaveBeenCalledWith({
         kind: "info",
         message: "No agent sessions.",
@@ -105,7 +105,7 @@ describe("agentHandlers", () => {
       };
       const error = new Error("API error");
 
-      mockApi.listAgentSessions.mockRejectedValue(error);
+      mockApi.agents.listSessions.mockRejectedValue(error);
 
       await handleManageSessions(mockContext);
 
@@ -125,7 +125,7 @@ describe("agentHandlers", () => {
         },
       };
 
-      mockApi.listAgentSessions.mockRejectedValue("String error");
+      mockApi.agents.listSessions.mockRejectedValue("String error");
 
       await handleManageSessions(mockContext);
 

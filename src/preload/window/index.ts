@@ -1,11 +1,3 @@
-import type {
-  AgentSessionCleanupRequest,
-  AgentSessionCleanupResult,
-  AgentSessionFinalizeRequest,
-  AgentSessionFinalizeResult,
-  AgentSessionInfo,
-  AgentSessionSpawnRequest,
-} from "@features/agents/model";
 import type { BackgroundCommandRequest, Workspace } from "@shared/types";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
@@ -67,32 +59,6 @@ const conduitAPI = {
 
   writeClipboard: (text: string) =>
     ipcRenderer.send("ui:write-clipboard", text),
-
-  /* Agent session management */
-
-  spawnAgentSession: (payload: AgentSessionSpawnRequest) =>
-    ipcRenderer.invoke(
-      "agent:spawn-session",
-      payload,
-    ) as Promise<AgentSessionInfo>,
-
-  listAgentSessions: () =>
-    ipcRenderer.invoke("agent:list-sessions") as Promise<AgentSessionInfo[]>,
-
-  hasGitRepository: (cwd: string) =>
-    ipcRenderer.invoke("agent:has-git-repo", cwd) as Promise<boolean>,
-
-  finalizeAgentSession: (payload: AgentSessionFinalizeRequest) =>
-    ipcRenderer.invoke(
-      "agent:finalize-session",
-      payload,
-    ) as Promise<AgentSessionFinalizeResult>,
-
-  cleanupAgentSession: (payload: AgentSessionCleanupRequest) =>
-    ipcRenderer.invoke(
-      "agent:cleanup-session",
-      payload,
-    ) as Promise<AgentSessionCleanupResult>,
 
   cli: configureCliModule,
 };

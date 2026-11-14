@@ -32,13 +32,6 @@ export interface LaunchPayload {
 export interface WorktreeLaunchOptions {
   cwd: string;
   agents: AgentConfig[];
-  api: {
-    spawnAgentSession: (opts: {
-      cwd: string;
-      preferredName: string;
-    }) => Promise<AgentSessionInfo | null>;
-    terminal: Pick<typeof window.conduit.terminal, "create">;
-  };
   onClose?: () => void;
 }
 
@@ -59,13 +52,13 @@ function buildAgentCommand(
  * own worktree (`launchTarget: "worktree"`) or all in the same folder.
  *
  * @param payload - Launch configuration with agents and prompt
- * @param options - Launch dependencies (cwd, agents, api, etc.)
+ * @param options - Launch dependencies (cwd, agents, etc.)
  */
 export async function launchAgents(
   payload: LaunchPayload,
   options: WorktreeLaunchOptions,
 ): Promise<void> {
-  const { cwd, agents: agentConfigs, api, onClose } = options;
+  const { cwd, agents: agentConfigs, onClose } = options;
   const useWorktrees = payload.launchTarget === "worktree";
 
   // Calculate total number of agent instances to launch
@@ -105,13 +98,10 @@ export async function launchAgents(
     const createdSessions: AgentSessionInfo[] = [];
     let firstCwd = cwd;
     if (useWorktrees) {
-      const firstSession = await api.spawnAgentSession({
+      const firstSession = await window.conduit.agents.spawnSession(
         cwd,
-        preferredName: firstAgent.name,
-      });
-      if (!firstSession) {
-        throw new Error("Failed to create first agent session");
-      }
+        firstAgent.name,
+      );
       createdSessions.push(firstSession);
       firstCwd = firstSession.worktreePath;
     }
@@ -125,7 +115,7 @@ export async function launchAgents(
     );
 
     const { openTabFromExistingSession } = await import("@/store/actions/tab");
-    const firstTerminal = await api.terminal.create({
+    const firstTerminal = await window.conduit.terminal.create({
       cwd: firstCwd,
       command: firstCommand,
       waitForSize: true,
@@ -183,17 +173,7 @@ export async function launchAgents(
         let session: AgentSessionInfo | undefined;
         if (useWorktrees) {
           // Create a new worktree for this instance
-          session =
-            (await api.spawnAgentSession({
-              cwd,
-              preferredName: agent.name,
-            })) ?? undefined;
-          if (!session) {
-            console.error(
-              `Failed to create session for ${agent.name} instance ${i + 1}`,
-            );
-            continue;
-          }
+          session = await window.conduit.agents.spawnSession(cwd, agent.name);
           createdSessions.push(session);
         }
 

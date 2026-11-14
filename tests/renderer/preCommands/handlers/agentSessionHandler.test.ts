@@ -16,10 +16,10 @@ describe("agentSessionHandler", () => {
     baseBranch: "main",
     createdAt: Date.now(),
   };
-  const spawnAgentSession = vi.fn();
+  const spawnSession = vi.fn();
 
   beforeEach(() => {
-    (window as any).conduit = { spawnAgentSession };
+    (window as any).conduit = { agents: { spawnSession } };
   });
 
   afterEach(() => {
@@ -28,21 +28,19 @@ describe("agentSessionHandler", () => {
   });
 
   it("should return the session spawned for the cwd", async () => {
-    spawnAgentSession.mockResolvedValue(mockSession);
+    spawnSession.mockResolvedValue(mockSession);
 
     const result = await createAgentSessionHandler("/path/with spaces/repo");
 
     expect(result).toEqual({ success: true, session: mockSession });
-    expect(spawnAgentSession).toHaveBeenCalledTimes(1);
-    expect(spawnAgentSession).toHaveBeenCalledWith({
-      cwd: "/path/with spaces/repo",
-    });
+    expect(spawnSession).toHaveBeenCalledTimes(1);
+    expect(spawnSession).toHaveBeenCalledWith("/path/with spaces/repo");
   });
 
   it.each([null, undefined])(
     "should fail when the API returns %s",
     async (session) => {
-      spawnAgentSession.mockResolvedValue(session);
+      spawnSession.mockResolvedValue(session);
 
       const result = await createAgentSessionHandler("/path/to/repo");
 
@@ -57,7 +55,7 @@ describe("agentSessionHandler", () => {
     "Unable to find a Git repository",
     "Error: Unable to find a Git repository in /tmp",
   ])("should explain a missing repository (%s)", async (message) => {
-    spawnAgentSession.mockRejectedValue(new Error(message));
+    spawnSession.mockRejectedValue(new Error(message));
 
     const result = await createAgentSessionHandler("/tmp");
 
@@ -73,7 +71,7 @@ describe("agentSessionHandler", () => {
     ["String error", "String error"],
     [new Error(), ""],
   ])("should pass through other failures %#", async (thrown, message) => {
-    spawnAgentSession.mockRejectedValue(thrown);
+    spawnSession.mockRejectedValue(thrown);
 
     const result = await createAgentSessionHandler("/path/to/repo");
 

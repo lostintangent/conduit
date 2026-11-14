@@ -1460,7 +1460,7 @@ export function registerApplicationCommands(
       for (const sessionId of agentSessionIds) {
         try {
           // Resolves as "removed" or "missing" (already gone), throws on failure
-          await window.conduit.cleanupAgentSession({ sessionId });
+          await window.conduit.agents.cleanupSession(sessionId);
           successCount++;
         } catch (error) {
           console.error(`Failed to delete agent session ${sessionId}:`, error);

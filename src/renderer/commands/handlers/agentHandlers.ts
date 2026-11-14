@@ -17,7 +17,7 @@ import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
  */
 export async function handleManageSessions(context: any): Promise<void> {
   try {
-    const sessions = await window.conduit.listAgentSessions();
+    const sessions = await window.conduit.agents.listSessions();
     if (sessions.length === 0) {
       enqueueNotification({
         kind: "info",

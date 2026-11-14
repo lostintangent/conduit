@@ -14,7 +14,7 @@ const {
   const api = {
     showContextMenu: vi.fn(),
     onContextMenuCommand: vi.fn(() => vi.fn()),
-    hasGitRepository: vi.fn(),
+    git: { findRoot: vi.fn() },
   };
 
   const menuRegistry = {
@@ -383,7 +383,7 @@ describe("useContextMenu", () => {
 
   describe("git repository caching", () => {
     it("should cache git repository checks", async () => {
-      mockApi.hasGitRepository.mockResolvedValue(true);
+      mockApi.git.findRoot.mockResolvedValue("/repo");
 
       const mockContextBuilder = vi.fn(async (_ctx, _params, checkGitRepo) => {
         await checkGitRepo("/repo");
@@ -406,7 +406,7 @@ describe("useContextMenu", () => {
       await act(() => result.current(mockEvent, "tab-1", "pane-1"));
 
       expect(mockContextBuilder).toHaveBeenCalledTimes(2);
-      expect(mockApi.hasGitRepository).toHaveBeenCalledTimes(1);
+      expect(mockApi.git.findRoot).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -5,7 +5,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { releaseFileSubscriptions } from "@features/files/main/service";
 import { releaseGitSubscriptions } from "@features/git/main/service";
 import { closeTerminals } from "@features/terminal/main/startup";
-import { initializeAgentHandlers } from "@features/agents/main/sessions";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { startFeatures } from "./features";
 import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
@@ -33,7 +32,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   await initializeCliHandlers(sendToRenderer);
 
   initializeUIHandlers(window);
-  await initializeAgentHandlers();
 
   const releaseSubscriptions = () => {
     releaseFileSubscriptions();

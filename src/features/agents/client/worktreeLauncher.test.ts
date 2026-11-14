@@ -30,15 +30,12 @@ describe("launchAgents", () => {
     };
     tabsAtom.set([launchedFrom]);
     activeTabIdAtom.set("tab-1");
-    // The launcher's splits go through the preload API.
-    const terminal = Object.assign((window as any).conduit.terminal, {
-      create: vi.fn().mockResolvedValue({
-        sessionId: "session-1",
-        cwd: "/repo",
-        title: "zsh",
-      }),
+    const create = vi.fn().mockResolvedValue({
+      sessionId: "session-1",
+      cwd: "/repo",
+      title: "zsh",
     });
-    const api = { spawnAgentSession: vi.fn(), terminal };
+    (window as any).conduit.terminal.create = create;
 
     await launchAgents(
       {
@@ -59,17 +56,16 @@ describe("launchAgents", () => {
             interactiveCommand: "claude {arg}",
           },
         ],
-        api,
       },
     );
 
     // Main types each agent's command once its shell is ready for it.
-    expect(api.terminal.create).toHaveBeenNthCalledWith(1, {
+    expect(create).toHaveBeenNthCalledWith(1, {
       cwd: "/repo",
       command: 'claude "fix the build"',
       waitForSize: true,
     });
-    expect(api.terminal.create).toHaveBeenNthCalledWith(
+    expect(create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ command: 'claude "fix the build"' }),
     );

@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createTerminal, spawnAgentSession } = vi.hoisted(() => {
+const { createTerminal, spawnSession } = vi.hoisted(() => {
   const createTerminal = vi.fn();
-  const spawnAgentSession = vi.fn();
+  const spawnSession = vi.fn();
   (window as any).conduit = {
     terminal: { create: createTerminal },
-    spawnAgentSession,
+    agents: { spawnSession },
   };
-  return { createTerminal, spawnAgentSession };
+  return { createTerminal, spawnSession };
 });
 
 import {
@@ -201,7 +201,7 @@ describe("splitPaneWithAgentSession", () => {
       },
     ]);
     activeTabIdAtom.set("tab-1");
-    spawnAgentSession.mockResolvedValue({
+    spawnSession.mockResolvedValue({
       id: "agent-1",
       repoRoot: "/repo",
       worktreePath: "/worktrees/agent-1",
@@ -214,7 +214,7 @@ describe("splitPaneWithAgentSession", () => {
 
     await splitPaneWithAgentSession("tab-1", "a", "row");
 
-    expect(spawnAgentSession).toHaveBeenCalledWith({ cwd: "/repo" });
+    expect(spawnSession).toHaveBeenCalledWith("/repo");
     expect(createTerminal).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: "/worktrees/agent-1" }),
     );

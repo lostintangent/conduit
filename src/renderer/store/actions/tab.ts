@@ -688,7 +688,7 @@ export async function duplicateTabIntoWorktree(
   }
 
   // Check if the directory is in a git repository
-  const hasGitRepo = await api.hasGitRepository(cwd);
+  const hasGitRepo = (await api.git.findRoot(cwd)) !== null;
   if (!hasGitRepo) {
     throw new Error(
       "Cannot create worktree: Current directory is not in a git repository",
@@ -696,7 +696,7 @@ export async function duplicateTabIntoWorktree(
   }
 
   // Create a new agent session (worktree)
-  const session = await api.spawnAgentSession({ cwd });
+  const session = await api.agents.spawnSession(cwd);
 
   // Duplicate the tab with the worktree path as CWD and agent session metadata
   const result = await duplicateTab(sourceTabId, {

@@ -133,12 +133,3 @@ export async function safeGitCommand(cwd: string, args: string[]) {
     console.warn(`Failed to run git ${args.join(" ")}:`, error);
   }
 }
-
-export async function hasGitRepository(cwd: string): Promise<boolean> {
-  try {
-    const repoRoot = await findRepoRoot(cwd);
-    return repoRoot !== null;
-  } catch {
-    return false;
-  }
-}

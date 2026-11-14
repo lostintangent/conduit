@@ -441,15 +441,15 @@ describe("applicationCommands", () => {
           layout: { id: "root", type: "pane", paneId: "a" },
           activePaneId: "a",
         };
-        const cleanupAgentSession = vi
+        const cleanupSession = vi
           .fn()
           .mockResolvedValueOnce({ status: "removed" })
           .mockResolvedValueOnce({ status: "missing" });
-        window.conduit.cleanupAgentSession = cleanupAgentSession;
+        window.conduit.agents = { cleanupSession } as any;
 
         await command.run(commandContext({ activeTab: tab, allTabs: [tab] }));
 
-        expect(cleanupAgentSession).toHaveBeenCalledTimes(2);
+        expect(cleanupSession).toHaveBeenCalledTimes(2);
         const [latest] = notificationsAtom.get();
         expect(latest).toMatchObject({
           kind: "success",

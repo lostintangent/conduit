@@ -21,7 +21,7 @@ export async function verifyGitRepoHandler(
   const api = window.conduit;
 
   try {
-    const hasGitRepo = await api.hasGitRepository(cwd);
+    const hasGitRepo = (await api.git.findRoot(cwd)) !== null;
 
     if (!hasGitRepo) {
       return {

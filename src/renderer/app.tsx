@@ -388,7 +388,7 @@ export function App() {
 
     for (const session of targets) {
       try {
-        await api.cleanupAgentSession({ sessionId: session.id });
+        await api.agents.cleanupSession(session.id);
         closeAgentSessionPanes(session.id);
         successCount += 1;
       } catch (error) {
@@ -843,7 +843,6 @@ export function App() {
             await launchAgents(payload, {
               cwd,
               agents,
-              api,
               onClose: () => setShowAgentLauncher(false),
             });
           } catch (error) {
