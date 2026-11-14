@@ -9,7 +9,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type AgentInstance = {
   id: string;
@@ -43,17 +43,13 @@ export function AgentLauncherDialog({
   onClose,
   onLaunch,
 }: AgentLauncherDialogProps) {
-  const sortedAgents = useMemo(() => {
-    const next = [...agents].filter((agent) =>
-      agent.interactiveCommand?.trim(),
-    );
-    next.sort((a, b) => {
+  const sortedAgents = agents
+    .filter((agent) => agent.interactiveCommand?.trim())
+    .sort((a, b) => {
       if (a.isDefault && !b.isDefault) return -1;
       if (!a.isDefault && b.isDefault) return 1;
       return a.name.localeCompare(b.name);
     });
-    return next;
-  }, [agents]);
 
   const [mode, setMode] = useState<"team" | "custom">("custom");
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
