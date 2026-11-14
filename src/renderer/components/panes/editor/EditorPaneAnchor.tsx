@@ -253,7 +253,9 @@ export function EditorPaneAnchor({
     });
   }, [hideFileTree, hideIndividualSandboxIndicator, tabId, paneId, registry]);
 
-  // Register with registry and attach/detach
+  // Register with registry and attach/detach. A tab and its preview share this
+  // anchor, so moving between them mustn't re-attach. A detach right after an
+  // attach would save the tree's scroll before it's restored.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -268,7 +270,7 @@ export function EditorPaneAnchor({
     return () => {
       registry.detach(paneId);
     };
-  }, [paneId, registry, isInPreview]);
+  }, [paneId, registry]);
 
   return (
     <div

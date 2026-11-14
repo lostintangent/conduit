@@ -121,3 +121,43 @@ describe("EditorPaneAnchor focus on activation", () => {
     expect(document.activeElement).toBe(tree);
   });
 });
+
+describe("EditorPaneAnchor in a preview", () => {
+  const pane = { id: "pane-1", type: "editor", cwd: "/repo" } as const;
+  let frames: FrameRequestCallback[];
+
+  beforeEach(() => {
+    EditorPaneRegistry.resetInstance();
+    frames = [];
+    vi.stubGlobal("requestAnimationFrame", (frame: FrameRequestCallback) =>
+      frames.push(frame),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.body.replaceChildren();
+    EditorPaneRegistry.resetInstance();
+  });
+
+  it("keeps the tree's scroll position when its tab returns from a preview", () => {
+    const anchor = (isInPreview: boolean) => (
+      <EditorPaneAnchor paneId="pane-1" pane={pane} isInPreview={isInPreview} />
+    );
+    const view = render(anchor(true));
+    const registry = EditorPaneRegistry.getInstance();
+    const tree = document.createElement("nav");
+    Object.defineProperty(tree, "offsetHeight", { value: 800 });
+    Object.defineProperty(tree, "scrollHeight", { value: 2000 });
+    registry.getWrapperElement("pane-1")!.append(tree);
+    registry.registerScrollContainer("pane-1", "fileTree", tree);
+    registry.updateScrollPosition("pane-1", "fileTree", 300);
+
+    // Attaching moves the tree, which resets its scroll until the next frame
+    registry.markReady("pane-1");
+    view.rerender(anchor(false));
+    frames.splice(0).forEach((frame) => frame(0));
+
+    expect(tree.scrollTop).toBe(300);
+  });
+});
