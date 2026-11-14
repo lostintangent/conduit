@@ -17,7 +17,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@/api/GitV2API";
+import { gitKeys, gitQueries } from "@/api/gitQueries";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@/components/panes/terminal/shell/sandbox/SandboxIndicator";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
@@ -28,6 +28,11 @@ import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
 import type { ChangesViewMode } from "@shared/types";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";
 import {
   startTransition,
@@ -417,15 +422,21 @@ export function EditorPaneV2({
   // Git State
   // ---------------------------------------------------------------------------
 
-  // Full git status map (for GitBranchToolbar)
-  const [gitStatus, setGitStatus] = useState<Map<string, GitFileStatus> | null>(
-    null,
+  // HEAD status (null outside a repository)
+  const queryClient = useQueryClient();
+  const { data: headStatus } = useQuery(gitQueries.status(git));
+  const { data: currentBranch = null } = useQuery(
+    gitQueries.currentBranch(git),
   );
+  const hasUpstream = headStatus ? !!headStatus.upstream : true;
 
-  // The base branch the current gitStatus belongs to, and a counter that
-  // asks the baseBranch effect to refetch the comparison after a status change
-  const baseBranchRef = useRef(baseBranch);
-  const [statusVersion, setStatusVersion] = useState(0);
+  // Full git status map (for GitBranchToolbar): HEAD's changes, or the
+  // comparison against baseBranch. Switching keeps the last list until the
+  // next one loads.
+  const { data: gitStatus = null } = useQuery({
+    ...gitQueries.changedFiles(git, baseBranch),
+    placeholderData: keepPreviousData,
+  });
 
   // Derived from gitStatus: changed paths and staged count (branch status entries are never staged)
   const gitChangedFiles = useMemo(
@@ -456,9 +467,6 @@ export function EditorPaneV2({
 
   const { markSeen } = unseenTracking;
 
-  // Current branch name
-  const [currentBranch, setCurrentBranch] = useState<string | null>(null);
-
   // Commit message state
   const [commitMessage, setCommitMessage] = useState("");
 
@@ -466,7 +474,6 @@ export function EditorPaneV2({
   const [isCommitting, setIsCommitting] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
-  const [hasUpstream, setHasUpstream] = useState(true);
 
   // Branch selector state
   const [isBranchSelectorOpen, setIsBranchSelectorOpen] = useState(false);
@@ -481,159 +488,14 @@ export function EditorPaneV2({
     return gitStatus?.get(selectedMapKey) ?? null;
   }, [selectedMapKey, gitStatus]);
 
-  // Helper to update git status state
-  const updateGitStatusState = useCallback(
-    (status: { files: Map<string, GitFileStatus>; branch?: string } | null) => {
-      // While comparing against a base branch, gitStatus holds that
-      // comparison, which only the baseBranch effect below may replace
-      if (!status || !baseBranchRef.current) {
-        setGitStatus(status?.files ?? null);
-      }
-
-      // Update current branch from status (if available)
-      // This is more reliable than a separate async call since it comes with the status
-      if (status?.branch) {
-        setCurrentBranch(status.branch);
-      }
-    },
-    [],
-  );
-
-  // Load git status and subscribe to changes
+  // Outside a repository GitBranchToolbar hides, so don't leave the user
+  // stuck in the changes view
   useEffect(() => {
-    let cancelled = false;
-
-    // Subscribe to status changes (can set up immediately - will receive events when ready)
-    const statusCleanup = git.onStatusChanged((event) => {
-      if (!cancelled) {
-        updateGitStatusState(event.status);
-        // Also update upstream status from the fresh status
-        if (event.status) {
-          setHasUpstream(!!event.status.upstream);
-          if (baseBranchRef.current) {
-            setStatusVersion((version) => version + 1);
-          }
-        } else {
-          // Not a git repo (anymore) - auto-switch from changes to files view
-          // to avoid leaving the user stuck (GitBranchToolbar hides when no git)
-          setTreeViewMode((current) =>
-            current === "changes" ? "files" : current,
-          );
-          setSelectedMapKey(null);
-        }
-        // Note: Unseen tracking is handled by useUnseenTracking hook
-        // Note: Per-file diff stats are handled by FileDiffStatsProvider
-      }
-    });
-
-    // Subscribe to branch changes
-    const branchCleanup = git.onBranchChanged(async (event) => {
-      if (!cancelled) {
-        setCurrentBranch(event.currentBranch);
-
-        // Re-check upstream status when branch changes
-        // (different branches may have different upstream configurations)
-        try {
-          const upstream = await git.hasUpstream();
-          if (!cancelled) {
-            setHasUpstream(upstream);
-          }
-        } catch {
-          // Ignore errors - keep previous upstream state
-        }
-      }
-    });
-
-    // Load initial data after git API is ready
-    // This is important for the global container pattern where the first editor
-    // might mount before the git API has received its initial data from IPC
-    const loadInitialData = async () => {
-      try {
-        // Wait for git subscription to be ready before querying
-        await git.whenReady();
-
-        if (cancelled) return;
-
-        // Load initial status
-        const status = await git.getStatus();
-        if (!cancelled) {
-          updateGitStatusState(status);
-          // Check if upstream is configured
-          if (status) {
-            setHasUpstream(!!status.upstream);
-          } else {
-            // Not a git repo - auto-switch from changes to files view
-            // to avoid leaving the user stuck (GitBranchToolbar hides when no git)
-            setTreeViewMode((current) =>
-              current === "changes" ? "files" : current,
-            );
-            setSelectedMapKey(null);
-          }
-        }
-        // Note: Per-file diff stats are handled by FileDiffStatsProvider
-
-        // Load current branch
-        const branch = await git.getCurrentBranch();
-        if (!cancelled) {
-          setCurrentBranch(branch);
-        }
-      } catch (error) {
-        // Log error but don't crash - git status is non-critical
-        console.error("[EditorPaneV2] Failed to load initial git data:", error);
-      }
-    };
-
-    loadInitialData();
-
-    return () => {
-      cancelled = true;
-      statusCleanup();
-      branchCleanup();
-    };
-  }, [git, updateGitStatusState]);
-  // Note: Filesystem change subscription for unseen tracking is handled by useUnseenTracking
-
-  // Recompute git status when baseBranch changes, or when the working tree
-  // changes while comparing against a branch
-  // When baseBranch is set, fetch status relative to that branch
-  // When baseBranch is null, use normal HEAD status
-  useEffect(() => {
-    baseBranchRef.current = baseBranch;
-    let cancelled = false;
-
-    const updateStatusForBranch = async () => {
-      try {
-        await git.whenReady();
-        if (cancelled) return;
-
-        if (baseBranch) {
-          // Branch comparison mode: get status relative to base branch
-          // This returns proper status (added, modified, deleted, renamed)
-          const branchStatus = await git.getStatusFromBranch(baseBranch);
-          if (!cancelled) {
-            setGitStatus(branchStatus);
-          }
-        } else {
-          // HEAD mode: refresh normal status
-          const status = await git.getStatus();
-          if (!cancelled) {
-            updateGitStatusState(status);
-          }
-        }
-      } catch (error) {
-        console.error(
-          "[EditorPaneV2] Failed to update status for branch:",
-          error,
-        );
-      }
-    };
-
-    updateStatusForBranch();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [git, baseBranch, statusVersion, updateGitStatusState]);
+    if (headStatus === null) {
+      setTreeViewMode((current) => (current === "changes" ? "files" : current));
+      setSelectedMapKey(null);
+    }
+  }, [headStatus]);
 
   // Generate stable editor ID from pane ID
   const editorId = useMemo(() => `editor-${pane.id}`, [pane.id]);
@@ -1119,7 +981,9 @@ export function EditorPaneV2({
       await git.push(false, isPublishing);
 
       if (isPublishing) {
-        setHasUpstream(true);
+        void queryClient.invalidateQueries({
+          queryKey: gitKeys.status(git.cwd),
+        });
       }
     } catch (error) {
       const friendlyError = getFriendlyGitError(error);
@@ -1135,7 +999,7 @@ export function EditorPaneV2({
     } finally {
       setIsPushing(false);
     }
-  }, [git, hasUpstream, isPulling, isPushing, isCommitting]);
+  }, [git, queryClient, hasUpstream, isPulling, isPushing, isCommitting]);
 
   /**
    * Handle branch switch callback.

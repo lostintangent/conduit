@@ -2,15 +2,22 @@
 /**
  * @vitest-environment jsdom
  */
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { applyGitStatus } from "@/api/gitQueries";
+import { createQueryClient } from "@/query";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor/EditorPaneV2";
+import { render as renderWithQuery } from "../queryRender";
+
+// Each render gets a fresh QueryClient, and reportStatus stands in for the
+// git watcher reporting to it
+let queryClient;
+function render(ui, options) {
+  queryClient = createQueryClient();
+  return renderWithQuery(ui, { ...options, queryClient });
+}
+const reportStatus = (status) =>
+  act(async () => applyGitStatus(queryClient, mockGit.cwd, status));
 
 // ============================================================================
 // Mocks
@@ -89,6 +96,7 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
 
 // Mock useGitV2 hook - returns git API with empty status
 const mockGit = {
+  cwd: "/project",
   getStatus: vi.fn().mockResolvedValue({ files: new Map(), branch: "main" }),
   getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
@@ -583,7 +591,6 @@ describe("EditorPaneV2", () => {
   describe("git-derived editor mode", () => {
     beforeEach(() => {
       mockGit.getStatus.mockClear();
-      mockGit.onStatusChanged.mockClear();
     });
 
     it("should fetch git status on mount", async () => {
@@ -592,22 +599,6 @@ describe("EditorPaneV2", () => {
       await waitFor(() => {
         expect(mockGit.getStatus).toHaveBeenCalled();
       });
-    });
-
-    it("should subscribe to git status changes", () => {
-      render(<EditorPaneV2 pane={TEST_PANE} />);
-
-      expect(mockGit.onStatusChanged).toHaveBeenCalled();
-    });
-
-    it("should unsubscribe from git status on unmount", () => {
-      const cleanup = vi.fn();
-      mockGit.onStatusChanged.mockReturnValue(cleanup);
-
-      const { unmount } = render(<EditorPaneV2 pane={TEST_PANE} />);
-      unmount();
-
-      expect(cleanup).toHaveBeenCalled();
     });
   });
 
@@ -653,13 +644,8 @@ describe("EditorPaneV2", () => {
       expect(screen.getByTestId("tree-view-mode").textContent).toBe("changes");
     });
 
-    it("should auto-switch when onStatusChanged fires with null status", async () => {
+    it("should auto-switch when the status becomes null", async () => {
       // Start with a valid git repo
-      let statusCallback: ((event: { status: unknown }) => void) | null = null;
-      mockGit.onStatusChanged.mockImplementation((cb) => {
-        statusCallback = cb;
-        return () => {};
-      });
       mockGit.getStatus.mockResolvedValue({
         files: new Map(),
         branch: "main",
@@ -678,12 +664,12 @@ describe("EditorPaneV2", () => {
       expect(screen.getByTestId("tree-view-mode").textContent).toBe("changes");
 
       // Simulate git repo becoming unavailable
-      await act(async () => {
-        statusCallback?.({ status: null });
-      });
+      await reportStatus(null);
 
       // Should switch to files mode
-      expect(screen.getByTestId("tree-view-mode").textContent).toBe("files");
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-view-mode").textContent).toBe("files");
+      });
     });
 
     it("should not switch when already in files view and CWD is not a git repo", async () => {
@@ -754,20 +740,10 @@ describe("EditorPaneV2", () => {
   });
 
   describe("branch comparison", () => {
-    const statusListeners = [];
     const changed = (path) => [path, { path, status: "modified" }];
-
-    beforeEach(() => {
-      statusListeners.length = 0;
-      mockGit.onStatusChanged.mockImplementation((listener) => {
-        statusListeners.push(listener);
-        return () => {};
-      });
-    });
 
     // mockReset also drops unconsumed *Once values, which clearAllMocks keeps
     afterEach(() => {
-      mockGit.onStatusChanged.mockReset().mockReturnValue(() => {});
       mockGit.getStatus
         .mockReset()
         .mockResolvedValue({ files: new Map(), branch: "main" });
@@ -789,12 +765,9 @@ describe("EditorPaneV2", () => {
         );
       });
 
-      await act(async () => {
-        for (const listener of statusListeners) {
-          listener({
-            status: { files: new Map([changed("saved.ts")]), branch: "main" },
-          });
-        }
+      await reportStatus({
+        files: new Map([changed("saved.ts")]),
+        branch: "main",
       });
 
       await waitFor(() => {
@@ -805,6 +778,41 @@ describe("EditorPaneV2", () => {
       expect(mockGit.getStatusFromBranch).toHaveBeenLastCalledWith(
         "test-branch",
       );
+    });
+
+    it("keeps listing HEAD's changes until the comparison loads", async () => {
+      mockGit.getStatus.mockResolvedValue({
+        files: new Map([changed("head.ts")]),
+        branch: "main",
+      });
+      let resolveComparison;
+      mockGit.getStatusFromBranch.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveComparison = resolve;
+        }),
+      );
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-git-status").textContent).toBe(
+          "head.ts",
+        );
+      });
+
+      fireEvent.click(screen.getByTestId("select-branch-button"));
+      await waitFor(() => {
+        expect(mockGit.getStatusFromBranch).toHaveBeenCalledWith("test-branch");
+      });
+      expect(screen.getByTestId("tree-git-status").textContent).toBe("head.ts");
+
+      await act(async () => {
+        resolveComparison(new Map([changed("feature.ts")]));
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("tree-git-status").textContent).toBe(
+          "feature.ts",
+        );
+      });
     });
 
     it("keeps an agent pane's comparison when HEAD status loads after it", async () => {

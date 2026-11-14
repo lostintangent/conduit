@@ -6,8 +6,8 @@
  * Automatically subscribes to git status changes and file content changes
  * with proper debouncing.
  *
- * When triggered by git status changes, uses the event data directly for
- * gitStatus (no additional IPC call). Diff stats still require fetching.
+ * It shares the cwd's cached git status and diff stats with every other
+ * reader, so remounting (e.g., when switching panes) shows them right away.
  *
  * @example
  * ```tsx
@@ -23,11 +23,15 @@
  * ```
  */
 
+import { gitKeys, gitQueries } from "@/api/gitQueries";
+import type { GitFileStatus } from "@/api/GitV2API";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
-import { useGitDiffSubscription } from "@/hooks/useGitDiffSubscription";
-import type { GitFileStatus, GitStatusChangedEvent } from "@/api/GitV2API";
-import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+
+/** Debounce delay for file content changes, so typing doesn't re-read stats (ms) */
+const FILE_CHANGE_DEBOUNCE_MS = 300;
 
 export interface UncommittedDiffStats {
   added: number;
@@ -45,19 +49,6 @@ export interface UseUncommittedDiffStatsResult {
 }
 
 /**
- * In-memory cache for stats by cwd.
- * Prevents flash when component remounts (e.g., when switching panes).
- */
-const statsCache = new Map<
-  string,
-  {
-    stats: UncommittedDiffStats | null;
-    gitStatus: Map<string, GitFileStatus> | null;
-    isGitRepo: boolean | null;
-  }
->();
-
-/**
  * Hook to subscribe to aggregate uncommitted diff stats.
  *
  * @param cwd - Working directory
@@ -65,68 +56,52 @@ const statsCache = new Map<
 export function useUncommittedDiffStats(
   cwd: string,
 ): UseUncommittedDiffStatsResult {
-  const cached = statsCache.get(cwd);
-
-  // Initialize from cache to prevent flash on remount
-  const [stats, setStats] = useState<UncommittedDiffStats | null>(
-    cached?.stats ?? null,
-  );
-  const [gitStatus, setGitStatus] = useState<Map<string, GitFileStatus> | null>(
-    cached?.gitStatus ?? null,
-  );
-  const [isGitRepo, setIsGitRepo] = useState<boolean | null>(
-    cached?.isGitRepo ?? null,
-  );
-
   const git = useGitV2(cwd);
   const fs = useFileSystemV2(cwd);
+  const queryClient = useQueryClient();
 
-  const fetchStats = useCallback(
-    async (event?: GitStatusChangedEvent) => {
-      try {
-        // Check if this is a git repo first
-        const root = await git.findRoot();
-        if (!root) {
-          setIsGitRepo(false);
-          setStats(null);
-          setGitStatus(null);
-          // Don't cache isGitRepo: false - findRoot() may have failed transiently
-          // (e.g., git provider not yet initialized). Allow retry on next mount.
-          statsCache.delete(cwd);
-          return;
-        }
+  const { data: root } = useQuery(gitQueries.root(git));
+  const isGitRepo = root === undefined ? null : root !== null;
 
-        setIsGitRepo(true);
+  const { data: status } = useQuery({
+    ...gitQueries.status(git),
+    enabled: isGitRepo === true,
+  });
+  const { data: stats } = useQuery({
+    ...gitQueries.diffStats(git),
+    enabled: isGitRepo === true,
+  });
 
-        // Use gitStatus from event if available (no IPC call needed)
-        // Otherwise fetch it (for file content changes or initial load)
-        const newGitStatus =
-          event?.status.files ?? (await git.getStatus())?.files ?? null;
-        setGitStatus(newGitStatus);
+  // Editing a file changes its line counts, which status events don't carry,
+  // so re-read the stats once typing settles. Status is re-read with them so
+  // the file summary and the counts describe the same moment.
+  useEffect(() => {
+    if (!isGitRepo || !fs.onAnyFileContentChanged) {
+      return;
+    }
 
-        // Fetch aggregated diff stats (lines added/removed - not in event)
-        const diffStats = await git.getUncommittedDiffStats();
-        setStats(diffStats);
-
-        statsCache.set(cwd, {
-          stats: diffStats,
-          gitStatus: newGitStatus,
-          isGitRepo: true,
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const cleanup = fs.onAnyFileContentChanged(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        void queryClient.invalidateQueries({
+          queryKey: gitKeys.diffStats(git.cwd),
         });
-      } catch (error) {
-        console.error(
-          "[useUncommittedDiffStats] Failed to fetch stats:",
-          error,
-        );
-        setStats(null);
-        // Don't update cache on error - keep previous cached value
-      }
-    },
-    [git, cwd],
-  );
+        void queryClient.invalidateQueries({
+          queryKey: gitKeys.status(git.cwd),
+        });
+      }, FILE_CHANGE_DEBOUNCE_MS);
+    });
 
-  // Subscribe to git and file system changes
-  useGitDiffSubscription(git, fs, fetchStats);
+    return () => {
+      clearTimeout(timer);
+      cleanup();
+    };
+  }, [fs, git, isGitRepo, queryClient]);
 
-  return { stats, gitStatus, isGitRepo };
+  return {
+    stats: (isGitRepo && stats) || null,
+    gitStatus: (isGitRepo && status?.files) || null,
+    isGitRepo,
+  };
 }

@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import { renderHook } from "../queryRender";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================
@@ -17,7 +18,6 @@ interface MockGitAPI {
   getUncommittedDiffStats: ReturnType<typeof vi.fn>;
   getStatus: ReturnType<typeof vi.fn>;
   whenReady: ReturnType<typeof vi.fn>;
-  onStatusChanged: ReturnType<typeof vi.fn>;
 }
 
 interface MockFsAPI {
@@ -47,7 +47,6 @@ function createMockGitAPI(cwd: string): MockGitAPI {
       ]),
     }),
     whenReady: vi.fn().mockResolvedValue(undefined),
-    onStatusChanged: vi.fn().mockReturnValue(vi.fn()),
   };
 }
 
@@ -82,20 +81,11 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
   }),
 }));
 
-// Mock useGitDiffSubscription to just call fetchStats once
-vi.mock("../../../src/renderer/hooks/useGitDiffSubscription", () => ({
-  useGitDiffSubscription: vi.fn(
-    (_git: unknown, _fs: unknown, fetchStats: () => Promise<void>) => {
-      // Simulate initial fetch
-      fetchStats();
-    },
-  ),
-}));
-
 // ============================================================================
 // Import after mocks
 // ============================================================================
 
+import { createQueryClient } from "@/query";
 import { useUncommittedDiffStats } from "../../../src/renderer/hooks/useUncommittedDiffStats";
 
 // ============================================================================
@@ -284,25 +274,71 @@ describe("useUncommittedDiffStats", () => {
   });
 
   // ===========================================================================
-  // Integration with useGitDiffSubscription
+  // Shared cache
   // ===========================================================================
 
-  describe("integration with useGitDiffSubscription", () => {
-    it("should pass correct dependencies to useGitDiffSubscription", async () => {
-      const { useGitDiffSubscription } =
-        await import("../../../src/renderer/hooks/useGitDiffSubscription");
+  describe("shared cache", () => {
+    it("re-reads diff stats and status once file edits settle", async () => {
+      const { result } = renderHook(() =>
+        useUncommittedDiffStats("/test/project"),
+      );
+      await waitFor(() => expect(result.current.stats?.added).toBe(10));
 
-      renderHook(() => useUncommittedDiffStats("/test/project"));
+      const git = mockGitInstances.get("/test/project")!;
+      const fs = mockFsInstances.get("/test/project")!;
+      git.getUncommittedDiffStats.mockResolvedValue({
+        added: 11,
+        removed: 5,
+        files: 2,
+      });
+      git.getStatus.mockResolvedValue({
+        files: new Map([["new.ts", { path: "new.ts", status: "modified" }]]),
+      });
+      const onContentChanged = fs.onAnyFileContentChanged.mock.calls[0][0];
+      onContentChanged();
+      onContentChanged();
 
-      expect(useGitDiffSubscription).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(result.current.stats?.added).toBe(11);
+        expect(result.current.gitStatus?.has("new.ts")).toBe(true);
+      });
+      expect(git.getUncommittedDiffStats).toHaveBeenCalledTimes(2);
+      expect(git.getStatus).toHaveBeenCalledTimes(2);
+    });
 
-      // The mock was called with git, fs, and fetchStats
-      const [git, fs, fetchStats] = (
-        useGitDiffSubscription as ReturnType<typeof vi.fn>
-      ).mock.calls[0];
-      expect(git).toBeDefined();
-      expect(fs).toBeDefined();
-      expect(typeof fetchStats).toBe("function");
+    it("shares one read between readers of the same cwd", async () => {
+      const queryClient = createQueryClient();
+      const first = renderHook(() => useUncommittedDiffStats("/test/project"), {
+        queryClient,
+      });
+      const second = renderHook(
+        () => useUncommittedDiffStats("/test/project"),
+        { queryClient },
+      );
+
+      await waitFor(() => {
+        expect(first.result.current.stats?.added).toBe(10);
+        expect(second.result.current.stats?.added).toBe(10);
+      });
+      const git = mockGitInstances.get("/test/project")!;
+      expect(git.getUncommittedDiffStats).toHaveBeenCalledTimes(1);
+      expect(git.getStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows the last stats right away when remounted", async () => {
+      const queryClient = createQueryClient();
+      const first = renderHook(() => useUncommittedDiffStats("/test/project"), {
+        queryClient,
+      });
+      await waitFor(() => expect(first.result.current.stats).not.toBeNull());
+      first.unmount();
+
+      const second = renderHook(
+        () => useUncommittedDiffStats("/test/project"),
+        { queryClient },
+      );
+      expect(second.result.current.stats?.added).toBe(10);
+      expect(second.result.current.gitStatus?.size).toBe(2);
     });
   });
 });

@@ -1,15 +1,20 @@
 import { App } from "@/app";
+import { installGitQueryBridge } from "@/api/gitQueries";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { enableMapSet } from "immer";
 import { useSelector } from "@tanstack/react-store";
 import { createRoot } from "react-dom/client";
+import { queryClient } from "./query";
 import { cn } from "./utils";
 
 // Enable Immer's Map and Set support for produce() on Map-valued atoms
 enableMapSet();
 
 import "./index.css";
+
+installGitQueryBridge(queryClient);
 
 const rootElement = document.getElementById("root");
 const root = createRoot(rootElement);
@@ -48,4 +53,8 @@ function AppWrapper() {
   );
 }
 
-root.render(<AppWrapper />);
+root.render(
+  <QueryClientProvider client={queryClient}>
+    <AppWrapper />
+  </QueryClientProvider>,
+);

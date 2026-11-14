@@ -136,7 +136,9 @@ export type {
  *
  * Reconstructs the files Map from the plain object.
  */
-function deserializeGitStatus(serialized: SerializedGitStatus): GitStatus {
+export function deserializeGitStatus(
+  serialized: SerializedGitStatus,
+): GitStatus {
   const files = new Map<string, GitFileStatus>();
 
   for (const [path, status] of Object.entries(serialized.files)) {
@@ -225,6 +227,20 @@ function deserializeCommitFile(serialized: SerializedCommitFile): CommitFile {
 }
 
 // ============================================================================
+// Subscriptions
+// ============================================================================
+
+/** The cwd behind each live subscription, so one listener can route events */
+const subscriptionCwds = new Map<string, string>();
+
+/** The cwd a live subscription was made for, by its id. */
+export function cwdForGitSubscription(
+  subscriptionId: string,
+): string | undefined {
+  return subscriptionCwds.get(subscriptionId);
+}
+
+// ============================================================================
 // GitV2API Class
 // ============================================================================
 
@@ -272,6 +288,9 @@ export class GitV2API {
 
   /** Active subscription ID, if subscribed to events */
   private subscriptionId: string | null = null;
+
+  /** When the subscription went live, or null without one */
+  private _watchedSince: number | null = null;
 
   /** Pending subscription promise (to prevent duplicate subscription requests) */
   private subscriptionPromise: Promise<void> | null = null;
@@ -428,6 +447,14 @@ export class GitV2API {
     }
 
     return status;
+  }
+
+  /**
+   * When this instance's watcher went live, or null while it has none (still
+   * subscribing, released, or outside a repository).
+   */
+  get watchedSince(): number | null {
+    return this._watchedSince;
   }
 
   /**
@@ -1079,10 +1106,12 @@ export class GitV2API {
 
     // Unsubscribe from main process (this also releases the provider reference)
     if (this.subscriptionId) {
+      subscriptionCwds.delete(this.subscriptionId);
       window.conduit.git.unsubscribe(this.subscriptionId).catch(() => {
         // Ignore errors during cleanup
       });
       this.subscriptionId = null;
+      this._watchedSince = null;
     }
 
     // Clear all listeners
@@ -1246,6 +1275,8 @@ export class GitV2API {
         }
 
         this.subscriptionId = subscriptionId;
+        this._watchedSince = Date.now();
+        subscriptionCwds.set(subscriptionId, this.cwd);
 
         // Also resolve the git root while we're at it
         this.gitRoot = await window.conduit.git.findRoot(this.cwd);

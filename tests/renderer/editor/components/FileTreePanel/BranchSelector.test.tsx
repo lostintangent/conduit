@@ -5,13 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from "@testing-library/react";
+import { screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { render } from "../../../queryRender";
 import { BranchSelector } from "@/components/panes/editor/components/FileTreePanel/BranchSelector";
 import type { GitV2API } from "@/api/GitV2API";
 import type { GitBranch } from "@/api/GitV2API";

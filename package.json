@@ -45,6 +45,7 @@
     "@streamdown/code": "^2.0.0",
     "@streamdown/math": "^1.0.3",
     "@streamdown/mermaid": "^1.0.3",
+    "@tanstack/react-query": "^5.107.1",
     "@tanstack/react-store": "^0.11.2",
     "@tanstack/react-virtual": "^3.14.26",
     "@vscode/ripgrep": "^1.18.0",

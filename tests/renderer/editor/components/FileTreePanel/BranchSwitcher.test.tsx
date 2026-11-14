@@ -8,13 +8,8 @@
 import type { GitBranch } from "@/api/GitV2API";
 import type { GitV2API } from "@/api/GitV2API";
 import { BranchSwitcher } from "@/components/panes/editor/components/FileTreePanel/BranchSwitcher";
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { render } from "../../../queryRender";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ============================================================================

@@ -18,7 +18,9 @@
  * ```
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useMemo } from "react";
+import { skipToken, useQuery } from "@tanstack/react-query";
+import { gitKeys, gitQueries } from "@/api/gitQueries";
 import type { GitV2API } from "@/api/GitV2API";
 import type { GitBranch } from "@/api/GitV2API";
 
@@ -43,7 +45,7 @@ export interface UseBranchesResult {
   /** Raw branches before filtering */
   allBranches: GitBranch[];
 
-  /** Whether branches are being loaded */
+  /** Whether branches are being loaded for the first time */
   isLoading: boolean;
 
   /** Error message if loading failed */
@@ -52,6 +54,8 @@ export interface UseBranchesResult {
   /** Manually refresh the branch list */
   refresh: () => Promise<void>;
 }
+
+const NO_BRANCHES: GitBranch[] = [];
 
 /**
  * Hook for fetching and managing branch data from GitV2API.
@@ -67,65 +71,14 @@ export function useBranches(
     currentBranch = null,
   } = options;
 
-  const [allBranches, setAllBranches] = useState<GitBranch[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch branches
-  const fetchBranches = useCallback(async () => {
-    if (!git) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      await git.whenReady();
-      const branchList = await git.getBranches();
-      setAllBranches(branchList);
-    } catch (err) {
-      console.error("Failed to load branches:", err);
-      setError("Failed to load branches");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [git]);
-
-  // Auto-fetch when enabled
-  useEffect(() => {
-    if (!enabled || !git) return;
-
-    let cancelled = false;
-
-    async function load() {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        await git!.whenReady();
-        if (cancelled) return;
-
-        const branchList = await git!.getBranches();
-        if (!cancelled) {
-          setAllBranches(branchList);
-        }
-      } catch (err) {
-        console.error("Failed to load branches:", err);
-        if (!cancelled) {
-          setError("Failed to load branches");
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [git, enabled]);
+  // Re-read whenever it's enabled (a picker opening), showing the last list
+  // meanwhile
+  const query = useQuery(
+    git
+      ? { ...gitQueries.branches(git), enabled }
+      : { queryKey: gitKeys.branches(""), queryFn: skipToken },
+  );
+  const allBranches = query.data ?? NO_BRANCHES;
 
   // Filter and sort branches
   const branches = useMemo(() => {
@@ -153,9 +106,11 @@ export function useBranches(
   return {
     branches,
     allBranches,
-    isLoading,
-    error,
-    refresh: fetchBranches,
+    isLoading: query.isLoading,
+    error: query.isError ? "Failed to load branches" : null,
+    refresh: async () => {
+      await query.refetch();
+    },
   };
 }
 

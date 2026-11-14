@@ -5,7 +5,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
+import { waitFor, act } from "@testing-library/react";
+import { renderHook } from "../../../../queryRender";
 import {
   useBranches,
   filterBranchesByQuery,
