@@ -53,6 +53,7 @@ const mockModifiedEditor = {
 
 // Mock Monaco diff editor
 const mockDiffEditor = {
+  createViewModel: vi.fn((model: unknown) => ({ model, dispose: vi.fn() })),
   setModel: vi.fn(),
   getModifiedEditor: vi.fn(() => mockModifiedEditor),
   updateOptions: vi.fn(),
@@ -356,11 +357,14 @@ describe("DiffEditorWrapper", () => {
       );
 
       await waitFor(() => {
-        expect(mockDiffEditor.setModel).toHaveBeenCalledWith({
+        expect(mockDiffEditor.createViewModel).toHaveBeenCalledWith({
           original: expect.anything(),
           modified: mockModifiedModel,
         });
       });
+      expect(mockDiffEditor.setModel).toHaveBeenCalledWith(
+        mockDiffEditor.createViewModel.mock.results[0]?.value,
+      );
     });
   });
 
@@ -571,6 +575,73 @@ describe("DiffEditorWrapper", () => {
       unmount();
 
       expect(mockDiffEditor.dispose).toHaveBeenCalled();
+    });
+
+    // Disposing the view model cancels a diff still computing on the worker,
+    // which otherwise fails once its original model is gone. Monaco never
+    // disposes a view model it creates from plain models.
+    describe("view model disposal", () => {
+      let disposed: string[];
+
+      beforeEach(() => {
+        disposed = [];
+        let viewModels = 0;
+        mockDiffEditor.createViewModel.mockImplementation((model) => {
+          const name = `viewModel${++viewModels}`;
+          return { model, dispose: vi.fn(() => disposed.push(name)) };
+        });
+        let models = 0;
+        mockCreateModel.mockImplementation(() => {
+          const name = `original${++models}`;
+          return { dispose: vi.fn(() => disposed.push(name)) };
+        });
+      });
+
+      it("should dispose the view model before the original model on unmount", async () => {
+        const { unmount } = render(
+          <DiffEditorWrapper
+            editorId="test-diff"
+            cwd="/test"
+            filePath="/test/file.ts"
+          />,
+        );
+
+        await waitFor(() => {
+          expect(mockDiffEditor.setModel).toHaveBeenCalled();
+        });
+
+        unmount();
+
+        expect(disposed).toEqual(["viewModel1", "original1"]);
+      });
+
+      it("should dispose the previous view model before its original model when the file changes", async () => {
+        const { rerender } = render(
+          <DiffEditorWrapper
+            editorId="test-diff"
+            cwd="/test"
+            filePath="/test/file.ts"
+          />,
+        );
+
+        await waitFor(() => {
+          expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(1);
+        });
+
+        setMockModelFilePath("/test/other.ts");
+        rerender(
+          <DiffEditorWrapper
+            editorId="test-diff"
+            cwd="/test"
+            filePath="/test/other.ts"
+          />,
+        );
+
+        await waitFor(() => {
+          expect(mockDiffEditor.createViewModel).toHaveBeenCalledTimes(2);
+        });
+        expect(disposed).toEqual(["viewModel1", "original1"]);
+      });
     });
   });
 

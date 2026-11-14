@@ -163,6 +163,29 @@ const HIDE_UNCHANGED_REGIONS_CONFIG: monaco.editor.IDiffEditorBaseOptions["hideU
   };
 
 /**
+ * Detaches the diff editor's models, since Monaco errors when an attached
+ * TextModel is disposed, then disposes the ones this wrapper owns. The view
+ * model goes first: disposing it cancels a diff still computing on the
+ * worker, which otherwise rejects with "no diff result available" once the
+ * original model is gone. Monaco never disposes a view model it creates from
+ * plain models, so the wrapper creates and owns it.
+ */
+function releaseDiffModels(
+  diffEditor: monaco.editor.IStandaloneDiffEditor,
+  ...owned: { current: monaco.IDisposable | null }[]
+) {
+  try {
+    diffEditor.setModel(null);
+  } catch {
+    // Ignore if already disposed
+  }
+  for (const ref of owned) {
+    ref.current?.dispose();
+    ref.current = null;
+  }
+}
+
+/**
  * Monaco diff editor wrapper with content loading.
  *
  * Creates a diff editor that compares content from configurable sources:
@@ -200,6 +223,7 @@ export function DiffEditorWrapper({
   const diffEditorRef = useRef<monaco.editor.IStandaloneDiffEditor | null>(
     null,
   );
+  const viewModelRef = useRef<monaco.editor.IDiffEditorViewModel | null>(null);
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const modifiedModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const contentChangeDisposableRef = useRef<monaco.IDisposable | null>(null);
@@ -301,25 +325,12 @@ export function DiffEditorWrapper({
         contentChangeDisposableRef.current = null;
       }
 
-      // CRITICAL: Reset the diff editor's model to null BEFORE disposing the TextModels.
-      // This prevents the "TextModel got disposed before DiffEditorWidget model got reset" error.
-      try {
-        diffEditor.setModel(null);
-      } catch {
-        // Ignore if already disposed
-      }
-
-      // Now safe to dispose original model (we own it)
-      if (originalModelRef.current) {
-        originalModelRef.current.dispose();
-        originalModelRef.current = null;
-      }
-
-      // Dispose modified model if we own it (git source mode)
-      if (modifiedModelRef.current) {
-        modifiedModelRef.current.dispose();
-        modifiedModelRef.current = null;
-      }
+      releaseDiffModels(
+        diffEditor,
+        viewModelRef,
+        originalModelRef,
+        modifiedModelRef,
+      );
 
       // Dispose diff editor
       diffEditor.dispose();
@@ -374,25 +385,12 @@ export function DiffEditorWrapper({
 
     // Wrap in try-catch to prevent any errors from crashing the app
     try {
-      // Reset diff editor model before disposing old models
-      if (originalModelRef.current || modifiedModelRef.current) {
-        try {
-          diffEditor.setModel(null);
-        } catch {
-          // Ignore if already disposed
-        }
-      }
-
-      // Dispose previous original model
-      if (originalModelRef.current) {
-        originalModelRef.current.dispose();
-      }
-
-      // Dispose previous modified model (only if we own it - git source mode)
-      if (modifiedModelRef.current) {
-        modifiedModelRef.current.dispose();
-        modifiedModelRef.current = null;
-      }
+      releaseDiffModels(
+        diffEditor,
+        viewModelRef,
+        originalModelRef,
+        modifiedModelRef,
+      );
 
       // Create original model (read-only, we own this)
       const originalUri = monaco.Uri.parse(
@@ -422,11 +420,11 @@ export function DiffEditorWrapper({
         return;
       }
 
-      // Set the diff models
-      diffEditor.setModel({
+      viewModelRef.current = diffEditor.createViewModel({
         original: originalModelRef.current,
         modified: modifiedModel,
       });
+      diffEditor.setModel(viewModelRef.current);
 
       // Force immediate tokenization to prevent white flash before syntax highlighting
       forceTokenizeVisibleLines(originalModelRef.current);
