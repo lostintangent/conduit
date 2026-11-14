@@ -63,7 +63,7 @@
           {
             "assertFunctionNames": [
               "expect",
-              "expectStartedAtPaneWidth",
+              "expectStartedAtPane*",
               "**.waitFor"
             ]
           }

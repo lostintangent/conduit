@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type Conduit, launch } from "./app";
-import { expectStartedAtPaneWidth, zshenv } from "./shells";
+import {
+  expectStartedAtPaneSize,
+  expectStartedAtPaneWidth,
+  zshenv,
+} from "./shells";
 
 describe.each([
   ["the default font size", undefined],
@@ -27,8 +31,8 @@ describe.each([
   const visibleTerminals = () =>
     app.page.locator(".xterm").filter({ visible: true });
 
-  it("starts the window's first shell at its pane's width", async () => {
-    await expectStartedAtPaneWidth(app, await app.terminal());
+  it("starts the window's first shell at its pane's size", async () => {
+    await expectStartedAtPaneSize(app, await app.terminal());
   });
 
   it("starts a new tab's shell at its pane's width", async () => {

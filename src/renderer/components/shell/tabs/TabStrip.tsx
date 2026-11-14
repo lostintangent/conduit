@@ -127,16 +127,17 @@ export const TabStrip = ({
 
   const isInOverviewMode = applicationMode === "overview";
 
-  const tabStripTransitionStyle = useMemo<React.CSSProperties>(() => {
-    const collapsed = isInFocusMode || isInOverviewMode || !activeTabId;
-    return {
-      flexBasis: collapsed ? "0rem" : "2.7rem",
-      minHeight: collapsed ? 0 : "2.7rem",
-      opacity: collapsed ? 0 : 1,
-      pointerEvents: collapsed ? "none" : "auto",
-      willChange: "flex-basis, opacity",
-    };
-  }, [activeTabId, isInFocusMode, isInOverviewMode]);
+  // The strip keeps its height while a window has no tab yet, since that tab's
+  // shell starts at the size its pane first fits to. Growing in under it would
+  // start the shell taller than its pane.
+  const collapsed = isInFocusMode || isInOverviewMode;
+  const tabStripTransitionStyle: React.CSSProperties = {
+    flexBasis: collapsed ? "0rem" : "2.7rem",
+    minHeight: collapsed ? 0 : "2.7rem",
+    opacity: collapsed ? 0 : 1,
+    pointerEvents: collapsed ? "none" : "auto",
+    willChange: "flex-basis, opacity",
+  };
 
   const [draggingTab, setDraggingTab] = useState<{
     id: string;
