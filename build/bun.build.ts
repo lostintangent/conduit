@@ -87,7 +87,7 @@ export function buildPreloads({ dev = false }: Options = {}) {
   return Promise.all(
     [
       ["src/preload/window/index.ts", "preload.js"],
-      ["src/preload/webview/index.ts", "webview-preload.js"],
+      ["src/features/browser/preload/index.ts", "webview-preload.js"],
     ].map(([entry, naming]) =>
       run(naming, {
         entrypoints: [path.join(root, entry)],

@@ -4,7 +4,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/ui/dialog";
 import type { AgentSessionInfo } from "../model";
 import { useEffect, useState } from "react";
 

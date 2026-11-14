@@ -12,11 +12,7 @@ import {
   getCommandDisplayTitle,
   useCommand,
 } from "@/commands/hooks/useCommand";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { useSettings } from "@features/settings/client/queries";
 import { formatHomePath } from "@/utils/pathUtils";
 import { FolderUp, PanelLeftClose } from "lucide-react";

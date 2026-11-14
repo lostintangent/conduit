@@ -3,11 +3,7 @@
  * toolbar, with their keybindings in each tooltip.
  */
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { Redo, Save, Search, Undo } from "lucide-react";
 
 export interface EditorActionButtonsProps {

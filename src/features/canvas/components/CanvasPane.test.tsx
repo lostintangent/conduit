@@ -3,7 +3,7 @@ import { Activity } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { CanvasPane } from "@features/canvas/components/CanvasPane";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import {
   deleteCanvasState,
   getCanvasState,

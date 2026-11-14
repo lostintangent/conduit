@@ -10,7 +10,7 @@ import {
   activeTabIdAtom,
   tabsAtom,
   workspaceNameAtom,
-} from "@/store/atoms";
+} from "@features/workbench/client/atoms";
 import type { Workspace } from "@shared/types";
 import { enableMapSet } from "immer";
 

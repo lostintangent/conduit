@@ -12,11 +12,7 @@
  */
 
 import { X } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 
 export interface ExternalChangeWarningProps {
   /** Path to the file (for display) */

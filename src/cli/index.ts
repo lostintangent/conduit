@@ -1,10 +1,10 @@
 import { Command } from "commander";
 import { CLI_COMMAND_NAME } from "../shared/cli/types";
-import registerBrowserCommands from "./commands/browser";
+import registerBrowserCommands from "@features/browser/cli/command";
 import registerCanvasCommands from "@features/canvas/cli/command";
 import registerEditorCommands from "@features/editor/cli/command";
-import registerPaneCommands from "./commands/pane";
-import registerTabCommands from "./commands/tab";
+import registerPaneCommands from "@features/workbench/cli/paneCommand";
+import registerTabCommands from "@features/workbench/cli/tabCommand";
 import registerTerminalCommands from "@features/terminal/cli/command";
 
 // Import the cliCommand extension to commander

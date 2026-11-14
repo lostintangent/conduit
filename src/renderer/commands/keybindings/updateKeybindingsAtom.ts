@@ -1,5 +1,5 @@
 import { getKeybindingRegistry } from "@/commands";
-import { keybindingsAtom } from "@/store/atoms";
+import { keybindingsAtom } from "@features/workbench/client/atoms";
 
 /**
  * Update the keybindings atom with current keybindings from the registry

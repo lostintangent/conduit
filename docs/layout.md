@@ -31,7 +31,7 @@ Key features include:
 
 ## Architecture Components
 
-### 1. Core Layout Component (`src/renderer/components/layout/normal/TabLayout.tsx`)
+### 1. Core Layout Component (`src/features/workbench/components/layout/normal/TabLayout.tsx`)
 
 The `TabLayout` component is the main orchestrator that:
 
@@ -55,7 +55,7 @@ interface TabLayoutProps {
 }
 ```
 
-### 2. Layout Utilities (`src/renderer/utils/layout.ts`)
+### 2. Layout Utilities (`src/features/workbench/client/layout.ts`)
 
 Core utilities for layout tree manipulation:
 
@@ -65,7 +65,7 @@ Core utilities for layout tree manipulation:
 - `layoutContainsPaneId()` - Check if a pane exists in a subtree
 - `getPaneDirectionConfig()` - Map directions to axis configurations
 
-### 3. Layout Actions (`src/renderer/store/actions/pane.ts`)
+### 3. Layout Actions (`src/features/workbench/client/actions/pane.ts`)
 
 State management actions for layout operations:
 
@@ -76,7 +76,7 @@ State management actions for layout operations:
 - `setPaneCollapsed()` - Toggle pane collapsed state
 - `detachPane()` - Remove pane for drag and drop
 
-### 4. Resize System (`src/hooks/useLayoutResizing.ts`)
+### 4. Resize System (`src/features/workbench/components/layout/useLayoutResizing.ts`)
 
 Manages interactive pane resizing with support for:
 
@@ -85,7 +85,7 @@ Manages interactive pane resizing with support for:
 - Real-time size updates during drag
 - Mouse tracking and boundary calculations
 
-### 5. Drag and Drop (`src/renderer/components/layout/normal/usePaneDragDrop.tsx`)
+### 5. Drag and Drop (`src/features/workbench/components/layout/normal/usePaneDragDrop.tsx`)
 
 Implements pane reorganization through drag and drop:
 
@@ -272,7 +272,7 @@ type LayoutResizeAxis = {
 };
 ```
 
-**ResizeHandle component** (`src/renderer/components/layout/normal/ResizeHandle.tsx`):
+**ResizeHandle component** (`src/features/workbench/components/layout/normal/ResizeHandle.tsx`):
 
 - Positioned at split boundaries
 - 1px wide/tall, but with larger hit area
@@ -341,7 +341,7 @@ function computeIntersectionHandles(
 }
 ```
 
-**IntersectionHandles component** (`src/renderer/components/layout/normal/IntersectionHandles.tsx`):
+**IntersectionHandles component** (`src/features/workbench/components/layout/normal/IntersectionHandles.tsx`):
 
 - 4x4px hit area at intersection points
 - Diagonal resize cursor (`nwse-resize` or `nesw-resize`)

@@ -12,11 +12,7 @@
  */
 
 import { Eye } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/utils";
 
 export interface ReadOnlyBadgeProps {

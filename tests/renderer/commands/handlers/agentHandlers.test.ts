@@ -1,5 +1,5 @@
-import * as notifications from "@/store/actions/notifications";
-import * as paneActions from "@/store/actions/pane";
+import * as notifications from "@features/workbench/client/actions/notifications";
+import * as paneActions from "@features/workbench/client/actions/pane";
 import type { AgentSessionInfo } from "@features/agents/model";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,12 +20,12 @@ import {
 } from "@/commands/handlers/agentHandlers";
 
 // Mock store actions
-vi.mock("@/store/actions/notifications", () => ({
+vi.mock("@features/workbench/client/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
   updateNotification: vi.fn(),
 }));
 
-vi.mock("@/store/actions/pane", () => ({
+vi.mock("@features/workbench/client/actions/pane", () => ({
   completeAgentSession: vi.fn(),
   deleteAgentSession: vi.fn(),
 }));

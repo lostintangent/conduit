@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { CommitGraphList } from "@features/editor/components/CommitGraph/CommitGraphList";
 import type {
   CommitGraphNode,

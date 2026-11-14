@@ -7,7 +7,7 @@
 import type { CanvasCommand } from "@features/canvas/components/history/canvasHistory";
 import { clearImageCache } from "@features/canvas/components/render/elements";
 import type { CanvasElement } from "@features/canvas/model";
-import { createAtom } from "@/store/createAtom";
+import { createAtom } from "@/createAtom";
 import type { Atom } from "@tanstack/react-store";
 
 // =============================================================================

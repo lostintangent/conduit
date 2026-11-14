@@ -3,13 +3,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/ui/dropdown-menu";
+import { Separator } from "@/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/utils/index";
 import type { CanvasTool, FillStyle, ShapeType } from "@features/canvas/model";
 import {

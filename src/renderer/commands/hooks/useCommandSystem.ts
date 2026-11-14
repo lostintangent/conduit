@@ -22,8 +22,8 @@ import {
   type ApplicationMode,
   keybindingsAtom,
   tabsAtom,
-} from "@/store/atoms";
-import { layoutHasCustomSizes } from "@/utils/layout";
+} from "@features/workbench/client/atoms";
+import { layoutHasCustomSizes } from "@features/workbench/client/layout";
 import { useEffect, useState } from "react";
 
 export interface CommandSystemState {

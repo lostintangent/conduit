@@ -1,7 +1,7 @@
 import { updateTerminalFonts } from "@features/terminal/client/xtermCache";
 import { useDotfiles } from "@features/dotfiles/components/useDotfiles";
 import { settingsMutations, useSettings } from "../../../client/queries";
-import { quickPaneAtom } from "@/store/atoms";
+import { quickPaneAtom } from "@features/workbench/client/atoms";
 import { capitalize } from "@/utils";
 import type {
   PlayButtonTarget,

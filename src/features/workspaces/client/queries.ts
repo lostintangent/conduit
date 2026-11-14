@@ -9,8 +9,8 @@ import {
   tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-} from "@/store/atoms";
-import type { Tab } from "@/types";
+} from "@features/workbench/client/atoms";
+import type { Tab } from "@features/workbench/model";
 
 export const workspaceKeys = { all: ["workspaces"] as const };
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ErrorBoundary } from "@/ui/error-boundary";
 
 /**
  * Keeps a Monaco editor that throws from taking down the pane around it, and

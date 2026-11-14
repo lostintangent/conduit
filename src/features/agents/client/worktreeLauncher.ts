@@ -10,12 +10,12 @@ import { generateAgentLayout } from "./agentLayout";
 import {
   enqueueNotification,
   updateNotification,
-} from "@/store/actions/notifications";
+} from "@features/workbench/client/actions/notifications";
 import {
   inheritAgentSession,
   splitPane,
   updatePaneProperty,
-} from "@/store/actions/pane";
+} from "@features/workbench/client/actions/pane";
 
 export interface LaunchPayload {
   prompt: string;
@@ -114,7 +114,8 @@ export async function launchAgents(
       firstInstances[0]?.instructions,
     );
 
-    const { openTabFromExistingSession } = await import("@/store/actions/tab");
+    const { openTabFromExistingSession } =
+      await import("@features/workbench/client/actions/tab");
     const firstTerminal = await window.conduit.terminal.create({
       cwd: firstCwd,
       command: firstCommand,

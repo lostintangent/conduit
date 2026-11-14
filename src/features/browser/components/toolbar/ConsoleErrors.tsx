@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -6,12 +6,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { Check, Copy, Trash2 } from "lucide-react";
 import { useState } from "react";
 

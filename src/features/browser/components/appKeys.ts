@@ -10,9 +10,9 @@ import {
   trackKeyDown,
 } from "@/commands/keybindings/parser";
 import { isUserKeybinding } from "@/commands/keybindings/types";
-import { keybindingsAtom } from "@/store/atoms";
+import { keybindingsAtom } from "@features/workbench/client/atoms";
 import type { IpcMessageEvent, WebviewTag } from "electron";
-import type { AppKey, HandedKey } from "../../../preload/webview/appKeys";
+import type { AppKey, HandedKey } from "../preload/appKeys";
 
 // Keys pages need, which stay with the page unless the user binds the key on
 // its own: select all, copy, cut, paste, undo, redo and find, moving the caret

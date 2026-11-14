@@ -3,13 +3,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { usePackageJsonScripts } from "@/hooks/usePackageJsonScripts";
+} from "@/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
+import { usePackageJsonScripts } from "@features/terminal/components/shell/usePackageJsonScripts";
 import { useSettings } from "@features/settings/client/queries";
 import { Play } from "lucide-react";
 

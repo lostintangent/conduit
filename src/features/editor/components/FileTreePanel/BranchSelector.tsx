@@ -32,7 +32,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/ui/dialog";
 import { formatRelativeTime } from "@/utils/time";
 import { useBranches, filterBranchesByQuery } from "./hooks/useBranches";
 

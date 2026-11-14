@@ -57,7 +57,7 @@ vi.mock("@/commands/fileTreeCommands", () => ({
 }));
 
 // Mock notifications
-vi.mock("@/store/actions/notifications", () => ({
+vi.mock("@features/workbench/client/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
 }));
 

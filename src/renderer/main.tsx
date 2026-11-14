@@ -6,7 +6,7 @@ import {
   useSettings,
 } from "@features/settings/client/queries";
 import { preloadMarkdownPreview } from "@features/editor/components/EditorPanel/LazyMarkdownPreview";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { enableMapSet } from "immer";
 import { createRoot } from "react-dom/client";

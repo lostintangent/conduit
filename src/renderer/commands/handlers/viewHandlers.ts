@@ -4,9 +4,16 @@
  * Handlers for view-related commands including design mode and keyboard shortcuts.
  */
 
-import { tabsAtom, type ApplicationMode } from "@/store/atoms";
-import { sidebarStateAtom } from "@/store/sidebarStore";
-import type { LayoutNode, LayoutPaneNode, LayoutSplitNode } from "@/types";
+import {
+  tabsAtom,
+  type ApplicationMode,
+} from "@features/workbench/client/atoms";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
+import type {
+  LayoutNode,
+  LayoutPaneNode,
+  LayoutSplitNode,
+} from "@features/workbench/model";
 
 const stripLayoutSizes = (node: LayoutNode): LayoutNode => {
   if (node.type === "split") {

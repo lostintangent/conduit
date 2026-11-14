@@ -18,19 +18,19 @@ import type { CommandDescriptor } from "@/commands/core/types";
 import * as handlers from "@/commands/handlers";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
-import * as focusModeActions from "@/store/actions/focusMode";
-import { navigatePane } from "@/store/actions/paneNavigation";
-import * as tabActions from "@/store/actions/tab";
-import { notificationsAtom } from "@/store/atoms";
-import type { Tab, TerminalPane } from "@/types";
+import * as focusModeActions from "@features/workbench/client/actions/focusMode";
+import { navigatePane } from "@features/workbench/client/actions/paneNavigation";
+import * as tabActions from "@features/workbench/client/actions/tab";
+import { notificationsAtom } from "@features/workbench/client/atoms";
+import type { Tab, TerminalPane } from "@features/workbench/model";
 import { renderHook } from "@testing-library/react";
 import { commandContext } from "./fixtures";
 
 // Mock store actions
-vi.mock("@/store/actions/focusMode");
-vi.mock("@/store/actions/tab");
+vi.mock("@features/workbench/client/actions/focusMode");
+vi.mock("@features/workbench/client/actions/tab");
 vi.mock("@/commands/handlers");
-vi.mock("@/store/actions/paneNavigation");
+vi.mock("@features/workbench/client/actions/paneNavigation");
 
 describe("applicationCommands", () => {
   let mockRegistry: CommandRegistry;

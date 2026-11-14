@@ -35,7 +35,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/ui/dropdown-menu";
 import { CheckoutConflictDialog } from "./CheckoutConflictDialog";
 import { useBranches } from "./hooks/useBranches";
 import { useCreateBranch } from "./hooks/useCreateBranch";

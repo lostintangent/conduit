@@ -1,5 +1,8 @@
-import { focusTab } from "@/store/actions/tab";
-import { tabsAtom, type ApplicationMode } from "@/store/atoms";
+import { focusTab } from "@features/workbench/client/actions/tab";
+import {
+  tabsAtom,
+  type ApplicationMode,
+} from "@features/workbench/client/atoms";
 import { useEffect, useRef } from "react";
 import type { CommandRegistry } from "../core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "../keybindings/KeybindingRegistry";

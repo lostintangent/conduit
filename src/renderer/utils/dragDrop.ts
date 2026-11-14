@@ -6,7 +6,7 @@
  */
 
 import type React from "react";
-import type { SplitDirection } from "@/types";
+import type { SplitDirection } from "@features/workbench/model";
 
 // =============================================================================
 // Image Drag Helpers

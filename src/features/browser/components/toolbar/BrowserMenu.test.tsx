@@ -13,8 +13,8 @@ vi.mock("@/commands/hooks/useCommand", () => ({
 }));
 
 import { BrowserMenu } from "@features/browser/components/toolbar/BrowserMenu";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { notificationsAtom } from "@/store/atoms";
+import { TooltipProvider } from "@/ui/tooltip";
+import { notificationsAtom } from "@features/workbench/client/atoms";
 
 function browserMenu(
   onCaptureScreenshot: () => Promise<void> = () => Promise.resolve(),

@@ -1,5 +1,5 @@
 import { notifyUserInput } from "@features/terminal/client/stateTracker";
-import { activeTabAtom } from "@/store/atoms";
+import { activeTabAtom } from "@features/workbench/client/atoms";
 
 const api = window.conduit;
 

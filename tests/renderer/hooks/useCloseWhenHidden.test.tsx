@@ -7,12 +7,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 
 type Mode = "visible" | "hidden";
 

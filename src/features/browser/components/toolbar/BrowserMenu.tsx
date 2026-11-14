@@ -1,18 +1,14 @@
 import { useCommand } from "@/commands/hooks/useCommand";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { enqueueNotification } from "@/store/actions/notifications";
+} from "@/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { ApplicationCommands } from "@shared/commands";
 import { BrowserPage } from "@features/settings/model";
 import {

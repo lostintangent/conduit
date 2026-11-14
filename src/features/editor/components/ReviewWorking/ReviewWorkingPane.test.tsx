@@ -13,7 +13,7 @@ import type { GitFileStatus, GitStatus } from "@features/git/model";
 import { createQueryClient } from "@/query";
 import { ReviewWorkingPane } from "./ReviewWorkingPane";
 import { FileEditor } from "../shared/FileEditor";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { queryWrapper } from "../../../../../tests/renderer/queryRender";
 
 // ============================================================================

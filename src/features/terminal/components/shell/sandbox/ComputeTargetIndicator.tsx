@@ -1,4 +1,4 @@
-import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { useSandboxHandlers } from "@features/agents/components/useSandboxHandlers";
 import { SandboxIndicator } from "./SandboxIndicator";
 
 type ComputeTargetIndicatorProps = {

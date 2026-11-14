@@ -14,18 +14,14 @@
 
 import { DiffStatsDisplay } from "@features/editor/components/FileDiffStats/DiffStatsDisplay";
 import { GitStatusSummary } from "@features/editor/components/FileTreePanel/GitStatusSummary";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Separator } from "@/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import {
   useCommand,
   getCommandDisplayTitle,
 } from "@/commands/hooks/useCommand";
 import { useUncommittedDiffStats } from "@features/git/components/useUncommittedDiffStats";
-import { sidebarStateAtom } from "@/store/sidebarStore";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import { ApplicationCommands } from "@shared/commands";
 import { useState } from "react";
 

@@ -1,10 +1,10 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
-import { activatePane } from "@/store/actions/pane";
-import { applicationModeAtom } from "@/store/atoms";
+import { activatePane } from "@features/workbench/client/actions/pane";
+import { applicationModeAtom } from "@features/workbench/client/atoms";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
-} from "@/utils/preview-scaling";
+} from "@features/browser/client/previewScaling";
 import type {
   ContextMenuParams,
   DidNavigateEvent,

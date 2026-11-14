@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { CommitTooltip } from "@features/editor/components/CommitGraph/commit/CommitTooltip";
 import type { HistoryCommit } from "@features/editor/components/CommitGraph/types";
 import type { TrackedBranchInfo } from "@features/git/model";

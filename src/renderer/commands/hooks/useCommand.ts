@@ -1,6 +1,6 @@
 import { useSelector } from "@tanstack/react-store";
 import { useCallback } from "react";
-import { keybindingsAtom } from "@/store/atoms";
+import { keybindingsAtom } from "@features/workbench/client/atoms";
 import { getCommandRegistry, executeCommand } from "@/commands";
 import { formatKeybindingForDisplay } from "../keybindings/utils";
 import type { KeyChord } from "../keybindings/types";

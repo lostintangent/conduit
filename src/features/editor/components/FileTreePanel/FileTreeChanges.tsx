@@ -44,8 +44,8 @@ import {
 import { getParentPath, getParentPaths, joinCwdPath } from "../utils/pathUtils";
 import { getRelativePath, normalizeMapKey } from "../utils/gitStatusHelpers";
 import type { GitFileStatus } from "@features/git/model";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { enqueueNotification } from "@/store/actions/notifications";
+import { ConfirmDialog } from "@/ui/confirm-dialog";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import type { FileNode } from "../../model";
 
 // Local imports from extracted modules

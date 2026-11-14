@@ -25,7 +25,7 @@ vi.mock("@/commands/hooks/useCommand", () => ({
 }));
 
 // Mock tooltip components
-vi.mock("@/components/ui/tooltip", () => ({
+vi.mock("@/ui/tooltip", () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="tooltip">{children}</div>
   ),
@@ -72,7 +72,7 @@ vi.mock("@features/editor/components/FileTreePanel/GitStatusSummary", () => ({
 }));
 
 // Mock Separator
-vi.mock("@/components/ui/separator", () => ({
+vi.mock("@/ui/separator", () => ({
   Separator: () => <span data-testid="separator">|</span>,
 }));
 
@@ -81,7 +81,7 @@ vi.mock("@/components/ui/separator", () => ({
 // ============================================================================
 
 import { TerminalGitStats } from "@features/terminal/components/shell/TerminalGitStats";
-import { sidebarStateAtom } from "@/store/sidebarStore";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 
 // ============================================================================
 // Tests

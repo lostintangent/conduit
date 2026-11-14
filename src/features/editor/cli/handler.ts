@@ -1,6 +1,6 @@
-import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
-import { sidebarStateAtom } from "@/store/sidebarStore";
-import type { EditorPane } from "@/types";
+import type { QuickPaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
+import type { EditorPane } from "@features/workbench/model";
 import type { HandlerMap } from "@/cli/handlers/types";
 
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &

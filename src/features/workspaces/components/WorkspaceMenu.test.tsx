@@ -18,10 +18,10 @@ vi.mock("@features/workspaces/client/actions", () => ({
 import { openWorkspace } from "@features/workspaces/client/actions";
 import { workspacesQuery } from "@features/workspaces/client/queries";
 import { WorkspaceMenu } from "@features/workspaces/components/WorkspaceMenu";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { createQueryClient } from "@/query";
-import { workspaceNameAtom } from "@/store/atoms";
+import { workspaceNameAtom } from "@features/workbench/client/atoms";
 
 const workspace = (name: string): Workspace => ({
   name,

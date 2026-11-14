@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { CommitSummary } from "@features/editor/components/CommitGraph/commit/CommitSummary";
 import type { HistoryCommit } from "@features/editor/components/CommitGraph/types";
 import type { TrackedBranchInfo } from "@features/git/model";

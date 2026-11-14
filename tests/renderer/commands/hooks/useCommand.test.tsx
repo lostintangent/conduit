@@ -4,7 +4,7 @@ import {
   getCommandDisplayTitle,
   useCommand,
 } from "@/commands/hooks/useCommand";
-import { keybindingsAtom } from "@/store/atoms";
+import { keybindingsAtom } from "@features/workbench/client/atoms";
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { commandContext } from "../fixtures";

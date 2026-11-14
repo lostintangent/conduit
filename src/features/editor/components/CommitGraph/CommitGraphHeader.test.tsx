@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { CommitGraphHeader } from "@features/editor/components/CommitGraph/CommitGraphHeader";
 
 // =============================================================================

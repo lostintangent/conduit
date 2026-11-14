@@ -5,7 +5,7 @@
  * filtering out files with unsaved changes.
  */
 
-import { enqueueNotification } from "@/store/actions/notifications";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 
 /**
  * Result of filtering files for staging.

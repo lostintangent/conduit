@@ -6,25 +6,29 @@
 
 import {
   getAvailableIconIds,
+  PaneActionIcon,
+} from "@features/workbench/components/paneActions/PaneActionIcon";
+import {
   hasUserPaneActionsFile,
+  resetPaneActionsToDefaults,
+  savePaneActions,
+} from "@features/workbench/client/paneActions/userPaneActions";
+import {
   isBrowserConfig,
   isEditorConfig,
   isTerminalConfig,
-  PaneActionIcon,
-  resetPaneActionsToDefaults,
-  savePaneActions,
-  usePaneActions,
-} from "@/commands/paneActions";
+} from "@features/workbench/client/paneActions/types";
+import { usePaneActions } from "@features/workbench/components/paneActions/usePaneActions";
 import type {
   Action,
   BrowserConfig,
   EditorConfig,
   PaneType,
   TerminalConfig,
-} from "@/commands/paneActions/core/types";
-import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
-import { preCommands } from "@/commands/preCommands";
-import { quickPaneAtom } from "@/store/atoms";
+} from "@features/workbench/client/paneActions/types";
+import { MAX_ACTIONS } from "@features/workbench/client/paneActions/types";
+import { preCommands } from "@features/workbench/client/preCommands/registeredPreCommands";
+import { quickPaneAtom } from "@features/workbench/client/atoms";
 import {
   Check,
   ChevronDown,

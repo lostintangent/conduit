@@ -9,7 +9,7 @@ import {
   workspacesQuery,
 } from "@features/workspaces/client/queries";
 import { queryClient, runMutation } from "@/query";
-import { workspaceNameAtom } from "@/store/atoms";
+import { workspaceNameAtom } from "@features/workbench/client/atoms";
 
 /**
  * Save the open workspace, or ask for a name when none is open

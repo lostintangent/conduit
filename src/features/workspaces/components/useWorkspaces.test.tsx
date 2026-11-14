@@ -31,8 +31,8 @@ import {
   tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-} from "@/store/atoms";
-import type { Tab } from "@/types";
+} from "@features/workbench/client/atoms";
+import type { Tab } from "@features/workbench/model";
 
 const lastWorkspace: Workspace = {
   name: "__last_workspace__",

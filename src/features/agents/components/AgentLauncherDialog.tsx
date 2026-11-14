@@ -1,5 +1,5 @@
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog";
+import { Textarea } from "@/ui/textarea";
 import type { AgentConfig, LaunchGroup } from "@features/settings/model";
 import {
   ChevronDown,

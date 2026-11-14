@@ -4,7 +4,7 @@
  * Visual interface for managing multiple AI agents that can be invoked via Cmd+P.
  */
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { settingsMutations, useSettings } from "../../../client/queries";
 import type { AgentConfig, LaunchGroup } from "../../../model";
 import {

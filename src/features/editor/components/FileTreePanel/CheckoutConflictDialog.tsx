@@ -20,7 +20,7 @@
  */
 
 import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +28,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/ui/dialog";
 
 export interface CheckoutConflictDialogProps {
   /** Whether the dialog is open */

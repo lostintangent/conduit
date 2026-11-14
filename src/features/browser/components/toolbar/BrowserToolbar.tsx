@@ -1,24 +1,12 @@
-import { Button } from "@/components/ui/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Button } from "@/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/ui/input-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import {
   settingsMutations,
   useSettings,
 } from "@features/settings/client/queries";
-import { normalizeUrl } from "@/utils/browser";
+import { normalizeUrl } from "@features/browser/client/url";
 import type { BrowserPage } from "@features/settings/model";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";

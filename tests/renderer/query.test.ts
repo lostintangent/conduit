@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/store/actions/notifications", () => ({
+vi.mock("@features/workbench/client/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
 }));
 
 import { createQueryClient, runMutation } from "@/query";
-import { enqueueNotification } from "@/store/actions/notifications";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { MutationObserver, onlineManager } from "@tanstack/react-query";
 
 const fail = (message: string) => async () => {

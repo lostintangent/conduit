@@ -5,7 +5,7 @@ import {
   QueryCache,
   QueryClient,
 } from "@tanstack/react-query";
-import { enqueueNotification } from "@/store/actions/notifications";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 
 declare module "@tanstack/react-query" {
   interface Register {

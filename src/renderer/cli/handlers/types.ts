@@ -1,6 +1,6 @@
-import type { browserAutomate } from "@/cli/browser";
-import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
-import type { Tab } from "@/types";
+import type { browserAutomate } from "@features/browser/cli/automation";
+import type { QuickPaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
+import type { Tab } from "@features/workbench/model";
 import type { CliCommand, CliCommandArgs } from "@shared/cli/types";
 
 export type HandlerContext = {

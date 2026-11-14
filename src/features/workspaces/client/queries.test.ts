@@ -1,4 +1,4 @@
-import type { Tab } from "@/types";
+import type { Tab } from "@features/workbench/model";
 import type { WorkspaceState } from "@shared/types";
 import { MutationObserver } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -15,7 +15,11 @@ const { workspaceApi } = vi.hoisted(() => {
 
 import { workspaceMutations } from "@features/workspaces/client/queries";
 import { createQueryClient } from "@/query";
-import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
+import {
+  activeTabIdAtom,
+  tabsAtom,
+  workspaceNameAtom,
+} from "@features/workbench/client/atoms";
 
 const tab: Tab = {
   id: "tab-1",

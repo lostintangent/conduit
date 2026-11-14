@@ -22,7 +22,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { ErrorBoundary } from "@/ui/error-boundary";
 import { EditorPane } from "./EditorPane";
 import {
   EditorPaneRegistry,

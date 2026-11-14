@@ -8,8 +8,8 @@
  * - Agents & Teams
  */
 
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader } from "@/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useState } from "react";

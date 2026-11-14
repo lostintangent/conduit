@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 
 // Helper to wrap component with required providers

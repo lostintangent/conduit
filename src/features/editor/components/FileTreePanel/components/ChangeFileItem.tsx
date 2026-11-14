@@ -14,7 +14,7 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-} from "@/components/ui/tooltip";
+} from "@/ui/tooltip";
 import { GitBadge, getStatusConfig } from "../../shared/GitBadge";
 import { getDirectoryPath } from "../../utils/pathUtils";
 import { FileDiffStats } from "../../FileDiffStats/FileDiffStats";

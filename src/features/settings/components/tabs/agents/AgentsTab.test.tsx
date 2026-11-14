@@ -1,7 +1,7 @@
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createQueryClient } from "@/query";
-import { notificationsAtom } from "@/store/atoms";
+import { notificationsAtom } from "@features/workbench/client/atoms";
 import {
   render,
   seedSettings,

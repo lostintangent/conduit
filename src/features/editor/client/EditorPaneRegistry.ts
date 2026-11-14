@@ -19,7 +19,7 @@
  * @see docs/architecture/editor-global-container-plan.md
  */
 
-import type { EditorPane } from "@/types";
+import type { EditorPane } from "@features/workbench/model";
 import type { ChangesViewMode } from "@shared/types";
 import type { FileChangeData } from "../components/EditorPane";
 import { EventEmitter } from "@shared/EventEmitter";

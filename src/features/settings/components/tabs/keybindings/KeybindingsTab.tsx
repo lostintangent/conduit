@@ -4,7 +4,10 @@
  * Visual interface for discovering and editing keyboard shortcuts.
  */
 
-import { keybindingsAtom, quickPaneAtom } from "@/store/atoms";
+import {
+  keybindingsAtom,
+  quickPaneAtom,
+} from "@features/workbench/client/atoms";
 import { useSelector } from "@tanstack/react-store";
 import {
   AlertTriangle,

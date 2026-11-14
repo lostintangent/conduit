@@ -70,7 +70,7 @@ The workspace system uses three distinct representations optimized for different
 
 The renderer maintains workspace state in TanStack Store atoms for reactive UI updates. This format is optimized for fast pane lookups and real-time state management.
 
-**Source:** `src/renderer/types.ts`
+**Source:** `src/features/workbench/model.ts`
 
 ```typescript
 type Tab = TabMetadata & {
@@ -478,7 +478,7 @@ src/shared/types/
 ├── layout.ts             # LayoutNode, SplitDirection
 └── workspace.ts          # Workspace, WorkspaceTab, WorkspaceState
 
-src/renderer/types.ts     # Runtime pane types with extensions
+src/features/workbench/model.ts  # Runtime pane types with extensions
 ```
 
 ### Service Methods

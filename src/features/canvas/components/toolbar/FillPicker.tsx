@@ -2,7 +2,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/ui/dropdown-menu";
 import { cn } from "@/utils/index";
 import type { FillPattern, FillStyle } from "@features/canvas/model";
 import { ChevronDown } from "lucide-react";

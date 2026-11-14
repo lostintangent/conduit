@@ -7,7 +7,7 @@ vi.mock("@/commands/hooks/useCommand", () => ({
 }));
 
 import { BrowserToolbar } from "@features/browser/components/toolbar/BrowserToolbar";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { render } from "../../../../../tests/renderer/queryRender";
 
 function blankToolbar(mode: "visible" | "hidden", isInPreview = false) {

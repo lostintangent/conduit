@@ -1,4 +1,4 @@
-import { Pane } from "@/types";
+import { Pane } from "@features/workbench/model";
 import type { NewTabOptions } from "@shared/types";
 import type {
   BrowserCaptureArgs,
@@ -11,7 +11,7 @@ import type {
   BrowserScrollArgs,
   BrowserTypeArgs,
   BrowserWaitArgs,
-} from "./browser";
+} from "@features/browser/model";
 
 export const CLI_COMMAND_NAME = "conduit";
 

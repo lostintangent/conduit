@@ -2,36 +2,36 @@ import { launchAgents } from "@features/agents/client/worktreeLauncher";
 import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
-import { usePaneActionsSystem } from "@/commands/paneActions";
-import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
-import { TabLayout } from "@/components/layout/normal/TabLayout";
-import { TabsOverview } from "@/components/layout/overview/TabsOverview";
-import { HyperTerminal } from "@/components/layout/quick/HyperTerminal";
+import { usePaneActionsSystem } from "@features/workbench/components/paneActions/usePaneActionsSystem";
+import { TabContentPortalProvider } from "@features/workbench/components/layout/normal/TabContentPortalContext";
+import { TabLayout } from "@features/workbench/components/layout/normal/TabLayout";
+import { TabsOverview } from "@features/workbench/components/layout/overview/TabsOverview";
+import { HyperTerminal } from "@features/workbench/components/layout/quick/HyperTerminal";
 import {
   QuickPaneDialog,
   type PaneDescriptor,
-} from "@/components/layout/quick/QuickPaneDialog";
+} from "@features/workbench/components/layout/quick/QuickPaneDialog";
 import { GlobalEditorContainer } from "@features/editor/components/GlobalEditorContainer";
 import {
   disposeSession,
   updateTerminalThemes,
 } from "@features/terminal/client/xtermCache";
-import { NotificationCenter } from "@/components/shell/NotificationCenter";
+import { NotificationCenter } from "@features/workbench/components/NotificationCenter";
 import { AgentCleanupDialog } from "@features/agents/components/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@features/agents/components/AgentLauncherDialog";
-import { CommandPalette } from "@/components/shell/palette/CommandPalette";
+import { CommandPalette } from "@features/workbench/components/palette/CommandPalette";
 import { WorkspacePicker } from "@features/workspaces/components/WorkspacePicker";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
-import { Sidebar } from "@/components/shell/sidebar/Sidebar";
-import { DuplicateTabDialog } from "@/components/shell/tabs/DuplicateTabDialog";
-import { TabStrip } from "@/components/shell/tabs/TabStrip";
-import { TitleBar } from "@/components/shell/title/TitleBar";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
-import { InputDialog } from "@/components/ui/input-dialog";
+import { Sidebar } from "@features/workbench/components/sidebar/Sidebar";
+import { DuplicateTabDialog } from "@features/workbench/components/tabs/DuplicateTabDialog";
+import { TabStrip } from "@features/workbench/components/tabs/TabStrip";
+import { TitleBar } from "@features/workbench/components/title/TitleBar";
+import { Drawer, DrawerContent } from "@/ui/drawer";
+import { InputDialog } from "@/ui/input-dialog";
 import { useAutoUpdater } from "@features/updates/components/useAutoUpdater";
-import { useCommands } from "@/hooks/useCommands";
-import { useContextMenu } from "@/hooks/useContextMenu";
-import { useLayoutResizing } from "@/hooks/useLayoutResizing";
+import { useCommands } from "@/commands/hooks/useCommands";
+import { useContextMenu } from "@/commands/hooks/useContextMenu";
+import { useLayoutResizing } from "@features/workbench/components/layout/useLayoutResizing";
 import { useSettings } from "@features/settings/client/queries";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
 import { workspaceMutations } from "@features/workspaces/client/queries";
@@ -44,16 +44,16 @@ import {
   moveHyperTerminalToTab,
   openHyperTerminal,
   updateHyperTerminalPosition,
-} from "@/store/actions/hyperTerminal";
+} from "@features/workbench/client/actions/hyperTerminal";
 import {
   enqueueNotification,
   updateNotification,
-} from "@/store/actions/notifications";
+} from "@features/workbench/client/actions/notifications";
 import {
   openBrowserPane,
   removePane,
   updatePaneProperty,
-} from "@/store/actions/pane";
+} from "@features/workbench/client/actions/pane";
 import {
   duplicateTab,
   generateIncrementedTabTitle,
@@ -63,15 +63,15 @@ import {
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
-} from "@/store/actions/tab";
+} from "@features/workbench/client/actions/tab";
 import {
   activeTabAtom,
   applicationModeAtom,
   hyperTerminalsAtom,
   quickPaneAtom,
   tabsAtom,
-} from "@/store/atoms";
-import { sidebarStateAtom } from "@/store/sidebarStore";
+} from "@features/workbench/client/atoms";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@features/agents/model";
 import { useAtom, useSelector } from "@tanstack/react-store";

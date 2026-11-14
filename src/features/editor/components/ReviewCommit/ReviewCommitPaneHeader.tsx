@@ -15,11 +15,7 @@
  * ```
  */
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { ArrowLeft, GitCommit } from "lucide-react";
 
 export interface ReviewCommitPaneHeaderProps {

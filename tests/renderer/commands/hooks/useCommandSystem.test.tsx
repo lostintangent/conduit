@@ -9,10 +9,14 @@ import {
   type UseCommandSystemOptions,
   useCommandSystem,
 } from "@/commands/hooks/useCommandSystem";
-import { activeTabIdAtom, keybindingsAtom, tabsAtom } from "@/store/atoms";
-import type { Tab } from "@/types";
+import {
+  activeTabIdAtom,
+  keybindingsAtom,
+  tabsAtom,
+} from "@features/workbench/client/atoms";
+import type { Tab } from "@features/workbench/model";
 import { ApplicationCommands } from "@/commands/applicationCommands";
-import type { ApplicationMode } from "@/store/atoms";
+import type { ApplicationMode } from "@features/workbench/client/atoms";
 
 describe("useCommandSystem", () => {
   let setApplicationModeMock: Mock<(mode: ApplicationMode) => void>;

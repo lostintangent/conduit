@@ -10,7 +10,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, act, fireEvent, waitFor } from "@testing-library/react";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { mockGitReads } from "../../../../../tests/renderer/git";
 import { render } from "../../../../../tests/renderer/queryRender";
 import type { GitSubscription } from "@features/git/client/GitSubscription";

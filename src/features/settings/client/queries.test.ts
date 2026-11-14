@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/query";
-import { notificationsAtom } from "@/store/atoms";
+import { notificationsAtom } from "@features/workbench/client/atoms";
 import { MutationObserver, type QueryClient } from "@tanstack/react-query";
 import {
   seedSettings,

@@ -30,12 +30,8 @@
  * ```
  */
 
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Separator } from "@/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/utils";
 import {
   AlertCircle,

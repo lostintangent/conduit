@@ -59,7 +59,7 @@ vi.mock("./shell/sandbox/ComputeTargetIndicator", () => ({
 }));
 
 import { TerminalPane } from "@features/terminal/components/TerminalPane";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { queryClient } from "@/query";
 import { render, seedSettings } from "../../../../tests/renderer/queryRender";
 

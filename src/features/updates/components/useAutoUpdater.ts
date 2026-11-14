@@ -1,7 +1,7 @@
 import {
   dismissNotification,
   enqueueNotification,
-} from "@/store/actions/notifications";
+} from "@features/workbench/client/actions/notifications";
 import { useEffect, useRef } from "react";
 
 const { updates } = window.conduit;

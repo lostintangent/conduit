@@ -1,4 +1,4 @@
-import { updateTerminalSessionProperty } from "@/store/actions/pane";
+import { updateTerminalSessionProperty } from "@features/workbench/client/actions/pane";
 import { resolveColor } from "@/utils/theme";
 import { UserSettings } from "@features/settings/model";
 import { FitAddon } from "@xterm/addon-fit";

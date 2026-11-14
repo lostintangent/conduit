@@ -13,7 +13,7 @@
 import { getCommandRegistry, getKeybindingRegistry } from "@/commands";
 import { normalizeKey } from "@/commands/keybindings/parser";
 import type { KeyChord } from "@/commands/keybindings/types";
-import { keybindingsAtom } from "@/store/atoms";
+import { keybindingsAtom } from "@features/workbench/client/atoms";
 import * as monaco from "monaco-editor";
 
 const RUN_APP_COMMAND = "conduit.runAppCommand";

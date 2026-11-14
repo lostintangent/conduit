@@ -1,9 +1,9 @@
-import { browserHandlers } from "./browser";
+import { browserHandlers } from "@features/browser/cli/handler";
 import { canvasHandlers } from "@features/canvas/cli/handler";
 import { editorHandlers } from "@features/editor/cli/handler";
-import { notificationHandlers } from "./notification";
-import { paneHandlers } from "./pane";
-import { tabHandlers } from "./tab";
+import { notificationHandlers } from "@features/workbench/cli/notificationHandler";
+import { paneHandlers } from "@features/workbench/cli/paneHandler";
+import { tabHandlers } from "@features/workbench/cli/tabHandler";
 import { terminalHandlers } from "@features/terminal/cli/handler";
 import type { HandlerMap } from "./types";
 

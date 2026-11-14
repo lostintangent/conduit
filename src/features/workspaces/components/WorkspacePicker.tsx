@@ -10,13 +10,8 @@ import type { Workspace } from "@shared/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Button } from "@/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog";
 
 type WorkspacePickerDialog = {
   isOpen: boolean;

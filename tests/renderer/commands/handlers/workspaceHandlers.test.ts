@@ -1,4 +1,4 @@
-import type { Tab } from "@/types";
+import type { Tab } from "@features/workbench/model";
 import type { Workspace, WorkspaceTab } from "@shared/types";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
@@ -39,7 +39,7 @@ import {
   tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-} from "@/store/atoms";
+} from "@features/workbench/client/atoms";
 
 describe("workspaceHandlers", () => {
   let mockTabs: Tab[];

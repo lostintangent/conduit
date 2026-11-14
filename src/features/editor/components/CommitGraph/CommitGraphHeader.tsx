@@ -20,13 +20,9 @@
  * ```
  */
 
-import { FillingIcon } from "@/components/ui/filling-icon";
-import { Toggle } from "@/components/ui/toggle";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { FillingIcon } from "@/ui/filling-icon";
+import { Toggle } from "@/ui/toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/utils";
 import { RefreshCw } from "lucide-react";
 import { memo } from "react";

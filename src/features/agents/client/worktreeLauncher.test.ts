@@ -5,8 +5,8 @@ vi.hoisted(() => {
 });
 
 import { launchAgents } from "./worktreeLauncher";
-import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
-import type { Tab } from "@/types";
+import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import type { Tab } from "@features/workbench/model";
 import { enableMapSet } from "immer";
 
 enableMapSet();

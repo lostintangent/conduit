@@ -1,0 +1,132 @@
+import {
+  activeTabIdAtom,
+  tabProgressAtom,
+  tabsAtom,
+  tabStateAtom,
+  type TabProgressState,
+  type TabState,
+} from "@features/workbench/client/atoms";
+import type { Pane, Tab } from "@features/workbench/model";
+import { formatHomePath } from "@/utils/pathUtils";
+import { createAtom } from "@/createAtom";
+import { getSettings } from "@features/settings/client/queries";
+import { shallow } from "@tanstack/react-store";
+
+export type TabDescriptor = {
+  id: string;
+  // Missing only for a tab without panes, which shouldn't exist.
+  label: string | undefined;
+  tooltip: Record<string, string>;
+  name?: string;
+  isActive: boolean;
+  locked?: boolean;
+  tabState: TabState;
+  progressState: TabProgressState | null;
+  progressPercent: number;
+};
+
+function resolveActivePane(tab: Tab): Pane | undefined {
+  const activePane = tab.panes[tab.activePaneId];
+  if (activePane) {
+    return activePane;
+  }
+
+  const firstPane = Object.values(tab.panes)[0];
+  return firstPane;
+}
+
+function isSameDescriptor(
+  { tooltip, ...descriptor }: TabDescriptor,
+  { tooltip: otherTooltip, ...other }: TabDescriptor,
+) {
+  return shallow(descriptor, other) && shallow(tooltip, otherTooltip);
+}
+
+// Pane titles change constantly, so an unchanged tab keeps its descriptor,
+// and the list stays the same when no tab changed. That way subscribers
+// re-render only for the tabs whose labels changed.
+export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
+  const tabs = tabsAtom.get();
+  const activeTabId = activeTabIdAtom.get();
+  const tabStates = tabStateAtom.get();
+  const tabProgress = tabProgressAtom.get();
+  // Not tracked, since the home directory doesn't change while the app runs
+  const { homeDirectory } = getSettings();
+
+  const formatPathForLabel = (pathValue: string | null | undefined) =>
+    pathValue ? formatHomePath(pathValue, homeDirectory) : null;
+
+  const descriptors = tabs.map((tab, index) => {
+    const activePane = resolveActivePane(tab);
+
+    let label: string | undefined;
+    const tooltip: Record<string, string> = {};
+
+    switch (activePane?.type) {
+      case "terminal": {
+        label =
+          formatPathForLabel(activePane.cwd) ?? activePane.title ?? "Shell";
+
+        if (activePane.cwd) {
+          tooltip["CWD"] = activePane.cwd;
+        }
+        if (activePane.title) {
+          tooltip["Command"] = activePane.title;
+        }
+
+        break;
+      }
+
+      case "browser": {
+        const title = activePane.title?.trim();
+        label = title ?? activePane.url ?? "Browser";
+
+        if (activePane.title) {
+          tooltip["Title"] = activePane.title;
+        }
+        tooltip["URL"] = activePane.url;
+
+        break;
+      }
+
+      case "editor": {
+        const editorPath = activePane.file ?? activePane.cwd ?? null;
+        label = formatPathForLabel(editorPath) ?? editorPath ?? "Editor";
+
+        tooltip["CWD"] = activePane.cwd;
+        if (activePane.file) {
+          tooltip["File"] = activePane.file;
+        }
+
+        break;
+      }
+
+      case "canvas": {
+        label = "Canvas";
+        break;
+      }
+    }
+
+    const name = tab.name?.trim();
+    const isActive = tab.id === activeTabId;
+    const progress = tabProgress.get(tab.id);
+    const descriptor: TabDescriptor = {
+      id: tab.id,
+      label: name || label,
+      name,
+      tooltip,
+      isActive,
+      locked: tab.locked,
+      tabState: tabStates.get(tab.id) ?? "idle",
+      progressState: progress?.state ?? null,
+      progressPercent: progress?.percent ?? 0,
+    };
+    const previousDescriptor = previous?.[index];
+    return previousDescriptor &&
+      isSameDescriptor(previousDescriptor, descriptor)
+      ? previousDescriptor
+      : descriptor;
+  });
+
+  return previous && shallow(previous, descriptors) ? previous : descriptors;
+});

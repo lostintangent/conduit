@@ -2,22 +2,18 @@ import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useCommand } from "@/commands/hooks/useCommand";
 import { isChordPending } from "@/commands/hooks/useKeybindingDispatch";
 import { clearPressedKeys } from "@/commands/keybindings/parser";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { useImageDrop } from "@/hooks/useImageDrop";
 import {
   createHyperTerminal,
   isHyperTerminal,
-} from "@/store/actions/hyperTerminal";
-import { splitPane } from "@/store/actions/pane";
-import type { ApplicationMode } from "@/store/atoms";
-import { applicationModeAtom } from "@/store/atoms";
+} from "@features/workbench/client/actions/hyperTerminal";
+import { splitPane } from "@features/workbench/client/actions/pane";
+import type { ApplicationMode } from "@features/workbench/client/atoms";
+import { applicationModeAtom } from "@features/workbench/client/atoms";
 import { getSettings, useSettings } from "@features/settings/client/queries";
-import type { TerminalPane as TerminalPaneType } from "@/types";
+import type { TerminalPane as TerminalPaneType } from "@features/workbench/model";
 import { constructPrompt } from "@features/terminal/client/prompt";
 import { useSelector } from "@tanstack/react-store";
 import { Keyboard } from "lucide-react";

@@ -1,7 +1,7 @@
 import type { WhenClause } from "../whenClauses/WhenClause";
 import type { KeybindingDescriptor } from "../keybindings/types";
 import type { MenuContribution } from "../menus/types";
-import type { ApplicationMode } from "@/store/atoms";
+import type { ApplicationMode } from "@features/workbench/client/atoms";
 
 /**
  * Base context available to all commands

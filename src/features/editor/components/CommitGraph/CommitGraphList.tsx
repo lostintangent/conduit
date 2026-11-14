@@ -38,7 +38,7 @@
 
 import { memo, useCallback, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/ui/button";
 import { cn } from "@/utils";
 import type { CommitGraphNode, CommitFile, GraphRenderConfig } from "./types";
 import type { TrackedBranchInfo } from "@features/git/model";

@@ -22,9 +22,9 @@ import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { useFileSystemSubscription } from "@features/files/components/useFileSystemSubscription";
 import { useGitSubscription } from "@features/git/components/useGitSubscription";
-import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
+import { useSandboxHandlers } from "@features/agents/components/useSandboxHandlers";
 import { useSettings } from "@features/settings/client/queries";
-import type { EditorPane as EditorPaneType } from "@/types";
+import type { EditorPane as EditorPaneType } from "@features/workbench/model";
 import type { ChangesViewMode } from "@shared/types";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import {

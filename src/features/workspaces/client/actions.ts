@@ -1,10 +1,14 @@
-import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, Tab } from "@/types";
+import {
+  activeTabIdAtom,
+  tabsAtom,
+  workspaceNameAtom,
+} from "@features/workbench/client/atoms";
+import type { LayoutNode, Pane, Tab } from "@features/workbench/model";
 import type {
   TerminalPane as SharedTerminalPane,
   Workspace,
 } from "@shared/types";
-import { closeTab } from "@/store/actions/tab";
+import { closeTab } from "@features/workbench/client/actions/tab";
 
 const api = window.conduit;
 

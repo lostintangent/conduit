@@ -50,16 +50,12 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { FillingIcon } from "@/components/ui/filling-icon";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Toggle } from "@/components/ui/toggle";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/ui/dropdown-menu";
+import { FillingIcon } from "@/ui/filling-icon";
+import { Input } from "@/ui/input";
+import { Separator } from "@/ui/separator";
+import { Toggle } from "@/ui/toggle";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import type { GitFileStatus } from "@features/git/model";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { GitStatusSummary } from "./GitStatusSummary";

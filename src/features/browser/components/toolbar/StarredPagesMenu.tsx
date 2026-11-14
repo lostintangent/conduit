@@ -1,14 +1,6 @@
-import { InputGroupButton } from "@/components/ui/input-group";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { InputGroupButton } from "@/ui/input-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import {
   settingsMutations,
   useSettings,

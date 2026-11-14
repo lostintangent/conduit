@@ -2,7 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { ReviewCommitPaneFooter } from "./ReviewCommitPaneFooter";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 
 // Helper to wrap component with required providers
 function renderWithProviders(ui: React.ReactElement) {

@@ -27,7 +27,7 @@
 
 import type { GitFileStatus } from "@features/git/model";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@/ui/separator";
 import { cn } from "@/utils";
 import { Asterisk, ChevronDown, ChevronRight } from "lucide-react";
 import { FileEditor } from "../shared/FileEditor";

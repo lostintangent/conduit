@@ -20,11 +20,7 @@
 
 import { memo, useMemo, type ReactNode } from "react";
 import { User, Clock, GitCommit } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import type { HistoryCommit } from "../types";
 import type { TrackedBranchInfo } from "@features/git/model";
 import { formatRelativeTime } from "@/utils/time";

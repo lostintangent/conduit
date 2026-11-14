@@ -46,8 +46,8 @@ import { getRelativePath } from "../utils/gitStatusHelpers";
 
 import type { DirectoryEntry } from "@features/files/model";
 import type { GitFileStatus } from "@features/git/model";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { enqueueNotification } from "@/store/actions/notifications";
+import { ConfirmDialog } from "@/ui/confirm-dialog";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import type { FileNode } from "../../model";
 import { FileTreeItem } from "./FileTreeItem";
 import { FileTreeItemRename } from "./FileTreeItemRename";

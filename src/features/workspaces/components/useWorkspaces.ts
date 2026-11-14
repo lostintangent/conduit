@@ -9,7 +9,7 @@ import {
   tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-} from "@/store/atoms";
+} from "@features/workbench/client/atoms";
 import { useSettings } from "@features/settings/client/queries";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useSelector } from "@tanstack/react-store";

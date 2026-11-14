@@ -2,7 +2,7 @@ import { act, waitFor } from "@testing-library/react";
 import { useMutation } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/store/actions/notifications", () => ({
+vi.mock("@features/workbench/client/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
 }));
 
@@ -10,7 +10,7 @@ import { gitMutations } from "@features/git/client/queries";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { useGitSync } from "@features/editor/components/hooks/useGitSync";
 import { getFriendlyGitError } from "@features/editor/components/utils/gitErrorMessages";
-import { enqueueNotification } from "@/store/actions/notifications";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { mockGitReads, mockGitWrites } from "../../../../../tests/renderer/git";
 import { renderHook } from "../../../../../tests/renderer/queryRender";
 

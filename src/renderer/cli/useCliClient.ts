@@ -5,8 +5,12 @@ import {
   resolveCanvasPane,
   resolveTerminalSessions,
 } from "@/cli/utils";
-import { activeTabAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
-import { sidebarStateAtom } from "@/store/sidebarStore";
+import {
+  activeTabAtom,
+  quickPaneAtom,
+  tabsAtom,
+} from "@features/workbench/client/atoms";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { useEffect, useEffectEvent } from "react";
 import { handlerMap, type HandlerContext } from "./handlers";

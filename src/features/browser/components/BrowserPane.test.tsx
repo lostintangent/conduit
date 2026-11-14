@@ -6,7 +6,7 @@ vi.hoisted(() => {
 });
 
 import { BrowserPane } from "@features/browser/components/BrowserPane";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/ui/tooltip";
 import { render } from "../../../../tests/renderer/queryRender";
 
 const nextFrames = async (count: number) => {

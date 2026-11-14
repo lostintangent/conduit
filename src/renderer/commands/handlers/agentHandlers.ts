@@ -7,8 +7,11 @@
 import {
   enqueueNotification,
   updateNotification,
-} from "@/store/actions/notifications";
-import { completeAgentSession, deleteAgentSession } from "@/store/actions/pane";
+} from "@features/workbench/client/actions/notifications";
+import {
+  completeAgentSession,
+  deleteAgentSession,
+} from "@features/workbench/client/actions/pane";
 
 /**
  * List all agent sessions and show management dialog

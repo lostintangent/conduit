@@ -1,7 +1,10 @@
-import { browserAutomate } from "@/cli/browser";
-import { isHyperTerminal } from "@/store/actions/hyperTerminal";
-import { sidebarPaneIds, type SidebarView } from "@/store/sidebarStore";
-import type { Tab, TerminalPane } from "@/types";
+import { browserAutomate } from "@features/browser/cli/automation";
+import { isHyperTerminal } from "@features/workbench/client/actions/hyperTerminal";
+import {
+  sidebarPaneIds,
+  type SidebarView,
+} from "@features/workbench/client/sidebarStore";
+import type { Tab, TerminalPane } from "@features/workbench/model";
 import type { WebviewTag } from "electron";
 
 export type CliRequestContext = {

@@ -48,8 +48,8 @@ import {
   type MenuContextBuilder,
 } from "@/commands/menus/menuContextBuilders";
 import { MenuId } from "@/commands/menus/types";
-import { toggleFocusMode } from "@/store/actions/focusMode";
-import { enqueueNotification } from "@/store/actions/notifications";
+import { toggleFocusMode } from "@features/workbench/client/actions/focusMode";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import {
   cloneTerminalPane,
   closeAgentSessionPanes,
@@ -62,8 +62,8 @@ import {
   splitPane,
   splitPaneWithAgentSession,
   updatePaneProperty,
-} from "@/store/actions/pane";
-import { navigatePane } from "@/store/actions/paneNavigation";
+} from "@features/workbench/client/actions/pane";
+import { navigatePane } from "@features/workbench/client/actions/paneNavigation";
 import {
   closeTab,
   duplicateTab,
@@ -73,9 +73,9 @@ import {
   openTab,
   unlockTab,
   updateTabProperty,
-} from "@/store/actions/tab";
-import type { Tab } from "@/types";
-import { walkLayout } from "@/utils/layout";
+} from "@features/workbench/client/actions/tab";
+import type { Tab } from "@features/workbench/model";
+import { walkLayout } from "@features/workbench/client/layout";
 import { ApplicationCommands } from "@shared/commands";
 import { registerFileTreeCommands } from "./fileTreeCommands";
 

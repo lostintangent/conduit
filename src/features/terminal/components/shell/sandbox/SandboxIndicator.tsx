@@ -1,9 +1,5 @@
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { applicationModeAtom } from "@/store/atoms";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
+import { applicationModeAtom } from "@features/workbench/client/atoms";
 import { getHashedColor } from "@/utils/color";
 import { useSelector } from "@tanstack/react-store";
 import { GitMerge, Trash2 } from "lucide-react";

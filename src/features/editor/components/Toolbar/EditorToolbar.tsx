@@ -12,14 +12,10 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Button } from "@/ui/button";
+import { Separator } from "@/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { cn } from "@/utils";
 import {
   Asterisk,
