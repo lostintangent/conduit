@@ -91,9 +91,11 @@ vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFs,
 }));
 
-// Mock useGitV2 hook - returns git API with empty status
+// Mock useGitV2 hook - returns git API with empty status. findRoot is null so
+// the pane reads no per-file diff stats, which these tests don't cover.
 const mockGit = {
   cwd: "/project",
+  findRoot: vi.fn().mockResolvedValue(null),
   getStatus: vi.fn().mockResolvedValue({ files: new Map(), branch: "main" }),
   getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
