@@ -4,95 +4,22 @@
  */
 
 import { spawn } from "child_process";
+import * as fs from "node:fs";
 import * as path from "path";
 
-// Resolve ripgrep path at runtime (bundling breaks the import)
-function resolveRipgrepPath(): string {
-  const fs = require("fs");
-  const isPackaged = !!(process as any).resourcesPath;
-
-  try {
-    // Try the package import first
-    let { rgPath } = require("@vscode/ripgrep");
-
-    // CRITICAL: In packaged Electron apps, the module returns a path inside app.asar
-    // but the binary is actually unpacked to app.asar.unpacked. We need to fix the path.
-    if (
-      rgPath &&
-      rgPath.includes("app.asar") &&
-      !rgPath.includes("app.asar.unpacked")
-    ) {
-      rgPath = rgPath.replace("app.asar", "app.asar.unpacked");
-    }
-
-    if (rgPath && fs.existsSync(rgPath)) {
-      return rgPath;
-    }
-  } catch {
-    // Fall through to fallback paths
-  }
-
-  // Fallback: try multiple possible locations
-  // For packaged Electron apps, unpacked native modules are in app.asar.unpacked
-  const possiblePaths: string[] = [];
-
-  // Electron packaged app paths (app.asar.unpacked)
-  if (isPackaged) {
-    const resourcesPath = (process as any).resourcesPath;
-    possiblePaths.push(
-      path.join(
-        resourcesPath,
-        "app.asar.unpacked",
-        "node_modules",
-        "@vscode",
-        "ripgrep",
-        "bin",
-        "rg",
-      ),
-    );
-  }
-
-  // Development paths
-  possiblePaths.push(
-    path.join(
-      __dirname,
-      "..",
-      "..",
-      "node_modules",
-      "@vscode",
-      "ripgrep",
-      "bin",
-      "rg",
-    ),
-    path.join(process.cwd(), "node_modules", "@vscode", "ripgrep", "bin", "rg"),
-    path.join(
-      __dirname,
-      "..",
-      "..",
-      "..",
-      "node_modules",
-      "@vscode",
-      "ripgrep",
-      "bin",
-      "rg",
-    ),
-  );
-
-  for (const rgPath of possiblePaths) {
-    if (fs.existsSync(rgPath)) {
-      return rgPath;
-    }
-  }
-
-  console.error(
-    "[Ripgrep] Could not find ripgrep binary in any expected location",
-  );
-
-  // Return first path as fallback (will fail but with better error message)
-  return possiblePaths[0];
-}
-
-const rgPath = resolveRipgrepPath();
+// The binary comes from @vscode/ripgrep's platform package, which the module
+// throws without, so a missing one only disables scanning. Packaged, the path
+// points into app.asar, but the binary is unpacked next to it.
+const ripgrepPath: Promise<string | null> = import("@vscode/ripgrep").then(
+  ({ rgPath }) =>
+    rgPath.includes("app.asar.unpacked")
+      ? rgPath
+      : rgPath.replace("app.asar", "app.asar.unpacked"),
+  (error: Error) => {
+    console.error("[Ripgrep] Could not find the binary:", error.message);
+    return null;
+  },
+);
 
 export interface RipgrepScanOptions {
   /** Maximum depth to traverse (default: 15) */
@@ -142,6 +69,12 @@ export async function scanDirectoryWithRipgrep(
     duration: 0,
     errors: [],
   };
+
+  const rgPath = await ripgrepPath;
+  if (!rgPath) {
+    result.errors.push("Ripgrep isn't installed");
+    return result;
+  }
 
   return new Promise((resolve) => {
     const args: string[] = [
@@ -208,7 +141,6 @@ export async function scanDirectoryWithRipgrep(
     args.push(directoryPath);
 
     // Pre-flight check: verify binary exists and is executable
-    const fs = require("fs");
     try {
       fs.accessSync(rgPath, fs.constants.X_OK);
     } catch (accessError: any) {

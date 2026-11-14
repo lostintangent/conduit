@@ -153,6 +153,21 @@ describe("editor", () => {
     );
   });
 
+  it("finds and opens a file with Quick Open", async () => {
+    // Nothing's been picked from Quick Open yet, so with no recent files to
+    // fall back on, any result has to come from the ripgrep scan.
+    await app.page.keyboard.press("Meta+p");
+    const palette = app.page.getByTestId("command-palette");
+    await palette.getByRole("textbox").fill("notes");
+    await palette
+      .locator('[data-index="0"]')
+      .filter({ hasText: "notes.md" })
+      .waitFor();
+    await app.page.keyboard.press("Enter");
+    await palette.waitFor({ state: "hidden" });
+    await waitForTextIn(editor(), "# E2E heading");
+  });
+
   it("previews Markdown", async () => {
     await terminal.type("conduit open notes.md\n");
     await mode("Preview mode").click();
