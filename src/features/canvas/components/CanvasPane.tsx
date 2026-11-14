@@ -30,12 +30,12 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  type ElementStyle,
-  type Position,
-  type ShapeSize,
-  useCanvasHistory,
-} from "./history";
+import type {
+  ElementStyle,
+  Position,
+  ShapeSize,
+} from "./history/canvasHistory";
+import { useCanvasHistory } from "./history/useCanvasHistory";
 import { useCanvasState } from "./hooks/useCanvasState";
 import { useViewport } from "./hooks/useViewport";
 import { renderDotGrid } from "./render/dotGrid";
