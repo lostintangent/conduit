@@ -26,7 +26,7 @@ import {
   MoreVertical,
   X,
 } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 
@@ -63,8 +63,7 @@ export function BrowserMenu({
       clearTimeout(checkmarkTimeoutRef.current);
     }
 
-    // Hide the checkmark after 2 seconds. This isn't cleared on unmount, so
-    // it still runs while the tab is hidden, since a hidden tab keeps its state.
+    // Set timeout to hide checkmark after 2 seconds
     checkmarkTimeoutRef.current = setTimeout(() => {
       setShowCheckmark(false);
     }, 2000);
@@ -87,6 +86,15 @@ export function BrowserMenu({
     navigator.clipboard.writeText(currentPage.url);
     showCheckmarkWithTimer();
   }, [currentPage.url, showCheckmarkWithTimer]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (checkmarkTimeoutRef.current) {
+        clearTimeout(checkmarkTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <DropdownMenu>

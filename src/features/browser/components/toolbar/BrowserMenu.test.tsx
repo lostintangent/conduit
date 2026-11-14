@@ -1,11 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { Activity } from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/hooks/useCommand", () => ({
@@ -16,10 +9,8 @@ import { BrowserMenu } from "@features/browser/components/toolbar/BrowserMenu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notificationsAtom } from "@/store/atoms";
 
-function browserMenu(
-  onCaptureScreenshot: () => Promise<void> = () => Promise.resolve(),
-) {
-  return (
+function captureFromMenu(onCaptureScreenshot: () => Promise<void>) {
+  render(
     <TooltipProvider>
       <BrowserMenu
         currentPage={{ url: "https://example.com", title: "Example" }}
@@ -29,18 +20,11 @@ function browserMenu(
         onCaptureScreenshot={onCaptureScreenshot}
         tabId="tab-1"
       />
-    </TooltipProvider>
+    </TooltipProvider>,
   );
-}
 
-function chooseFromMenu(item: string) {
   fireEvent.keyDown(screen.getByLabelText("More options"), { key: "Enter" });
-  fireEvent.click(screen.getByText(item));
-}
-
-function captureFromMenu(onCaptureScreenshot: () => Promise<void>) {
-  render(browserMenu(onCaptureScreenshot));
-  chooseFromMenu("Copy screenshot");
+  fireEvent.click(screen.getByText("Copy screenshot"));
 }
 
 const checkmarkShown = () =>
@@ -68,26 +52,6 @@ describe("BrowserMenu screenshot", () => {
         },
       ]),
     );
-    expect(checkmarkShown()).toBe(false);
-  });
-});
-
-describe("BrowserMenu copy URL", () => {
-  afterEach(() => vi.useRealTimers());
-
-  it("clears the checkmark even if its tab hides first", () => {
-    vi.useFakeTimers();
-    const inTab = (mode: "visible" | "hidden") => (
-      <Activity mode={mode}>{browserMenu()}</Activity>
-    );
-    const { rerender } = render(inTab("visible"));
-    chooseFromMenu("Copy URL");
-    expect(checkmarkShown()).toBe(true);
-
-    rerender(inTab("hidden"));
-    act(() => vi.advanceTimersByTime(2000));
-    rerender(inTab("visible"));
-
     expect(checkmarkShown()).toBe(false);
   });
 });

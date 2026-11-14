@@ -360,8 +360,7 @@ export const TerminalPane = ({
         }
       });
 
-      // The listener removes itself when the stream ends or fails, and not on
-      // unmount, so a response keeps arriving while the tab is hidden.
+      // Store cleanup function for unmount
       streamCleanupRef.current = removeListener;
 
       try {
@@ -490,6 +489,12 @@ export const TerminalPane = ({
       // Reset font size to default when unmounting
       if (terminal && fontSize !== undefined) {
         terminal.terminal.options.fontSize = 13;
+      }
+
+      // Clean up stream listener if active
+      if (streamCleanupRef.current) {
+        streamCleanupRef.current();
+        streamCleanupRef.current = null;
       }
 
       terminalRef.current = null;

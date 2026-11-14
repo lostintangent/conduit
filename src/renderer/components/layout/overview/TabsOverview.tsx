@@ -1,3 +1,4 @@
+import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { IdleIndicator } from "@/components/ui/idle-indicator";
 import {
@@ -10,15 +11,54 @@ import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import { useSelector } from "@tanstack/react-store";
 import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
 
 export function TabsOverview() {
+  const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
+
   const tabLabels = useSelector(tabLabelsAtom);
   const { showTabState } = useSelector(userSettingsAtom);
   const setApplicationMode = applicationModeAtom.set;
 
+  const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
   const [hoveredTabId, setHoveredTabId] = useState<string | null>(null);
+
+  const handleRefSet = useCallback(
+    (tabId: string, el: HTMLDivElement | null) => {
+      let didChange = false;
+
+      if (el) {
+        if (allTabsContainerRefs.current[tabId] !== el) {
+          allTabsContainerRefs.current[tabId] = el;
+          didChange = true;
+        }
+      } else if (allTabsContainerRefs.current[tabId]) {
+        delete allTabsContainerRefs.current[tabId];
+        didChange = true;
+      }
+
+      if (didChange) {
+        const allReady = tabLabels.every(
+          (tab) => allTabsContainerRefs.current[tab.id],
+        );
+
+        if (allReady && Object.keys(allTabsContainerRefs.current).length > 0) {
+          mountTabsInPreview({ ...allTabsContainerRefs.current });
+        }
+      }
+    },
+    [tabLabels, mountTabsInPreview],
+  );
+
+  // Unmount tabs from preview whenever
+  // this component is unmounted
+  useEffect(() => {
+    return () => {
+      unmountTabsFromPreview();
+      allTabsContainerRefs.current = {};
+    };
+  }, []);
 
   return (
     <div className="relative flex flex-1 overflow-auto bg-background min-h-0">
@@ -39,6 +79,7 @@ export function TabsOverview() {
           >
             <TabPreviewItem
               tabId={tab.id}
+              onRefSet={handleRefSet}
               onClick={() => focusTab(tab.id)}
               scale={0.6}
               isHovered={hoveredTabId === tab.id}

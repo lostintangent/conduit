@@ -712,8 +712,6 @@ export const CanvasPane = memo(function CanvasPane({
       clearTimeout(copySuccessTimeoutRef.current);
     }
     setShowCopySuccess(true);
-    // Not cleared on unmount, so it still runs while the tab is hidden, since
-    // a hidden tab keeps its state.
     copySuccessTimeoutRef.current = setTimeout(() => {
       setShowCopySuccess(false);
     }, COPY_SUCCESS_DURATION_MS);
@@ -875,6 +873,15 @@ export const CanvasPane = memo(function CanvasPane({
     }
     setTextInputReady(false);
   }, [isAddingText]);
+
+  // Cleanup copy success timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (copySuccessTimeoutRef.current) {
+        clearTimeout(copySuccessTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Paste canvas elements from JSON clipboard data
   const pasteElements = useCallback(

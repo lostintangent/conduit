@@ -201,6 +201,52 @@ describe("terminal and CLI", () => {
     expect(await copy.locator.count()).toBe(0);
   });
 
+  it("shows a tab again after its repo's shared watchers were released while it was hidden", async () => {
+    const repo = path.join(app.home, "stats");
+    fs.mkdirSync(repo);
+    fs.writeFileSync(path.join(repo, "a.txt"), "a\n");
+    git(repo, "init", "-q");
+    git(repo, "add", ".");
+    git(repo, "commit", "-qm", "init");
+    fs.appendFileSync(path.join(repo, "a.txt"), "b\n");
+
+    const stats = () =>
+      app.page
+        .getByRole("tabpanel")
+        .filter({ visible: true })
+        .getByRole("button", { name: /\+1/ });
+    const selected = (title: string) =>
+      app.page
+        .getByRole("tab", { name: new RegExp(title), selected: true })
+        .waitFor();
+    const shortcut = async (title: string) => {
+      const names = await tabs().allTextContents();
+      return `Meta+${names.findIndex((name) => name.includes(title)) + 1}`;
+    };
+
+    await (await app.terminal()).type("conduit tab-new --title E2E-STATS-A\n");
+    await selected("E2E-STATS-A");
+    const first = await app.terminal();
+    expect(await first.run(`cd ${repo}`)).toBe(0);
+    await stats().waitFor();
+    await first.type("conduit tab-new --title E2E-STATS-B\n");
+    await selected("E2E-STATS-B");
+    await stats().waitFor();
+
+    // Neither tab holds the repo's watchers once both have been hidden, and
+    // the pool releases them 5s later.
+    await app.page.keyboard.press(await shortcut("E2E-STATS-A"));
+    await selected("E2E-STATS-A");
+    const showB = await shortcut("E2E-STATS-B");
+    await new Promise((resolve) => setTimeout(resolve, 6_500));
+    await app.page.keyboard.press(showB);
+    await until(
+      async () => app.pageErrors.length > 0 || (await stats().isVisible()),
+      "the shown tab's git stats, or a page error",
+    );
+    expect(app.pageErrors).toEqual([]);
+  });
+
   it("closes the page's shells when it reloads", async () => {
     const pid = await shellPid(await app.terminal());
     expect(isRunning(pid)).toBe(true);

@@ -1,12 +1,12 @@
-import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import {
   calculatePreviewDimensions,
   PREVIEW_SCALE,
 } from "@/utils/preview-scaling";
-import { useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 type TabPreviewItemProps = {
   tabId: string;
+  onRefSet: (tabId: string, element: HTMLDivElement | null) => void;
   onClick?: (tabId: string) => void;
   scale?: number;
   isHovered?: boolean;
@@ -18,16 +18,28 @@ type TabPreviewItemProps = {
  */
 export function TabPreviewItem({
   tabId,
+  onRefSet,
   onClick,
   scale = PREVIEW_SCALE,
   isHovered = false,
 }: TabPreviewItemProps) {
-  const { previewTab } = useTabContentPortal();
-  // Shows the tab's content here for as long as the preview is mounted
-  const contentRef = useCallback(
-    (container: HTMLDivElement) => previewTab(tabId, container),
-    [previewTab, tabId],
-  );
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      // Clean up ref when unmounting
+      onRefSet(tabId, null);
+    };
+  }, [tabId, onRefSet]);
+
+  const handleRefSet = (el: HTMLDivElement | null) => {
+    if (el && isMountedRef.current) {
+      onRefSet(tabId, el);
+    }
+  };
 
   const handleClick = () => {
     if (onClick) {
@@ -66,7 +78,7 @@ export function TabPreviewItem({
         }}
       >
         <div
-          ref={contentRef}
+          ref={handleRefSet}
           className="flex w-full h-full min-h-0 min-w-0 pointer-events-auto"
           style={{
             width: contentWidth,
