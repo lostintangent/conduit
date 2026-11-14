@@ -7,3 +7,6 @@ plugins = ["./build/bun.tailwind.ts", "./build/bun.dev-csp.ts"]
 environment = "happy-dom"
 globals = "vitest"
 preload = ["./tests/setup/bun-preload.ts"]
+# Run components compiled, as the production build does. The test runner
+# also compiles .ts hooks, which Bun.build leaves alone.
+reactCompiler = true

@@ -155,6 +155,9 @@ export function buildRenderer() {
     },
     plugins: [tailwind],
     define: { "process.env.NODE_ENV": JSON.stringify("production") },
+    // Bun only compiles .tsx and .jsx files, and its dev server doesn't
+    // compile yet, so dev runs the uncompiled components.
+    reactCompiler: true,
   });
 }
 
