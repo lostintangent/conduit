@@ -65,7 +65,7 @@ export function useScrollPersistence(
     (element: HTMLElement | null) => {
       const registry = EditorPaneRegistry.getInstance();
 
-      // Clean up previous element if it changed
+      // Clean up the previous element when it changes or unmounts (null)
       if (
         registeredElementRef.current &&
         registeredElementRef.current !== element
@@ -125,16 +125,6 @@ export function useScrollPersistence(
             rafId = null;
           }
         };
-      }
-
-      // Handle unmount (element becomes null)
-      if (!element && registeredElementRef.current) {
-        if (cleanupRef.current) {
-          cleanupRef.current();
-          cleanupRef.current = null;
-        }
-        registry.unregisterScrollContainer(paneId, scrollId);
-        registeredElementRef.current = null;
       }
     },
     [paneId, scrollId],
