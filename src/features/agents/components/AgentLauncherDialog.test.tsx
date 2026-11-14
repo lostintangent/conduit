@@ -5,6 +5,7 @@ import {
   fireEvent,
   waitFor,
 } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AgentLauncherDialog } from "./AgentLauncherDialog";
 import type { AgentConfig, LaunchGroup } from "@features/settings/model";
@@ -59,52 +60,60 @@ describe("AgentLauncherDialog", () => {
   const mockOnClose = vi.fn();
   const mockOnLaunch = vi.fn();
 
+  const dialog = (
+    props: Partial<ComponentProps<typeof AgentLauncherDialog>> = {},
+  ) => (
+    <AgentLauncherDialog
+      isOpen
+      agents={mockAgents}
+      onClose={mockOnClose}
+      onLaunch={mockOnLaunch}
+      {...props}
+    />
+  );
+
+  const agentRow = (name: string) => screen.getByText(name).closest("button")!;
+  const checkbox = (name: string) =>
+    agentRow(name).querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+  const plusButton = (name: string) =>
+    agentRow(name).querySelector<HTMLButtonElement>(
+      '[title="Increase instances"]',
+    )!;
+  const minusButton = (name: string) =>
+    agentRow(name).querySelector<HTMLButtonElement>(
+      '[title="Decrease instances"]',
+    )!;
+  const promptInput = () =>
+    screen.getByPlaceholderText<HTMLTextAreaElement>(/Describe what you want/);
+  const typePrompt = (value: string) =>
+    fireEvent.change(promptInput(), { target: { value } });
+  const launchButton = () =>
+    screen.getByRole<HTMLButtonElement>("button", { name: "Launch" });
+  const targetSelect = () =>
+    screen.getByDisplayValue<HTMLSelectElement>("Worktree");
+  const loadTeam = (name: string) =>
+    fireEvent.click(screen.getByText(name).closest("button")!);
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("Initial Rendering", () => {
     it("should render dialog when open", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
       expect(screen.getByText("Launch Agents")).toBeDefined();
-      expect(
-        screen.getByPlaceholderText(/Describe what you want/),
-      ).toBeDefined();
+      expect(promptInput()).toBeDefined();
     });
 
     it("should not render when closed", () => {
-      const { container } = render(
-        <AgentLauncherDialog
-          isOpen={false}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog({ isOpen: false }));
 
-      const dialog = container.querySelector('[role="dialog"]');
-      expect(
-        dialog === null || dialog.getAttribute("data-state") === "closed",
-      ).toBe(true);
+      expect(screen.queryByRole("dialog")).toBeNull();
     });
 
     it("should only show agents with interactive commands", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
       expect(screen.getByText("Copilot")).toBeDefined();
       expect(screen.getByText("Assistant")).toBeDefined();
@@ -112,71 +121,41 @@ describe("AgentLauncherDialog", () => {
     });
 
     it("should select default agent by default", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const checkbox = screen
-        .getByText("Copilot")
-        .closest("button")
-        ?.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      expect(checkbox?.checked).toBe(true);
+      expect(checkbox("Copilot").checked).toBe(true);
     });
   });
 
   describe("Agent Selection", () => {
     it("should toggle agent selection in custom mode", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const assistantButton = screen.getByText("Assistant").closest("button")!;
-      const checkbox = assistantButton.querySelector(
-        'input[type="checkbox"]',
-      ) as HTMLInputElement;
-
-      expect(checkbox.checked).toBe(false);
-      fireEvent.click(assistantButton);
-      expect(checkbox.checked).toBe(true);
-      fireEvent.click(assistantButton);
-      expect(checkbox.checked).toBe(false);
+      expect(checkbox("Assistant").checked).toBe(false);
+      fireEvent.click(agentRow("Assistant"));
+      expect(checkbox("Assistant").checked).toBe(true);
+      fireEvent.click(agentRow("Assistant"));
+      expect(checkbox("Assistant").checked).toBe(false);
     });
 
     it("should show agent count", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      expect(screen.getByText("1 agent selected")).toBeDefined();
+      const count = () => screen.getByText(/selected/).textContent;
+      expect(count()).toBe("1 agent selected");
+
+      fireEvent.click(agentRow("Assistant"));
+      fireEvent.click(plusButton("Assistant"));
+      expect(count()).toBe("2 agents selected (3 instances)");
+
+      fireEvent.click(agentRow("Assistant"));
+      expect(count()).toBe("1 agent selected");
     });
   });
 
   describe("Team Quick Launch", () => {
     it("should display team buttons when teams are provided", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          launchGroups={mockTeams}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog({ launchGroups: mockTeams }));
 
       expect(screen.getByText("Dev Team")).toBeDefined();
       expect(screen.getByText("Test Team")).toBeDefined();
@@ -184,173 +163,93 @@ describe("AgentLauncherDialog", () => {
     });
 
     it("should load team configuration when team button clicked", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          launchGroups={mockTeams}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
+      render(dialog({ launchGroups: mockTeams }));
+
+      loadTeam("Dev Team");
+      expect(checkbox("Copilot").checked).toBe(true);
+      expect(checkbox("Assistant").checked).toBe(true);
+
+      loadTeam("Test Team");
+      expect(checkbox("Copilot").checked).toBe(false);
+      expect(screen.getByText(/1 agent selected/).textContent).toBe(
+        "1 agent selected (2 instances)",
       );
-
-      const teamButton = screen.getByText("Dev Team").closest("button")!;
-      fireEvent.click(teamButton);
-
-      const copilotCheckbox = screen
-        .getByText("Copilot")
-        .closest("button")
-        ?.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      const assistantCheckbox = screen
-        .getByText("Assistant")
-        .closest("button")
-        ?.querySelector('input[type="checkbox"]') as HTMLInputElement;
-
-      expect(copilotCheckbox.checked).toBe(true);
-      expect(assistantCheckbox.checked).toBe(true);
     });
 
     it("should show Customize button in team mode", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          launchGroups={mockTeams}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog({ launchGroups: mockTeams }));
+      expect(screen.queryByText("Customize")).toBeNull();
 
-      const teamButton = screen.getByText("Dev Team").closest("button")!;
-      fireEvent.click(teamButton);
+      loadTeam("Dev Team");
+      fireEvent.click(agentRow("Assistant"));
+      expect(checkbox("Assistant").checked).toBe(true);
 
-      expect(screen.getByText("Customize")).toBeDefined();
+      fireEvent.click(screen.getByText("Customize"));
+      fireEvent.click(agentRow("Assistant"));
+      expect(checkbox("Assistant").checked).toBe(false);
     });
   });
 
   describe("Multiple Instances", () => {
     it("should allow increasing instance count", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
-
-      const plusButton = screen
-        .getByText("Copilot")
-        .closest("button")
-        ?.querySelector('[title="Increase instances"]') as HTMLButtonElement;
+      render(dialog());
 
       expect(screen.getByText("1")).toBeDefined();
-      fireEvent.click(plusButton);
+      fireEvent.click(plusButton("Copilot"));
       expect(screen.getByText("2")).toBeDefined();
+      expect(
+        screen.getByText(/Instance 2 - Custom Instructions/),
+      ).toBeDefined();
     });
 
     it("should allow decreasing instance count", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const plusButton = screen
-        .getByText("Copilot")
-        .closest("button")
-        ?.querySelector('[title="Increase instances"]') as HTMLButtonElement;
-      const minusButton = screen
-        .getByText("Copilot")
-        .closest("button")
-        ?.querySelector('[title="Decrease instances"]') as HTMLButtonElement;
-
-      fireEvent.click(plusButton);
-      fireEvent.click(plusButton);
+      fireEvent.click(plusButton("Copilot"));
+      fireEvent.click(plusButton("Copilot"));
       expect(screen.getByText("3")).toBeDefined();
 
-      fireEvent.click(minusButton);
+      fireEvent.click(minusButton("Copilot"));
       expect(screen.getByText("2")).toBeDefined();
     });
 
     it("should not decrease below 1 instance", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const minusButton = screen
-        .getByText("Copilot")
-        .closest("button")
-        ?.querySelector('[title="Decrease instances"]') as HTMLButtonElement;
-
-      expect(minusButton.disabled).toBe(true);
+      expect(minusButton("Copilot").disabled).toBe(true);
     });
   });
 
   describe("Custom Instructions", () => {
-    it("should expand/collapse instruction fields", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
+    const instructionsInput = () =>
+      screen.queryByPlaceholderText<HTMLTextAreaElement>(
+        /Additional instructions/,
       );
+    const writeInstructions = (value: string) => {
+      fireEvent.click(screen.getByText(/Custom Instructions/));
+      fireEvent.change(instructionsInput()!, { target: { value } });
+    };
 
-      const expandButton = screen.getByText(/Custom Instructions/);
-      expect(
-        screen.queryByPlaceholderText(/Additional instructions/),
-      ).toBeNull();
+    it("should expand/collapse instruction fields", () => {
+      render(dialog());
 
-      fireEvent.click(expandButton);
-      expect(
-        screen.getByPlaceholderText(/Additional instructions/),
-      ).toBeDefined();
+      expect(instructionsInput()).toBeNull();
+      fireEvent.click(screen.getByText(/Custom Instructions/));
+      expect(instructionsInput()).not.toBeNull();
     });
 
     it("should save instruction text", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const expandButton = screen.getByText(/Custom Instructions/);
-      fireEvent.click(expandButton);
+      writeInstructions("Focus on security");
 
-      const textarea = screen.getByPlaceholderText(/Additional instructions/);
-      fireEvent.change(textarea, { target: { value: "Focus on security" } });
-
-      expect((textarea as HTMLTextAreaElement).value).toBe("Focus on security");
+      expect(instructionsInput()!.value).toBe("Focus on security");
     });
 
     it("should show indicator when instructions are set", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const expandButton = screen.getByText(/Custom Instructions/);
-      fireEvent.click(expandButton);
-
-      const textarea = screen.getByPlaceholderText(/Additional instructions/);
-      fireEvent.change(textarea, { target: { value: "Test instructions" } });
+      writeInstructions("Test instructions");
 
       expect(screen.getByText(/\(set\)/)).toBeDefined();
     });
@@ -358,87 +257,50 @@ describe("AgentLauncherDialog", () => {
 
   describe("Launch Target", () => {
     it("should render launch target dropdown", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const select = screen.getByDisplayValue("Worktree") as HTMLSelectElement;
-      expect(select).toBeDefined();
+      expect(targetSelect()).toBeDefined();
     });
 
-    it("should allow changing launch target", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+    it("should allow changing launch target", async () => {
+      render(dialog());
 
-      const select = screen.getByDisplayValue("Worktree") as HTMLSelectElement;
+      const select = targetSelect();
       fireEvent.change(select, { target: { value: "same-folder" } });
-
       expect(select.value).toBe("same-folder");
+
+      typePrompt("Write tests");
+      fireEvent.click(launchButton());
+      await waitFor(() =>
+        expect(mockOnLaunch).toHaveBeenCalledWith(
+          expect.objectContaining({ launchTarget: "same-folder" }),
+        ),
+      );
     });
   });
 
   describe("Form Submission", () => {
     it("should disable launch button when prompt is empty", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const launchButton = screen
-        .getByText("Launch")
-        .closest("button") as HTMLButtonElement;
-      expect(launchButton.disabled).toBe(true);
+      expect(launchButton().disabled).toBe(true);
     });
 
     it("should enable launch button when prompt is provided", () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const textarea = screen.getByPlaceholderText(/Describe what you want/);
-      fireEvent.change(textarea, { target: { value: "Write tests" } });
+      typePrompt("Write tests");
+      expect(launchButton().disabled).toBe(false);
 
-      const launchButton = screen
-        .getByText("Launch")
-        .closest("button") as HTMLButtonElement;
-      expect(launchButton.disabled).toBe(false);
+      fireEvent.click(agentRow("Copilot"));
+      expect(launchButton().disabled).toBe(true);
     });
 
     it("should call onLaunch with correct payload", async () => {
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      render(dialog());
 
-      const textarea = screen.getByPlaceholderText(/Describe what you want/);
-      fireEvent.change(textarea, { target: { value: "Implement feature" } });
-
-      const launchButton = screen.getByRole("button", { name: "Launch" });
-      fireEvent.click(launchButton);
+      typePrompt("Implement feature");
+      fireEvent.click(launchButton());
 
       await waitFor(() => {
         expect(mockOnLaunch).toHaveBeenCalledWith(
@@ -458,21 +320,10 @@ describe("AgentLauncherDialog", () => {
 
     it("should close dialog after successful launch", async () => {
       mockOnLaunch.mockResolvedValue(undefined);
+      render(dialog());
 
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
-
-      const textarea = screen.getByPlaceholderText(/Describe what you want/);
-      fireEvent.change(textarea, { target: { value: "Test task" } });
-
-      const launchButton = screen.getByRole("button", { name: "Launch" });
-      fireEvent.click(launchButton);
+      typePrompt("Test task");
+      fireEvent.click(launchButton());
 
       await waitFor(() => {
         expect(mockOnClose).toHaveBeenCalled();
@@ -485,19 +336,10 @@ describe("AgentLauncherDialog", () => {
       mockOnLaunch.mockReturnValueOnce(
         new Promise((_, reject) => (fail = reject)),
       );
+      render(dialog());
 
-      render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
-
-      const textarea = screen.getByPlaceholderText(/Describe what you want/);
-      fireEvent.change(textarea, { target: { value: "Test task" } });
-      fireEvent.click(screen.getByRole("button", { name: "Launch" }));
+      typePrompt("Test task");
+      fireEvent.click(launchButton());
 
       await waitFor(() => expect(mockOnLaunch).toHaveBeenCalled());
       const busyButton = screen
@@ -509,53 +351,27 @@ describe("AgentLauncherDialog", () => {
       await act(async () => fail(new Error("boom")));
 
       await waitFor(() => {
-        const launchButton = screen.getByRole("button", {
-          name: "Launch",
-        }) as HTMLButtonElement;
-        expect(launchButton.disabled).toBe(false);
-        expect(launchButton.className).not.toContain("celebration-pulse");
+        expect(launchButton().disabled).toBe(false);
+        expect(launchButton().className).not.toContain("celebration-pulse");
       });
       expect(mockOnClose).not.toHaveBeenCalled();
-      expect((textarea as HTMLTextAreaElement).value).toBe("Test task");
+      expect(promptInput().value).toBe("Test task");
     });
   });
 
   describe("Dialog Reset on Open", () => {
     it("should reset state when dialog is reopened", async () => {
-      const { rerender } = render(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      const { rerender } = render(dialog());
 
-      const textarea = screen.getByPlaceholderText(/Describe what you want/);
-      fireEvent.change(textarea, { target: { value: "Old prompt" } });
-      expect((textarea as HTMLTextAreaElement).value).toBe("Old prompt");
+      typePrompt("Old prompt");
+      fireEvent.change(targetSelect(), { target: { value: "same-folder" } });
+      expect(promptInput().value).toBe("Old prompt");
 
-      rerender(
-        <AgentLauncherDialog
-          isOpen={false}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
+      rerender(dialog({ isOpen: false }));
+      rerender(dialog());
 
-      rerender(
-        <AgentLauncherDialog
-          isOpen={true}
-          agents={mockAgents}
-          onClose={mockOnClose}
-          onLaunch={mockOnLaunch}
-        />,
-      );
-
-      // Query the textarea again after rerender
-      const newTextarea = screen.getByPlaceholderText(/Describe what you want/);
-      expect((newTextarea as HTMLTextAreaElement).value).toBe("");
+      expect(promptInput().value).toBe("");
+      expect(targetSelect()).toBeDefined();
     });
   });
 });

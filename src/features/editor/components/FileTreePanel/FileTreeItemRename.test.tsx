@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { FileTreeItemRename } from "./FileTreeItemRename";
-
-// ============================================================================
-// Tests
-// ============================================================================
+import { render, screen, fireEvent } from "@testing-library/react";
+import {
+  FileTreeItemRename,
+  type FileTreeItemRenameProps,
+} from "./FileTreeItemRename";
 
 describe("FileTreeItemRename", () => {
   const mockOnCommit = vi.fn();
@@ -14,166 +13,95 @@ describe("FileTreeItemRename", () => {
     vi.clearAllMocks();
   });
 
-  // ===========================================================================
-  // Initial Rendering
-  // ===========================================================================
+  /** Render the input for renaming `initialName`, and return it. */
+  function renderRename(
+    initialName = "test.txt",
+    props: Partial<FileTreeItemRenameProps> = {},
+  ) {
+    render(
+      <FileTreeItemRename
+        initialName={initialName}
+        isDirectory={false}
+        onCommit={mockOnCommit}
+        onCancel={mockOnCancel}
+        {...props}
+      />,
+    );
+    return screen.getByTestId<HTMLInputElement>("file-tree-rename-input");
+  }
+
+  /** Type `value` into the input and press Enter. */
+  function submit(input: HTMLInputElement, value: string) {
+    fireEvent.change(input, { target: { value } });
+    fireEvent.keyDown(input, { key: "Enter" });
+  }
 
   describe("initial rendering", () => {
     it("should render with initial name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      expect(input).toBeDefined();
-      expect((input as HTMLInputElement).value).toBe("test.txt");
+      expect(input.value).toBe("test.txt");
     });
 
     it("should auto-focus the input", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
       expect(document.activeElement).toBe(input);
     });
   });
 
-  // ===========================================================================
-  // Selection Behavior
-  // ===========================================================================
-
   describe("selection behavior", () => {
-    it("should select filename without extension for files", () => {
-      render(
-        <FileTreeItemRename
-          initialName="index.ts"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+    it.each([
+      [
+        "should select filename without extension for files",
+        "index.ts",
+        false,
+        5,
+      ],
+      ["should select entire name for directories", "components.v2", true, 13],
+      [
+        "should select entire name for files without extension",
+        "Makefile",
+        false,
+        8,
+      ],
+      [
+        "should select entire name for hidden files (starting with dot)",
+        ".gitignore",
+        false,
+        10,
+      ],
+      // Up to the last dot, so "component.test"
+      [
+        "should handle files with multiple dots",
+        "component.test.tsx",
+        false,
+        14,
+      ],
+    ])("%s", (_title, name, isDirectory, end) => {
+      const input = renderRename(name, { isDirectory });
 
-      const input = screen.getByTestId(
-        "file-tree-rename-input",
-      ) as HTMLInputElement;
       expect(input.selectionStart).toBe(0);
-      expect(input.selectionEnd).toBe(5); // "index" length
-    });
-
-    it("should select entire name for directories", () => {
-      render(
-        <FileTreeItemRename
-          initialName="components"
-          isDirectory={true}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId(
-        "file-tree-rename-input",
-      ) as HTMLInputElement;
-      expect(input.selectionStart).toBe(0);
-      expect(input.selectionEnd).toBe(10); // "components" length
-    });
-
-    it("should select entire name for files without extension", () => {
-      render(
-        <FileTreeItemRename
-          initialName="Makefile"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId(
-        "file-tree-rename-input",
-      ) as HTMLInputElement;
-      expect(input.selectionStart).toBe(0);
-      expect(input.selectionEnd).toBe(8); // "Makefile" length
-    });
-
-    it("should select entire name for hidden files (starting with dot)", () => {
-      render(
-        <FileTreeItemRename
-          initialName=".gitignore"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId(
-        "file-tree-rename-input",
-      ) as HTMLInputElement;
-      expect(input.selectionStart).toBe(0);
-      expect(input.selectionEnd).toBe(10); // ".gitignore" length
-    });
-
-    it("should handle files with multiple dots", () => {
-      render(
-        <FileTreeItemRename
-          initialName="component.test.tsx"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId(
-        "file-tree-rename-input",
-      ) as HTMLInputElement;
-      expect(input.selectionStart).toBe(0);
-      expect(input.selectionEnd).toBe(14); // "component.test" length (up to last dot)
+      expect(input.selectionEnd).toBe(end);
     });
   });
 
-  // ===========================================================================
-  // Keyboard Handling
-  // ===========================================================================
-
   describe("keyboard handling", () => {
-    it("should commit on Enter with valid name", async () => {
-      render(
-        <FileTreeItemRename
-          initialName="old.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+    it("should commit on Enter with valid name", () => {
+      const input = renderRename("old.txt");
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "new.txt" } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      submit(input, "new.txt");
+      // The tree removes the input once it commits, which blurs it
+      fireEvent.blur(input);
 
+      expect(mockOnCommit).toHaveBeenCalledTimes(1);
       expect(mockOnCommit).toHaveBeenCalledWith("new.txt");
       expect(mockOnCancel).not.toHaveBeenCalled();
     });
 
     it("should cancel on Escape", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
       fireEvent.keyDown(input, { key: "Escape" });
 
       expect(mockOnCancel).toHaveBeenCalled();
@@ -181,16 +109,8 @@ describe("FileTreeItemRename", () => {
     });
 
     it("should cancel on Enter when name unchanged", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
       fireEvent.keyDown(input, { key: "Enter" });
 
       expect(mockOnCancel).toHaveBeenCalled();
@@ -198,40 +118,19 @@ describe("FileTreeItemRename", () => {
     });
 
     it("should not commit on Enter with invalid name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "" } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      submit(input, "");
 
       expect(mockOnCommit).not.toHaveBeenCalled();
       expect(mockOnCancel).not.toHaveBeenCalled();
     });
   });
 
-  // ===========================================================================
-  // Blur Behavior
-  // ===========================================================================
-
   describe("blur behavior", () => {
     it("should commit on blur with valid changed name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="old.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename("old.txt");
 
-      const input = screen.getByTestId("file-tree-rename-input");
       fireEvent.change(input, { target: { value: "new.txt" } });
       fireEvent.blur(input);
 
@@ -239,16 +138,8 @@ describe("FileTreeItemRename", () => {
     });
 
     it("should cancel on blur with unchanged name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
       fireEvent.blur(input);
 
       expect(mockOnCancel).toHaveBeenCalled();
@@ -256,16 +147,8 @@ describe("FileTreeItemRename", () => {
     });
 
     it("should cancel on blur with invalid name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
       fireEvent.change(input, { target: { value: "" } });
       fireEvent.blur(input);
 
@@ -274,183 +157,69 @@ describe("FileTreeItemRename", () => {
     });
   });
 
-  // ===========================================================================
-  // Validation
-  // ===========================================================================
-
   describe("validation", () => {
-    it("should show error for empty name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+    it.each([
+      ["should show error for empty name", "", "Name cannot be empty"],
+      [
+        "should show error for invalid characters",
+        "test/file.txt",
+        "cannot contain",
+      ],
+      ["should show error for dot name", ".", "Invalid name"],
+      ["should show error for double-dot name", "..", "Invalid name"],
+    ])("%s", (_title, name, error) => {
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "" } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      submit(input, name);
 
-      expect(screen.getByRole("alert")).toBeDefined();
-      expect(screen.getByRole("alert").textContent).toContain(
-        "Name cannot be empty",
-      );
-    });
-
-    it("should show error for invalid characters", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "test/file.txt" } });
-      fireEvent.keyDown(input, { key: "Enter" });
-
-      expect(screen.getByRole("alert")).toBeDefined();
-      expect(screen.getByRole("alert").textContent).toContain("cannot contain");
-    });
-
-    it("should show error for dot name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "." } });
-      fireEvent.keyDown(input, { key: "Enter" });
-
-      expect(screen.getByRole("alert")).toBeDefined();
-      expect(screen.getByRole("alert").textContent).toContain("Invalid name");
-    });
-
-    it("should show error for double-dot name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: ".." } });
-      fireEvent.keyDown(input, { key: "Enter" });
-
-      expect(screen.getByRole("alert")).toBeDefined();
-      expect(screen.getByRole("alert").textContent).toContain("Invalid name");
+      expect(screen.getByRole("alert").textContent).toContain(error);
     });
 
     it("should clear error when typing", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
-
-      // Trigger error
-      fireEvent.change(input, { target: { value: "" } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      submit(input, "");
       expect(screen.getByRole("alert")).toBeDefined();
 
-      // Type to clear error
       fireEvent.change(input, { target: { value: "valid.txt" } });
       expect(screen.queryByRole("alert")).toBeNull();
     });
   });
 
-  // ===========================================================================
-  // Name Conflict Check
-  // ===========================================================================
-
   describe("name conflict check", () => {
     it("should show error when name conflicts", () => {
-      const checkConflict = vi.fn().mockReturnValue(true);
+      const checkNameConflict = vi.fn().mockReturnValue(true);
+      const input = renderRename("test.txt", { checkNameConflict });
 
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-          checkNameConflict={checkConflict}
-        />,
-      );
+      submit(input, "existing.txt");
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "existing.txt" } });
-      fireEvent.keyDown(input, { key: "Enter" });
-
-      expect(checkConflict).toHaveBeenCalledWith("existing.txt");
-      expect(screen.getByRole("alert")).toBeDefined();
+      expect(checkNameConflict).toHaveBeenCalledWith("existing.txt");
       expect(screen.getByRole("alert").textContent).toContain("already exists");
       expect(mockOnCommit).not.toHaveBeenCalled();
     });
 
     it("should commit when no conflict", () => {
-      const checkConflict = vi.fn().mockReturnValue(false);
+      const checkNameConflict = vi.fn().mockReturnValue(false);
+      const input = renderRename("test.txt", { checkNameConflict });
 
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-          checkNameConflict={checkConflict}
-        />,
-      );
+      submit(input, "newname.txt");
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "newname.txt" } });
-      fireEvent.keyDown(input, { key: "Enter" });
-
-      expect(checkConflict).toHaveBeenCalledWith("newname.txt");
+      expect(checkNameConflict).toHaveBeenCalledWith("newname.txt");
       expect(mockOnCommit).toHaveBeenCalledWith("newname.txt");
     });
   });
 
-  // ===========================================================================
-  // Edge Cases
-  // ===========================================================================
-
   describe("edge cases", () => {
     it("should trim whitespace from name", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
+      const input = renderRename();
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.change(input, { target: { value: "  newname.txt  " } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      submit(input, "  newname.txt  ");
 
       expect(mockOnCommit).toHaveBeenCalledWith("newname.txt");
     });
 
     it("should stop click propagation", () => {
       const parentClick = vi.fn();
-
       render(
         <div onClick={parentClick}>
           <FileTreeItemRename
@@ -462,30 +231,16 @@ describe("FileTreeItemRename", () => {
         </div>,
       );
 
-      const input = screen.getByTestId("file-tree-rename-input");
-      fireEvent.click(input);
+      fireEvent.click(screen.getByTestId("file-tree-rename-input"));
 
       expect(parentClick).not.toHaveBeenCalled();
     });
 
     it("should have proper aria attributes for invalid state", () => {
-      render(
-        <FileTreeItemRename
-          initialName="test.txt"
-          isDirectory={false}
-          onCommit={mockOnCommit}
-          onCancel={mockOnCancel}
-        />,
-      );
-
-      const input = screen.getByTestId("file-tree-rename-input");
-
-      // Initially not invalid
+      const input = renderRename();
       expect(input.getAttribute("aria-invalid")).toBe("false");
 
-      // Trigger error
-      fireEvent.change(input, { target: { value: "" } });
-      fireEvent.keyDown(input, { key: "Enter" });
+      submit(input, "");
 
       expect(input.getAttribute("aria-invalid")).toBe("true");
       expect(input.getAttribute("aria-describedby")).toBe("rename-error");
