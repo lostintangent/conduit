@@ -191,7 +191,7 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
 }
 ```
 
-### 8. Renderer Process Handler (`src/renderer/hooks/useCliClient.ts`)
+### 8. Renderer Process Handler (`src/renderer/cli/useCliClient.ts`)
 
 The renderer process handles CLI requests by:
 

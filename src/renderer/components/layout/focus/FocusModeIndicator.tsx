@@ -94,25 +94,15 @@ export function FocusModeIndicator() {
     return null;
   }
 
-  const activeTabLabel = useMemo(() => {
-    if (!activeTab) {
-      return "";
+  const activeTabLabel =
+    tabLabels.find((tab) => tab.id === activeTab.id)?.name ?? "";
+  let tabInfo = activeTabLabel;
+  if (hasMultipleTabs) {
+    tabInfo = `${activeTabIndex + 1}/${totalTabs}`;
+    if (activeTabLabel) {
+      tabInfo += ` (${activeTabLabel})`;
     }
-    const match = tabLabels.find((tab) => tab.id === activeTab.id);
-    return match?.name ?? "";
-  }, [tabLabels, activeTab?.id]);
-
-  const tabInfo = useMemo(() => {
-    if (hasMultipleTabs) {
-      let prefix = `${activeTabIndex + 1}/${totalTabs}`;
-      if (activeTabLabel) {
-        prefix += ` (${activeTabLabel})`;
-      }
-      return prefix;
-    }
-
-    return activeTabLabel;
-  }, [hasMultipleTabs, activeTabIndex, totalTabs, activeTabLabel]);
+  }
 
   return (
     <div

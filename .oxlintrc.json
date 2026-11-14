@@ -15,6 +15,12 @@
     "react-hooks/static-components": "warn",
     "react-hooks/use-memo": "warn",
     "react/no-did-update-set-state": "warn",
+    // The React Compiler skips any component or hook these report, so the
+    // build leaves it unoptimized. They stay warnings until each one compiles.
+    "react-hooks/invariant": "warn",
+    "react-hooks/memo-dependencies": "warn",
+    "react-hooks/todo": "warn",
+    "react-hooks/rules-of-hooks": "error",
     "no-await-in-loop": "off",
     "no-constant-condition": "off",
     "no-control-regex": "off",

@@ -1,5 +1,7 @@
 import type { HandlerMap } from "./types";
+import { executeCommand } from "@/commands";
 import { openTab, updateTabProperty } from "@/store/actions/tab";
+import { ApplicationCommands } from "@shared/commands";
 
 export const tabHandlers: Partial<HandlerMap> = {
   "tab-new": async (args) => {
@@ -9,8 +11,8 @@ export const tabHandlers: Partial<HandlerMap> = {
     });
   },
 
-  "tab-duplicate": async (_args, context) => {
-    await context.duplicateTabCommand.execute();
+  "tab-duplicate": async () => {
+    await executeCommand(ApplicationCommands.TAB_DUPLICATE);
   },
 
   "tab-lock": (_args, context) => {

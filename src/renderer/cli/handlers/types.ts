@@ -1,10 +1,7 @@
 import type { browserAutomate } from "@/cli/browser";
-import type { useCommand } from "@/commands/hooks/useCommand";
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import type { Tab } from "@/types";
 import type { CliCommand, CliCommandArgs } from "@shared/cli/types";
-
-export type ReturnTypeUseCommand = ReturnType<typeof useCommand>;
 
 export type HandlerContext = {
   onOpenFile: (descriptor: QuickPaneDescriptor) => void;
@@ -27,23 +24,6 @@ export type HandlerContext = {
     command: T,
     args: Parameters<typeof browserAutomate<T>>[1],
   ) => Promise<unknown>;
-  moveCommandMap: {
-    left: ReturnTypeUseCommand;
-    right: ReturnTypeUseCommand;
-    up: ReturnTypeUseCommand;
-    down: ReturnTypeUseCommand;
-    tab: ReturnTypeUseCommand;
-  };
-  splitCommandMap: {
-    terminal: Record<string, ReturnTypeUseCommand>;
-    browser: Record<string, ReturnTypeUseCommand>;
-    editor: Record<string, ReturnTypeUseCommand>;
-    canvas: Record<string, ReturnTypeUseCommand>;
-  };
-  focusPaneCommand: ReturnTypeUseCommand;
-  closePaneCommand: ReturnTypeUseCommand;
-  closeTabCommand: ReturnTypeUseCommand;
-  duplicateTabCommand: ReturnTypeUseCommand;
 };
 
 export type CliHandler<Name extends CliCommand["name"]> = (
