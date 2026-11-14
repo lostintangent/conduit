@@ -20,6 +20,9 @@ import {
   writeTerminal,
 } from "./actions";
 
+/** What zsh prints at a prompt, ending as its line editor takes the terminal. */
+const PROMPT = "\x1b]7;file://host/work\x07~ % \x1b[K\x1b[?2004h";
+
 function fakePty() {
   return {
     process: "zsh",
@@ -61,6 +64,7 @@ describe("a terminal that waits for its size", () => {
 
       resizeTerminal(id, cols, rows);
       markTerminalReady(id);
+      pty.onData.mock.calls[0][0](PROMPT);
 
       expect(spawnTerminalProcess).toHaveBeenCalledTimes(1);
       expect(spawnTerminalProcess).toHaveBeenCalledWith(
@@ -82,6 +86,7 @@ describe("a terminal that waits for its size", () => {
 
     markTerminalReady(id);
     resizeTerminal(id, 69, 24);
+    pty.onData.mock.calls[0][0](PROMPT);
 
     expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
   });
@@ -138,7 +143,7 @@ describe("a new terminal", () => {
   });
 });
 
-describe("a restored terminal in a tab that hasn't shown", () => {
+describe("a restored terminal", () => {
   let pty: ReturnType<typeof fakePty>;
   const output = (data: string) => pty.onData.mock.calls[0][0](data);
 
@@ -151,19 +156,49 @@ describe("a restored terminal in a tab that hasn't shown", () => {
 
   afterEach(() => {
     getAllTerminals().clear();
+    vi.useRealTimers();
   });
 
-  it("runs its command at the shell's first prompt", async () => {
+  it("runs its command at the shell's first prompt, before its tab shows", async () => {
     const { id } = await createTerminal({ command: "npm run dev" });
 
-    output("Last login: today\r\n");
+    // zsh reports its cwd before its line editor takes the terminal.
+    output("Last login: today\r\n\x1b]7;file://host/work\x07");
     expect(pty.write).not.toHaveBeenCalled();
 
-    output("\x1b]2;zsh\x07\x1b]7;file://host/work\x07~ % ");
+    output(PROMPT);
     expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
 
     markTerminalReady(id);
     expect(pty.write).toHaveBeenCalledTimes(1);
+  });
+
+  // Typed any earlier, the terminal echoes it, then zsh draws it again.
+  it("waits for the shell's first prompt when its pane shows first", async () => {
+    const { id } = await createTerminal({ command: "npm run dev" });
+
+    markTerminalReady(id);
+    expect(pty.write).not.toHaveBeenCalled();
+
+    output(PROMPT);
+    output(PROMPT);
+    expect(pty.write).toHaveBeenCalledTimes(1);
+    expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
+  });
+
+  it("types its command ahead in a shell that never reports its prompt", async () => {
+    vi.useFakeTimers();
+    const { id } = await createTerminal({ command: "npm run dev" });
+
+    markTerminalReady(id);
+    output("bash-3.2$ ");
+    vi.advanceTimersByTime(2_999);
+    expect(pty.write).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    output(PROMPT);
+    expect(pty.write).toHaveBeenCalledTimes(1);
+    expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
   });
 
   it("keeps only its latest output until it shows", async () => {

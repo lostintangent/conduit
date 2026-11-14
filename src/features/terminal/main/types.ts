@@ -10,6 +10,6 @@ export type TerminalInstance = {
   bufferedOutput: string;
   cwd: string;
 
-  // A restored command, which runs at the shell's first prompt
+  // A restored command, typed at the shell's first prompt
   pendingCommand?: string;
 };

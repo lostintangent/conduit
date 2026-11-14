@@ -25,6 +25,16 @@ const unsizedTerminals = new Map<string, UnsizedTerminal>();
  */
 const MAX_BUFFERED_OUTPUT = 1_000_000;
 
+/**
+ * A restored command is typed once the shell's line editor has the terminal,
+ * which zsh, bash 5.1 and fish announce by turning on bracketed paste. Typed
+ * any earlier, the terminal echoes it above the prompt and the shell draws it
+ * again on the prompt line. A shell that never announces it, like macOS's
+ * bash 3.2, gets the command typed ahead after a few seconds.
+ */
+const LINE_EDITOR_READY = "\x1b[?2004h";
+const LINE_EDITOR_TIMEOUT_MS = 3_000;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
@@ -78,6 +88,12 @@ function spawnTerminal(
   storeTerminal(terminal);
   setupTerminalListeners(terminal);
 
+  if (pendingCommand) {
+    setTimeout(() => {
+      if (getTerminal(id) === terminal) runPendingCommand(terminal);
+    }, LINE_EDITOR_TIMEOUT_MS);
+  }
+
   return terminal;
 }
 
@@ -91,9 +107,7 @@ function setupTerminalListeners(terminal: TerminalInstance) {
       bufferOutput(terminal, data);
     }
 
-    // Conduit's shell integration reports the cwd as each prompt draws, so a
-    // restored command runs at the first one, whether its tab is showing or not.
-    if (terminal.pendingCommand && data.includes("\x1b]7;")) {
+    if (terminal.pendingCommand && data.includes(LINE_EDITOR_READY)) {
       runPendingCommand(terminal);
     }
 
@@ -198,7 +212,4 @@ export function markTerminalReady(terminalId: string) {
     emit("data", { sessionId: terminal.id, data: terminal.bufferedOutput });
     terminal.bufferedOutput = "";
   }
-
-  // A shell without Conduit's integration, like fish, never reports a prompt.
-  runPendingCommand(terminal);
 }
