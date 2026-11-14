@@ -527,8 +527,8 @@ describe("EditorPaneV2", () => {
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
 
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
-      expect(editorContainer.classList.contains("hidden")).toBe(false);
+      expect(treeContainer.hidden).toBe(false);
+      expect(editorContainer.hidden).toBe(false);
     });
 
     it("should show only tree panel initially in single mode", () => {
@@ -539,8 +539,8 @@ describe("EditorPaneV2", () => {
       const treeContainer = screen.getByTestId("tree-container");
       const editorContainer = screen.getByTestId("editor-container");
 
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
-      expect(editorContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(false);
+      expect(editorContainer.hidden).toBe(true);
     });
 
     it("should swap the tree for review in single mode and back on exit", () => {
@@ -551,12 +551,12 @@ describe("EditorPaneV2", () => {
       const editorContainer = screen.getByTestId("editor-container");
 
       fireEvent.click(screen.getByTestId("review-changes-button"));
-      expect(treeContainer.classList.contains("hidden")).toBe(true);
-      expect(editorContainer.classList.contains("hidden")).toBe(false);
+      expect(treeContainer.hidden).toBe(true);
+      expect(editorContainer.hidden).toBe(false);
 
       fireEvent.click(screen.getByTestId("exit-review-button"));
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
-      expect(editorContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(false);
+      expect(editorContainer.hidden).toBe(true);
     });
 
     it.each(["view-commit-button", "select-commit-file-button"])(
@@ -569,12 +569,12 @@ describe("EditorPaneV2", () => {
         const editorContainer = screen.getByTestId("editor-container");
 
         fireEvent.click(screen.getByTestId(openCommit));
-        expect(treeContainer.classList.contains("hidden")).toBe(true);
-        expect(editorContainer.classList.contains("hidden")).toBe(false);
+        expect(treeContainer.hidden).toBe(true);
+        expect(editorContainer.hidden).toBe(false);
 
         fireEvent.click(screen.getByTestId("exit-commit-button"));
-        expect(treeContainer.classList.contains("hidden")).toBe(false);
-        expect(editorContainer.classList.contains("hidden")).toBe(true);
+        expect(treeContainer.hidden).toBe(false);
+        expect(editorContainer.hidden).toBe(true);
       },
     );
 
@@ -592,9 +592,9 @@ describe("EditorPaneV2", () => {
 
       fireEvent.click(screen.getByTestId("select-changes-file-button"));
       await waitFor(() => {
-        expect(editorContainer.classList.contains("hidden")).toBe(false);
+        expect(editorContainer.hidden).toBe(false);
       });
-      expect(treeContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(true);
 
       mockGit.getStatus.mockResolvedValue(clean);
       await reportStatus(clean);
@@ -604,8 +604,8 @@ describe("EditorPaneV2", () => {
           "no-file",
         );
       });
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
-      expect(editorContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(false);
+      expect(editorContainer.hidden).toBe(true);
     });
     it("should show the tree in split mode when the open file goes away while it's collapsed", async () => {
       const modified = { path: "test.ts", status: "modified", staged: false };
@@ -624,13 +624,13 @@ describe("EditorPaneV2", () => {
         );
       });
       fireEvent.click(screen.getByTestId("collapse-toggle-button"));
-      expect(treeContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(true);
 
       mockGit.getStatus.mockResolvedValue(clean);
       await reportStatus(clean);
 
       await waitFor(() => {
-        expect(treeContainer.classList.contains("hidden")).toBe(false);
+        expect(treeContainer.hidden).toBe(false);
       });
     });
 
@@ -640,11 +640,11 @@ describe("EditorPaneV2", () => {
 
       expect(screen.queryByTestId("collapse-toggle-button")).toBeNull();
       await runEditorCommand("toggleSidebar");
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(treeContainer.hidden).toBe(false);
 
       // Opening a file doesn't collapse a tree that the toggle above left
       fireEvent.click(screen.getByTestId("select-file-button"));
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(treeContainer.hidden).toBe(false);
     });
 
     it("should toggle and reveal the tree in single mode", async () => {
@@ -655,20 +655,20 @@ describe("EditorPaneV2", () => {
       const editorContainer = screen.getByTestId("editor-container");
       fireEvent.click(screen.getByTestId("select-file-button"));
       await waitFor(() => {
-        expect(treeContainer.classList.contains("hidden")).toBe(true);
+        expect(treeContainer.hidden).toBe(true);
       });
 
       await runEditorCommand("toggleSidebar");
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
-      expect(editorContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(false);
+      expect(editorContainer.hidden).toBe(true);
 
       await runEditorCommand("toggleSidebar");
-      expect(treeContainer.classList.contains("hidden")).toBe(true);
-      expect(editorContainer.classList.contains("hidden")).toBe(false);
+      expect(treeContainer.hidden).toBe(true);
+      expect(editorContainer.hidden).toBe(false);
 
       await runEditorCommand("revealActiveFile");
-      expect(treeContainer.classList.contains("hidden")).toBe(false);
-      expect(editorContainer.classList.contains("hidden")).toBe(true);
+      expect(treeContainer.hidden).toBe(false);
+      expect(editorContainer.hidden).toBe(true);
     });
   });
 

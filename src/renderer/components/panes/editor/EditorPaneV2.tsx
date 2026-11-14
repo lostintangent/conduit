@@ -26,7 +26,6 @@ import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { enqueueNotification } from "@/store/actions/notifications";
 import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
-import { cn } from "@/utils";
 import type { ChangesViewMode } from "@shared/types";
 import {
   keepPreviousData,
@@ -1468,10 +1467,8 @@ export function EditorPaneV2({
          */}
         <div
           ref={treePanelRef}
-          className={cn(
-            "flex-shrink-0 h-full overflow-hidden outline-none",
-            !showTree && "hidden",
-          )}
+          className="flex-shrink-0 h-full overflow-hidden outline-none"
+          hidden={!showTree}
           style={{
             width: showTree ? (layout === "split" ? treeWidth : "100%") : 0,
           }}
@@ -1548,10 +1545,8 @@ export function EditorPaneV2({
         {/* Editor View Panel */}
         <div
           ref={editorPanelRef}
-          className={cn(
-            "flex-1 min-w-0 h-full overflow-hidden outline-none",
-            layout === "single" && !showEditor && "hidden",
-          )}
+          className="flex-1 min-w-0 h-full overflow-hidden outline-none"
+          hidden={layout === "single" && !showEditor}
           data-testid="editor-container"
           tabIndex={-1}
         >
