@@ -1,5 +1,4 @@
-import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { TabPreviewItem } from "./TabPreviewItem";
 
@@ -16,32 +15,9 @@ export function TabPreviewOverlay({
   preview,
   onPreviewHoverChange,
 }: TabPreviewOverlayProps) {
-  const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
-
-  const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const outerContainerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!preview) {
-      unmountTabsFromPreview();
-      return;
-    }
-
-    const container = previewContainerRef.current;
-    if (container) {
-      mountTabsInPreview({ [preview.tabId]: container });
-    }
-
-    return unmountTabsFromPreview;
-  }, [preview, mountTabsInPreview, unmountTabsFromPreview]);
-
   if (!preview) return null;
-
-  const handleRefSet = (_tabId: string, el: HTMLDivElement | null) => {
-    if (el) {
-      previewContainerRef.current = el;
-    }
-  };
 
   // Single tab preview mode - overlay wrapper with positioning
   return createPortal(
@@ -68,7 +44,7 @@ export function TabPreviewOverlay({
         }
       }}
     >
-      <TabPreviewItem tabId={preview.tabId} onRefSet={handleRefSet} />
+      <TabPreviewItem tabId={preview.tabId} />
     </div>,
     document.body,
   );

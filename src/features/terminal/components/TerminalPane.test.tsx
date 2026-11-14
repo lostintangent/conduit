@@ -1,0 +1,99 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { Activity } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+const promptStream = vi.hoisted(() => {
+  const listeners = new Set<(payload: unknown) => void>();
+  (window as any).conduit = {
+    terminal: {
+      on: (_event: string, listener: (payload: unknown) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      prompt: () => new Promise(() => {}),
+    },
+  };
+  return {
+    emit: (chunk: object) =>
+      listeners.forEach((listener) =>
+        listener({ sessionId: "session-1", chunk }),
+      ),
+  };
+});
+
+let keyHandler: (event: KeyboardEvent) => boolean;
+vi.mock("../client/xtermCache", () => {
+  const terminal = {
+    options: {},
+    focus: () => {},
+    attachCustomKeyEventHandler: (handler: typeof keyHandler) => {
+      keyHandler = handler;
+    },
+  };
+  return {
+    attach: () => {},
+    getOrCreate: () => ({
+      terminal,
+      setLinkHandler: () => {},
+      setInputHandler: () => {},
+    }),
+    serializeSession: () => "",
+  };
+});
+vi.mock("../client/fitController", () => ({
+  createFitController: () => ({ dispose: () => {} }),
+}));
+vi.mock("./shell/RepoScriptsMenu", () => ({ RepoScriptsMenu: () => null }));
+vi.mock("./shell/TerminalGitStats", () => ({ TerminalGitStats: () => null }));
+vi.mock("./shell/sandbox/ComputeTargetIndicator", () => ({
+  ComputeTargetIndicator: () => null,
+}));
+
+import { TerminalPane } from "@features/terminal/components/TerminalPane";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { userSettingsAtom } from "@/store/atoms";
+
+describe("TerminalPane agent prompt", () => {
+  it("keeps receiving the agent's response while its tab is hidden", () => {
+    userSettingsAtom.set({
+      ...userSettingsAtom.get(),
+      agents: [
+        { id: "agent", name: "Agent", command: "agent", isDefault: true },
+      ],
+    });
+    const inTab = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <TooltipProvider>
+          <TerminalPane
+            pane={{
+              id: "pane-1",
+              type: "terminal",
+              sessionId: "session-1",
+              cwd: "/repo",
+              title: "zsh",
+            }}
+            isActive
+            tabId="tab-1"
+          />
+        </TooltipProvider>
+      </Activity>
+    );
+    const { rerender } = render(inTab("visible"));
+    act(() => {
+      keyHandler(new KeyboardEvent("keydown", { metaKey: true, key: "/" }));
+    });
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "why?" } });
+    fireEvent.submit(input);
+
+    rerender(inTab("hidden"));
+    act(() => {
+      promptStream.emit({ type: "data", data: "Because." });
+      promptStream.emit({ type: "end" });
+    });
+    rerender(inTab("visible"));
+
+    expect(screen.getByText(/Because\./)).toBeDefined();
+    expect(screen.getByRole("textbox")).toHaveProperty("disabled", false);
+  });
+});

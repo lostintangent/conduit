@@ -257,19 +257,43 @@ function buildGridTemplateStyles(
     : { gridTemplateRows: templateValue };
 }
 
-// Registers its node as the tab's portal mount point. The ref callback must
-// stay stable, because a new one would remove and re-add the mount point on
-// every render, and each of those updates re-renders the layout.
+// A tab's content renders through a portal into one host element, which
+// stays in the tab's panel, or moves into a preview of the tab. So hiding,
+// showing or previewing a tab never remounts its panes. Editors render
+// elsewhere and only place their DOM in a pane, and the portal is also how
+// React delivers their events to that pane, e.g. a click activating it.
+// Only the content hides with the tab, so the panel stays attached.
 function TabPanel({
   tabId,
+  isVisible,
+  tabContent,
+  children,
   ...props
-}: React.ComponentProps<"div"> & { tabId: string }) {
-  const { setLayoutMountPoint } = useTabContentPortal();
+}: React.ComponentProps<"div"> & {
+  tabId: string;
+  isVisible: boolean;
+  tabContent: React.ReactNode;
+}) {
+  const { attachPanel } = useTabContentPortal();
+  const [host] = useState(() => {
+    const element = document.createElement("div");
+    // Lays the content out as the panel's (or preview's) own child
+    element.style.display = "contents";
+    return element;
+  });
   const ref = useCallback(
-    (node: HTMLDivElement | null) => setLayoutMountPoint(tabId, node),
-    [setLayoutMountPoint, tabId],
+    (panel: HTMLDivElement) => attachPanel(tabId, panel, host),
+    [attachPanel, tabId, host],
   );
-  return <div {...props} ref={ref} />;
+
+  return (
+    <div {...props} ref={ref}>
+      <Activity mode={isVisible ? "visible" : "hidden"}>
+        {children}
+        {createPortal(tabContent, host)}
+      </Activity>
+    </div>
+  );
 }
 
 interface TabLayoutProps {
@@ -325,7 +349,7 @@ export function TabLayout({
     string | null
   >(null);
 
-  const { getActiveMountPoint, isTabInPreview } = useTabContentPortal();
+  const { isTabInPreview } = useTabContentPortal();
 
   const shouldShowTerminalDimensions = applicationMode === "normal";
 
@@ -919,10 +943,6 @@ export function TabLayout({
     (tab: Tab): React.ReactNode => {
       const isActive = tab.id === activeTabId;
 
-      // Get the tab's active mount point, which is either the tab or the tab
-      // preview hover.
-      const portalTarget = getActiveMountPoint(tab.id);
-
       // Check if all panes share the same sandbox context
       const unifiedSandbox = getUnifiedSandboxForTab(tab);
       const hasUnifiedSandbox = unifiedSandbox !== null;
@@ -954,6 +974,8 @@ export function TabLayout({
         <TabPanel
           key={tab.id}
           tabId={tab.id}
+          isVisible={isActive || isTabInPreview(tab.id)}
+          tabContent={tabContent}
           role="tabpanel"
           aria-hidden={!isActive}
           className={
@@ -965,8 +987,6 @@ export function TabLayout({
           onDragLeave={tabDropHandlers?.onDragLeave}
           onDrop={tabDropHandlers?.onDrop}
         >
-          {portalTarget ? createPortal(tabContent, portalTarget) : null}
-
           {/* Tab edge drop zone overlay for root-level splits */}
           {showTabEdgeOverlay && (
             <div
@@ -1009,7 +1029,7 @@ export function TabLayout({
     },
     [
       activeTabId,
-      getActiveMountPoint,
+      isTabInPreview,
       renderLayout,
       createTabContainerDropHandlers,
       isInDesignMode,
@@ -1021,18 +1041,7 @@ export function TabLayout({
 
   return (
     <div className="flex-1 flex relative min-h-0 overflow-hidden">
-      {tabs.map((tab) => (
-        <Activity
-          key={tab.id}
-          mode={
-            tab.id === activeTabId || isTabInPreview(tab.id)
-              ? "visible"
-              : "hidden"
-          }
-        >
-          {renderTab(tab)}
-        </Activity>
-      ))}
+      {tabs.map((tab) => renderTab(tab))}
 
       {isFocusModeActive && <FocusModeIndicator />}
 
