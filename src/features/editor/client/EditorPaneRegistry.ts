@@ -536,7 +536,7 @@ export class EditorPaneRegistry {
     const entry = this.panes.get(paneId);
     if (!entry) return;
 
-    for (const [_scrollId, scrollEntry] of entry.scrollContainers) {
+    for (const scrollEntry of entry.scrollContainers.values()) {
       // Skip if element is null (was unregistered due to conditional rendering)
       if (!scrollEntry.element) continue;
 
@@ -562,7 +562,7 @@ export class EditorPaneRegistry {
 
     // Use requestAnimationFrame to ensure DOM has settled after the move
     requestAnimationFrame(() => {
-      for (const [_scrollId, scrollEntry] of entry.scrollContainers) {
+      for (const scrollEntry of entry.scrollContainers.values()) {
         // Skip if element is null (was unregistered due to conditional rendering)
         // The position will be restored when the element is re-registered
         if (!scrollEntry.element) continue;

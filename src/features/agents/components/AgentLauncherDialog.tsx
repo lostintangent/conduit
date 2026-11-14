@@ -64,7 +64,6 @@ export function AgentLauncherDialog({
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(
     new Set(),
   );
-  const [_expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [launchTarget, setLaunchTarget] = useState<"same-folder" | "worktree">(
     "worktree",
   );
@@ -99,7 +98,6 @@ export function AgentLauncherDialog({
         : {},
     );
     setExpandedInstructions(new Set());
-    setExpandedAgents(new Set());
     setIsSubmitting(false);
   }, [defaultAgentId, isOpen, sortedAgents]);
 

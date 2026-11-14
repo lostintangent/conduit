@@ -223,7 +223,7 @@ export default [
       }
 
       // Show progress notification
-      const _notifId = enqueueNotification({
+      enqueueNotification({
         kind: "info",
         message: `Deleting ${agentSessionIds.size} worktree${agentSessionIds.size > 1 ? "s" : ""}...`,
       });

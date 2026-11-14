@@ -315,7 +315,6 @@ export function FileEditor(props: FileEditorProps) {
 
   const [editor, setEditor] =
     useState<monaco.editor.IStandaloneCodeEditor | null>(null);
-  const [controlsActivated, setControlsActivated] = useState(false);
 
   // Show diff toggle for modified files (not for added/untracked/readonly, and
   // deleted files are always readonly)
@@ -329,17 +328,6 @@ export function FileEditor(props: FileEditorProps) {
 
   // Model state for dirty tracking
   const modelState = useModelState(!isReadOnly ? fullFilePath : null);
-  const isDirty = !isReadOnly && (modelState?.isDirty ?? false);
-
-  useEffect(() => {
-    if (isDirty && !controlsActivated) {
-      setControlsActivated(true);
-    }
-  }, [isDirty, controlsActivated]);
-
-  // Show editor controls when dirty or previously activated (not for read-only,
-  // which includes deleted files)
-  const _showEditorControls = !isReadOnly && (isDirty || controlsActivated);
 
   // Save handler
   const handleSave = async () => {
