@@ -225,13 +225,15 @@ export class EditorPaneRegistry {
       this.offscreenContainer = document.createElement("div");
       this.offscreenContainer.id = "editor-pane-offscreen-container";
       this.offscreenContainer.setAttribute("aria-hidden", "true");
-      // Position off-screen but keep in DOM for Monaco to function
+      // Position off-screen but keep in DOM for Monaco to function. Zero size
+      // lets size observers tell "detached" apart from "narrow" (a hidden tab
+      // detaches its editors, and 1px would flip them to the single layout).
       Object.assign(this.offscreenContainer.style, {
         position: "absolute",
         left: "-10000px",
         top: "-10000px",
-        width: "1px",
-        height: "1px",
+        width: "0",
+        height: "0",
         overflow: "hidden",
         pointerEvents: "none",
         visibility: "hidden",
