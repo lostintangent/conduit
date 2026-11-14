@@ -1455,17 +1455,26 @@ export function EditorPaneV2({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedFile, onSave]);
 
+  // Reviews and commits fill the editor side without a file. Anything else
+  // without one is the empty state, which has no way back to the tree, so a
+  // single layout shows the tree instead, whatever cleared the file.
+  const isEditorSideEmpty =
+    !selectedFile &&
+    viewMode.type !== "changesReview" &&
+    viewMode.type !== "commitReview" &&
+    viewMode.type !== "commitFileDiff";
+
   // Determine visibility for each panel
   // In single layout: show based on panelView toggle
   // In split layout: tree can be collapsed via keyboard shortcut
   // hideFileTree prop overrides all other logic to force editor-only mode
+  const showSingleEditor = panelView === "editor" && !isEditorSideEmpty;
   const showTree = hideFileTree
     ? false
     : layout === "single"
-      ? panelView === "tree"
+      ? !showSingleEditor
       : !isTreeCollapsed;
-  const showEditor =
-    hideFileTree || layout === "split" || panelView === "editor";
+  const showEditor = hideFileTree || layout === "split" || showSingleEditor;
 
   return (
     <FileDiffStatsProvider git={git} fs={fs}>

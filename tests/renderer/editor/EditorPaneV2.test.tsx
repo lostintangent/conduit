@@ -44,9 +44,13 @@ vi.mock("../../../src/renderer/components/panes/editor/hooks", () => ({
     mockViewMode ??= initialViewMode;
     return {
       viewMode: mockViewMode,
-      isReviewMode: false,
-      enterReviewMode: vi.fn(),
-      exitReviewMode: vi.fn(),
+      isReviewMode: mockViewMode.type === "changesReview",
+      enterReviewMode: () => {
+        mockViewMode = { type: "changesReview" };
+      },
+      exitReviewMode: () => {
+        mockViewMode = { type: "editor" };
+      },
       setViewMode: mockSetViewMode,
       setViewModePreservingReview: mockSetViewModePreservingReview,
       handleTreeViewModeTransition: vi.fn(),
@@ -170,6 +174,17 @@ vi.mock(
           }
         >
           Select File
+        </button>
+        <button
+          data-testid="select-changes-file-button"
+          onClick={() =>
+            onFileSelect(
+              { path: "/project/test.ts", name: "test.ts", type: "file" },
+              "test.ts",
+            )
+          }
+        >
+          Select Changed File
         </button>
         <span data-testid="tree-view-mode">{treeViewMode}</span>
         <button
@@ -512,6 +527,36 @@ describe("EditorPaneV2", () => {
         expect(editorContainer.classList.contains("hidden")).toBe(true);
       },
     );
+
+    it("should return to the tree in single mode when the open file is committed away", async () => {
+      mockLayout.mockReturnValue("single");
+      const modified = { path: "test.ts", status: "modified", staged: false };
+      const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
+      const clean = { files: new Map(), branch: "main" };
+      mockGit.getStatus.mockResolvedValue(dirty);
+
+      render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
+      await reportStatus(dirty);
+      const treeContainer = screen.getByTestId("tree-container");
+      const editorContainer = screen.getByTestId("editor-container");
+
+      fireEvent.click(screen.getByTestId("select-changes-file-button"));
+      await waitFor(() => {
+        expect(editorContainer.classList.contains("hidden")).toBe(false);
+      });
+      expect(treeContainer.classList.contains("hidden")).toBe(true);
+
+      mockGit.getStatus.mockResolvedValue(clean);
+      await reportStatus(clean);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("editor-file-path").textContent).toBe(
+          "no-file",
+        );
+      });
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(editorContainer.classList.contains("hidden")).toBe(true);
+    });
   });
 
   // ===========================================================================
