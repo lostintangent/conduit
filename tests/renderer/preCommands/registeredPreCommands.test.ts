@@ -28,9 +28,9 @@ describe("registeredPreCommands", () => {
       conduit: {
         hasGitRepository: vi.fn(),
         spawnAgentSession: vi.fn(),
-        getSettings: vi.fn().mockResolvedValue({
-          homeDirectory: "/home/user",
-        }),
+        settings: {
+          get: vi.fn().mockResolvedValue({ homeDirectory: "/home/user" }),
+        },
       },
     };
   });
@@ -92,13 +92,13 @@ describe("registeredPreCommands", () => {
       const result = await verifyGitRepo.run(config);
 
       expect(result.success).toBe(true);
-      expect(mockApi.getSettings).toHaveBeenCalled();
+      expect(mockApi.settings.get).toHaveBeenCalled();
       expect(mockApi.hasGitRepository).toHaveBeenCalledWith("/home/user");
     });
 
     it("should fail when no cwd and no home directory", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.getSettings.mockResolvedValue({ homeDirectory: null });
+      mockApi.settings.get.mockResolvedValue({ homeDirectory: null });
 
       const config: TerminalConfig = {
         command: "git status",
@@ -184,7 +184,7 @@ describe("registeredPreCommands", () => {
       const result = await createAgentSession.run(config);
 
       expect(result.success).toBe(true);
-      expect(mockApi.getSettings).toHaveBeenCalled();
+      expect(mockApi.settings.get).toHaveBeenCalled();
       expect(mockApi.spawnAgentSession).toHaveBeenCalledWith({
         cwd: "/home/user",
       });
@@ -192,7 +192,7 @@ describe("registeredPreCommands", () => {
 
     it("should fail when no cwd and no home directory", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.getSettings.mockResolvedValue({ homeDirectory: null });
+      mockApi.settings.get.mockResolvedValue({ homeDirectory: null });
 
       const config: TerminalConfig = {
         command: "claude-code",
@@ -321,7 +321,7 @@ describe("registeredPreCommands", () => {
 
     it("should convert thrown errors into a failure result", async () => {
       const mockApi = (global as any).window.conduit;
-      mockApi.getSettings.mockRejectedValue(new Error("Settings unavailable"));
+      mockApi.settings.get.mockRejectedValue(new Error("Settings unavailable"));
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       const result = await runPreCommand("verify-git-repo", {

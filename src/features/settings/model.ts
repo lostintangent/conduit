@@ -76,7 +76,6 @@ export type UserSettings = {
   playButtonTarget?: PlayButtonTarget;
 
   // History/State
-  commandHistory: string[];
   urlHistory: string[];
   starredPages: BrowserPage[];
   homeDirectory: string | null;
@@ -86,3 +85,41 @@ export type UserSettings = {
   launchGroups?: LaunchGroup[];
   terminalPromptBufferLines?: number;
 };
+
+/**
+ * Every setting that has a default. Main fills in whatever settings.json
+ * leaves out from these, and the renderer starts from them until main replies.
+ */
+export const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
+  tabPosition: "bottom",
+  alwaysShowTabs: true,
+  useGradientBorders: false,
+  dimInactivePanes: false,
+  alwaysHighlightActivePane: false,
+  theme: "dark",
+
+  terminalFontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
+  terminalFontSize: 13,
+  terminalLinkTarget: "pane",
+  showTerminalRuler: false,
+  showTabState: true,
+
+  useConduitAsEditor: true,
+  trackUnseenChangesInReviewMode: true,
+
+  autoSaveWorkspaces: true,
+
+  urlHistory: [],
+  starredPages: [],
+
+  agents: [],
+  launchGroups: [],
+  terminalPromptBufferLines: 100,
+};
+
+declare module "@shared/rpc" {
+  interface Events {
+    /** settings.json changed outside the app, for example by hand or a dotfiles pull. */
+    settings: { changed: UserSettings };
+  }
+}

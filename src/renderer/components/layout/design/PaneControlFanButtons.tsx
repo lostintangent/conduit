@@ -149,9 +149,7 @@ export function PaneControlFanButtons({
 
           if (!editorCwd) {
             // Fallback to home directory
-            const homeDir = await api
-              .getSettings()
-              .then((s) => s.homeDirectory);
+            const { homeDirectory: homeDir } = await api.settings.get();
             editorCwd = homeDir || ".";
           }
 

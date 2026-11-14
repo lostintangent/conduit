@@ -8,7 +8,6 @@ import type {
   BackgroundCommandRequest,
   Workspace,
 } from "@shared/types";
-import type { BrowserPage, UserSettings } from "@features/settings/model";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";
@@ -43,12 +42,6 @@ const conduitAPI = {
 
   /* UI-related methods (UI->main) */
 
-  getSettings: () =>
-    ipcRenderer.invoke("ui:get-settings") as Promise<UserSettings>,
-
-  updateSettings: (updates: Partial<UserSettings>) =>
-    ipcRenderer.invoke("ui:update-settings", updates) as Promise<UserSettings>,
-
   showContextMenu: (options: {
     tabId: string;
     paneId?: string;
@@ -60,28 +53,6 @@ const conduitAPI = {
       keybinding?: string;
     }>;
   }) => ipcRenderer.send("ui:show-context-menu", options),
-
-  addCommandHistoryEntry: (command: string) =>
-    ipcRenderer.invoke("ui:add-command-history-entry", command) as Promise<
-      string[]
-    >,
-
-  removeCommandHistoryEntry: (command: string) =>
-    ipcRenderer.invoke("ui:remove-command-history-entry", command) as Promise<
-      string[]
-    >,
-
-  addUrlToHistory: (url: string) =>
-    ipcRenderer.invoke("ui:add-url-to-history", url) as Promise<string[]>,
-
-  removeUrlFromHistory: (url: string) =>
-    ipcRenderer.invoke("ui:remove-url-from-history", url) as Promise<string[]>,
-
-  addStarredPage: (page: BrowserPage) =>
-    ipcRenderer.invoke("ui:add-starred-page", page) as Promise<BrowserPage[]>,
-
-  removeStarredPage: (url: string) =>
-    ipcRenderer.invoke("ui:remove-starred-page", url) as Promise<BrowserPage[]>,
 
   runBackgroundCommand: (options: BackgroundCommandRequest) =>
     ipcRenderer.invoke("ui:run-background-command", options) as Promise<void>,

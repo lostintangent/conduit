@@ -2,7 +2,7 @@ import { app } from "electron";
 import { spawn } from "node-pty";
 import path from "node:path";
 import { getCliState } from "../../../ipc/cli";
-import { getCurrentUserSettings } from "../../../ipc/ui";
+import { settings } from "@features/settings/main/settings";
 
 /**
  * Get the path to the shell integration scripts directory.
@@ -72,7 +72,7 @@ export function spawnTerminalProcess(
 }
 
 export function resolveShell() {
-  const { terminalShell } = getCurrentUserSettings();
+  const { terminalShell } = settings.get();
   if (terminalShell) {
     return terminalShell;
   }
@@ -101,7 +101,7 @@ function buildTerminalEnv(sessionId: string): NodeJS.ProcessEnv {
   env.PATH = [cliDirectory, ...pathSegments].join(path.delimiter);
 
   // Set Conduit as the default editor (if the user hasn't disabled this behavior)
-  const { useConduitAsEditor } = getCurrentUserSettings();
+  const { useConduitAsEditor } = settings.get();
   if (useConduitAsEditor) {
     // Use --quick flag so $EDITOR invocations open in the quick pane (modal dialog)
     // Direct CLI usage (without --quick) will open in the sidebar editor

@@ -32,7 +32,11 @@ import { useAutoUpdater } from "@features/updates/components/useAutoUpdater";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
-import { useUserSettings } from "@features/settings/components/useUserSettings";
+import {
+  notifySettingsError,
+  useSettingsSync,
+  useUserSettings,
+} from "@features/settings/components/useUserSettings";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
 import {
   closeHyperTerminal,
@@ -83,6 +87,7 @@ export function App() {
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
   const hyperTerminals = useSelector(hyperTerminalsAtom);
 
+  useSettingsSync();
   const userSettings = useUserSettings();
   const {
     tabPosition,
@@ -834,7 +839,9 @@ export function App() {
           keybindingRegistry={commandSystem.keybindingRegistry}
           homeDirectory={homeDirectory}
           initialTab={settingsTab}
-          onUpdateSettings={userSettings.updateSettings}
+          onUpdateSettings={(updates) => {
+            userSettings.updateSettings(updates).catch(notifySettingsError);
+          }}
           userSettings={userSettings}
         />
       ) : settingsTab ? (

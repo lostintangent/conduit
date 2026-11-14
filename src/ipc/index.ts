@@ -16,19 +16,12 @@ import {
   handleGitWindowClose,
   initializeGitV2Handlers,
 } from "./git/handlers";
-import { initializeUIHandlers, initializeUserSettings } from "./ui";
+import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
 
-async function ensureConduitDirectory(): Promise<string> {
-  const homeDir = app.getPath("home");
-  const conduitDir = path.join(homeDir, ".conduit");
-
-  try {
-    await fs.access(conduitDir);
-  } catch {
-    await fs.mkdir(conduitDir, { recursive: true });
-  }
-
-  return conduitDir;
+async function ensureConduitDirectory() {
+  await fs.mkdir(path.join(app.getPath("home"), ".conduit"), {
+    recursive: true,
+  });
 }
 
 let stopFeatures: (() => Promise<void>) | undefined;
@@ -40,9 +33,8 @@ async function initializeIpcHandlers(window: BrowserWindow) {
     }
   };
 
-  const conduitStateDirectory = await ensureConduitDirectory();
-
-  await initializeUserSettings(window, conduitStateDirectory);
+  await ensureConduitDirectory();
+  await initializeApplicationMenu(window);
 
   stopFeatures = await startFeatures();
 
@@ -70,7 +62,7 @@ const SHUTDOWN_TIMEOUT_MS = 2000;
 /**
  * Release everything the window's session left running: file watchers, the
  * CLI server, and each feature's startup disposer (the terminal's PTYs and
- * prompt processes, and the update timer).
+ * prompt processes, the update timer, and the settings watcher).
  */
 async function shutdownIpcHandlers(): Promise<void> {
   await Promise.race([

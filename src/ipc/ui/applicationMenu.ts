@@ -1,6 +1,5 @@
 import { BrowserWindow, Menu, app, autoUpdater } from "electron";
 import type { Workspace } from "../../shared/types";
-import type { UserSettings } from "@features/settings/model";
 import { getUpdateStatus } from "@features/updates/main/startup";
 import type { UpdateStatus } from "@features/updates/model";
 import { getWorkspaces } from "@features/workspaces/main/service";
@@ -38,11 +37,7 @@ function buildCheckForUpdatesMenuItem(): Electron.MenuItemConstructorOptions {
   };
 }
 
-export async function updateApplicationMenu(
-  window: BrowserWindow,
-  _settings: UserSettings,
-  _saveSettings: (settings: UserSettings) => Promise<void>,
-) {
+export async function updateApplicationMenu(window: BrowserWindow) {
   const workspaces = await getWorkspaces();
   const updateMenuItem = buildCheckForUpdatesMenuItem();
 

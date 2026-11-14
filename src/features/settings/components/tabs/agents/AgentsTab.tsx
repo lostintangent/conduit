@@ -5,7 +5,7 @@
  */
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserSettings } from "../../useUserSettings";
+import { notifySettingsError, useUserSettings } from "../../useUserSettings";
 import type { AgentConfig, LaunchGroup } from "../../../model";
 import {
   Check,
@@ -183,9 +183,11 @@ export const AgentsTab = forwardRef<AgentsTabHandle, AgentsTabProps>(
       }
     };
 
-    const handleUpdateBufferLines = async (value: number) => {
+    const handleUpdateBufferLines = (value: number) => {
       setBufferLines(value);
-      await userSettings.updateSettings({ terminalPromptBufferLines: value });
+      userSettings
+        .updateSettings({ terminalPromptBufferLines: value })
+        .catch(notifySettingsError);
     };
 
     const handleResetToDefaults = async () => {

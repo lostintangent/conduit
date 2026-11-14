@@ -4,37 +4,11 @@ import { getDefaultActions } from "@/commands/paneActions/core/defaults";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
 import type { HyperTerminal, WorkspaceState } from "@shared/types";
-import type { UserSettings } from "@features/settings/model";
+import { defaultSettings, type UserSettings } from "@features/settings/model";
 import { createAtom, createFrozenAtom } from "@/store/createAtom";
 
 export const userSettingsAtom = createAtom<UserSettings>({
-  // UI/Layout settings
-  tabPosition: "bottom",
-  alwaysShowTabs: true,
-  alwaysHighlightActivePane: false,
-  useGradientBorders: false,
-  dimInactivePanes: false,
-  theme: "dark",
-
-  // Terminal settings
-  showTerminalRuler: false,
-  showTabState: true,
-
-  // Editor settings
-  useConduitAsEditor: true,
-  trackUnseenChangesInReviewMode: true,
-
-  // Workspace settings
-  autoSaveWorkspaces: true,
-
-  // Agent settings
-  agents: [],
-  launchGroups: [],
-
-  // History/State
-  commandHistory: [],
-  urlHistory: [],
-  starredPages: [],
+  ...defaultSettings,
   homeDirectory: null,
 });
 

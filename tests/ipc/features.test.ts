@@ -23,6 +23,14 @@ vi.mock("../../src/features/workspaces/main/startup", () => ({
   },
 }));
 
+// These read and watch the user's real settings and dotfiles.
+vi.mock("../../src/features/settings/main/startup", () => ({
+  default: () => {},
+}));
+vi.mock("../../src/features/dotfiles/main/startup", () => ({
+  default: () => {},
+}));
+
 import { featuresArgument, startFeatures } from "../../src/ipc/features";
 
 const manifest: Record<string, string[]> = JSON.parse(
@@ -34,12 +42,14 @@ describe("feature discovery", () => {
     expect(Object.keys(manifest).sort()).toEqual([
       "browser",
       "dotfiles",
+      "settings",
       "terminal",
       "updates",
       "workspaces",
     ]);
     expect(manifest.browser).toContain("captureScreenshot");
     expect(manifest.dotfiles).toContain("addFile");
+    expect(manifest.settings).toContain("update");
     expect(manifest.terminal).toContain("create");
     expect(manifest.updates).toContain("install");
     expect(manifest.workspaces).toContain("getState");

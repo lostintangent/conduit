@@ -1,195 +1,25 @@
 import { BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
 import { spawn } from "node:child_process";
 import type { BackgroundCommandRequest } from "../../shared/types";
-import type { BrowserPage, UserSettings } from "@features/settings/model";
-import {
-  initializeRepo as initializeDotfiles,
-  setDotfilesRepo,
-} from "@features/dotfiles/main";
 import { updateApplicationMenu } from "./applicationMenu";
 import { showContextMenu, type ContextMenuOptions } from "./contextMenu";
-import { loadSettings, saveSettings } from "@features/settings/main/settings";
 
-let userSettings: UserSettings | null = null;
-let refreshMenuCallback: (() => Promise<void>) | null = null;
+let menuWindow: BrowserWindow | undefined;
 
-const requireUserSettings = (): UserSettings => {
-  if (!userSettings) {
-    throw new Error("User settings have not been initialized.");
-  }
-  return userSettings;
-};
-
-export function getCurrentUserSettings(): UserSettings {
-  return requireUserSettings();
-}
-
-/**
- * Loads the user's settings and then initializes
- * the application menu from them.
- */
-export async function initializeUserSettings(
-  window: BrowserWindow,
-  conduitStateDirectory: string,
-) {
-  userSettings = await loadSettings(conduitStateDirectory);
-
-  // Initialize dotfiles with loaded settings, or auto-discover
-  const suggestedRepo = await initializeDotfiles(userSettings.dotfilesRepo);
-
-  // If auto-discovery found a repo, persist it to settings
-  if (suggestedRepo) {
-    userSettings.dotfilesRepo = suggestedRepo;
-    await saveSettings(userSettings);
-  }
-
-  refreshMenuCallback = async () =>
-    updateApplicationMenu(window, requireUserSettings(), saveSettings);
-  await refreshMenuCallback();
+/** Builds the application menu for `window`, which each refresh rebuilds. */
+export async function initializeApplicationMenu(window: BrowserWindow) {
+  menuWindow = window;
+  await refreshApplicationMenu();
 }
 
 export async function refreshApplicationMenu() {
-  await refreshMenuCallback?.();
+  if (menuWindow) await updateApplicationMenu(menuWindow);
 }
 
 /**
  * Registers the IPC handlers for the UI channel.
  */
 export function initializeUIHandlers(window: BrowserWindow) {
-  ipcMain.handle("ui:get-settings", () => requireUserSettings());
-
-  ipcMain.handle(
-    "ui:update-settings",
-    async (_, updates: Partial<UserSettings>) => {
-      const currentSettings = requireUserSettings();
-      const oldDotfilesRepo = currentSettings.dotfilesRepo;
-
-      userSettings = {
-        ...currentSettings,
-        ...updates,
-      };
-
-      await saveSettings(userSettings);
-
-      // Check if dotfilesRepo changed
-      if (userSettings.dotfilesRepo !== oldDotfilesRepo) {
-        await setDotfilesRepo(userSettings.dotfilesRepo);
-      }
-
-      await refreshApplicationMenu();
-      return requireUserSettings();
-    },
-  );
-
-  ipcMain.handle("ui:add-command-history-entry", async (_, command: string) => {
-    const currentSettings = requireUserSettings();
-    const trimmedCommand = command.trim();
-    const updatedHistory = [
-      trimmedCommand,
-      ...currentSettings.commandHistory.filter(
-        (entry) => entry !== trimmedCommand,
-      ),
-    ].slice(0, 5);
-
-    userSettings = {
-      ...currentSettings,
-      commandHistory: updatedHistory,
-    };
-
-    await saveSettings(userSettings);
-
-    return requireUserSettings().commandHistory;
-  });
-
-  ipcMain.handle("ui:add-url-to-history", async (_, url: string) => {
-    const currentSettings = requireUserSettings();
-    const trimmedUrl = url.trim();
-    const updatedHistory = [
-      trimmedUrl,
-      ...currentSettings.urlHistory.filter((entry) => entry !== trimmedUrl),
-    ].slice(0, 5);
-
-    userSettings = {
-      ...currentSettings,
-      urlHistory: updatedHistory,
-    };
-
-    await saveSettings(userSettings);
-
-    return requireUserSettings().urlHistory;
-  });
-
-  ipcMain.handle("ui:remove-url-from-history", async (_, url: string) => {
-    const currentSettings = requireUserSettings();
-    const trimmedUrl = url.trim();
-
-    userSettings = {
-      ...currentSettings,
-      urlHistory: currentSettings.urlHistory.filter(
-        (entry) => entry !== trimmedUrl,
-      ),
-    };
-
-    await saveSettings(userSettings);
-
-    return requireUserSettings().urlHistory;
-  });
-
-  ipcMain.handle("ui:add-starred-page", async (_, page: BrowserPage) => {
-    const currentSettings = requireUserSettings();
-    const trimmedUrl = page.url.trim();
-    const title = page.title.trim() || trimmedUrl;
-
-    const updatedPages = [
-      { url: trimmedUrl, title },
-      ...currentSettings.starredPages.filter(
-        (entry) => entry.url !== trimmedUrl,
-      ),
-    ];
-
-    userSettings = {
-      ...currentSettings,
-      starredPages: updatedPages,
-    };
-
-    await saveSettings(userSettings);
-
-    return requireUserSettings().starredPages;
-  });
-
-  ipcMain.handle("ui:remove-starred-page", async (_, url: string) => {
-    const currentSettings = requireUserSettings();
-    const trimmedUrl = url.trim();
-
-    userSettings = {
-      ...currentSettings,
-      starredPages: currentSettings.starredPages.filter(
-        (entry) => entry.url !== trimmedUrl,
-      ),
-    };
-
-    await saveSettings(userSettings);
-
-    return requireUserSettings().starredPages;
-  });
-
-  ipcMain.handle(
-    "ui:remove-command-history-entry",
-    async (_, command: string) => {
-      const currentSettings = requireUserSettings();
-      userSettings = {
-        ...currentSettings,
-        commandHistory: currentSettings.commandHistory.filter(
-          (entry) => entry !== command,
-        ),
-      };
-
-      await saveSettings(userSettings);
-
-      return requireUserSettings().commandHistory;
-    },
-  );
-
   ipcMain.on("ui:show-context-menu", (_, options: ContextMenuOptions) =>
     showContextMenu(window, options),
   );

@@ -1,15 +1,38 @@
+import { enqueueNotification } from "@/store/actions/notifications";
 import { userSettingsAtom } from "@/store/atoms";
 import { useAtom } from "@tanstack/react-store";
 import { useEffect } from "react";
+import type { BrowserPage, UserSettings } from "../model";
 
-const api = window.conduit;
+const api = () => window.conduit.settings;
+
+/** Shows a failed save, for callers that don't wait for one. */
+export function notifySettingsError(error: unknown) {
+  enqueueNotification({
+    kind: "error",
+    message: "Couldn't update settings",
+    details: error instanceof Error ? error.message : String(error),
+  });
+}
+
+/**
+ * Loads settings into `userSettingsAtom`, and keeps them current when
+ * settings.json changes outside the app. The app calls this once.
+ */
+export function useSettingsSync() {
+  useEffect(() => {
+    const unsubscribe = api().on("changed", userSettingsAtom.set);
+    api().get().then(userSettingsAtom.set);
+    return unsubscribe;
+  }, []);
+}
 
 export function useUserSettings() {
   const [userSettings, setUserSettings] = useAtom(userSettingsAtom);
 
-  function updateSetting<K extends keyof typeof userSettings>(
+  function updateSetting<K extends keyof UserSettings>(
     key: K,
-    value: (typeof userSettings)[K],
+    value: UserSettings[K],
   ) {
     setUserSettings((current) => ({
       ...current,
@@ -17,64 +40,32 @@ export function useUserSettings() {
     }));
   }
 
-  // Load initial settings
-  useEffect(() => {
-    api.getSettings().then(setUserSettings);
-  }, []);
+  async function updateSettings(updates: Partial<UserSettings>) {
+    setUserSettings(await api().update(updates));
+  }
 
-  async function updateCommandHistory(
-    command: string,
-    action: "add" | "remove",
+  // The browser doesn't wait for these, so they show a failure themselves.
+  function save<K extends keyof UserSettings>(
+    key: K,
+    saved: Promise<UserSettings[K]>,
   ) {
-    const commandHistory =
-      action === "add"
-        ? await api.addCommandHistoryEntry(command)
-        : await api.removeCommandHistoryEntry(command);
-
-    updateSetting("commandHistory", commandHistory);
-  }
-
-  async function updateUrlHistory(url: string) {
-    const urlHistory = await api.addUrlToHistory(url);
-    updateSetting("urlHistory", urlHistory);
-  }
-
-  async function removeUrlFromHistory(url: string) {
-    const urlHistory = await api.removeUrlFromHistory(url);
-    updateSetting("urlHistory", urlHistory);
-  }
-
-  async function updateSettings(updates: Partial<typeof userSettings>) {
-    const newSettings = await api.updateSettings(updates);
-    setUserSettings(newSettings);
-  }
-
-  async function addStarredPage(
-    page: (typeof userSettings)["starredPages"][number],
-  ) {
-    const starredPages = await api.addStarredPage(page);
-    updateSetting("starredPages", starredPages);
-  }
-
-  async function removeStarredPage(url: string) {
-    const starredPages = await api.removeStarredPage(url);
-    updateSetting("starredPages", starredPages);
+    return saved
+      .then((value) => updateSetting(key, value))
+      .catch(notifySettingsError);
   }
 
   return {
     ...userSettings,
     updateSettings,
 
-    // Command history management (for the terminal in the command palette)
-    addCommandHistoryEntry: (command: string) =>
-      updateCommandHistory(command, "add"),
-    removeCommandHistoryEntry: (command: string) =>
-      updateCommandHistory(command, "remove"),
-
     // Browser pane state management
-    addUrlToHistory: (url: string) => updateUrlHistory(url),
-    removeUrlFromHistory: (url: string) => removeUrlFromHistory(url),
-    addStarredPage,
-    removeStarredPage,
+    addUrlToHistory: (url: string) =>
+      save("urlHistory", api().addUrlToHistory(url)),
+    removeUrlFromHistory: (url: string) =>
+      save("urlHistory", api().removeUrlFromHistory(url)),
+    addStarredPage: (page: BrowserPage) =>
+      save("starredPages", api().addStarredPage(page)),
+    removeStarredPage: (url: string) =>
+      save("starredPages", api().removeStarredPage(url)),
   };
 }

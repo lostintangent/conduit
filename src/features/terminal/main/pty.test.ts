@@ -11,8 +11,8 @@ vi.mock("../../../ipc/cli", () => ({
     socketPath: "/conduit/socket",
   }),
 }));
-vi.mock("../../../ipc/ui", () => ({
-  getCurrentUserSettings: () => ({ terminalShell: "/bin/zsh" }),
+vi.mock("../../settings/main/settings", () => ({
+  settings: { get: () => ({ terminalShell: "/bin/zsh" }) },
 }));
 
 import { spawnTerminalProcess } from "./pty";

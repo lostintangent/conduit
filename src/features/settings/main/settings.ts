@@ -1,81 +1,143 @@
 import { app } from "electron";
-import { promises as fs } from "node:fs";
+import { readFileSync, unwatchFile, watchFile } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { UserSettings } from "../model";
+import { defaultSettings, type UserSettings } from "../model";
 
-const SETTINGS_FILE_NAME = "settings.json";
-let settingsPath: string;
+/**
+ * The user's settings in `~/.conduit/settings.json`, a file that also takes
+ * hand edits. It's read on first use and kept in memory. Every read and write
+ * of the file runs in one queue, and a write rejects if it couldn't be written.
+ * `watch` checks the file for outside edits every `watchIntervalMs`.
+ */
+export function openSettings(home: () => string, watchIntervalMs = 1000) {
+  const filePath = () => path.join(home(), ".conduit", "settings.json");
 
-const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
-  tabPosition: "bottom",
-  alwaysShowTabs: true,
-  alwaysHighlightActivePane: false,
-  commandHistory: [],
-  urlHistory: [],
-  starredPages: [],
-  showTerminalRuler: false,
-  showTabState: true,
-  terminalLinkTarget: "pane",
-  autoSaveWorkspaces: true,
-  useGradientBorders: false,
-  dimInactivePanes: false,
-  useConduitAsEditor: true,
-  trackUnseenChangesInReviewMode: true, // Show unseen indicators in Review Mode by default
-  theme: "dark",
-  terminalPromptBufferLines: 100,
-  terminalFontFamily: '"Fira Code", Menlo, Monaco, "Courier New", monospace',
-  terminalFontSize: 13,
-};
+  let current: UserSettings | undefined;
 
-export async function loadSettings(
-  conduitStateDirectory: string,
-): Promise<UserSettings> {
-  settingsPath = path.join(conduitStateDirectory, SETTINGS_FILE_NAME);
+  // The file's text as we last read or wrote it. When the file still holds
+  // it, nobody else has changed it, so our own writes don't count as edits.
+  let lastContents: string | undefined;
 
-  const homeDirectory = app.getPath("home");
+  let queue: Promise<unknown> = Promise.resolve();
+  function enqueue<T>(task: () => Promise<T>): Promise<T> {
+    const result = queue.then(task);
+    queue = result.catch(() => undefined);
+    return result;
+  }
 
-  const settings = {
-    ...defaultSettings,
-    homeDirectory,
-  };
+  function fromFile(contents: string): UserSettings {
+    let saved: unknown;
+    try {
+      saved = JSON.parse(contents);
+    } catch (error) {
+      throw new Error(
+        `settings.json doesn't parse: ${(error as Error).message}`,
+      );
+    }
+    if (typeof saved !== "object" || saved === null || Array.isArray(saved)) {
+      throw new Error("settings.json doesn't hold a JSON object");
+    }
+    return { ...defaultSettings, homeDirectory: home(), ...saved };
+  }
 
-  try {
-    const fileContents = await fs.readFile(settingsPath, "utf-8");
-    const savedSettings = JSON.parse(fileContents) as UserSettings;
+  function get(): UserSettings {
+    if (current) return current;
 
-    return {
-      ...settings,
-      ...savedSettings,
+    try {
+      const contents = readFileSync(filePath(), "utf-8");
+      current = fromFile(contents);
+      // Only a file that parsed counts as ours to overwrite.
+      lastContents = contents;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.error("[Settings] Using defaults:", error);
+      }
+      current = { ...defaultSettings, homeDirectory: home() };
+    }
+    return current;
+  }
+
+  let onExternalChange: ((settings: UserSettings) => void) | undefined;
+
+  /**
+   * Applies settings.json if someone else has changed it since we last looked.
+   * A missing file changes nothing, so deleting it can't clear a setting like
+   * the dotfiles repo. A file that doesn't parse throws.
+   */
+  async function reload(): Promise<void> {
+    get();
+    let contents: string;
+    try {
+      contents = await readFile(filePath(), "utf-8");
+    } catch {
+      return;
+    }
+    if (contents === lastContents) return;
+
+    current = fromFile(contents);
+    lastContents = contents;
+    onExternalChange?.(current);
+  }
+
+  /**
+   * Merges `change` into the latest settings, including any edit made on disk
+   * since we last looked, and writes the result. It refuses to replace a file
+   * that doesn't parse, since that would throw away the user's text.
+   */
+  function update(
+    change: (settings: UserSettings) => Partial<UserSettings>,
+  ): Promise<UserSettings> {
+    return enqueue(async () => {
+      await reload();
+      const latest = get();
+      const next = { ...latest, ...change(latest) };
+      const contents = serialize(next);
+
+      // A plain write rather than write-and-rename, because settings.json
+      // may be a symlink into the dotfiles repo, and a rename would replace it.
+      await writeFile(filePath(), contents, "utf-8");
+      current = next;
+      lastContents = contents;
+      return next;
+    });
+  }
+
+  /**
+   * Calls `onChange` with the new settings whenever settings.json changes
+   * outside the app, and returns the function that stops watching. It polls
+   * the file because a watch on its directory misses edits that reach it
+   * through a symlink, like a dotfiles pull.
+   */
+  function watch(onChange: (settings: UserSettings) => void): () => void {
+    onExternalChange = onChange;
+    const watched = filePath();
+    const listener = () => {
+      enqueue(reload).catch((error: Error) =>
+        console.error("[Settings] Ignoring settings.json:", error.message),
+      );
     };
-  } catch {
-    console.log("[Settings] No saved settings, using defaults");
-    return settings;
+    watchFile(watched, { interval: watchIntervalMs }, listener);
+    return () => {
+      unwatchFile(watched, listener);
+      onExternalChange = undefined;
+    };
   }
+
+  return { get, update, watch };
 }
 
-export async function saveSettings(settings: UserSettings) {
-  // Save the updated settings, but only the non-default values
-  const payload: Partial<UserSettings> = {};
-  for (const [key, value] of Object.entries(settings)) {
-    if (key === "homeDirectory") {
-      continue;
-    }
-
-    if (Array.isArray(value) && value.length === 0) {
-      continue;
-    }
-
-    if (value === defaultSettings[key as keyof typeof defaultSettings]) {
-      continue;
-    }
-
-    // @ts-expect-error - Dynamic key assignment
-    payload[key] = value;
-  }
-
-  try {
-    await fs.writeFile(settingsPath, JSON.stringify(payload, null, 2), "utf-8");
-  } catch (error) {
-    console.error("Failed to save settings:", error);
-  }
+/** settings.json keeps only what differs from the defaults. */
+function serialize(settings: UserSettings): string {
+  const saved = Object.fromEntries(
+    Object.entries(settings).filter(
+      ([key, value]) =>
+        key !== "homeDirectory" &&
+        !(Array.isArray(value) && value.length === 0) &&
+        value !== defaultSettings[key as keyof typeof defaultSettings],
+    ),
+  );
+  return JSON.stringify(saved, null, 2);
 }
+
+export const settings = openSettings(() => app.getPath("home"));
