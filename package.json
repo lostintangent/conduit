@@ -60,7 +60,7 @@
     "commander": "^15.1.0",
     "ignore": "^7.0.14",
     "immer": "^11.2.10",
-    "katex": "^0.16.47",
+    "katex": "^0.19.1",
     "lucide-react": "^1.72.0",
     "monaco-editor": "^0.57.0",
     "node-pty": "^1.1.0",
@@ -78,6 +78,7 @@
     "yaml": "^2.9.1"
   },
   "overrides": {
-    "dompurify": "^3.4.17"
+    "dompurify": "^3.4.17",
+    "katex": "^0.19.1"
   }
 }
