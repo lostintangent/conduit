@@ -1,5 +1,6 @@
+import { spawn } from "node:child_process";
 import * as os from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createGit } from "../../../src/ipc/git/createGit";
 
 const shellEnv = {
@@ -13,6 +14,18 @@ const shellEnv = {
 
 describe("createGit", () => {
   const originalEnv = { ...process.env };
+
+  // Under `bun test`, a fresh worker's first spawn can be slow enough that a
+  // fast child like `git var` exits before spawn() returns. Bun then emits its
+  // exit and close, and drops its stdout, before simple-git can listen, so the
+  // call never settles. Pay that first spawn on `cat`, which can't exit until
+  // its stdin closes after spawn() has returned.
+  beforeAll(async () => {
+    const cat = spawn("cat");
+    const closed = new Promise((resolve) => cat.on("close", resolve));
+    cat.stdin.end();
+    await closed;
+  });
 
   afterEach(() => {
     for (const key of Object.keys(shellEnv)) {
