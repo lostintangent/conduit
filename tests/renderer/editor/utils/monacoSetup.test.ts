@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { languages, json, typescript, loadMarkdown } = vi.hoisted(() => {
+const { editor, languages, json, typescript, loadMarkdown } = vi.hoisted(() => {
   const loadMarkdown = vi.fn(async () => ({}));
   return {
     loadMarkdown,
+    editor: { addKeybindingRules: vi.fn() },
     languages: {
       register: vi.fn(),
       setMonarchTokensProvider: vi.fn(),
@@ -27,7 +28,14 @@ const { languages, json, typescript, loadMarkdown } = vi.hoisted(() => {
   };
 });
 
-vi.mock("monaco-editor", () => ({ languages, json, typescript }));
+vi.mock("monaco-editor", () => ({
+  editor,
+  languages,
+  json,
+  typescript,
+  KeyMod: { CtrlCmd: 2048, Alt: 512 },
+  KeyCode: { UpArrow: 16, DownArrow: 18 },
+}));
 
 // configureMonaco only runs once per module instance, so each test loads a fresh one
 async function configureFreshMonaco() {
@@ -89,6 +97,21 @@ describe("configureMonaco", () => {
         noSuggestionDiagnostics: true,
       });
     }
+  });
+
+  it("leaves Cmd+Option+Up and Down to pane navigation", async () => {
+    await configureFreshMonaco();
+
+    expect(editor.addKeybindingRules).toHaveBeenCalledWith([
+      {
+        keybinding: 2048 | 512 | 16,
+        command: "-editor.action.insertCursorAbove",
+      },
+      {
+        keybinding: 2048 | 512 | 18,
+        command: "-editor.action.insertCursorBelow",
+      },
+    ]);
   });
 
   // Monaco's markdown contribution registers its own handler at import time.

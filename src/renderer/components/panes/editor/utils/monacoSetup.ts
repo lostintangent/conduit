@@ -10,6 +10,7 @@
  * - Zig, TOML, Makefile and diff: Monarch tokenizers Monaco doesn't ship
  * - JSONC: .jsonc files open as JSON with comments and trailing commas allowed
  * - TypeScript/JavaScript: diagnostics disabled (custom URI schemes not supported)
+ * - Keybindings: Cmd+Option+Up/Down navigate panes instead of adding cursors
  */
 
 import * as monaco from "monaco-editor";
@@ -110,6 +111,20 @@ export function configureMonaco(): void {
       });
     });
   });
+
+  // Cmd+Option+Arrow navigates panes. Monaco only binds Up and Down (to add a
+  // cursor), and removing those lets the keys reach the app.
+  const { KeyMod, KeyCode } = monaco;
+  monaco.editor.addKeybindingRules([
+    {
+      keybinding: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.UpArrow,
+      command: "-editor.action.insertCursorAbove",
+    },
+    {
+      keybinding: KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.DownArrow,
+      command: "-editor.action.insertCursorBelow",
+    },
+  ]);
 
   // Disable TypeScript/JavaScript diagnostics globally
   // Monaco's TS language service can't resolve imports with custom URI schemes

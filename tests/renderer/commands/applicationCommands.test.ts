@@ -11,19 +11,26 @@ import {
   registerApplicationCommands,
   _resetCommandRegistration,
 } from "@/commands/applicationCommands";
-import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
+import { hasActivePane } from "@/commands/contextKeys/appContextKeys";
+import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
+import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { CommandDescriptor } from "@/commands/core/types";
 import * as handlers from "@/commands/handlers";
+import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
+import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import * as focusModeActions from "@/store/actions/focusMode";
+import { navigatePane } from "@/store/actions/paneNavigation";
 import * as tabActions from "@/store/actions/tab";
 import { notificationsAtom } from "@/store/atoms";
 import type { Tab, TerminalPane } from "@/types";
+import { renderHook } from "@testing-library/react";
 import { commandContext } from "./fixtures";
 
 // Mock store actions
 vi.mock("@/store/actions/focusMode");
 vi.mock("@/store/actions/tab");
 vi.mock("@/commands/handlers");
+vi.mock("@/store/actions/paneNavigation");
 
 describe("applicationCommands", () => {
   let mockRegistry: CommandRegistry;
@@ -632,6 +639,43 @@ describe("applicationCommands", () => {
           mockContext.setIsUrlDialogOpen,
         );
       });
+    });
+  });
+
+  // Editors keep Cmd+Arrow for moving the cursor, so pane navigation also
+  // takes Cmd+Option+Arrow, which reaches the app from every pane type.
+  describe("pane navigation keys", () => {
+    it.each([
+      ["ArrowLeft", "left"],
+      ["ArrowRight", "right"],
+      ["ArrowUp", "up"],
+      ["ArrowDown", "down"],
+    ])("Cmd+Option+%s moves focus to the pane %s", async (key, direction) => {
+      const contextKeys = new ContextKeyService();
+      contextKeys.setGlobal(hasActivePane.key, true);
+      const keybindings = new KeybindingRegistry();
+      const registry = new CommandRegistry(contextKeys, keybindings);
+      registry.setContextBuilder(() =>
+        commandContext({
+          contextKeys,
+          activeTab: { id: "tab-1" } as Tab,
+          activePaneId: "pane-1",
+        }),
+      );
+      registerApplicationCommands(registry);
+      renderHook(() => useKeybindingDispatch(registry, keybindings));
+
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key,
+          metaKey: true,
+          altKey: true,
+          bubbles: true,
+        }),
+      );
+      await Promise.resolve();
+
+      expect(navigatePane).toHaveBeenCalledWith("tab-1", "pane-1", direction);
     });
   });
 });
