@@ -24,7 +24,7 @@
 
 import * as fs from "node:fs";
 import { GitProviderService } from "@features/git/main/GitProviderService";
-import { ProviderPool } from "../ProviderPool";
+import { ProviderPool } from "../../../ipc/ProviderPool";
 import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
 
 interface ProviderEntry {

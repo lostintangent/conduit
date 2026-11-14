@@ -23,7 +23,7 @@
 import * as fs from "node:fs/promises";
 import * as nodePath from "node:path";
 
-import { EventEmitter } from "../../shared/EventEmitter";
+import { EventEmitter } from "@shared/EventEmitter";
 import { DirectoryCache } from "./DirectoryCache";
 import { GitIgnoreCache } from "./GitIgnoreCache";
 import { ParcelFileWatcher } from "./ParcelFileWatcher";
@@ -38,7 +38,7 @@ import {
   type FileRenamedEvent,
   type FileStat,
   type FileSystemProvider,
-} from "./types";
+} from "../model";
 
 // ============================================================================
 // Constants

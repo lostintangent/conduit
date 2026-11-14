@@ -19,8 +19,8 @@ vi.mock("@parcel/watcher", () => ({
 }));
 
 import watcher from "@parcel/watcher";
-import { FileSystemProviderService } from "../../../src/ipc/fs/FileSystemProviderService";
-import { initializeFileSystemV2Handlers } from "../../../src/ipc/fs/handlers";
+import { FileSystemProviderService } from "./FileSystemProviderService";
+import { initializeFileSystemV2Handlers } from "./handlers";
 
 describe("fs-v2 read handlers", () => {
   let dir: string;

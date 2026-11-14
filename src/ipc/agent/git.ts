@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { toCallerPath } from "../fs/pathUtils";
+import { toCallerPath } from "@features/files/main/pathUtils";
 
 const execFileAsync = promisify(execFile);
 

@@ -65,12 +65,12 @@ const { MockFileSystemV2API } = vi.hoisted(() => {
 });
 
 // Mock the FileSystemV2API class
-vi.mock("../../../src/renderer/api/FileSystemV2API", () => ({
+vi.mock("./FileSystemV2API", () => ({
   FileSystemV2API: MockFileSystemV2API,
 }));
 
 // Import after mocks are set up
-import { FileSystemV2APIService } from "../../../src/renderer/services/FileSystemV2APIService";
+import { FileSystemV2APIService } from "./FileSystemV2APIService";
 
 const isSuspended = (api: unknown) =>
   (api as InstanceType<typeof MockFileSystemV2API>).isSuspended;

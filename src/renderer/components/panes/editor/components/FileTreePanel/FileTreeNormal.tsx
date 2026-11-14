@@ -18,7 +18,7 @@
  * ```
  */
 
-import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
 import { useSettings } from "@features/settings/client/queries";
 import { cn } from "@/utils";
 import { FileText, Folder } from "lucide-react";
@@ -46,7 +46,7 @@ import {
   pathsEqual,
 } from "../../utils";
 
-import type { DirectoryEntry } from "@/../../src/ipc/fs/types";
+import type { DirectoryEntry } from "@features/files/model";
 import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";

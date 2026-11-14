@@ -6,8 +6,8 @@
  * higher-level API with subscription management, use the FileSystemV2API
  * class in the renderer.
  *
- * @see src/renderer/api/FileSystemV2API.ts
- * @see src/ipc/fs/main/handlers.ts
+ * @see src/features/files/client/FileSystemV2API.ts
+ * @see src/features/files/main/handlers.ts
  */
 
 import { ipcRenderer } from "electron";
@@ -15,7 +15,7 @@ import type {
   DeleteOptions,
   DirectoryEntry,
   FileStat,
-} from "../../../ipc/fs/types";
+} from "@features/files/model";
 import { createEventListener } from "../utils";
 
 // ============================================================================

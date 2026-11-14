@@ -68,7 +68,7 @@
     },
     {
       "files": [
-        "tests/renderer/api/FileSystemV2API.test.ts",
+        "src/features/files/client/FileSystemV2API.test.ts",
         "src/features/git/client/GitV2API.test.ts"
       ],
       "rules": {

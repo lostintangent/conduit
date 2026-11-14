@@ -22,7 +22,7 @@
  * ```
  */
 
-import { QuickOpenAPI } from "@/api/QuickOpenAPI";
+import { QuickOpenAPI } from "@features/files/client/QuickOpenAPI";
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import {
   Dialog,

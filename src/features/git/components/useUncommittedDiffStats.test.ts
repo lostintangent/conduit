@@ -70,7 +70,7 @@ vi.mock("./useGitV2", () => ({
 }));
 
 // Mock useFileSystemV2
-vi.mock("@/hooks/useFileSystemV2", () => ({
+vi.mock("@features/files/components/useFileSystemV2", () => ({
   useFileSystemV2: vi.fn((cwd: string) => {
     let api = mockFsInstances.get(cwd);
     if (!api) {

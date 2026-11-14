@@ -25,8 +25,8 @@
 
 import { gitKeys, gitQueries } from "../client/queries";
 import type { GitFileStatus } from "../model";
-import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
-import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
+import { useFileEditsSettled } from "@features/files/components/useFileEditsSettled";
+import { useFileSystemV2 } from "@features/files/components/useFileSystemV2";
 import { useGitV2 } from "./useGitV2";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 

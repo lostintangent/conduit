@@ -19,7 +19,7 @@ const dirEntry = (name: string) => ({
  */
 async function getCleanCache() {
   vi.resetModules();
-  const module = await import("../../../src/ipc/fs/DirectoryCache");
+  const module = await import("./DirectoryCache");
   return module.DirectoryCache;
 }
 

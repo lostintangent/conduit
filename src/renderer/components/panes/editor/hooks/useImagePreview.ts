@@ -16,7 +16,7 @@
  * ```
  */
 
-import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
+import { useFileSystemV2 } from "@features/files/components/useFileSystemV2";
 import { useEffect, useState } from "react";
 
 /** Image extensions that are binary (not text-based) */

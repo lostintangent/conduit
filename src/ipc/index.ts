@@ -11,8 +11,8 @@ import {
   cleanupFileSystemV2Handlers,
   initializeFileSystemV2Handlers,
   releaseFileSystemSubscriptions,
-} from "./fs/handlers";
-import { unwatchAll } from "./fs/ParcelFileWatcher";
+} from "@features/files/main/handlers";
+import { unwatchAll } from "@features/files/main/ParcelFileWatcher";
 import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
 
 async function ensureConduitDirectory() {

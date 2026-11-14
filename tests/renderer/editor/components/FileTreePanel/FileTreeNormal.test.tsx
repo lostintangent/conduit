@@ -81,7 +81,7 @@ const mockFsAPI = {
 };
 
 // Mock useFileSystemV2 hook
-vi.mock("@/hooks/useFileSystemV2", () => ({
+vi.mock("@features/files/components/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFsAPI,
 }));
 

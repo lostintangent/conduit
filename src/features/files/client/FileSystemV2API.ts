@@ -33,14 +33,14 @@ import type {
   DeleteOptions,
   DirectoryEntry,
   FileStat,
-} from "../../ipc/fs/types";
+} from "../model";
 import type {
   DirectoryListingChangedPayload,
   FileContentChangedPayload,
   FileDeletedPayload,
   FileRenamedPayload,
-} from "../../preload/window/modules/fs";
-import { normalizePathForKey } from "../utils/pathUtils";
+} from "../../../preload/window/modules/fs";
+import { normalizePathForKey } from "@/utils/pathUtils";
 
 // ============================================================================
 // Types

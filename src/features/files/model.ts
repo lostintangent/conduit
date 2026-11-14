@@ -147,7 +147,7 @@ export interface DeleteOptions {
 }
 
 // Re-export common event system types from shared
-export type { Disposable, Event } from "../../shared/types";
+export type { Disposable, Event } from "@shared/types";
 
 /**
  * Cleanup function returned by event subscriptions.

@@ -29,7 +29,7 @@
  */
 
 import { normalizePathForComparison, pathStartsWith } from "./pathUtils";
-import type { DirectoryEntry, Disposable } from "./types";
+import type { DirectoryEntry, Disposable } from "../model";
 
 // ============================================================================
 // Types

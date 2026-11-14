@@ -95,7 +95,7 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("../../../src/ipc/fs/ParcelFileWatcher", () => {
+vi.mock("./ParcelFileWatcher", () => {
   // Define mock class inside the factory function
   return {
     ParcelFileWatcher: class MockParcelFileWatcher {
@@ -133,7 +133,7 @@ vi.mock("../../../src/ipc/fs/ParcelFileWatcher", () => {
   };
 });
 
-vi.mock("../../../src/ipc/fs/DirectoryCache", () => ({
+vi.mock("./DirectoryCache", () => ({
   DirectoryCache: {
     get: mockCacheGet,
     set: mockCacheSet,
@@ -149,7 +149,7 @@ vi.mock("../../../src/ipc/fs/DirectoryCache", () => ({
 // Imports (after mocks)
 // ============================================================================
 
-import { DiskFileSystemProvider } from "../../../src/ipc/fs/DiskFileSystemProvider";
+import { DiskFileSystemProvider } from "./DiskFileSystemProvider";
 
 // ============================================================================
 // Test Helpers

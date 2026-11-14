@@ -119,17 +119,17 @@ const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
   });
 
 // Mock the FileSystemV2API class
-vi.mock("../../../src/renderer/api/FileSystemV2API", () => ({
+vi.mock("../client/FileSystemV2API", () => ({
   FileSystemV2API: MockFileSystemV2API,
 }));
 
 // Mock the FileSystemV2APIService
-vi.mock("../../../src/renderer/services/FileSystemV2APIService", () => ({
+vi.mock("../client/FileSystemV2APIService", () => ({
   FileSystemV2APIService: mockService,
 }));
 
 // Import after mocks are set up
-import { useFileSystemV2 } from "../../../src/renderer/hooks/useFileSystemV2";
+import { useFileSystemV2 } from "./useFileSystemV2";
 
 // ============================================================================
 // Tests

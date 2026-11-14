@@ -68,12 +68,12 @@ const { mockFsApi, MockFileSystemV2API, mockFsService, mockFsServiceInstance } =
   });
 
 // Mock FileSystemV2API using the full source path
-vi.mock("../../../src/renderer/api/FileSystemV2API", () => ({
+vi.mock("@features/files/client/FileSystemV2API", () => ({
   FileSystemV2API: MockFileSystemV2API,
 }));
 
 // Mock FileSystemV2APIService
-vi.mock("../../../src/renderer/services/FileSystemV2APIService", () => ({
+vi.mock("@features/files/client/FileSystemV2APIService", () => ({
   FileSystemV2APIService: mockFsService,
 }));
 

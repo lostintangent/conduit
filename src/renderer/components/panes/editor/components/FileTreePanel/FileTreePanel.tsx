@@ -24,7 +24,7 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import { cn } from "@/utils";
 import { forwardRef, memo } from "react";

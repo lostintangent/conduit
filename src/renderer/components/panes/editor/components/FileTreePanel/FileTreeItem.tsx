@@ -23,7 +23,7 @@
  * ```
  */
 
-import type { DirectoryEntry } from "@/../../src/ipc/fs/types";
+import type { DirectoryEntry } from "@features/files/model";
 import type { GitFileStatus } from "@features/git/model";
 import { cn } from "@/utils";
 import {

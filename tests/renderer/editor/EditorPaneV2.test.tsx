@@ -109,7 +109,7 @@ const mockFs = {
   readDirectory: vi.fn().mockResolvedValue([]),
   release: vi.fn(),
 };
-vi.mock("../../../src/renderer/hooks/useFileSystemV2", () => ({
+vi.mock("@features/files/components/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFs,
 }));
 

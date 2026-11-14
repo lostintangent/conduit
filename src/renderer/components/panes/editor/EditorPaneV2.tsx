@@ -20,7 +20,7 @@
 import { gitMutations, gitQueries } from "@features/git/client/queries";
 import { registerEditorHandlers } from "@/commands/handlers";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
-import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
+import { useFileSystemV2 } from "@features/files/components/useFileSystemV2";
 import { useGitV2 } from "@features/git/components/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { useSettings } from "@features/settings/client/queries";

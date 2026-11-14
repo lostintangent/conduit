@@ -41,7 +41,7 @@
  */
 
 import type { GitV2API } from "@features/git/client/GitV2API";
-import { FileSystemV2APIService } from "@/services/FileSystemV2APIService";
+import { FileSystemV2APIService } from "@features/files/client/FileSystemV2APIService";
 import { normalizePathForKey } from "@/utils/pathUtils";
 import { useEffect, useRef } from "react";
 import {

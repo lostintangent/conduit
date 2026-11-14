@@ -26,8 +26,8 @@ import * as path from "node:path";
 import type { SimpleGit, StatusResult } from "simple-git";
 
 import { EventEmitter } from "@shared/EventEmitter";
-import { ParcelFileWatcher } from "../../../ipc/fs/ParcelFileWatcher";
-import type { Disposable, Event } from "../../../ipc/fs/types";
+import { ParcelFileWatcher } from "@features/files/main/ParcelFileWatcher";
+import type { Disposable, Event } from "@features/files/model";
 import type {
   CommitFile,
   CommitHistoryResult,

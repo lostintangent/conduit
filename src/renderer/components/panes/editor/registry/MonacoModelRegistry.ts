@@ -51,8 +51,8 @@
 
 import { EventEmitter } from "@shared/EventEmitter";
 import * as monaco from "monaco-editor";
-import { FileSystemV2API } from "../../../../api/FileSystemV2API";
-import { FileSystemV2APIService } from "../../../../services/FileSystemV2APIService";
+import { FileSystemV2API } from "@features/files/client/FileSystemV2API";
+import { FileSystemV2APIService } from "@features/files/client/FileSystemV2APIService";
 import type { ModelEntry, ModelState, ModelStateEvent } from "../types";
 import { FileTooLargeError } from "../types";
 import { detectLanguage, pathsEqual } from "../utils";

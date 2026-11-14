@@ -11,7 +11,7 @@ import {
   pathEquals,
   pathStartsWith,
   safeRelativePath,
-} from "../../../src/ipc/fs/pathUtils";
+} from "./pathUtils";
 
 describe("pathUtils", () => {
   describe("normalizePathForComparison", () => {

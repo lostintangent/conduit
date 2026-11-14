@@ -29,7 +29,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
 import type { GitV2API } from "@features/git/client/GitV2API";
-import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
 import type { FileNode, ViewMode } from "../types";
 import { selectNextAvailableFile } from "../utils/fileSelectionHelpers";
 

@@ -10,9 +10,9 @@
  * ```
  */
 
-import { FileSystemV2API } from "../api/FileSystemV2API";
-import { FileSystemV2APIService } from "../services/FileSystemV2APIService";
-import { useSharedAPI } from "../services/SharedAPIPool";
+import { FileSystemV2API } from "../client/FileSystemV2API";
+import { FileSystemV2APIService } from "../client/FileSystemV2APIService";
+import { useSharedAPI } from "@/services/SharedAPIPool";
 
 export function useFileSystemV2(cwd: string): FileSystemV2API {
   return useSharedAPI(FileSystemV2APIService.getInstance(), cwd);
@@ -24,6 +24,6 @@ export type {
   FileContentChangedCallback,
   FileDeletedCallback,
   FileRenamedCallback,
-} from "../api/FileSystemV2API";
+} from "../client/FileSystemV2API";
 
-export { FileSystemV2API } from "../api/FileSystemV2API";
+export { FileSystemV2API } from "../client/FileSystemV2API";

@@ -28,7 +28,7 @@ vi.mock("node:child_process", () => ({
 }));
 
 // Import after mocking
-import { GitIgnoreCache } from "../../../src/ipc/fs/GitIgnoreCache";
+import { GitIgnoreCache } from "./GitIgnoreCache";
 
 /** Helper to create file entries for testing */
 const files = (...names: string[]) =>

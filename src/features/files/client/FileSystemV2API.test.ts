@@ -36,7 +36,7 @@ const { mockFs } = vi.hoisted(() => {
 });
 
 // Import after mocks are set up
-import { FileSystemV2API } from "../../../src/renderer/api/FileSystemV2API";
+import { FileSystemV2API } from "./FileSystemV2API";
 
 // ============================================================================
 // Tests

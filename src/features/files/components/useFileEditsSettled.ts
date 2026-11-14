@@ -1,4 +1,4 @@
-import type { FileSystemV2API } from "@/api/FileSystemV2API";
+import type { FileSystemV2API } from "../client/FileSystemV2API";
 import { useEffect, useEffectEvent } from "react";
 
 /** Debounce delay for file content changes, so a burst of writes settles once (ms) */

@@ -42,8 +42,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { gitKeys, gitQueries } from "@features/git/client/queries";
 import type { GitV2API } from "@features/git/client/GitV2API";
-import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
+import type { FileSystemV2API } from "@features/files/client/FileSystemV2API";
+import { useFileEditsSettled } from "@features/files/components/useFileEditsSettled";
 import type { FileDiffStat } from "@features/git/model";
 
 // Re-export for convenience

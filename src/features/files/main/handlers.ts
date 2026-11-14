@@ -42,7 +42,7 @@ import {
 } from "./DiskFileSystemProvider";
 import { FileSystemProviderService } from "./FileSystemProviderService";
 import { pathEquals, pathStartsWith } from "./pathUtils";
-import type { DeleteOptions, DirectoryEntry, FileStat } from "./types";
+import type { DeleteOptions, DirectoryEntry, FileStat } from "../model";
 
 // ============================================================================
 // Types

@@ -29,10 +29,7 @@ vi.mock("node:fs", () => ({
 }));
 
 import watcher from "@parcel/watcher";
-import {
-  ParcelFileWatcher,
-  unwatchAll,
-} from "../../../src/ipc/fs/ParcelFileWatcher";
+import { ParcelFileWatcher, unwatchAll } from "./ParcelFileWatcher";
 
 describe("ParcelFileWatcher", () => {
   let fileWatcher: ParcelFileWatcher;

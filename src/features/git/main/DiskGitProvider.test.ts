@@ -39,7 +39,7 @@ function createMockWatcherInstance(): MockWatcherInstance {
   };
 }
 
-vi.mock("../../../ipc/fs/ParcelFileWatcher", () => ({
+vi.mock("@features/files/main/ParcelFileWatcher", () => ({
   ParcelFileWatcher: class MockParcelFileWatcher {
     watch: ReturnType<typeof vi.fn>;
     dispose: ReturnType<typeof vi.fn>;

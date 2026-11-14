@@ -17,7 +17,7 @@ const mockFs = {
   readTextFile: vi.fn(),
 };
 
-vi.mock("@/hooks/useFileSystemV2", () => ({
+vi.mock("@features/files/components/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFs,
 }));
 
