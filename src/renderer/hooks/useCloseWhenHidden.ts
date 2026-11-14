@@ -1,4 +1,5 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useOnHide } from "@/hooks/useOnHide";
+import { useRef, useState } from "react";
 
 interface OpenChangeProps {
   open?: boolean;
@@ -22,14 +23,12 @@ export function useCloseWhenHidden({ open, onOpenChange }: OpenChangeProps) {
     onOpenChange?.(isOpen);
   };
 
-  const closeIfOpen = useEffectEvent(() => {
+  useOnHide(() => {
     if (!(open ?? isUncontrolledOpenRef.current)) return;
     isUncontrolledOpenRef.current = false;
     setGeneration((current) => current + 1);
     onOpenChange?.(false);
   });
-  // Hiding runs effect cleanups, so this runs on hide as well as on unmount.
-  useEffect(() => () => closeIfOpen(), []);
 
   return { key: generation, onOpenChange: handleOpenChange };
 }

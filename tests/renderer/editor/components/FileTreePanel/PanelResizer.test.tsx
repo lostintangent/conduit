@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { Activity } from "react";
 import { PanelResizer } from "@/components/panes/editor/components/FileTreePanel/PanelResizer";
 
 // =============================================================================
@@ -52,6 +53,30 @@ describe("PanelResizer", () => {
       expect(onResizeEnd).toHaveBeenCalledTimes(1);
       fireEvent.mouseMove(document, { clientY: 700 });
       expect(onResize).toHaveBeenCalledTimes(3);
+    });
+
+    it("ends a resize when its tab hides", () => {
+      const onResize = vi.fn();
+      const onResizeEnd = vi.fn();
+      const tab = (mode: "visible" | "hidden") => (
+        <Activity mode={mode}>
+          <div data-testid="file-tree-panel">
+            <PanelResizer onResize={onResize} onResizeEnd={onResizeEnd} />
+          </div>
+        </Activity>
+      );
+      const { rerender } = render(tab("visible"));
+      fireEvent.mouseDown(
+        screen.getByTestId("panel-resizer").lastElementChild!,
+      );
+
+      rerender(tab("hidden"));
+      rerender(tab("visible"));
+      fireEvent.mouseMove(document, { clientY: 700 });
+
+      expect(onResizeEnd).toHaveBeenCalledTimes(1);
+      expect(onResize).not.toHaveBeenCalled();
+      expect(document.body.style.cursor).toBe("");
     });
   });
 });

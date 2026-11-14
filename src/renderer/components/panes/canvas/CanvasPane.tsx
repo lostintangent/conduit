@@ -1,5 +1,6 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { useImageDrop } from "@/hooks/useImageDrop";
+import { useOnHide } from "@/hooks/useOnHide";
 import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
 import { resolveColor, watchAppTheme } from "@/utils/theme";
 import type { CanvasPane as CanvasPaneType } from "@shared/types";
@@ -553,6 +554,30 @@ export const CanvasPane = memo(function CanvasPane({
   }, [setBackgroundColor]);
 
   // ---------------------------------------------------------------------------
+  // Reset interaction - clears a drawing/dragging operation without committing
+  // ---------------------------------------------------------------------------
+  const resetInteraction = useCallback(() => {
+    currentStrokeRef.current = [];
+    setIsDrawing(false);
+    setIsDragging(false);
+    setActiveHandle(null);
+    setIsDrawingShape(false);
+    setShapePreview(null);
+    shapeStartRef.current = null;
+    dragStartRef.current = null;
+    dragElementStartPositions.current.clear();
+    resizeStartRef.current = null;
+    transformBeforeRef.current = null;
+    lineEndpointBeforeRef.current = null;
+
+    // Reset marquee selection state (selection is already live, just clear the visual)
+    setIsMarqueeSelecting(false);
+    setMarqueeRect(null);
+    marqueeStartRef.current = null;
+    preMarqueeSelectionRef.current = [];
+  }, []);
+
+  // ---------------------------------------------------------------------------
   // Commit interaction - shared logic for completing drawing/dragging operations
   // ---------------------------------------------------------------------------
   const commitInteraction = useCallback(() => {
@@ -565,7 +590,6 @@ export const CanvasPane = memo(function CanvasPane({
       );
       addElement(stroke);
       recordAdd([stroke]);
-      currentStrokeRef.current = [];
     }
 
     // Commit shape if drawing
@@ -630,24 +654,7 @@ export const CanvasPane = memo(function CanvasPane({
       }
     }
 
-    // Reset interaction state
-    setIsDrawing(false);
-    setIsDragging(false);
-    setActiveHandle(null);
-    setIsDrawingShape(false);
-    setShapePreview(null);
-    shapeStartRef.current = null;
-    dragStartRef.current = null;
-    dragElementStartPositions.current.clear();
-    resizeStartRef.current = null;
-    transformBeforeRef.current = null;
-    lineEndpointBeforeRef.current = null;
-
-    // Reset marquee selection state (selection is already live, just clear the visual)
-    setIsMarqueeSelecting(false);
-    setMarqueeRect(null);
-    marqueeStartRef.current = null;
-    preMarqueeSelectionRef.current = [];
+    resetInteraction();
   }, [
     isDrawing,
     isDragging,
@@ -666,6 +673,7 @@ export const CanvasPane = memo(function CanvasPane({
     recordMove,
     recordTransform,
     recordLineEndpoint,
+    resetInteraction,
   ]);
 
   // ---------------------------------------------------------------------------
@@ -683,6 +691,16 @@ export const CanvasPane = memo(function CanvasPane({
     window.addEventListener("mouseup", handleGlobalMouseUp);
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
   }, [commitInteraction, isPanning]);
+
+  // A hidden tab gets no mouseup or keyup, so drop a gesture in progress
+  // rather than let it follow the pointer when the tab returns. It isn't
+  // committed, because unmounting runs this too, after the canvas is deleted.
+  useOnHide(() => {
+    resetInteraction();
+    setIsPanning(false);
+    panStartRef.current = null;
+    setIsSpacePressed(false);
+  });
 
   // ---------------------------------------------------------------------------
   // Clipboard operations
@@ -834,6 +852,13 @@ export const CanvasPane = memo(function CanvasPane({
       setIsSpacePressed(false);
       setIsPanning(false);
       panStartRef.current = null;
+    }
+  }, []);
+
+  // Space's keyup goes wherever focus went, so release it when focus leaves.
+  const handleBlur = useCallback((e: React.FocusEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setIsSpacePressed(false);
     }
   }, []);
 
@@ -1671,6 +1696,7 @@ export const CanvasPane = memo(function CanvasPane({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onKeyUp={handleKeyUp}
+      onBlur={handleBlur}
       onPaste={handlePaste}
     >
       <CanvasToolbar

@@ -20,6 +20,7 @@
  * ```
  */
 
+import { useOnHide } from "@/hooks/useOnHide";
 import { useCallback, useEffect, useState, useRef } from "react";
 
 export interface PanelResizerProps {
@@ -71,6 +72,16 @@ export function PanelResizer({
     [onResizeStart],
   );
 
+  const endResize = useCallback(() => {
+    setIsResizing(false);
+    onResizeEnd?.();
+  }, [onResizeEnd]);
+
+  // A hidden tab gets no mouseup, so end the resize when it hides.
+  useOnHide(() => {
+    if (isResizing) endResize();
+  });
+
   /**
    * Effect to handle mouse move and mouse up during resize.
    * Uses document-level listeners for smooth dragging even when cursor
@@ -97,14 +108,9 @@ export function PanelResizer({
       onResize(clampedHeight);
     };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      onResizeEnd?.();
-    };
-
     // Add global listeners
     document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("mouseup", endResize);
 
     // Set cursor on body during resize for consistent feedback
     document.body.style.cursor = "row-resize";
@@ -112,11 +118,11 @@ export function PanelResizer({
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mouseup", endResize);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, minHeight, maxHeight, onResize, onResizeEnd]);
+  }, [isResizing, minHeight, maxHeight, onResize, endResize]);
 
   // Resize handle highlight class
   const handleClass = isResizing

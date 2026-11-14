@@ -20,6 +20,7 @@
  * ```
  */
 
+import { useOnHide } from "@/hooks/useOnHide";
 import { useCallback, useEffect, useState, useRef } from "react";
 
 export interface TreeResizerProps {
@@ -78,6 +79,16 @@ export function TreeResizer({
     [onResizeStart],
   );
 
+  const endResize = useCallback(() => {
+    setIsResizing(false);
+    onResizeEnd?.();
+  }, [onResizeEnd]);
+
+  // A hidden tab gets no mouseup, so end the resize when it hides.
+  useOnHide(() => {
+    if (isResizing) endResize();
+  });
+
   /**
    * Effect to handle mouse move and mouse up during resize.
    * Uses document-level listeners for smooth dragging even when cursor
@@ -103,14 +114,9 @@ export function TreeResizer({
       onResize(clampedWidth);
     };
 
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      onResizeEnd?.();
-    };
-
     // Add global listeners
     document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("mouseup", endResize);
 
     // Set cursor on body during resize for consistent feedback
     document.body.style.cursor = "col-resize";
@@ -118,11 +124,11 @@ export function TreeResizer({
 
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mouseup", endResize);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, minWidth, maxWidth, onResize, onResizeEnd]);
+  }, [isResizing, minWidth, maxWidth, onResize, endResize]);
 
   // Resize handle highlight class (matches v1 pane resize behavior)
   const handleClass = isResizing

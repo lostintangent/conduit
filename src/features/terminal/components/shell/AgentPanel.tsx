@@ -1,4 +1,5 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
+import { useOnHide } from "@/hooks/useOnHide";
 import {
   ChevronDown,
   ChevronUp,
@@ -119,6 +120,8 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       document.removeEventListener("mouseup", handleDragEnd);
     };
   }, [isDragging, position]);
+
+  useOnHide(() => setIsDragging(false));
 
   if (!isOpen) return null;
 
