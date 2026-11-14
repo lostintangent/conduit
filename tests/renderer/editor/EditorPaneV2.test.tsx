@@ -5,8 +5,19 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerEditorHandlers } from "../../../src/renderer/commands/handlers";
+import { TabContentPortalProvider } from "../../../src/renderer/components/layout/normal/TabContentPortalContext";
+import { TabLayout } from "../../../src/renderer/components/layout/normal/TabLayout";
 import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor/EditorPaneV2";
+import { GlobalEditorContainer } from "../../../src/renderer/components/panes/editor/components/GlobalEditorContainer";
+import { TooltipProvider } from "../../../src/renderer/components/ui/tooltip";
+import { EditorPaneRegistry } from "../../../src/renderer/components/panes/editor/registry/EditorPaneRegistry";
+import { activeTabIdAtom, tabsAtom } from "../../../src/renderer/store/atoms";
 import { render as renderWithQuery } from "../queryRender";
+
+// The tab layout's browser pane reads the preload API when it loads
+vi.hoisted(() => {
+  window.conduit = {};
+});
 
 // Each render gets a fresh QueryClient, and reportStatus stands in for the
 // git watcher reporting to it
@@ -328,6 +339,12 @@ vi.mock(
     }),
   }),
 );
+
+// A tab's terminals render nothing here, so the pills counted are the tab's
+// and its editors'
+vi.mock("../../../src/features/terminal/components/TerminalPane", () => ({
+  TerminalPane: () => null,
+}));
 
 // ============================================================================
 // Test Data
@@ -1282,5 +1299,115 @@ describe("EditorPaneV2", () => {
           .mockResolvedValue({ files: new Map(), branch: "main" });
       }
     });
+  });
+});
+
+describe("EditorPaneV2 in a tab", () => {
+  const agentSession = {
+    agentSessionId: "agent-1",
+    agentBranchName: "agent/agent-1",
+    agentBaseBranch: "main",
+    agentRepoRoot: "/project",
+    agentWorktreePath: "/worktrees/agent-1",
+  };
+  const editor = {
+    id: "editor",
+    type: "editor",
+    cwd: "/worktrees/agent-1",
+    ...agentSession,
+  };
+  const terminal = (id, fields = agentSession) => ({
+    id,
+    type: "terminal",
+    sessionId: `session-${id}`,
+    cwd: fields.agentWorktreePath ?? "/project",
+    ...fields,
+  });
+  const row = (...paneIds) => ({
+    id: "row",
+    type: "split",
+    direction: "row",
+    children: paneIds.map((paneId) => ({
+      id: `node-${paneId}`,
+      type: "pane",
+      paneId,
+    })),
+  });
+
+  const setTab = (panes, layout) =>
+    tabsAtom.set([
+      {
+        id: "tab-1",
+        name: "Tab",
+        panes: Object.fromEntries(panes.map((pane) => [pane.id, pane])),
+        layout,
+        activePaneId: panes[0].id,
+      },
+    ]);
+
+  // Renders the tab the way the app does, with its editors in the global
+  // container
+  const renderTab = (panes, layout) => {
+    setTab(panes, layout);
+    activeTabIdAtom.set("tab-1");
+    render(
+      <TooltipProvider>
+        <TabContentPortalProvider>
+          <TabLayout
+            handleContextMenu={vi.fn()}
+            handleResizeStart={vi.fn()}
+            resizingNode={null}
+            handleBrowserUpdate={vi.fn()}
+            handleEditorUpdate={vi.fn()}
+          />
+          <GlobalEditorContainer />
+        </TabContentPortalProvider>
+      </TooltipProvider>,
+    );
+  };
+
+  // Each agent pill has one Merge button
+  const pills = () => document.querySelectorAll(".lucide-git-merge").length;
+  const editorPills = () =>
+    screen.getByTestId("editor-pane-v2").querySelectorAll(".lucide-git-merge")
+      .length;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockViewMode = undefined;
+    mockLayout.mockReturnValue("split");
+    EditorPaneRegistry.resetInstance();
+  });
+
+  afterEach(() => {
+    tabsAtom.set([]);
+    activeTabIdAtom.set(null);
+  });
+
+  it("shows one pill for a worktree copy laid out editor then terminal", () => {
+    renderTab([editor, terminal("term")], row("editor", "term"));
+
+    expect(pills()).toBe(1);
+    expect(editorPills()).toBe(0);
+  });
+
+  it("shows one pill once a split puts a pane to the editor's right", () => {
+    renderTab(
+      [terminal("term"), editor, terminal("split")],
+      row("term", "editor", "split"),
+    );
+
+    expect(pills()).toBe(1);
+    expect(editorPills()).toBe(0);
+  });
+
+  it("shows the editor's own pill once the tab's panes stop sharing its session", () => {
+    const layout = row("editor", "term");
+    renderTab([editor, terminal("term")], layout);
+
+    act(() => setTab([editor, terminal("term", { cwd: "/project" })], layout));
+
+    expect(pills()).toBe(1);
+    expect(editorPills()).toBe(1);
   });
 });

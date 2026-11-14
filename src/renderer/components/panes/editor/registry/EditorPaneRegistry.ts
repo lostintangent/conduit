@@ -64,6 +64,13 @@ export interface EditorPaneConfig {
   hideFileTree?: boolean;
 
   /**
+   * Hide the pane's agent session pill, because the tab shows one for all of
+   * its panes.
+   * @default false
+   */
+  hideIndividualSandboxIndicator?: boolean;
+
+  /**
    * Callback when close button is clicked.
    * If provided, shows a close button in the editor toolbar.
    */

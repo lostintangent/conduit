@@ -564,6 +564,7 @@ export function TabLayout({
                   }}
                   isInPreview={isInPreview}
                   isActive={isActivePane}
+                  hideIndividualSandboxIndicator={hasUnifiedSandbox}
                   onClose={() => closePane(tab.id, pane.id)}
                   className="h-full w-full"
                 />

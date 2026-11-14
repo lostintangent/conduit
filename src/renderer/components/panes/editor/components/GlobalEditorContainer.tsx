@@ -79,6 +79,7 @@ function EditorPaneWrapper({
       onSave={config.onSave}
       onHover={config.onHover}
       hideFileTree={config.hideFileTree}
+      hideIndividualSandboxIndicator={config.hideIndividualSandboxIndicator}
       onClose={config.onClose}
     />,
     wrapperElement,

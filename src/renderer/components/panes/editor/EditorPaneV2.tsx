@@ -165,6 +165,13 @@ export interface EditorPaneV2Props {
   hideFileTree?: boolean;
 
   /**
+   * Hide the pane's agent session pill, because the tab shows one for all of
+   * its panes.
+   * @default false
+   */
+  hideIndividualSandboxIndicator?: boolean;
+
+  /**
    * Callback fired when the close button is clicked.
    * If provided, shows a close button in the editor toolbar.
    * The meaning of "close" depends on the context:
@@ -200,6 +207,7 @@ export function EditorPaneV2({
   onSave,
   onHover,
   hideFileTree = false,
+  hideIndividualSandboxIndicator = false,
   onClose,
 }: EditorPaneV2Props) {
   const {
@@ -1604,11 +1612,13 @@ export function EditorPaneV2({
         />
 
         {/* Agent Session Indicator */}
-        <SandboxIndicator
-          agentSessionId={agentSessionId ?? null}
-          onCompleteAgentSession={handleCompleteAgentSession}
-          onDeleteAgentSession={handleDeleteAgentSession}
-        />
+        {!hideIndividualSandboxIndicator && (
+          <SandboxIndicator
+            agentSessionId={agentSessionId ?? null}
+            onCompleteAgentSession={handleCompleteAgentSession}
+            onDeleteAgentSession={handleDeleteAgentSession}
+          />
+        )}
       </div>
     </FileDiffStatsProvider>
   );
