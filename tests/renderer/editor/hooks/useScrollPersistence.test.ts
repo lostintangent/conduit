@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { render, renderHook } from "@testing-library/react";
 import { useScrollPersistence } from "@/components/panes/editor/hooks/useScrollPersistence";
 import { EditorPaneRegistry } from "@/components/panes/editor/registry/EditorPaneRegistry";
 
@@ -262,22 +263,28 @@ describe("useScrollPersistence", () => {
     });
 
     it("should cleanup on unmount", () => {
-      const { result, unmount } = renderHook(() =>
-        useScrollPersistence("test-pane", "testScroll"),
-      );
+      // React calls the callback ref with null when the element unmounts
+      const ScrollBox = () =>
+        createElement("div", {
+          ref: useScrollPersistence("test-pane", "testScroll"),
+        });
+      const { container, unmount } = render(createElement(ScrollBox));
+      const element = container.firstChild as HTMLElement;
+      const removeEventListenerSpy = vi.spyOn(element, "removeEventListener");
 
-      const removeEventListenerSpy = vi.spyOn(
-        mockScrollElement,
-        "removeEventListener",
-      );
-      const callbackRef = result.current;
+      expect(
+        registry.get("test-pane").scrollContainers.get("testScroll")?.element,
+      ).toBe(element);
 
-      callbackRef(mockScrollElement);
       unmount();
 
-      // Note: cleanup happens via ref callback with null, not via useEffect cleanup
-      // So we don't expect removeEventListener to be called on unmount
-      // The cleanup happens when the element ref becomes null
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        "scroll",
+        expect.any(Function),
+      );
+      expect(
+        registry.get("test-pane").scrollContainers.get("testScroll")?.element,
+      ).toBeNull();
     });
   });
 

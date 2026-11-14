@@ -1593,13 +1593,13 @@ describe("DiskGitProvider", () => {
       expect(mockWatcherInstances[0].watch).toHaveBeenCalledTimes(1);
     });
 
-    it("should be safe to dispose multiple times", () => {
+    it("should be safe to dispose multiple times", async () => {
       const provider = new DiskGitProvider(testGitRoot, testCwd);
+      await provider.startWatching();
 
       provider.dispose();
-      provider.dispose();
-
-      // Should not throw
+      expect(() => provider.dispose()).not.toThrow();
+      expect(mockWatcherInstances[0].dispose).toHaveBeenCalledTimes(1);
     });
   });
 

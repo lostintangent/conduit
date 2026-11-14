@@ -247,7 +247,7 @@ describe("fileOperations", () => {
       ).rejects.toThrow(ValidationError);
 
       // File should not have been created
-      await expect(readFile(testFilePath, "utf-8")).rejects.toThrow();
+      await expect(readFile(testFilePath, "utf-8")).rejects.toThrow("ENOENT");
     });
   });
 

@@ -359,7 +359,9 @@ describe("MonacoModelRegistry", () => {
     it("should throw if model does not exist", async () => {
       const registry = MonacoModelRegistry.getInstance();
 
-      await expect(registry.saveModel("file:///nonexistent")).rejects.toThrow();
+      await expect(registry.saveModel("file:///nonexistent")).rejects.toThrow(
+        "Model not found",
+      );
     });
   });
 

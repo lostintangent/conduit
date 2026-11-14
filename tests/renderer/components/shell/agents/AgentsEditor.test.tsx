@@ -176,24 +176,19 @@ describe("AgentsEditor", () => {
 
       render(<AgentsTab userSettings={mockUserSettings} />);
 
-      // Look for the star/default indicator button
-      const defaultButtons = screen.getAllByTitle(/Set as default/i);
-      expect(defaultButtons.length).toBeGreaterThan(0);
+      // Only the non-default agent (agent-2) offers the button
+      fireEvent.click(screen.getByTitle("Set as default"));
 
-      if (defaultButtons[1]) {
-        fireEvent.click(defaultButtons[1]);
-
-        await waitFor(() => {
-          expect(mockUpdateSettings).toHaveBeenCalledWith(
-            expect.objectContaining({
-              agents: expect.arrayContaining([
-                expect.objectContaining({ id: "agent-1", isDefault: false }),
-                expect.objectContaining({ id: "agent-2", isDefault: true }),
-              ]),
-            }),
-          );
-        });
-      }
+      await waitFor(() => {
+        expect(mockUpdateSettings).toHaveBeenCalledWith(
+          expect.objectContaining({
+            agents: expect.arrayContaining([
+              expect.objectContaining({ id: "agent-1", isDefault: false }),
+              expect.objectContaining({ id: "agent-2", isDefault: true }),
+            ]),
+          }),
+        );
+      });
     });
   });
 
@@ -312,7 +307,7 @@ describe("AgentsEditor", () => {
       expect((checkboxes[1] as HTMLInputElement).checked).toBe(true);
     });
 
-    it("should configure instance count for team member", () => {
+    it("should configure instance count for team member", async () => {
       render(<AgentsTab userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
@@ -321,14 +316,30 @@ describe("AgentsEditor", () => {
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
 
-      const plusButtons = screen.queryAllByTitle("Increase instances");
-      if (plusButtons.length > 0) {
-        fireEvent.click(plusButtons[0]);
-        expect(screen.getByText("2")).toBeDefined();
-      }
+      fireEvent.click(screen.getAllByTitle("Increase instances")[0]);
+      fireEvent.click(screen.getByText("Save"));
+
+      await waitFor(() => {
+        expect(mockUpdateSettings).toHaveBeenCalledWith({
+          launchGroups: [
+            expect.objectContaining({
+              id: "team-1",
+              agentInstances: {
+                "agent-1": {
+                  count: 2,
+                  instances: [
+                    { id: "agent-1-1", instructions: "" },
+                    { id: "agent-1-2", instructions: "" },
+                  ],
+                },
+              },
+            }),
+          ],
+        });
+      });
     });
 
-    it("should add custom instructions for team member instance", () => {
+    it("should add custom instructions for team member instance", async () => {
       render(<AgentsTab userSettings={mockUserSettings} />);
 
       const teamsTab = screen.getByText("Teams");
@@ -337,23 +348,32 @@ describe("AgentsEditor", () => {
       const editButtons = screen.getAllByTitle(/Edit/);
       fireEvent.click(editButtons[0]);
 
-      // Try to expand instructions
-      const instructionButtons = screen.queryAllByText(/Special Instructions/);
-      if (instructionButtons.length > 0) {
-        fireEvent.click(instructionButtons[0]);
+      fireEvent.click(screen.getAllByTitle("Expand instructions")[0]);
+      fireEvent.change(
+        screen.getByPlaceholderText(
+          "Custom instructions for this Copilot instance...",
+        ),
+        { target: { value: "Focus on frontend" } },
+      );
+      fireEvent.click(screen.getByText("Save"));
 
-        const textarea = screen.queryByPlaceholderText(
-          /Additional instructions/,
-        );
-        if (textarea) {
-          fireEvent.change(textarea, {
-            target: { value: "Focus on frontend" },
-          });
-          expect((textarea as HTMLTextAreaElement).value).toBe(
-            "Focus on frontend",
-          );
-        }
-      }
+      await waitFor(() => {
+        expect(mockUpdateSettings).toHaveBeenCalledWith({
+          launchGroups: [
+            expect.objectContaining({
+              id: "team-1",
+              agentInstances: {
+                "agent-1": {
+                  count: 1,
+                  instances: [
+                    { id: "agent-1-1", instructions: "Focus on frontend" },
+                  ],
+                },
+              },
+            }),
+          ],
+        });
+      });
     });
   });
 

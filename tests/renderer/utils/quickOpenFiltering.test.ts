@@ -149,25 +149,6 @@ describe("quickOpenFiltering", () => {
   // ==========================================================================
 
   describe("recent files section priority", () => {
-    it("should place matching recent files in top section", () => {
-      const results = filterFiles("btn", testFiles, {
-        recentFiles,
-        workspaceRoot: "/workspace",
-      });
-
-      // Both Button files match, one is recent
-      const recentMatches = results.filter((f) => f.isRecent);
-      const nonRecentMatches = results.filter((f) => !f.isRecent);
-
-      // Recent matches should come first
-      if (recentMatches.length > 0 && nonRecentMatches.length > 0) {
-        const lastRecentIndex = results.findIndex(
-          (f, i) => i > 0 && !f.isRecent && results[i - 1].isRecent,
-        );
-        expect(lastRecentIndex).toBeGreaterThan(0);
-      }
-    });
-
     it("should separate recent and non-recent matches", () => {
       // Add more files with mixed recent/non-recent
       const moreFiles = [
@@ -186,19 +167,14 @@ describe("quickOpenFiltering", () => {
         workspaceRoot: "/workspace",
       });
 
-      // All recent matches should come before all non-recent matches
-      const recentIndices = results
-        .map((f, i) => (f.isRecent ? i : -1))
-        .filter((i) => i >= 0);
-      const nonRecentIndices = results
-        .map((f, i) => (!f.isRecent ? i : -1))
-        .filter((i) => i >= 0);
-
-      if (recentIndices.length > 0 && nonRecentIndices.length > 0) {
-        const maxRecentIndex = Math.max(...recentIndices);
-        const minNonRecentIndex = Math.min(...nonRecentIndices);
-        expect(maxRecentIndex).toBeLessThan(minNonRecentIndex);
-      }
+      // Badge.tsx outscores Button.tsx, but every recent match still comes first
+      expect(results.map((f) => f.isRecent)).toEqual([
+        true,
+        true,
+        false,
+        false,
+        false,
+      ]);
     });
 
     it("should handle query with only recent matches", () => {
@@ -231,8 +207,8 @@ describe("quickOpenFiltering", () => {
   describe("scoring and sorting", () => {
     it("should sort recent matches by score", () => {
       const filesWithScores = [
-        "/workspace/src/Button.tsx", // Better match (shorter path)
         "/workspace/src/components/deep/nested/Button.tsx", // Worse match
+        "/workspace/src/Button.tsx", // Better match (shorter path)
       ];
 
       const results = filterFiles("btn", filesWithScores, {
@@ -240,10 +216,11 @@ describe("quickOpenFiltering", () => {
         workspaceRoot: "/workspace",
       });
 
-      // Within recent section, better scores should come first
-      if (results.length >= 2) {
-        expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
-      }
+      // Within recent section, better matches should come first
+      expect(results.map((f) => f.relativePath)).toEqual([
+        "src/Button.tsx",
+        "src/components/deep/nested/Button.tsx",
+      ]);
     });
 
     it("should sort non-recent matches by score", () => {

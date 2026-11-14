@@ -234,14 +234,6 @@ describe("DiskFileSystemProvider", () => {
       expect(watcherCallbacks.onCreated).not.toBeNull();
     });
 
-    it("should accept watcher options", async () => {
-      const options = { ignored: ["**/custom/**"] };
-      const p = new DiskFileSystemProvider("/test/project", options);
-      // Watcher is created with options - we can't easily verify this without
-      // making the mock more complex, but we can verify it doesn't throw
-      await p.dispose();
-    });
-
     it("should setup watcher event handlers", () => {
       // Verify callbacks were registered during construction
       expect(watcherCallbacks.onCreated).not.toBeNull();
@@ -306,7 +298,9 @@ describe("DiskFileSystemProvider", () => {
         new Error("ENOENT: no such file or directory"),
       );
 
-      await expect(provider.stat("/test/project/missing.ts")).rejects.toThrow();
+      await expect(provider.stat("/test/project/missing.ts")).rejects.toThrow(
+        "ENOENT",
+      );
     });
   });
 
@@ -411,7 +405,7 @@ describe("DiskFileSystemProvider", () => {
 
       await expect(
         provider.readFile("/test/project/missing.ts"),
-      ).rejects.toThrow();
+      ).rejects.toThrow("ENOENT");
     });
   });
 
@@ -476,7 +470,9 @@ describe("DiskFileSystemProvider", () => {
     it("should throw when deleting non-empty directory without recursive", async () => {
       mockRm.mockRejectedValue(new Error("ENOTEMPTY"));
 
-      await expect(provider.delete("/test/project/src")).rejects.toThrow();
+      await expect(provider.delete("/test/project/src")).rejects.toThrow(
+        "ENOTEMPTY",
+      );
     });
   });
 
@@ -523,7 +519,7 @@ describe("DiskFileSystemProvider", () => {
 
       await expect(
         provider.rename("/test/project/missing.ts", "/test/project/new.ts"),
-      ).rejects.toThrow();
+      ).rejects.toThrow("ENOENT");
     });
   });
 

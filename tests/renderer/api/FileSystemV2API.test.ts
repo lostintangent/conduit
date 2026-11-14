@@ -461,14 +461,30 @@ describe("FileSystemV2API", () => {
       const api = new FileSystemV2API("/test/project");
       api.release();
 
-      await expect(api.readDirectory("/test")).rejects.toThrow();
-      await expect(api.readFile("/test")).rejects.toThrow();
-      await expect(api.stat("/test")).rejects.toThrow();
-      await expect(api.exists("/test")).rejects.toThrow();
-      await expect(api.writeFile("/test", new Uint8Array())).rejects.toThrow();
-      await expect(api.delete("/test")).rejects.toThrow();
-      await expect(api.rename("/old", "/new")).rejects.toThrow();
-      await expect(api.createDirectory("/test")).rejects.toThrow();
+      await expect(api.readDirectory("/test")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.readFile("/test")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.stat("/test")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.exists("/test")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.writeFile("/test", new Uint8Array())).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.delete("/test")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.rename("/old", "/new")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
+      await expect(api.createDirectory("/test")).rejects.toThrow(
+        "FileSystemV2API has been released",
+      );
     });
 
     it("should unsubscribe if released while subscription is pending (race condition)", async () => {
@@ -541,15 +557,13 @@ describe("FileSystemV2API", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should not throw when listener errors
-      if (directoryListener) {
-        expect(() => {
-          directoryListener!({
-            subscriptionId: "test-sub-id",
-            path: "/test/project/src",
-            entries: [],
-          });
-        }).not.toThrow();
-      }
+      expect(() => {
+        directoryListener!({
+          subscriptionId: "test-sub-id",
+          path: "/test/project/src",
+          entries: [],
+        });
+      }).not.toThrow();
 
       // Good callback should still be called
       expect(goodCallback).toHaveBeenCalled();

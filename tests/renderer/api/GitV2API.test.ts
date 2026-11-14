@@ -1111,12 +1111,22 @@ describe("GitV2API", () => {
       const api = new GitV2API("/test/project");
       api.release();
 
-      await expect(api.getStatus()).rejects.toThrow();
-      await expect(api.getFileStatus("file.ts")).rejects.toThrow();
-      await expect(api.hasUncommittedChanges()).rejects.toThrow();
-      await expect(api.stage([])).rejects.toThrow();
-      await expect(api.commit("msg")).rejects.toThrow();
-      await expect(api.checkout("ref")).rejects.toThrow();
+      await expect(api.getStatus()).rejects.toThrow(
+        "GitV2API has been released",
+      );
+      await expect(api.getFileStatus("file.ts")).rejects.toThrow(
+        "GitV2API has been released",
+      );
+      await expect(api.hasUncommittedChanges()).rejects.toThrow(
+        "GitV2API has been released",
+      );
+      await expect(api.stage([])).rejects.toThrow("GitV2API has been released");
+      await expect(api.commit("msg")).rejects.toThrow(
+        "GitV2API has been released",
+      );
+      await expect(api.checkout("ref")).rejects.toThrow(
+        "GitV2API has been released",
+      );
     });
 
     it("should unsubscribe if released while subscription is pending (race condition)", async () => {
@@ -1161,8 +1171,9 @@ describe("GitV2API", () => {
       // Wait for initial subscription to complete
       await new Promise((resolve) => setTimeout(resolve, 10));
 
-      // whenReady should resolve immediately
-      await api.whenReady();
+      // whenReady should resolve without subscribing again
+      await expect(api.whenReady()).resolves.toBeUndefined();
+      expect(mockGit.subscribe).toHaveBeenCalledTimes(1);
 
       api.release();
     });
@@ -1205,7 +1216,7 @@ describe("GitV2API", () => {
       const api = new GitV2API("/not/a/repo");
 
       // Should resolve even though there's no subscription
-      await api.whenReady();
+      await expect(api.whenReady()).resolves.toBeUndefined();
 
       api.release();
     });
@@ -1271,23 +1282,21 @@ describe("GitV2API", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Should not throw when listener errors
-      if (statusListener) {
-        expect(() => {
-          statusListener!({
-            subscriptionId: "test-sub-id",
-            gitRoot: "/test/repo",
-            status: {
-              branch: "main",
-              ahead: 0,
-              behind: 0,
-              files: {},
-            },
-            added: [],
-            modified: [],
-            removed: [],
-          });
-        }).not.toThrow();
-      }
+      expect(() => {
+        statusListener!({
+          subscriptionId: "test-sub-id",
+          gitRoot: "/test/repo",
+          status: {
+            branch: "main",
+            ahead: 0,
+            behind: 0,
+            files: {},
+          },
+          added: [],
+          modified: [],
+          removed: [],
+        });
+      }).not.toThrow();
 
       // Good callback should still be called
       expect(goodCallback).toHaveBeenCalled();
