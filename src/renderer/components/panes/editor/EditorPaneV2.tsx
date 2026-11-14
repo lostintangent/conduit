@@ -382,11 +382,17 @@ export function EditorPaneV2({
   // Sync pane.file prop to selectedFile state when it changes externally.
   // This handles cases like EditorSidebar restoring a different file when CWD changes,
   // or when files are opened programmatically (Quick Open, navigation, etc.).
+  // Parents also write the pane's own selections back to pane.file. Syncing
+  // that echo would reset a modified file's diff to the editor, so
+  // ownFilePathRef holds the file the pane last reported or synced.
   const prevInitialFilePathRef = useRef(initialFilePath);
+  const ownFilePathRef = useRef(initialFilePath);
   useEffect(() => {
     // Only sync when the prop actually changed (not on every render)
     if (prevInitialFilePathRef.current === initialFilePath) return;
     prevInitialFilePathRef.current = initialFilePath;
+    if (ownFilePathRef.current === initialFilePath) return;
+    ownFilePathRef.current = initialFilePath;
 
     if (initialFilePath) {
       const name = initialFilePath.split("/").pop() ?? "";
@@ -617,6 +623,7 @@ export function EditorPaneV2({
         file.type === "file" &&
         fileStatus?.status !== "deleted"
       ) {
+        ownFilePathRef.current = file.path;
         onFileChange({
           file: file.path,
           language: detectLanguage(file.path),
@@ -918,6 +925,7 @@ export function EditorPaneV2({
 
     // Clear selected file when navigating
     setSelectedFile(null);
+    ownFilePathRef.current = undefined;
     onClearFile?.();
 
     // Update current working directory
@@ -1347,6 +1355,7 @@ export function EditorPaneV2({
     (path: string) => {
       // Clear selected file when changing directory
       setSelectedFile(null);
+      ownFilePathRef.current = undefined;
       onClearFile?.();
 
       // Update current working directory

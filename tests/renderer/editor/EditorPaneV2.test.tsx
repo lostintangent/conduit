@@ -2,6 +2,7 @@
 import { applyGitStatus } from "@/api/gitQueries";
 import { createQueryClient } from "@/query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor/EditorPaneV2";
 import { render as renderWithQuery } from "../queryRender";
@@ -864,6 +865,46 @@ describe("EditorPaneV2", () => {
         "/project/notes.md",
       );
       expect(screen.getByTestId("editor-view-mode").textContent).toBe("editor");
+    });
+
+    // Tabs and the quick pane write the selection back to pane.file, which
+    // must not be mistaken for an external open that resets the view
+    it("keeps a modified file's diff when the parent echoes the selection", async () => {
+      mockGit.getStatus.mockResolvedValue({
+        files: new Map([["test.ts", { path: "test.ts", status: "modified" }]]),
+        branch: "main",
+      });
+      function EchoingParent() {
+        const [file, setFile] = useState<string>();
+        return (
+          <EditorPaneV2
+            pane={{ ...TEST_PANE, file }}
+            onFileChange={(change) => setFile(change.file)}
+          />
+        );
+      }
+
+      try {
+        render(<EchoingParent />);
+        await waitFor(() => {
+          expect(screen.getByTestId("tree-git-status").textContent).toBe(
+            "test.ts",
+          );
+        });
+
+        await act(async () => {
+          fireEvent.click(screen.getByTestId("select-file-button"));
+        });
+
+        expect(screen.getByTestId("editor-file-path").textContent).toBe(
+          "/project/test.ts",
+        );
+        expect(screen.getByTestId("editor-view-mode").textContent).toBe("diff");
+      } finally {
+        mockGit.getStatus
+          .mockReset()
+          .mockResolvedValue({ files: new Map(), branch: "main" });
+      }
     });
   });
 });
