@@ -40,7 +40,9 @@ import {
   notifyDataReceived,
   trackSession,
   untrackSession,
+  updateProgressState,
 } from "@features/terminal/client/stateTracker";
+import { setPaneCollapsed } from "@/store/actions/pane";
 import {
   duplicateTab,
   openTab,
@@ -48,7 +50,12 @@ import {
   registerTabEventHandlers,
   translateFilePath,
 } from "@/store/actions/tab";
-import { activeTabIdAtom, tabStateAtom, tabsAtom } from "@/store/atoms";
+import {
+  activeTabIdAtom,
+  tabProgressAtom,
+  tabStateAtom,
+  tabsAtom,
+} from "@/store/atoms";
 import type { Tab } from "@/types";
 import { enableMapSet } from "immer";
 
@@ -1145,5 +1152,126 @@ describe("a tab whose terminal hasn't shown yet", () => {
     expect(state()).toBe("running");
     vi.advanceTimersByTime(500);
     expect(state()).toBe("idle-unseen");
+  });
+});
+
+describe("a tab with a collapsed pane", () => {
+  const terminal = (id: string, sessionId: string) => ({
+    id,
+    type: "terminal" as const,
+    sessionId,
+    cwd: "/repo",
+    title: "zsh",
+  });
+  const splitTab = ({
+    sessionB = "session-b",
+    collapsed = false,
+  } = {}): Tab => ({
+    id: "split-tab",
+    name: "split-tab",
+    activePaneId: "a",
+    panes: { a: terminal("a", "session-a"), b: terminal("b", sessionB) },
+    layout: {
+      id: "split",
+      type: "split",
+      direction: "row",
+      children: [
+        { id: "node-a", type: "pane", paneId: "a" },
+        { id: "node-b", type: "pane", paneId: "b", collapsed },
+      ],
+    },
+  });
+  const shownTab: Tab = {
+    id: "shown-tab",
+    name: "shown-tab",
+    activePaneId: "s",
+    panes: { s: terminal("s", "session-s") },
+    layout: { id: "node-s", type: "pane", paneId: "s" },
+  };
+
+  const print = (ms: number, ...sessionIds: string[]) => {
+    for (let elapsed = 0; elapsed < ms; elapsed += 500) {
+      for (const sessionId of sessionIds) {
+        trackSession(sessionId);
+        notifyDataReceived(sessionId);
+      }
+      vi.advanceTimersByTime(500);
+    }
+  };
+  const collapsePaneB = (collapsed = true) =>
+    setPaneCollapsed("split-tab", "b", collapsed);
+  const state = () => tabStateAtom.get().get("split-tab");
+  const progress = () => tabProgressAtom.get().get("split-tab")?.state;
+
+  let unregister: () => void;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockApi.terminal.on.mockReturnValue(() => {});
+    mockApi.onNewTabRequest.mockReturnValue(() => {});
+    unregister = registerTabEventHandlers();
+    tabsAtom.set([splitTab(), shownTab]);
+    activeTabIdAtom.set("shown-tab");
+  });
+
+  afterEach(() => {
+    unregister();
+    ["session-a", "session-b"].forEach(untrackSession);
+    tabsAtom.set([]);
+    activeTabIdAtom.set(null);
+    tabStateAtom.set(new Map());
+    tabProgressAtom.set(new Map());
+    vi.useRealTimers();
+  });
+
+  it("stops running when a pane collapsed while running finishes", () => {
+    print(4_000, "session-b");
+    expect(state()).toBe("running");
+
+    collapsePaneB();
+    vi.advanceTimersByTime(2_000);
+    expect(state()).toBe("idle-unseen");
+  });
+
+  it("stops running when its shown pane finishes, though a collapsed one prints", () => {
+    collapsePaneB();
+    print(4_000, "session-a", "session-b");
+    expect(state()).toBe("running");
+
+    print(3_000, "session-b");
+    expect(state()).toBe("idle-unseen");
+  });
+
+  it("shows a session running while one of its clones is collapsed", () => {
+    tabsAtom.set([splitTab({ sessionB: "session-a" }), shownTab]);
+    collapsePaneB();
+
+    print(4_000, "session-a");
+    expect(state()).toBe("running");
+  });
+
+  it("ignores a restored collapsed pane's output until it's expanded", () => {
+    tabsAtom.set([splitTab({ collapsed: true }), shownTab]);
+    print(4_000, "session-b");
+    expect(state()).toBeUndefined();
+
+    collapsePaneB(false);
+    expect(state()).toBe("running");
+    vi.advanceTimersByTime(2_000);
+    expect(state()).toBe("idle-unseen");
+  });
+
+  it("clears a collapsed pane's progress, but only shows it once expanded", () => {
+    trackSession("session-b");
+    updateProgressState("session-b", 3, 0);
+    collapsePaneB();
+    updateProgressState("session-b", 0, 0);
+    expect(progress()).toBeUndefined();
+
+    updateProgressState("session-b", 3, 0);
+    expect(progress()).toBeUndefined();
+    collapsePaneB(false);
+    expect(progress()).toBe("indeterminate");
   });
 });

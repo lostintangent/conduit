@@ -1,10 +1,6 @@
 import { deleteCanvasState } from "@/store/canvasStore";
 import { disposeEditorPane } from "@/components/panes/editor";
 import {
-  pauseStateTracking,
-  resumeStateTracking,
-} from "@features/terminal/client/stateTracker";
-import {
   disposeSession,
   getTerminalCellWidth,
   getTerminalSize,
@@ -165,18 +161,6 @@ export function setPaneCollapsed(
   // commands, which are already guarded by checks for whether the pane can be
   // collapsed or expanded. So we're not repeating those checks here. That said,
   // this function shouldn't be called directly from unguarded locations.
-
-  // Pause/resume idle tracking for terminal panes when collapsing/expanding
-  const tabs = tabsAtom.get();
-  const tab = tabs.find(({ id }) => id === tabId);
-  const pane = tab?.panes[paneId];
-  if (pane?.type === "terminal") {
-    if (collapsed) {
-      pauseStateTracking(pane.sessionId);
-    } else {
-      resumeStateTracking(pane.sessionId);
-    }
-  }
 
   tabsAtom.set(
     produce((tabs) => {

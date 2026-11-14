@@ -34,6 +34,10 @@ type TrackedSession = {
   progressPercent: number;
   pendingWaitRequests: Set<() => void>;
 
+  // What subscribers were last told, which lags while the session is paused.
+  announcedState: SessionState;
+  announcedProgress: { state: ProgressState; percent: number };
+
   // Suppress activity that occurs directly after user input
   // under the assumption it's echo or related output.
   inputSuppressionUntil: number | null;
@@ -59,20 +63,22 @@ const progressChangeSubscribers = new Set<
   (sessionId: string, state: ProgressState, percent: number) => void
 >();
 const runtimeResetSubscribers = new Set<(sessionId: string) => void>();
-// Sessions whose state changes go unannounced, like a collapsed pane's. A
-// restored workspace pauses its collapsed panes before they're tracked.
-const pausedSessions = new Set<string>();
+// Sessions no pane shows, like those whose every pane is collapsed. A paused
+// session doesn't announce that it started running or showing progress, so
+// its tab never shows output it hides. It still announces the end of what it
+// already announced, and a resumed session catches up.
+let pausedSessions = new Set<string>();
 
 // ============================================================================
 // Public API
 // ============================================================================
 
 /**
- * Get the current state of a session.
- * Returns "idle" if the session is not tracked.
+ * Get the state subscribers were last told a session is in, which stays idle
+ * while a paused session runs. Returns "idle" if the session is not tracked.
  */
 export function getSessionState(sessionId: string): SessionState {
-  return sessionStateMap.get(sessionId)?.state ?? "idle";
+  return sessionStateMap.get(sessionId)?.announcedState ?? "idle";
 }
 
 /**
@@ -108,6 +114,8 @@ export function trackSession(sessionId: string): void {
     progressState: "hidden",
     progressPercent: 0,
     pendingWaitRequests: new Set(),
+    announcedState: "idle",
+    announcedProgress: { state: "hidden", percent: 0 },
     inputSuppressionUntil: null,
     runningToIdleTimer: null,
     idleToRunningTimer: null,
@@ -124,7 +132,6 @@ export function trackSession(sessionId: string): void {
  * Clears all timers and resolves any pending wait requests.
  */
 export function untrackSession(sessionId: string): void {
-  pausedSessions.delete(sessionId);
   const session = sessionStateMap.get(sessionId);
   if (!session) return;
 
@@ -275,20 +282,9 @@ export function updateProgressState(
   };
 
   const newState = stateMap[stateNum] ?? "hidden";
-
-  if (
-    newState !== session.progressState ||
-    percent !== session.progressPercent
-  ) {
-    session.progressState = newState;
-    session.progressPercent = percent;
-
-    if (!pausedSessions.has(sessionId)) {
-      progressChangeSubscribers.forEach((cb) =>
-        cb(sessionId, newState, percent),
-      );
-    }
-  }
+  session.progressState = newState;
+  session.progressPercent = percent;
+  announce(sessionId, session);
 }
 
 /**
@@ -310,20 +306,16 @@ export function markAsIdle(sessionId: string): void {
   clearIdleToRunningCheck(session);
 
   transitionToIdle(session);
+  session.announcedState = "idle";
 }
 
 /**
- * Pause state notifications for a session.
+ * Pause the given sessions and resume the rest. A resumed session announces
+ * what it couldn't while paused.
  */
-export function pauseStateTracking(sessionId: string): void {
-  pausedSessions.add(sessionId);
-}
-
-/**
- * Resume state notifications for a session.
- */
-export function resumeStateTracking(sessionId: string): void {
-  pausedSessions.delete(sessionId);
+export function setPausedSessions(sessionIds: Set<string>): void {
+  pausedSessions = sessionIds;
+  sessionStateMap.forEach((session, sessionId) => announce(sessionId, session));
 }
 
 /**
@@ -396,9 +388,7 @@ function checkForSustainedActivity(
       session.state = "running";
       session.runningStartedAt = Date.now();
       session.idleSince = null;
-      if (!pausedSessions.has(sessionId)) {
-        stateChangeSubscribers.forEach((cb) => cb(sessionId, "running"));
-      }
+      announce(sessionId, session);
       startIdleTimer(session, sessionId);
     } else {
       // Keep checking
@@ -448,8 +438,31 @@ function transitionToIdle(session: TrackedSession): void {
 function startIdleTimer(session: TrackedSession, sessionId: string): void {
   session.runningToIdleTimer = setTimeout(() => {
     transitionToIdle(session);
-    if (!pausedSessions.has(sessionId)) {
-      stateChangeSubscribers.forEach((cb) => cb(sessionId, "idle"));
-    }
+    announce(sessionId, session);
   }, RUNNING_TO_IDLE_MS);
+}
+
+/**
+ * Tell subscribers what changed since they last heard about a session. A
+ * paused session only announces going idle or hiding its progress.
+ */
+function announce(sessionId: string, session: TrackedSession): void {
+  const paused = pausedSessions.has(sessionId);
+  const { state, progressState, progressPercent: percent } = session;
+
+  if (state !== session.announcedState && !(paused && state === "running")) {
+    session.announcedState = state;
+    stateChangeSubscribers.forEach((cb) => cb(sessionId, state));
+  }
+
+  const announced = session.announcedProgress;
+  if (
+    (progressState !== announced.state || percent !== announced.percent) &&
+    !(paused && progressState !== "hidden")
+  ) {
+    session.announcedProgress = { state: progressState, percent };
+    progressChangeSubscribers.forEach((cb) =>
+      cb(sessionId, progressState, percent),
+    );
+  }
 }

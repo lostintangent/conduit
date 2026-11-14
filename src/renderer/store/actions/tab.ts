@@ -6,6 +6,7 @@ import {
   notifyDataReceived,
   onProgressStateChange,
   onSessionStateChange,
+  setPausedSessions,
   trackSession,
   untrackSession,
 } from "@features/terminal/client/stateTracker";
@@ -33,6 +34,7 @@ import {
   setCanvasState,
 } from "@/store/canvasStore";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
+import { walkLayout } from "@/utils/layout";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
 import { generateElementId } from "@shared/types/canvas";
 import { generateId } from "@shared/utils";
@@ -883,10 +885,31 @@ export function registerTabEventHandlers() {
     },
   );
 
+  // A session whose every pane is collapsed is paused, so its tab only shows
+  // what a pane shows.
+  const pauseHiddenSessions = (tabs: Tab[]) => {
+    const shown = new Set<string>();
+    const hidden = new Set<string>();
+    for (const tab of tabs) {
+      walkLayout(tab.layout, ({ node }) => {
+        if (node.type !== "pane") return;
+        const pane = tab.panes[node.paneId];
+        if (pane?.type === "terminal") {
+          (node.collapsed ? hidden : shown).add(pane.sessionId);
+        }
+      });
+    }
+    shown.forEach((sessionId) => hidden.delete(sessionId));
+    setPausedSessions(hidden);
+  };
+  pauseHiddenSessions(tabsAtom.get());
+  const tabsSubscription = tabsAtom.subscribe(pauseHiddenSessions);
+
   return () => {
     unsubscribeExit();
     unsubscribeNewTab();
     unsubscribeActivity();
+    tabsSubscription.unsubscribe();
     unsubscribeStateChange();
     unsubscribeProgressChange();
   };

@@ -1,7 +1,5 @@
-import { pauseStateTracking } from "@features/terminal/client/stateTracker";
 import { activeTabIdAtom, tabsAtom, workspaceNameAtom } from "@/store/atoms";
-import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
-import { walkLayout } from "@/utils/layout";
+import type { LayoutNode, Pane, Tab } from "@/types";
 import type {
   TerminalPane as SharedTerminalPane,
   Workspace,
@@ -93,19 +91,6 @@ export async function openWorkspace(workspace: Workspace) {
   // Workspace files can be edited by hand, so a field may be missing.
   activeTabIdAtom.set(workspace.activeTabId ?? null);
   workspaceNameAtom.set(workspace.name ?? null);
-
-  // Pause idle tracking for any collapsed terminal panes
-  for (const tab of workspaceTabs) {
-    walkLayout(tab.layout, ({ node }) => {
-      if (node.type === "pane" && node.collapsed) {
-        const pane = tab.panes[node.paneId];
-        if (pane?.type === "terminal") {
-          pauseStateTracking((pane as TerminalPane).sessionId);
-        }
-      }
-      return true;
-    });
-  }
 }
 
 type CloseWorkspaceOptions = {
