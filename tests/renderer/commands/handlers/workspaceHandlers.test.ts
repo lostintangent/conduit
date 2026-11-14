@@ -17,23 +17,6 @@ global.window = {
   },
 } as any;
 
-// Mock jotai store - using a factory pattern to avoid hoisting issues
-vi.mock("jotai", async () => {
-  const actual = await vi.importActual("jotai");
-  const mockGet = vi.fn();
-  const mockSet = vi.fn();
-
-  return {
-    ...actual,
-    getDefaultStore: vi.fn(() => ({
-      get: mockGet,
-      set: mockSet,
-    })),
-    _mockStoreGet: mockGet,
-    _mockStoreSet: mockSet,
-  };
-});
-
 // Mock workspace actions
 vi.mock("@/store/actions/workspace", () => ({
   closeWorkspace: vi.fn(),
@@ -48,13 +31,16 @@ import {
   handleRenameWorkspace,
   handleSaveWorkspace,
 } from "@/commands/handlers/workspaceHandlers";
-import * as jotaiModule from "jotai";
+import {
+  previousTabsSnapshotAtom,
+  workspaceHasChangesAtom,
+  workspaceNameAtom,
+  workspaceStateAtom,
+} from "@/store/atoms";
 
 describe("workspaceHandlers", () => {
   let mockTabs: Tab[];
   let mockSetShowCreateWorkspaceDialog: Mock<(show: boolean) => void>;
-  let mockStoreGet: ReturnType<typeof vi.fn>;
-  let mockStoreSet: ReturnType<typeof vi.fn>;
 
   const createMockTab = (id: string, title: string): Tab => {
     const paneId = `${id}-pane`;
@@ -92,9 +78,11 @@ describe("workspaceHandlers", () => {
 
     mockSetShowCreateWorkspaceDialog = vi.fn();
 
-    // Get references to the mock store methods
-    mockStoreGet = (jotaiModule as any)._mockStoreGet;
-    mockStoreSet = (jotaiModule as any)._mockStoreSet;
+    // Reset the workspace atoms (set(undefined) is a no-op, so use an updater)
+    workspaceNameAtom.set(() => undefined);
+    workspaceStateAtom.set({ workspaces: [] });
+    previousTabsSnapshotAtom.set("");
+    workspaceHasChangesAtom.set(true);
   });
 
   describe("handleSaveWorkspace", () => {
@@ -110,7 +98,7 @@ describe("workspaceHandlers", () => {
         },
       ];
 
-      mockStoreGet.mockReturnValue(workspaceName);
+      workspaceNameAtom.set(workspaceName);
       mockWorkspaceApi.saveWorkspace.mockResolvedValue({
         workspaces: mockSessions,
         lastWorkspace: mockSessions[0],
@@ -127,14 +115,20 @@ describe("workspaceHandlers", () => {
         mockTabs,
         activeTabId,
       );
-      expect(mockStoreSet).toHaveBeenCalledTimes(3); // workspacesAtom, previousTabsSnapshotAtom, workspaceHasChangesAtom
+      // workspaceStateAtom, previousTabsSnapshotAtom, workspaceHasChangesAtom
+      expect(workspaceStateAtom.get()).toEqual({
+        workspaces: mockSessions,
+        lastWorkspace: mockSessions[0],
+      });
+      expect(previousTabsSnapshotAtom.get()).toBe(JSON.stringify(mockTabs));
+      expect(workspaceHasChangesAtom.get()).toBe(false);
       expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
     });
 
     it("should show create dialog when no workspaceName exists", async () => {
       const activeTabId = "tab-1";
 
-      mockStoreGet.mockReturnValue(undefined);
+      workspaceNameAtom.set(() => undefined);
 
       await handleSaveWorkspace(
         mockTabs,
@@ -147,13 +141,16 @@ describe("workspaceHandlers", () => {
     });
 
     it("should return early when activeTabId is undefined", async () => {
+      const getWorkspaceName = vi.spyOn(workspaceNameAtom, "get");
+
       await handleSaveWorkspace(
         mockTabs,
         undefined,
         mockSetShowCreateWorkspaceDialog,
       );
 
-      expect(mockStoreGet).not.toHaveBeenCalled();
+      expect(getWorkspaceName).not.toHaveBeenCalled();
+      getWorkspaceName.mockRestore();
       expect(mockWorkspaceApi.saveWorkspace).not.toHaveBeenCalled();
       expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
     });
@@ -170,7 +167,7 @@ describe("workspaceHandlers", () => {
         },
       ];
 
-      mockStoreGet.mockReturnValue(workspaceName);
+      workspaceNameAtom.set(workspaceName);
       mockWorkspaceApi.saveWorkspace.mockResolvedValue({
         workspaces: mockSessions,
         lastWorkspace: mockSessions[0],
@@ -183,15 +180,12 @@ describe("workspaceHandlers", () => {
       );
 
       // Check that atoms were updated
-      expect(mockStoreSet).toHaveBeenCalledWith(expect.anything(), {
+      expect(workspaceStateAtom.get()).toEqual({
         workspaces: mockSessions,
         lastWorkspace: mockSessions[0],
-      }); // workspaceStateAtom
-      expect(mockStoreSet).toHaveBeenCalledWith(
-        expect.anything(),
-        JSON.stringify(mockTabs),
-      ); // previousTabsSnapshotAtom
-      expect(mockStoreSet).toHaveBeenCalledWith(expect.anything(), false); // workspaceHasChangesAtom
+      });
+      expect(previousTabsSnapshotAtom.get()).toBe(JSON.stringify(mockTabs));
+      expect(workspaceHasChangesAtom.get()).toBe(false);
     });
   });
 

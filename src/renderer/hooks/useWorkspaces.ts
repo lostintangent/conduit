@@ -11,7 +11,7 @@ import {
   workspaceNameAtom,
   workspaceStateAtom,
 } from "@/store/atoms";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const { workspace } = window.conduit;
@@ -20,11 +20,11 @@ export function useWorkspaces() {
   const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
   const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
 
-  const tabs = useAtomValue(tabsAtom);
-  const activeTabId = useAtomValue(activeTabIdAtom);
-  const userSettings = useAtomValue(userSettingsAtom);
+  const tabs = useSelector(tabsAtom);
+  const activeTabId = useSelector(activeTabIdAtom);
+  const userSettings = useSelector(userSettingsAtom);
 
-  const setWorkspaceHasChanges = useSetAtom(workspaceHasChangesAtom);
+  const setWorkspaceHasChanges = workspaceHasChangesAtom.set;
   const [previousTabsSnapshot, setPreviousTabsSnapshot] = useAtom(
     previousTabsSnapshotAtom,
   );

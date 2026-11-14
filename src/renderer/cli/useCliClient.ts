@@ -10,7 +10,7 @@ import { activeTabAtom, quickPaneAtom, tabsAtom } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { CliRequest, CliResponse } from "@shared/cli/types";
 import { ApplicationCommands } from "@shared/commands";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useEffect, useEffectEvent } from "react";
 import {
   handlerMap,
@@ -48,10 +48,10 @@ function useSplitCommandMap<T extends string>(commands: SplitCommandConfig<T>) {
 }
 
 export function useCliClient(activeCwd: string) {
-  const tabs = useAtomValue(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
-  const sidebarState = useAtomValue(sidebarStateAtom);
-  const setQuickPane = useSetAtom(quickPaneAtom);
+  const tabs = useSelector(tabsAtom);
+  const activeTab = useSelector(activeTabAtom);
+  const sidebarState = useSelector(sidebarStateAtom);
+  const setQuickPane = quickPaneAtom.set;
 
   const moveCommandMap = useCommandMap({
     left: ApplicationCommands.PANE_MOVE_LEFT,

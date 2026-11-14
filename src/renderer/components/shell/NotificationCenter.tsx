@@ -4,7 +4,7 @@ import { Notification } from "@/types";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 
 function notificationStyles(kind: Notification["kind"]) {
   switch (kind) {
@@ -18,7 +18,7 @@ function notificationStyles(kind: Notification["kind"]) {
 }
 
 export function NotificationCenter() {
-  const notifications = useAtomValue(notificationsAtom);
+  const notifications = useSelector(notificationsAtom);
 
   if (notifications.length === 0) {
     return null;

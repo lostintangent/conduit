@@ -6,11 +6,9 @@ import type {
   TerminalPane as SharedTerminalPane,
   Workspace,
 } from "@shared/types";
-import { getDefaultStore } from "jotai";
 import { closeTab } from "./tab";
 
 const api = window.conduit;
-const store = getDefaultStore();
 
 type WorkspacePane = Workspace["tabs"][number]["panes"][number];
 type WorkspaceTerminalPane = WorkspacePane & SharedTerminalPane;
@@ -89,9 +87,10 @@ export async function openWorkspace(workspace: Workspace) {
 
   await closeWorkspace({ openReplacement: false });
 
-  store.set(tabsAtom, workspaceTabs);
-  store.set(activeTabIdAtom, workspace.activeTabId);
-  store.set(workspaceNameAtom, workspace.name);
+  tabsAtom.set(workspaceTabs);
+  // Workspace files can be edited by hand, so a field may be missing.
+  activeTabIdAtom.set(workspace.activeTabId ?? null);
+  workspaceNameAtom.set(workspace.name ?? null);
 
   // Pause idle tracking for any collapsed terminal panes
   for (const tab of workspaceTabs) {
@@ -114,8 +113,8 @@ type CloseWorkspaceOptions = {
 export async function closeWorkspace(options: CloseWorkspaceOptions = {}) {
   const { openReplacement = true } = options;
 
-  store.set(workspaceNameAtom, null);
-  store
-    .get(tabsAtom)
+  workspaceNameAtom.set(null);
+  tabsAtom
+    .get()
     .forEach((tab) => closeTab(tab.id, { force: true, openReplacement }));
 }

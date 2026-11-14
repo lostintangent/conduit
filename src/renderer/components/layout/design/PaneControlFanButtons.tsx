@@ -17,7 +17,7 @@ import {
 } from "@/store/actions/pane";
 import { tabsAtom } from "@/store/atoms";
 import type { SplitDirection } from "@/types";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { Settings } from "lucide-react";
 
 export type SplitButtonPosition = "top" | "bottom" | "left" | "right";
@@ -45,7 +45,7 @@ export function PaneControlFanButtons({
   onVisibilityChange,
   onOpenPaneActions,
 }: PaneControlFanButtonsProps) {
-  const tabs = useAtomValue(tabsAtom);
+  const tabs = useSelector(tabsAtom);
 
   // Get pane actions
   const paneActions = useEnabledPaneActions();

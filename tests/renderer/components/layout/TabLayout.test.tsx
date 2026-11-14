@@ -20,11 +20,8 @@ import { TabLayout } from "@/components/layout/normal/TabLayout";
 import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { enableMapSet } from "immer";
-import { getDefaultStore } from "jotai";
 
 enableMapSet();
-
-const store = getDefaultStore();
 
 const tab: Tab = {
   id: "tab-1",
@@ -60,13 +57,13 @@ describe("TabLayout terminal links", () => {
   beforeEach(() => {
     terminalProps = undefined;
     openExternal.mockClear();
-    store.set(tabsAtom, [tab]);
-    store.set(activeTabIdAtom, "tab-1");
+    tabsAtom.set([tab]);
+    activeTabIdAtom.set("tab-1");
   });
 
   it("opens links in the default browser when that's the link target", () => {
-    store.set(userSettingsAtom, {
-      ...store.get(userSettingsAtom),
+    userSettingsAtom.set({
+      ...userSettingsAtom.get(),
       terminalLinkTarget: "default",
     });
     renderTabLayout();
@@ -74,6 +71,6 @@ describe("TabLayout terminal links", () => {
     act(() => terminalProps!.onLinkClick("https://example.com"));
 
     expect(openExternal).toHaveBeenCalledWith("https://example.com");
-    expect(store.get(tabsAtom)[0].panes).toEqual(tab.panes);
+    expect(tabsAtom.get()[0].panes).toEqual(tab.panes);
   });
 });

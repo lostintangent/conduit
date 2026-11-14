@@ -6,7 +6,6 @@ import {
 } from "@/commands/paneActions/io/userPaneActions";
 import { paneActionsAtom } from "@/store/atoms";
 import { access, mkdir, mkdtemp, rm, writeFile } from "fs/promises";
-import { getDefaultStore } from "jotai";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -44,6 +43,6 @@ describe("userPaneActions", () => {
     await resetPaneActionsToDefaults(homeDirectory);
 
     expect(await hasUserPaneActionsFile(homeDirectory)).toBe(false);
-    expect(getDefaultStore().get(paneActionsAtom)).toEqual(defaults);
+    expect(paneActionsAtom.get()).toEqual(defaults);
   });
 });

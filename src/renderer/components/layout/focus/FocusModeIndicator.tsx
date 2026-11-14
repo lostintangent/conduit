@@ -8,19 +8,19 @@ import { activatePane } from "@/store/actions/pane";
 import { focusTab } from "@/store/actions/tab";
 import { activeTabAtom, activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { ArrowLeft, ArrowRight, Shrink } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FocusModeMiniMap } from "./FocusModeMiniMap";
 
 export function FocusModeIndicator() {
   const [isVisible, setIsVisible] = useState(false);
-  const tabs = useAtomValue(tabsAtom);
-  const activeTabId = useAtomValue(activeTabIdAtom);
-  const activeTab = useAtomValue(activeTabAtom);
+  const tabs = useSelector(tabsAtom);
+  const activeTabId = useSelector(activeTabIdAtom);
+  const activeTab = useSelector(activeTabAtom);
 
   const totalTabs = tabs.length;
-  const tabLabels = useAtomValue(tabLabelsAtom);
+  const tabLabels = useSelector(tabLabelsAtom);
   const activeTabIndex = useMemo(() => {
     if (!activeTabId) {
       return -1;

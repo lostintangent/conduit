@@ -20,7 +20,7 @@
 
 import { userSettingsAtom } from "@/store/atoms";
 import { resolveTheme } from "@/utils/theme";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useMemo, useRef } from "react";
 
 /**
@@ -50,7 +50,7 @@ export interface UseMarkdownPreviewResult {
  * @returns Mermaid config, click handler, and container ref
  */
 export function useMarkdownPreview(): UseMarkdownPreviewResult {
-  const { theme } = useAtomValue(userSettingsAtom);
+  const { theme } = useSelector(userSettingsAtom);
   const resolvedTheme = resolveTheme(theme);
   const containerRef = useRef<HTMLDivElement>(null);
 

@@ -3,7 +3,6 @@
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { getDefaultStore } from "jotai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/hooks/useCommand", () => ({
@@ -13,8 +12,6 @@ vi.mock("@/commands/hooks/useCommand", () => ({
 import { BrowserMenu } from "@/components/panes/browser/toolbar/BrowserMenu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notificationsAtom } from "@/store/atoms";
-
-const store = getDefaultStore();
 
 function captureFromMenu(onCaptureScreenshot: () => Promise<void>) {
   render(
@@ -38,20 +35,20 @@ const checkmarkShown = () =>
   !!screen.getByLabelText("More options").querySelector(".text-green-500");
 
 describe("BrowserMenu screenshot", () => {
-  afterEach(() => store.set(notificationsAtom, []));
+  afterEach(() => notificationsAtom.set([]));
 
   it("shows the checkmark once the screenshot is copied", async () => {
     captureFromMenu(() => Promise.resolve());
 
     await waitFor(() => expect(checkmarkShown()).toBe(true));
-    expect(store.get(notificationsAtom)).toEqual([]);
+    expect(notificationsAtom.get()).toEqual([]);
   });
 
   it("shows an error notification instead when the capture fails", async () => {
     captureFromMenu(() => Promise.reject(new Error("UnknownVizError")));
 
     await waitFor(() =>
-      expect(store.get(notificationsAtom)).toMatchObject([
+      expect(notificationsAtom.get()).toMatchObject([
         {
           kind: "error",
           message: "Failed to copy screenshot",

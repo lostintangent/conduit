@@ -4,7 +4,7 @@
  * Hooks for consuming pane actions in components.
  */
 
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useMemo } from "react";
 import { paneActionsAtom } from "@/store/atoms";
 import type { Action } from "../core/types";
@@ -12,12 +12,12 @@ import type { Action } from "../core/types";
 /**
  * Get all pane actions
  *
- * Returns all actions (enabled and disabled) from the Jotai atom.
+ * Returns all actions (enabled and disabled) from the store atom.
  *
  * @returns All actions
  */
 export function usePaneActions(): Action[] {
-  return useAtomValue(paneActionsAtom);
+  return useSelector(paneActionsAtom);
 }
 
 /**
@@ -29,7 +29,7 @@ export function usePaneActions(): Action[] {
  * @returns Enabled actions only
  */
 export function useEnabledPaneActions(): Action[] {
-  const actions = useAtomValue(paneActionsAtom);
+  const actions = useSelector(paneActionsAtom);
 
   return useMemo(() => {
     return actions.filter((action) => action.enabled);

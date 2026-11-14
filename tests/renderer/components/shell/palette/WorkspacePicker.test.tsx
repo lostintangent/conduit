@@ -4,7 +4,6 @@
 
 import type { Workspace, WorkspaceState } from "@shared/types";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Provider, createStore } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 
 const { workspaceApi } = vi.hoisted(() => {
@@ -30,16 +29,11 @@ describe("WorkspacePicker", () => {
   it("removes a deleted workspace from the list", async () => {
     const alpha = workspace("Alpha");
     const beta = workspace("Beta");
-    const store = createStore();
-    store.set(workspaceStateAtom, { workspaces: [alpha, beta] });
+    workspaceStateAtom.set({ workspaces: [alpha, beta] });
     workspaceApi.getState.mockResolvedValue({ workspaces: [beta] });
     workspaceApi.deleteWorkspace.mockResolvedValue();
 
-    render(
-      <Provider store={store}>
-        <WorkspacePicker isOpen onClose={() => {}} />
-      </Provider>,
-    );
+    render(<WorkspacePicker isOpen onClose={() => {}} />);
 
     await screen.findByText("Alpha");
     fireEvent.click(screen.getAllByLabelText("Delete session")[0]);

@@ -505,7 +505,7 @@ This allows multiple concurrent CLI commands to be in-flight simultaneously, wit
 
 #### Renderer Process State
 
-The renderer process uses React hooks and Jotai atoms to access:
+The renderer process uses React hooks and TanStack Store atoms to access:
 
 - `tabsAtom` - All tab configurations
 - `activeTabAtom` - Currently active tab

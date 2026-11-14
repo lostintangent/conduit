@@ -4,25 +4,24 @@
 
 import React from "react";
 import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
-import { Provider } from "jotai";
-import { useQuickOpenRecentFiles } from "@/hooks/useQuickOpenRecentFiles";
-
-// Wrapper to provide fresh Jotai state for each test
-function JotaiWrapper({ children }: { children: React.ReactNode }) {
-  return <Provider>{children}</Provider>;
-}
+import { beforeEach, describe, it, expect } from "vitest";
+import {
+  quickOpenRecentFilesAtom,
+  useQuickOpenRecentFiles,
+} from "@/hooks/useQuickOpenRecentFiles";
 
 describe("useQuickOpenRecentFiles", () => {
+  beforeEach(() => {
+    quickOpenRecentFilesAtom.set([]);
+  });
+
   // ==========================================================================
   // Initial State Tests
   // ==========================================================================
 
   describe("initial state", () => {
     it("should start with empty array", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       expect(result.current.recentFiles).toEqual([]);
     });
@@ -34,9 +33,7 @@ describe("useQuickOpenRecentFiles", () => {
 
   describe("addRecentFile", () => {
     it("should add file to front of list", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -55,9 +52,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should move existing file to front (LRU behavior)", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -84,9 +79,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should cap at 20 files", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       // Add 25 files
       act(() => {
@@ -104,9 +97,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle adding same file multiple times", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -119,9 +110,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle empty string", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("");
@@ -137,9 +126,7 @@ describe("useQuickOpenRecentFiles", () => {
 
   describe("removeRecentFile", () => {
     it("should remove specified file", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -160,9 +147,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle removing non-existent file", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -178,9 +163,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle removing from empty list", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.removeRecentFile("/workspace/file1.ts");
@@ -190,9 +173,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should remove all occurrences if duplicates exist", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       // Manually set state with duplicates (shouldn't happen in practice)
       act(() => {
@@ -217,9 +198,7 @@ describe("useQuickOpenRecentFiles", () => {
 
   describe("setRecentFiles", () => {
     it("should replace entire list", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -241,9 +220,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should cap at 20 files", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       const files = Array.from(
         { length: 25 },
@@ -262,9 +239,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle empty array", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.addRecentFile("/workspace/file1.ts");
@@ -278,9 +253,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle array with fewer than 20 items", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       const files = ["/workspace/file1.ts", "/workspace/file2.ts"];
 
@@ -298,9 +271,7 @@ describe("useQuickOpenRecentFiles", () => {
 
   describe("integration scenarios", () => {
     it("should handle mixed operations", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       // Add files
       act(() => {
@@ -330,9 +301,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should maintain order through add/remove cycles", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       // Add files
       act(() => {
@@ -368,9 +337,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should survive setRecentFiles followed by add", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       act(() => {
         result.current.setRecentFiles([
@@ -397,9 +364,7 @@ describe("useQuickOpenRecentFiles", () => {
 
   describe("edge cases", () => {
     it("should handle very long file paths", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       const longPath = "/workspace/" + "a".repeat(500) + ".ts";
 
@@ -411,9 +376,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle paths with special characters", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       const specialPaths = [
         "/workspace/file with spaces.ts",
@@ -430,9 +393,7 @@ describe("useQuickOpenRecentFiles", () => {
     });
 
     it("should handle unicode paths", () => {
-      const { result } = renderHook(() => useQuickOpenRecentFiles(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useQuickOpenRecentFiles());
 
       const unicodePaths = [
         "/workspace/文件.ts",

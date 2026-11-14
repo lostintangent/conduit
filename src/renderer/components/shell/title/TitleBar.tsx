@@ -1,4 +1,4 @@
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { Cable } from "lucide-react";
 
 import { workspaceNameAtom } from "@/store/atoms";
@@ -8,7 +8,7 @@ import { SettingsMenu } from "./SettingsMenu";
 import { WorkspaceMenu } from "./WorkspaceMenu";
 
 export const TitleBar = () => {
-  const workspaceName = useAtomValue(workspaceNameAtom);
+  const workspaceName = useSelector(workspaceNameAtom);
 
   return (
     <div className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] font-medium bg-elevated mb-[1px] [app-region:drag]">

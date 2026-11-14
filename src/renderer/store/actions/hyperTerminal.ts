@@ -2,10 +2,9 @@ import { disposeSession } from "@/components/panes/terminal/state/xtermCache";
 import { openTabFromExistingSession } from "@/store/actions/tab";
 import { hyperTerminalsAtom } from "@/store/atoms";
 import type { HyperTerminalPosition } from "@shared/types";
-import { getDefaultStore } from "jotai";
+import { produce } from "immer";
 
 const api = window.conduit;
-const store = getDefaultStore();
 
 /**
  * Removes a hyper terminal from the store by its terminal ID.
@@ -14,19 +13,21 @@ const store = getDefaultStore();
  * @returns True if the terminal was found and removed, false otherwise
  */
 function removeHyperTerminal(terminalId: string): boolean {
-  const terminals = store.get(hyperTerminalsAtom);
+  const terminals = hyperTerminalsAtom.get();
   const exists = terminals.some((t) => t.terminalId === terminalId);
 
   if (!exists) {
     return false;
   }
 
-  store.set(hyperTerminalsAtom, (draft) => {
-    const index = draft.findIndex((t) => t.terminalId === terminalId);
-    if (index !== -1) {
-      draft.splice(index, 1);
-    }
-  });
+  hyperTerminalsAtom.set(
+    produce((draft) => {
+      const index = draft.findIndex((t) => t.terminalId === terminalId);
+      if (index !== -1) {
+        draft.splice(index, 1);
+      }
+    }),
+  );
 
   return true;
 }
@@ -38,7 +39,7 @@ function removeHyperTerminal(terminalId: string): boolean {
  * @returns True if the session is a hyper terminal, false otherwise
  */
 export function isHyperTerminal(sessionId: string): boolean {
-  return store.get(hyperTerminalsAtom).some((t) => t.terminalId === sessionId);
+  return hyperTerminalsAtom.get().some((t) => t.terminalId === sessionId);
 }
 
 /**
@@ -54,18 +55,20 @@ export function openHyperTerminal(
   paneId: string,
   cwd: string | null,
 ) {
-  store.set(hyperTerminalsAtom, (terminals) => {
-    // Prevent duplicate terminals
-    if (!terminals.some((t) => t.terminalId === terminalId)) {
-      terminals.push({
-        terminalId,
-        paneId,
-        cwd,
-        state: "visible",
-        position: null,
-      });
-    }
-  });
+  hyperTerminalsAtom.set(
+    produce((terminals) => {
+      // Prevent duplicate terminals
+      if (!terminals.some((t) => t.terminalId === terminalId)) {
+        terminals.push({
+          terminalId,
+          paneId,
+          cwd,
+          state: "visible",
+          position: null,
+        });
+      }
+    }),
+  );
 }
 
 /**
@@ -78,12 +81,14 @@ export function updateHyperTerminalPosition(
   terminalId: string,
   position: HyperTerminalPosition,
 ) {
-  store.set(hyperTerminalsAtom, (terminals) => {
-    const terminal = terminals.find((t) => t.terminalId === terminalId);
-    if (terminal) {
-      terminal.position = position;
-    }
-  });
+  hyperTerminalsAtom.set(
+    produce((terminals) => {
+      const terminal = terminals.find((t) => t.terminalId === terminalId);
+      if (terminal) {
+        terminal.position = position;
+      }
+    }),
+  );
 }
 
 /**
@@ -92,25 +97,29 @@ export function updateHyperTerminalPosition(
  * @param terminalId - The terminal session ID to minimize
  */
 export function minimizeHyperTerminal(terminalId: string) {
-  store.set(hyperTerminalsAtom, (terminals) => {
-    const terminal = terminals.find((t) => t.terminalId === terminalId);
-    if (terminal) {
-      terminal.state = "minimized";
-    }
-  });
+  hyperTerminalsAtom.set(
+    produce((terminals) => {
+      const terminal = terminals.find((t) => t.terminalId === terminalId);
+      if (terminal) {
+        terminal.state = "minimized";
+      }
+    }),
+  );
 }
 
 /**
  * Restores all minimized hyper terminals to visible state.
  */
 export function restoreMinimizedHyperTerminals() {
-  store.set(hyperTerminalsAtom, (terminals) => {
-    for (const terminal of terminals) {
-      if (terminal.state === "minimized") {
-        terminal.state = "visible";
+  hyperTerminalsAtom.set(
+    produce((terminals) => {
+      for (const terminal of terminals) {
+        if (terminal.state === "minimized") {
+          terminal.state = "visible";
+        }
       }
-    }
-  });
+    }),
+  );
 }
 
 /**

@@ -15,11 +15,8 @@ import {
 import type { Tab } from "@/types";
 import type { CanvasElement } from "@shared/types/canvas";
 import { enableMapSet } from "immer";
-import { getDefaultStore } from "jotai";
 
 enableMapSet();
-
-const store = getDefaultStore();
 
 const element = {
   id: "rect-1",
@@ -51,7 +48,7 @@ function canvasTab(id: string, paneId: string): Tab {
 
 describe("canvas panes in tab actions", () => {
   beforeEach(() => {
-    store.set(tabsAtom, [
+    tabsAtom.set([
       canvasTab("tab-1", "canvas-1"),
       canvasTab("tab-2", "canvas-2"),
     ]);
@@ -67,7 +64,7 @@ describe("canvas panes in tab actions", () => {
   it("duplicateTab copies canvas panes and their drawing", async () => {
     const result = await duplicateTab("tab-1");
 
-    const copy = store.get(tabsAtom).find((tab) => tab.id === result?.tabId)!;
+    const copy = tabsAtom.get().find((tab) => tab.id === result?.tabId)!;
     const [pane] = Object.values(copy.panes);
     expect(pane).toMatchObject({ type: "canvas", title: "Sketch" });
     expect(copy.layout).toMatchObject({ type: "pane", paneId: pane.id });

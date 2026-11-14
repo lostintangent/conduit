@@ -1,4 +1,4 @@
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback } from "react";
 import { keybindingsAtom } from "@/store/atoms";
 import { getCommandRegistry, executeCommand } from "@/commands";
@@ -73,7 +73,7 @@ export function getCommandDisplayTitle(
  * </button>
  */
 export function useCommand(commandId: string): CommandInfo {
-  const keybindingsMap = useAtomValue(keybindingsAtom);
+  const keybindingsMap = useSelector(keybindingsAtom);
   // Null until the command is registered
   const command = getCommandRegistry().getCommand(commandId) ?? null;
   const rawBindings = keybindingsMap.get(commandId) ?? [];

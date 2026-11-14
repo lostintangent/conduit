@@ -1,10 +1,7 @@
 import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDialog";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { EditorPane } from "@/types";
-import { getDefaultStore } from "jotai";
 import type { HandlerMap } from "./types";
-
-const store = getDefaultStore();
 
 type EditorQuickDescriptor = Omit<EditorPane, "id"> &
   Pick<QuickPaneDescriptor, "closeOnSave" | "onClose">;
@@ -39,7 +36,7 @@ export const editorHandlers: Partial<HandlerMap> = {
     }
 
     // Normal mode: open in sidebar, return immediately
-    store.set(sidebarStateAtom, {
+    sidebarStateAtom.set({
       isOpen: true,
       view: "editor",
       navigation: {

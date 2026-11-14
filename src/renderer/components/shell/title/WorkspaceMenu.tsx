@@ -1,4 +1,4 @@
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useSelector } from "@tanstack/react-store";
 import { Download, LayoutDashboard, Trash2 } from "lucide-react";
 import { type MouseEvent, useCallback } from "react";
 
@@ -32,11 +32,11 @@ import type { Workspace } from "@shared/types";
 const api = window.conduit;
 
 export const WorkspaceMenu = () => {
-  const { autoSaveWorkspaces } = useAtomValue(userSettingsAtom);
+  const { autoSaveWorkspaces } = useSelector(userSettingsAtom);
 
   const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
-  const workspaceName = useAtomValue(workspaceNameAtom);
-  const hasWorkspaceChanges = useAtomValue(workspaceHasChangesAtom);
+  const workspaceName = useSelector(workspaceNameAtom);
+  const hasWorkspaceChanges = useSelector(workspaceHasChangesAtom);
 
   const saveWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_SAVE);
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);

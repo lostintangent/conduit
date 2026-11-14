@@ -71,17 +71,16 @@ import {
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@shared/types";
-import { getDefaultStore, useAtom, useAtomValue } from "jotai";
+import { useAtom, useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const api = window.conduit;
-const store = getDefaultStore();
 
 export function App() {
-  const tabs = useAtomValue(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
+  const tabs = useSelector(tabsAtom);
+  const activeTab = useSelector(activeTabAtom);
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
-  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
+  const hyperTerminals = useSelector(hyperTerminalsAtom);
 
   const userSettings = useUserSettings();
   const {
@@ -743,7 +742,7 @@ export function App() {
                 });
               } else {
                 // Strategy 2b: No matching editor, open in sidebar
-                store.set(sidebarStateAtom, {
+                sidebarStateAtom.set({
                   isOpen: true,
                   view: "editor",
                   navigation: {

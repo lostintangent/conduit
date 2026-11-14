@@ -1,6 +1,5 @@
 import { getKeybindingRegistry } from "@/commands";
 import { keybindingsAtom } from "@/store/atoms";
-import { getDefaultStore } from "jotai";
 
 /**
  * Update the keybindings atom with current keybindings from the registry
@@ -18,7 +17,6 @@ export function updateKeybindingsAtom(): void {
   const keybindingRegistry = getKeybindingRegistry();
   const allKeybindings = keybindingRegistry.getAllKeybindings();
 
-  // Update the global Jotai store
-  const store = getDefaultStore();
-  store.set(keybindingsAtom, allKeybindings);
+  // Update the global atom
+  keybindingsAtom.set(allKeybindings);
 }

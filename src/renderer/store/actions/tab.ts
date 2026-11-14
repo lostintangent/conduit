@@ -30,11 +30,10 @@ import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
 import { generateElementId } from "@shared/types/canvas";
 import { generateId } from "@shared/utils";
-import { getDefaultStore } from "jotai";
 import path from "path-browserify";
+import { produce } from "immer";
 
 const api = window.conduit;
-const store = getDefaultStore();
 
 /**
  * Get the current working directory from a tab's active pane
@@ -132,7 +131,7 @@ export async function openTab(
   options?: NewTabOptions,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Inherit CWD from the active tab's active pane
-  const activeTab = store.get(activeTabAtom);
+  const activeTab = activeTabAtom.get();
   const cwd = getActiveTabCwd(activeTab);
 
   const result = await api.createTerminal({
@@ -170,16 +169,18 @@ function createTabWithPane(
     paneId: paneState.id,
   };
 
-  store.set(tabsAtom, (current) => [
-    ...current,
-    {
-      id: tabId,
-      panes: { [paneState.id]: paneState },
-      layout,
-      activePaneId: paneState.id,
-      name,
-    },
-  ]);
+  tabsAtom.set(
+    produce((current) => [
+      ...current,
+      {
+        id: tabId,
+        panes: { [paneState.id]: paneState },
+        layout,
+        activePaneId: paneState.id,
+        name,
+      },
+    ]),
+  );
   focusTab(tabId);
 
   return { tabId, paneId: paneState.id };
@@ -245,33 +246,35 @@ export async function openTabFromPaneDescriptor(
 }
 
 export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
-
-      const entries = Object.entries(updates);
-      if (entries.length === 0) {
-        return tab;
-      }
-
-      const updatedTab: Tab = { ...tab };
-      let changed = false;
-
-      entries.forEach(([key, value]) => {
-        const currentValue = (updatedTab as Record<string, unknown>)[
-          key as string
-        ];
-        if (!Object.is(currentValue, value)) {
-          (updatedTab as Record<string, unknown>)[key as string] =
-            value as unknown;
-          changed = true;
+  tabsAtom.set(
+    produce((current) =>
+      current.map((tab) => {
+        if (tab.id !== tabId) {
+          return tab;
         }
-      });
 
-      return changed ? updatedTab : tab;
-    }),
+        const entries = Object.entries(updates);
+        if (entries.length === 0) {
+          return tab;
+        }
+
+        const updatedTab: Tab = { ...tab };
+        let changed = false;
+
+        entries.forEach(([key, value]) => {
+          const currentValue = (updatedTab as Record<string, unknown>)[
+            key as string
+          ];
+          if (!Object.is(currentValue, value)) {
+            (updatedTab as Record<string, unknown>)[key as string] =
+              value as unknown;
+            changed = true;
+          }
+        });
+
+        return changed ? updatedTab : tab;
+      }),
+    ),
   );
 }
 
@@ -281,8 +284,8 @@ const RECENTLY_BACKGROUNDED_MS = 3000;
 const recentlyBackgroundedTabs = new Map<string, NodeJS.Timeout>();
 
 export function focusTab(tabId: string) {
-  const tabs = store.get(tabsAtom);
-  const currentTabId = store.get(activeTabIdAtom);
+  const tabs = tabsAtom.get();
+  const currentTabId = activeTabIdAtom.get();
 
   if (!tabs.some((tab) => tab.id === tabId) || tabId === currentTabId) {
     return;
@@ -305,7 +308,7 @@ export function focusTab(tabId: string) {
   recentlyBackgroundedTabs.delete(tabId);
 
   acknowledgeTabState(tabId);
-  store.set(activeTabIdAtom, tabId);
+  activeTabIdAtom.set(tabId);
 }
 
 export function lockTab(tabId: string) {
@@ -323,7 +326,7 @@ type CloseTabOptions = {
 
 export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   const { force = false, openReplacement = true } = options;
-  const targetTab = store.get(tabsAtom).find((tab) => tab.id === tabId);
+  const targetTab = tabsAtom.get().find((tab) => tab.id === tabId);
   if (!targetTab || (targetTab.locked && !force)) {
     return;
   }
@@ -334,44 +337,46 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   const canvasPaneIdsToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
   let shouldOpenReplacement = false;
-  const previousActiveTabId = store.get(activeTabIdAtom);
+  const previousActiveTabId = activeTabIdAtom.get();
   let nextActiveTabId: string | null | undefined = undefined;
 
-  store.set(tabsAtom, (current) => {
-    const removedTabIndex = current.findIndex((tab) => tab.id === tabId);
-    const [removedTab] = current.splice(removedTabIndex, 1);
+  tabsAtom.set(
+    produce((current) => {
+      const removedTabIndex = current.findIndex((tab) => tab.id === tabId);
+      const [removedTab] = current.splice(removedTabIndex, 1);
 
-    Object.values(removedTab.panes).forEach((pane) => {
-      // Collect pane IDs for DOM cleanup
-      paneIdsToCleanup.push(pane.id);
+      Object.values(removedTab.panes).forEach((pane) => {
+        // Collect pane IDs for DOM cleanup
+        paneIdsToCleanup.push(pane.id);
 
-      if (pane.type === "terminal") {
-        terminalPanesToDispose.push(pane.id);
-        sessionsToClose.push(pane.sessionId);
-      } else if (pane.type === "editor") {
-        editorPaneIdsToDispose.push(pane.id);
-      } else if (pane.type === "canvas") {
-        canvasPaneIdsToDispose.push(pane.id);
+        if (pane.type === "terminal") {
+          terminalPanesToDispose.push(pane.id);
+          sessionsToClose.push(pane.sessionId);
+        } else if (pane.type === "editor") {
+          editorPaneIdsToDispose.push(pane.id);
+        } else if (pane.type === "canvas") {
+          canvasPaneIdsToDispose.push(pane.id);
+        }
+      });
+
+      if (current.length === 0) {
+        shouldOpenReplacement = openReplacement;
+        nextActiveTabId = null;
+        return;
       }
-    });
 
-    if (current.length === 0) {
-      shouldOpenReplacement = openReplacement;
-      nextActiveTabId = null;
-      return;
-    }
-
-    if (previousActiveTabId === tabId) {
-      const targetIndex =
-        removedTabIndex >= current.length
-          ? current.length - 1
-          : removedTabIndex;
-      nextActiveTabId = current[targetIndex]?.id ?? null;
-    }
-  });
+      if (previousActiveTabId === tabId) {
+        const targetIndex =
+          removedTabIndex >= current.length
+            ? current.length - 1
+            : removedTabIndex;
+        nextActiveTabId = current[targetIndex]?.id ?? null;
+      }
+    }),
+  );
 
   if (nextActiveTabId !== undefined) {
-    store.set(activeTabIdAtom, nextActiveTabId);
+    activeTabIdAtom.set(nextActiveTabId);
   }
 
   // Clean up DOM elements for all panes
@@ -395,12 +400,16 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   canvasPaneIdsToDispose.forEach((paneId) => deleteCanvasState(paneId));
 
   // Clean up tab state tracking for the closed tab
-  store.set(tabStateAtom, (draft) => {
-    draft.delete(tabId);
-  });
-  store.set(tabProgressAtom, (draft) => {
-    draft.delete(tabId);
-  });
+  tabStateAtom.set(
+    produce((draft) => {
+      draft.delete(tabId);
+    }),
+  );
+  tabProgressAtom.set(
+    produce((draft) => {
+      draft.delete(tabId);
+    }),
+  );
   clearTimeout(recentlyBackgroundedTabs.get(tabId));
   recentlyBackgroundedTabs.delete(tabId);
 
@@ -410,28 +419,30 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
 }
 
 export function moveTab(tabId: string, targetIndex: number) {
-  store.set(tabsAtom, (current) => {
-    const fromIndex = current.findIndex((tab) => tab.id === tabId);
-    if (fromIndex === -1) {
-      return current;
-    }
+  tabsAtom.set(
+    produce((current) => {
+      const fromIndex = current.findIndex((tab) => tab.id === tabId);
+      if (fromIndex === -1) {
+        return current;
+      }
 
-    const reorderedTabs = [...current];
-    const [tab] = reorderedTabs.splice(fromIndex, 1);
-    const boundedIndex = Math.max(
-      0,
-      Math.min(targetIndex, reorderedTabs.length),
-    );
-    reorderedTabs.splice(boundedIndex, 0, tab);
-    return reorderedTabs;
-  });
+      const reorderedTabs = [...current];
+      const [tab] = reorderedTabs.splice(fromIndex, 1);
+      const boundedIndex = Math.max(
+        0,
+        Math.min(targetIndex, reorderedTabs.length),
+      );
+      reorderedTabs.splice(boundedIndex, 0, tab);
+      return reorderedTabs;
+    }),
+  );
 }
 
 export function movePaneToTab(
   tabId: string,
   paneId: string,
 ): { tabId: string; paneId: string } | null {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const sourceTab = tabs.find((tab) => tab.id === tabId);
   if (!sourceTab || sourceTab.locked) {
     return null;
@@ -464,8 +475,8 @@ export function movePaneToTab(
     activePaneId: paneState.id,
   };
 
-  store.set(tabsAtom, (current) => [...current, newTab]);
-  store.set(activeTabIdAtom, newTabId);
+  tabsAtom.set(produce((current) => [...current, newTab]));
+  activeTabIdAtom.set(newTabId);
 
   return { tabId: newTabId, paneId: paneState.id };
 }
@@ -483,7 +494,7 @@ export async function duplicateTab(
   sourceTabId: string,
   options?: DuplicateTabOptions,
 ): Promise<{ tabId: string } | null> {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
   if (!sourceTab) {
     return null;
@@ -621,16 +632,18 @@ export async function duplicateTab(
   };
 
   // Insert the new tab immediately after the source tab
-  store.set(tabsAtom, (current) => {
-    const sourceIndex = current.findIndex((tab) => tab.id === sourceTabId);
-    if (sourceIndex === -1) {
-      return [...current, newTab];
-    }
+  tabsAtom.set(
+    produce((current) => {
+      const sourceIndex = current.findIndex((tab) => tab.id === sourceTabId);
+      if (sourceIndex === -1) {
+        return [...current, newTab];
+      }
 
-    const newTabs = [...current];
-    newTabs.splice(sourceIndex + 1, 0, newTab);
-    return newTabs;
-  });
+      const newTabs = [...current];
+      newTabs.splice(sourceIndex + 1, 0, newTab);
+      return newTabs;
+    }),
+  );
 
   // Activate the new tab
   focusTab(newTabId);
@@ -647,7 +660,7 @@ export async function duplicateTabIntoWorktree(
   sourceTabId: string,
   options?: { title?: string },
 ): Promise<{ tabId: string; sessionId: string; branchName: string } | null> {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const sourceTab = tabs.find((tab) => tab.id === sourceTabId);
   if (!sourceTab) {
     return null;
@@ -695,12 +708,14 @@ export async function duplicateTabIntoWorktree(
  * Transitions "idle-unseen" or "idle-notified" to "idle".
  */
 export function acknowledgeTabState(tabId: string) {
-  store.set(tabStateAtom, (draft) => {
-    const state = draft.get(tabId);
-    if (state === "idle-unseen" || state === "idle-notified") {
-      draft.set(tabId, "idle");
-    }
-  });
+  tabStateAtom.set(
+    produce((draft) => {
+      const state = draft.get(tabId);
+      if (state === "idle-unseen" || state === "idle-notified") {
+        draft.set(tabId, "idle");
+      }
+    }),
+  );
 }
 
 /**
@@ -709,9 +724,11 @@ export function acknowledgeTabState(tabId: string) {
  */
 export function markTabAsNotified(tabId: string, sessionId: string) {
   markAsIdle(sessionId);
-  store.set(tabStateAtom, (draft) => {
-    draft.set(tabId, "idle-notified");
-  });
+  tabStateAtom.set(
+    produce((draft) => {
+      draft.set(tabId, "idle-notified");
+    }),
+  );
 }
 
 /**
@@ -735,7 +752,7 @@ function getTabStatePriority(state: TabState | undefined): number {
 
 export function registerTabEventHandlers() {
   const unsubscribeExit = api.onExit(({ sessionId }) => {
-    const tabs = store.get(tabsAtom);
+    const tabs = tabsAtom.get();
 
     for (const tab of tabs) {
       const targetPane = Object.values(tab.panes).find(
@@ -759,8 +776,8 @@ export function registerTabEventHandlers() {
 
   // Track terminal state changes for tab indicators
   const unsubscribeStateChange = onSessionStateChange((sessionId, state) => {
-    const tab = store
-      .get(tabsAtom)
+    const tab = tabsAtom
+      .get()
       .find((t) =>
         Object.values(t.panes).some(
           (p) => p.type === "terminal" && p.sessionId === sessionId,
@@ -770,7 +787,7 @@ export function registerTabEventHandlers() {
     if (!tab) return;
 
     if (state === "running") {
-      store.set(tabStateAtom, (draft) => draft.set(tab.id, "running"));
+      tabStateAtom.set(produce((draft) => draft.set(tab.id, "running")));
       return;
     }
 
@@ -782,7 +799,7 @@ export function registerTabEventHandlers() {
     if (isAnyRunning) return;
 
     // Determine the target idle state based on tab visibility
-    const isBackground = tab.id !== store.get(activeTabIdAtom);
+    const isBackground = tab.id !== activeTabIdAtom.get();
     const isRecentlyBackgrounded = recentlyBackgroundedTabs.has(tab.id);
     const targetState: TabState =
       isBackground && !isRecentlyBackgrounded ? "idle-unseen" : "idle";
@@ -790,22 +807,24 @@ export function registerTabEventHandlers() {
     // Apply priority-based transition: only update if target has strictly higher priority.
     // This prevents idle/idle-unseen from overwriting idle-notified.
     // Exception: transitions from "running" are always allowed (natural idle detection).
-    store.set(tabStateAtom, (draft) => {
-      const currentState = draft.get(tab.id);
-      if (
-        currentState === "running" ||
-        getTabStatePriority(targetState) > getTabStatePriority(currentState)
-      ) {
-        draft.set(tab.id, targetState);
-      }
-    });
+    tabStateAtom.set(
+      produce((draft) => {
+        const currentState = draft.get(tab.id);
+        if (
+          currentState === "running" ||
+          getTabStatePriority(targetState) > getTabStatePriority(currentState)
+        ) {
+          draft.set(tab.id, targetState);
+        }
+      }),
+    );
   });
 
   // Track progress state changes for agent indicators (OSC 9;4)
   const unsubscribeProgressChange = onProgressStateChange(
     (sessionId, progressState, percent) => {
-      const tab = store
-        .get(tabsAtom)
+      const tab = tabsAtom
+        .get()
         .find((t) =>
           Object.values(t.panes).some(
             (p) => p.type === "terminal" && p.sessionId === sessionId,
@@ -814,13 +833,15 @@ export function registerTabEventHandlers() {
 
       if (!tab) return;
 
-      store.set(tabProgressAtom, (draft) => {
-        if (progressState === "hidden") {
-          draft.delete(tab.id);
-        } else {
-          draft.set(tab.id, { state: progressState, percent });
-        }
-      });
+      tabProgressAtom.set(
+        produce((draft) => {
+          if (progressState === "hidden") {
+            draft.delete(tab.id);
+          } else {
+            draft.set(tab.id, { state: progressState, percent });
+          }
+        }),
+      );
     },
   );
 

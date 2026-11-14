@@ -10,7 +10,7 @@
  */
 
 import { sidebarStateAtom, type SidebarNavigation } from "@/store/sidebarStore";
-import { useAtom } from "jotai";
+import { useAtom } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef } from "react";
 
 type NavigationConsumer = (

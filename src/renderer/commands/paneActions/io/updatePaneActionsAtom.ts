@@ -1,5 +1,4 @@
 import { paneActionsAtom } from "@/store/atoms";
-import { getDefaultStore } from "jotai";
 import type { Action } from "../core/types";
 
 /**
@@ -19,7 +18,6 @@ import type { Action } from "../core/types";
  * updatePaneActionsAtom(updatedActions); // Notify React components immediately
  */
 export function updatePaneActionsAtom(actions: Action[]): void {
-  // Update the global Jotai store
-  const store = getDefaultStore();
-  store.set(paneActionsAtom, actions);
+  // Update the global atom
+  paneActionsAtom.set(actions);
 }

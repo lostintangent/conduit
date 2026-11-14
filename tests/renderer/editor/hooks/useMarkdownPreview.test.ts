@@ -2,22 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useMarkdownPreview } from "../../../../src/renderer/components/panes/editor/hooks/useMarkdownPreview";
 import React from "react";
+import { userSettingsAtom } from "@/store/atoms";
 
 // ============================================================================
 // Mocks
 // ============================================================================
 
-const mockUserSettings = {
-  theme: "dark" as "dark" | "light" | "system",
-};
-
-vi.mock("jotai", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("jotai")>();
-  return {
-    ...actual,
-    useAtomValue: () => mockUserSettings,
-  };
-});
+const setTheme = (theme: "dark" | "light" | "system") =>
+  userSettingsAtom.set((settings) => ({ ...settings, theme }));
 
 vi.mock("@/utils/theme", () => ({
   resolveTheme: (theme: string) => theme,
@@ -30,7 +22,7 @@ vi.mock("@/utils/theme", () => ({
 describe("useMarkdownPreview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUserSettings.theme = "dark";
+    setTheme("dark");
   });
 
   afterEach(() => {
@@ -43,7 +35,7 @@ describe("useMarkdownPreview", () => {
 
   describe("mermaid configuration", () => {
     it("should return dark theme config when theme is dark", () => {
-      mockUserSettings.theme = "dark";
+      setTheme("dark");
 
       const { result } = renderHook(() => useMarkdownPreview());
 
@@ -55,7 +47,7 @@ describe("useMarkdownPreview", () => {
     });
 
     it("should return default theme config when theme is light", () => {
-      mockUserSettings.theme = "light" as "dark";
+      setTheme("light");
 
       const { result } = renderHook(() => useMarkdownPreview());
 

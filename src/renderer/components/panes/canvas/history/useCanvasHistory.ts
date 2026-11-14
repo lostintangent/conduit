@@ -6,7 +6,7 @@
  * and undo/redo to reverse them - no need to understand command internals.
  *
  * Design:
- * - History is stored in a global Jotai atom keyed by pane ID
+ * - History is stored in a global store atom keyed by pane ID
  * - Operations interface decouples from canvas state implementation
  * - Command application is handled internally
  */
@@ -17,7 +17,7 @@ import {
   canvasStateAtomFamily,
 } from "@/store/canvasStore";
 import type { CanvasElement, Transform } from "@shared/types/canvas";
-import { useAtom } from "jotai";
+import { useAtom } from "@tanstack/react-store";
 import { useCallback } from "react";
 import {
   type CanvasCommand,

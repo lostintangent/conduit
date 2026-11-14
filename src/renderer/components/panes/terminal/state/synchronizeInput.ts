@@ -1,12 +1,10 @@
 import { notifyUserInput } from "@/components/panes/terminal/state/stateTracker";
 import { activeTabAtom } from "@/store/atoms";
-import { getDefaultStore } from "jotai";
 
-const store = getDefaultStore();
 const api = window.conduit;
 
 export function broadcastTerminalInput(sourcePaneId: string, input: string) {
-  const activeTab = store.get(activeTabAtom);
+  const activeTab = activeTabAtom.get();
   if (!activeTab || !activeTab.synchronized) {
     return;
   }

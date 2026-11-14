@@ -9,7 +9,7 @@ import {
 } from "@/store/atoms";
 import type { Pane, Tab } from "@/types";
 import { formatHomePath } from "@/utils/pathUtils";
-import { atom } from "jotai";
+import { createAtom } from "@/store/createAtom";
 
 export type TabDescriptor = {
   id: string;
@@ -33,12 +33,12 @@ function resolveActivePane(tab: Tab): Pane | undefined {
   return firstPane;
 }
 
-export const tabLabelsAtom = atom((get): TabDescriptor[] => {
-  const tabs = get(tabsAtom);
-  const activeTabId = get(activeTabIdAtom);
-  const tabStates = get(tabStateAtom);
-  const tabProgress = get(tabProgressAtom);
-  const { homeDirectory } = get(userSettingsAtom);
+export const tabLabelsAtom = createAtom((): TabDescriptor[] => {
+  const tabs = tabsAtom.get();
+  const activeTabId = activeTabIdAtom.get();
+  const tabStates = tabStateAtom.get();
+  const tabProgress = tabProgressAtom.get();
+  const { homeDirectory } = userSettingsAtom.get();
 
   const formatPathForLabel = (pathValue: string | null | undefined) =>
     pathValue ? formatHomePath(pathValue, homeDirectory) : null;

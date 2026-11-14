@@ -41,7 +41,7 @@ import {
 import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@shared/types";
 import { generateId } from "@shared/utils";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useSelector } from "@tanstack/react-store";
 import {
   ChevronDown,
   Fullscreen,
@@ -72,11 +72,11 @@ export const TabStrip = ({
   onTabContextMenu,
   position = "top",
 }: TabStripProps) => {
-  const tabLabels = useAtomValue(tabLabelsAtom);
-  const tabs = useAtomValue(tabsAtom);
-  const activeTabId = useAtomValue(activeTabIdAtom);
-  const activeTab = useAtomValue(activeTabAtom);
-  const hyperTerminals = useAtomValue(hyperTerminalsAtom);
+  const tabLabels = useSelector(tabLabelsAtom);
+  const tabs = useSelector(tabsAtom);
+  const activeTabId = useSelector(activeTabIdAtom);
+  const activeTab = useSelector(activeTabAtom);
+  const hyperTerminals = useSelector(hyperTerminalsAtom);
   const hasMinimizedTerminals = hyperTerminals.some(
     (t) => t.state === "minimized",
   );
@@ -85,10 +85,10 @@ export const TabStrip = ({
       ? activeTab?.panes[activeTab.activePaneId]
       : null;
   const { homeDirectory, alwaysShowTabs, showLaunchButton } =
-    useAtomValue(userSettingsAtom);
+    useSelector(userSettingsAtom);
   const shouldShowLaunchButton = showLaunchButton ?? false;
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
-  const setQuickPaneState = useSetAtom(quickPaneAtom);
+  const setQuickPaneState = quickPaneAtom.set;
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
   const hasMultipleTabs = tabs.length > 1;

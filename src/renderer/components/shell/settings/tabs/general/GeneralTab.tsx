@@ -9,7 +9,6 @@ import type {
   ThemeMode,
   UserSettings,
 } from "@shared/types";
-import { useSetAtom } from "jotai";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,
@@ -46,7 +45,7 @@ export function GeneralTab({
   userSettings,
   onUpdateSettings,
 }: GeneralTabProps) {
-  const setQuickPane = useSetAtom(quickPaneAtom);
+  const setQuickPane = quickPaneAtom.set;
   const showLaunchButton = userSettings.showLaunchButton ?? false;
   const showPlayButton = userSettings.showPlayButton ?? false;
   const playButtonTarget = userSettings.playButtonTarget ?? "newPane";

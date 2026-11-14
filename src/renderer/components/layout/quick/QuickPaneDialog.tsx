@@ -9,7 +9,6 @@ import {
 import { applicationModeAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType, Pane } from "@/types";
 import { generateId } from "@shared/utils";
-import { useSetAtom } from "jotai";
 import { ArrowUpRight, PictureInPicture2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -42,7 +41,7 @@ export function QuickPaneDialog({
   onOpenAsTab,
   onOpenAsFloating,
 }: QuickPaneDialogProps) {
-  const setApplicationMode = useSetAtom(applicationModeAtom);
+  const setApplicationMode = applicationModeAtom.set;
   const [currentDescriptor, setCurrentDescriptor] =
     useState<QuickPaneDescriptor>(paneDescriptor);
 

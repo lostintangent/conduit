@@ -1,6 +1,6 @@
 import { useUserSettings } from "@/hooks/useUserSettings";
 import { activePaneIdAtom } from "@/store/atoms";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.css @keyframes pane-highlight
@@ -13,7 +13,7 @@ const HIGHLIGHT_DURATION_MS = 2000; // 2s - matches animation duration in index.
  * This hook only manages when to trigger the highlight animation.
  */
 function usePaneHighlight() {
-  const activePaneId = useAtomValue(activePaneIdAtom);
+  const activePaneId = useSelector(activePaneIdAtom);
   const { alwaysHighlightActivePane } = useUserSettings();
 
   const [highlightedPaneId, setHighlightedPaneId] = useState<string | null>(

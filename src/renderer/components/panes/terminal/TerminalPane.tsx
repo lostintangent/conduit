@@ -17,7 +17,7 @@ import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@/utils/terminalPrompt";
 import { generateId } from "@shared/utils";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
@@ -161,11 +161,11 @@ export const TerminalPane = ({
   fontSize,
 }: TerminalPaneProps) => {
   const { id: paneId, sessionId: terminalId, cwd } = pane;
-  const settings = useAtomValue(userSettingsAtom);
+  const settings = useSelector(userSettingsAtom);
   const { showTerminalRuler } = settings;
   const playButtonTarget = settings.playButtonTarget ?? "newPane";
-  const applicationMode = useAtomValue(applicationModeAtom);
-  const setApplicationMode = useSetAtom(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
+  const setApplicationMode = applicationModeAtom.set;
 
   const toggleSyncCmd = useCommand(ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE);
 

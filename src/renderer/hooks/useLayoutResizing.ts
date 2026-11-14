@@ -1,7 +1,8 @@
 import { tabsAtom } from "@/store/atoms";
 import type { LayoutNode, SplitDirection } from "@/types";
 import { walkLayout } from "@/utils/layout";
-import { useAtom } from "jotai";
+import { useAtom } from "@tanstack/react-store";
+import { produce } from "immer";
 import { useCallback, useState } from "react";
 
 export type LayoutResizeAxis = {
@@ -61,40 +62,42 @@ export const useLayoutResizing = () => {
 
       let didCollapse = false;
 
-      setTabs((tabs) => {
-        const tab = tabs.find(({ id }) => id === tabId);
-        if (!tab) {
-          return;
-        }
-
-        walkLayout(tab.layout, ({ node }) => {
-          const pendingUpdate = updates.get(node.id);
-
-          // Only update size if pixelSize >= MIN_PANE_SIZE_PX or if no pixelSize is provided
-          const shouldUpdateSize =
-            pendingUpdate === undefined ||
-            pendingUpdate.pixelSize === undefined ||
-            pendingUpdate.pixelSize >= MIN_PANE_SIZE_PX;
-
-          if (shouldUpdateSize && pendingUpdate !== undefined) {
-            node.size = pendingUpdate.size;
+      setTabs(
+        produce((tabs) => {
+          const tab = tabs.find(({ id }) => id === tabId);
+          if (!tab) {
+            return;
           }
 
-          if (pendingUpdate && node.type === "pane") {
-            if (node.collapsed) {
-              delete node.collapsed;
+          walkLayout(tab.layout, ({ node }) => {
+            const pendingUpdate = updates.get(node.id);
+
+            // Only update size if pixelSize >= MIN_PANE_SIZE_PX or if no pixelSize is provided
+            const shouldUpdateSize =
+              pendingUpdate === undefined ||
+              pendingUpdate.pixelSize === undefined ||
+              pendingUpdate.pixelSize >= MIN_PANE_SIZE_PX;
+
+            if (shouldUpdateSize && pendingUpdate !== undefined) {
+              node.size = pendingUpdate.size;
             }
 
-            if (
-              pendingUpdate.pixelSize !== undefined &&
-              pendingUpdate.pixelSize < COLLAPSE_THRESHOLD_PX
-            ) {
-              node.collapsed = true;
-              didCollapse = true;
+            if (pendingUpdate && node.type === "pane") {
+              if (node.collapsed) {
+                delete node.collapsed;
+              }
+
+              if (
+                pendingUpdate.pixelSize !== undefined &&
+                pendingUpdate.pixelSize < COLLAPSE_THRESHOLD_PX
+              ) {
+                node.collapsed = true;
+                didCollapse = true;
+              }
             }
-          }
-        });
-      });
+          });
+        }),
+      );
 
       return didCollapse;
     },
@@ -248,14 +251,16 @@ export const useLayoutResizing = () => {
 
   const resetLayoutSizes = useCallback(
     (tabId: string) => {
-      setTabs((tabs) => {
-        const tab = tabs.find(({ id }) => id === tabId);
-        if (!tab) {
-          return;
-        }
+      setTabs(
+        produce((tabs) => {
+          const tab = tabs.find(({ id }) => id === tabId);
+          if (!tab) {
+            return;
+          }
 
-        stripLayoutSizes(tab.layout);
-      });
+          stripLayoutSizes(tab.layout);
+        }),
+      );
     },
     [setTabs],
   );

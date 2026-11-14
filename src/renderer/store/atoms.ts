@@ -8,10 +8,9 @@ import type {
   UserSettings,
   WorkspaceState,
 } from "@shared/types";
-import { atom } from "jotai";
-import { atomWithImmer } from "jotai-immer";
+import { createAtom, createFrozenAtom } from "@/store/createAtom";
 
-export const userSettingsAtom = atom<UserSettings>({
+export const userSettingsAtom = createAtom<UserSettings>({
   // UI/Layout settings
   tabPosition: "bottom",
   alwaysShowTabs: true,
@@ -42,37 +41,39 @@ export const userSettingsAtom = atom<UserSettings>({
   homeDirectory: null,
 });
 
-export const tabsAtom = atomWithImmer<Tab[]>([]);
+export const tabsAtom = createFrozenAtom<Tab[]>([]);
 
-export const activeTabIdAtom = atom<string>();
-export const activeTabAtom = atom<Tab | null>((get) => {
-  const tabs = get(tabsAtom);
-  const activeTabId = get(activeTabIdAtom);
+export const activeTabIdAtom = createAtom(undefined as string | undefined);
+export const activeTabAtom = createAtom<Tab | null>(() => {
+  const tabs = tabsAtom.get();
+  const activeTabId = activeTabIdAtom.get();
   return tabs.find((tab) => tab.id === activeTabId) ?? null;
 });
 
-export const activePaneIdAtom = atom<string | null>((get) => {
-  const activeTab = get(activeTabAtom);
+export const activePaneIdAtom = createAtom<string | null>(() => {
+  const activeTab = activeTabAtom.get();
   return activeTab?.activePaneId ?? null;
 });
 
-export const workspaceNameAtom = atom<string>();
-export const workspaceStateAtom = atom<WorkspaceState>({ workspaces: [] });
-export const workspaceHasChangesAtom = atom<boolean>(false);
-export const previousTabsSnapshotAtom = atom<string>("");
+export const workspaceNameAtom = createAtom(undefined as string | undefined);
+export const workspaceStateAtom = createAtom<WorkspaceState>({
+  workspaces: [],
+});
+export const workspaceHasChangesAtom = createAtom<boolean>(false);
+export const previousTabsSnapshotAtom = createAtom<string>("");
 
-export const notificationsAtom = atom<Notification[]>([]);
+export const notificationsAtom = createAtom<Notification[]>([]);
 
 export type ApplicationMode =
   "normal" | "design" | "quick" | "focus" | "overview";
 
-export const applicationModeAtom = atom<ApplicationMode>("normal");
+export const applicationModeAtom = createAtom<ApplicationMode>("normal");
 
 /**
  * Keybindings atom - stores all resolved keybindings grouped by command ID
  * Updated when keybindings are loaded or reloaded from user configuration
  */
-export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
+export const keybindingsAtom = createAtom<Map<string, ResolvedKeybinding[]>>(
   new Map(),
 );
 
@@ -80,15 +81,17 @@ export const keybindingsAtom = atom<Map<string, ResolvedKeybinding[]>>(
  * Pane actions atom - stores all pane actions (default or user-defined)
  * Updated when actions are loaded from file or changed programmatically
  */
-export const paneActionsAtom = atom<Action[]>(getDefaultActions());
+export const paneActionsAtom = createAtom<Action[]>(getDefaultActions());
 
-export const hyperTerminalsAtom = atomWithImmer<HyperTerminal[]>([]);
+export const hyperTerminalsAtom = createFrozenAtom<HyperTerminal[]>([]);
 
 /**
  * Quick pane atom - stores the current quick pane descriptor
  * Used to display the quick action dialog
  */
-export const quickPaneAtom = atom<QuickPaneDescriptor | null>();
+export const quickPaneAtom = createAtom(
+  undefined as QuickPaneDescriptor | null | undefined,
+);
 
 /**
  * Tab terminal state for background tabs.
@@ -99,7 +102,7 @@ export const quickPaneAtom = atom<QuickPaneDescriptor | null>();
  */
 export type TabState = "running" | "idle" | "idle-unseen" | "idle-notified";
 
-export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
+export const tabStateAtom = createFrozenAtom<Map<string, TabState>>(new Map());
 
 /**
  * Tab progress state from OSC 9;4 escape sequences.
@@ -108,6 +111,6 @@ export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
 export type TabProgressState =
   "hidden" | "default" | "error" | "indeterminate" | "warning";
 
-export const tabProgressAtom = atomWithImmer<
+export const tabProgressAtom = createFrozenAtom<
   Map<string, { state: TabProgressState; percent: number }>
 >(new Map());

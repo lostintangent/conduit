@@ -1,9 +1,7 @@
 import { Notification } from "@/types";
 import { generateId } from "@shared/utils";
-import { getDefaultStore } from "jotai";
 import { notificationsAtom } from "../atoms";
 
-const store = getDefaultStore();
 const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function scheduleAutoDismiss(id: string, timeout: number) {
@@ -78,7 +76,7 @@ export function enqueueNotification(
     createdAt: Date.now(),
   };
 
-  store.set(notificationsAtom, (current) => [notification, ...current]);
+  notificationsAtom.set((current) => [notification, ...current]);
 
   // Schedule auto-dismiss: use explicit value, or default unless persistent/null
   const effectiveTimeout =
@@ -101,7 +99,7 @@ export function updateNotification(
     autoCloseMs?: number | null;
   },
 ) {
-  store.set(notificationsAtom, (current) =>
+  notificationsAtom.set((current) =>
     current.map((notification) =>
       notification.id === id
         ? {
@@ -126,7 +124,7 @@ export function updateNotification(
 export function dismissNotification(id: string) {
   clearAutoDismiss(id);
 
-  store.set(notificationsAtom, (current) =>
+  notificationsAtom.set((current) =>
     current.filter((notification) => notification.id !== id),
   );
 }

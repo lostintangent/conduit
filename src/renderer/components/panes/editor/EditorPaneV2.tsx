@@ -28,7 +28,7 @@ import { tabsAtom, userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import { cn } from "@/utils";
 import type { ChangesViewMode } from "@shared/types";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import {
   startTransition,
   useCallback,
@@ -211,10 +211,10 @@ export function EditorPaneV2({
   const editorTheme = useEditorTheme();
 
   // Get current tab for sandbox handlers
-  const tabs = useAtomValue(tabsAtom);
+  const tabs = useSelector(tabsAtom);
 
   // Get user settings for unseen tracking preference
-  const userSettings = useAtomValue(userSettingsAtom);
+  const userSettings = useSelector(userSettingsAtom);
   const trackUnseenChanges =
     userSettings.trackUnseenChangesInReviewMode ?? true;
   const currentTab = useMemo(() => {

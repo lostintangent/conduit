@@ -31,10 +31,9 @@ import type {
   TerminalCreateOptions,
 } from "@shared/types";
 import { generateId } from "@shared/utils";
-import { getDefaultStore } from "jotai";
+import { produce } from "immer";
 
 const api = window.conduit;
-const store = getDefaultStore();
 
 // Internal utilities
 
@@ -164,7 +163,7 @@ export function setPaneCollapsed(
   // this function shouldn't be called directly from unguarded locations.
 
   // Pause/resume idle tracking for terminal panes when collapsing/expanding
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const tab = tabs.find(({ id }) => id === tabId);
   const pane = tab?.panes[paneId];
   if (pane?.type === "terminal") {
@@ -175,47 +174,49 @@ export function setPaneCollapsed(
     }
   }
 
-  store.set(tabsAtom, (tabs) => {
-    // Find the layout node for the pane and update its collapsed state
-    const tab = tabs.find(({ id }) => id === tabId);
-    walkLayout(tab.layout, ({ node, parent }) => {
-      if (node.type === "pane" && node.paneId === paneId) {
-        if (collapsed) {
-          node.collapsed = true;
+  tabsAtom.set(
+    produce((tabs) => {
+      // Find the layout node for the pane and update its collapsed state
+      const tab = tabs.find(({ id }) => id === tabId);
+      walkLayout(tab.layout, ({ node, parent }) => {
+        if (node.type === "pane" && node.paneId === paneId) {
+          if (collapsed) {
+            node.collapsed = true;
 
-          if (tab.activePaneId === paneId) {
-            // If the pane being minimized is then active
-            // pane, then let's find its first non-minimized
-            // sibling, and make that the active pane instead.
-            const siblingPaneId = parent.children
-              .filter(
-                (child) =>
-                  child.type === "pane" &&
-                  child.id !== node.id &&
-                  !child.collapsed,
-              )
-              .map((sibling) => findFirstPaneId(sibling))
-              .find(Boolean);
+            if (tab.activePaneId === paneId) {
+              // If the pane being minimized is then active
+              // pane, then let's find its first non-minimized
+              // sibling, and make that the active pane instead.
+              const siblingPaneId = parent.children
+                .filter(
+                  (child) =>
+                    child.type === "pane" &&
+                    child.id !== node.id &&
+                    !child.collapsed,
+                )
+                .map((sibling) => findFirstPaneId(sibling))
+                .find(Boolean);
 
-            if (siblingPaneId) {
-              tab.activePaneId = siblingPaneId;
+              if (siblingPaneId) {
+                tab.activePaneId = siblingPaneId;
+              }
             }
+          } else {
+            // When expanding a collapsed pane, we
+            // remove the collapsed property, since
+            // that is the default state and doesn't
+            // need to be persisted to the workspace.
+            delete node.collapsed;
+
+            // Activate the pane when restoring it
+            tab.activePaneId = paneId;
           }
-        } else {
-          // When expanding a collapsed pane, we
-          // remove the collapsed property, since
-          // that is the default state and doesn't
-          // need to be persisted to the workspace.
-          delete node.collapsed;
 
-          // Activate the pane when restoring it
-          tab.activePaneId = paneId;
+          return false;
         }
-
-        return false;
-      }
-    });
-  });
+      });
+    }),
+  );
 }
 
 type ExtractPaneResult = {
@@ -266,28 +267,32 @@ export function updatePaneProperty<T extends Pane>(
   paneId: string,
   updates: Partial<T>,
 ) {
-  store.set(tabsAtom, (tabs) => {
-    const tab = tabs.find(({ id }) => id === tabId);
-    const pane = tab?.panes[paneId];
-    if (!pane) return;
+  tabsAtom.set(
+    produce((tabs) => {
+      const tab = tabs.find(({ id }) => id === tabId);
+      const pane = tab?.panes[paneId];
+      if (!pane) return;
 
-    Object.assign(pane, updates);
-  });
+      Object.assign(pane, updates);
+    }),
+  );
 }
 
 export function updateTerminalSessionProperty(
   sessionId: string,
   updates: Partial<TerminalPane>,
 ) {
-  store.set(tabsAtom, (tabs) => {
-    for (const tab of tabs) {
-      for (const pane of Object.values(tab.panes)) {
-        if (pane.type === "terminal" && pane.sessionId === sessionId) {
-          Object.assign(pane, updates);
+  tabsAtom.set(
+    produce((tabs) => {
+      for (const tab of tabs) {
+        for (const pane of Object.values(tab.panes)) {
+          if (pane.type === "terminal" && pane.sessionId === sessionId) {
+            Object.assign(pane, updates);
+          }
         }
       }
-    }
-  });
+    }),
+  );
 }
 
 export function movePane(
@@ -295,126 +300,131 @@ export function movePane(
   paneId: string,
   direction: PaneDirection,
 ) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
-
-      if (tab.locked) {
-        return tab;
-      }
-
-      if (!tab.panes[paneId]) {
-        return tab;
-      }
-
-      const path = findLayoutPath(
-        tab.layout,
-        (candidate) => candidate.type === "pane" && candidate.paneId === paneId,
-      );
-
-      if (!path || path.length < 2) {
-        return tab;
-      }
-
-      const { splitDirection: targetDirection, isForward } =
-        getPaneDirectionConfig(direction);
-
-      for (let i = path.length - 2; i >= 0; i -= 1) {
-        const ancestorEntry = path[i];
-        if (
-          ancestorEntry.node.type !== "split" ||
-          ancestorEntry.node.direction !== targetDirection
-        ) {
-          continue;
-        }
-
-        const childEntry = path[i + 1];
-        const neighborIndex = childEntry.index + (isForward ? 1 : -1);
-        if (
-          neighborIndex < 0 ||
-          neighborIndex >= ancestorEntry.node.children.length
-        ) {
-          continue;
-        }
-
-        const sourceNode = ancestorEntry.node.children[childEntry.index];
-        const originalChildSize = sourceNode.size;
-        const detachResult = extractPaneNode(sourceNode, paneId);
-        if (!detachResult.removedPane) {
-          continue;
-        }
-
-        const neighborNodeId = ancestorEntry.node.children[neighborIndex].id;
-        const newChildren = [...ancestorEntry.node.children];
-
-        if (detachResult.node) {
-          const updatedChild =
-            originalChildSize !== undefined &&
-            detachResult.node.size === undefined
-              ? { ...detachResult.node, size: originalChildSize }
-              : detachResult.node;
-          newChildren[childEntry.index] = updatedChild;
-        } else {
-          newChildren.splice(childEntry.index, 1);
-        }
-
-        const neighborPosition = newChildren.findIndex(
-          (candidate) => candidate.id === neighborNodeId,
-        );
-        if (neighborPosition === -1) {
-          continue;
-        }
-
-        const insertIndex = isForward ? neighborPosition + 1 : neighborPosition;
-        newChildren.splice(insertIndex, 0, detachResult.removedPane);
-
-        const updatedAncestor: LayoutNode = {
-          ...ancestorEntry.node,
-          children: newChildren,
-        };
-
-        let updatedNode: LayoutNode | null = updatedAncestor;
-        for (let j = i - 1; j >= 0; j -= 1) {
-          const parentEntry = path[j];
-          if (parentEntry.node.type !== "split") {
-            continue;
-          }
-
-          const childIndex = path[j + 1].index;
-          const parentChildren = [...parentEntry.node.children];
-
-          if (updatedNode) {
-            parentChildren[childIndex] = updatedNode;
-          } else {
-            parentChildren.splice(childIndex, 1);
-          }
-
-          if (parentChildren.length === 0) {
-            updatedNode = null;
-          } else if (parentChildren.length === 1) {
-            updatedNode = parentChildren[0];
-          } else {
-            updatedNode = {
-              ...parentEntry.node,
-              children: parentChildren,
-            };
-          }
-        }
-
-        if (!updatedNode) {
+  tabsAtom.set(
+    produce((current) =>
+      current.map((tab) => {
+        if (tab.id !== tabId) {
           return tab;
         }
 
-        return {
-          ...tab,
-          layout: updatedNode,
-        };
-      }
+        if (tab.locked) {
+          return tab;
+        }
 
-      return tab;
-    }),
+        if (!tab.panes[paneId]) {
+          return tab;
+        }
+
+        const path = findLayoutPath(
+          tab.layout,
+          (candidate) =>
+            candidate.type === "pane" && candidate.paneId === paneId,
+        );
+
+        if (!path || path.length < 2) {
+          return tab;
+        }
+
+        const { splitDirection: targetDirection, isForward } =
+          getPaneDirectionConfig(direction);
+
+        for (let i = path.length - 2; i >= 0; i -= 1) {
+          const ancestorEntry = path[i];
+          if (
+            ancestorEntry.node.type !== "split" ||
+            ancestorEntry.node.direction !== targetDirection
+          ) {
+            continue;
+          }
+
+          const childEntry = path[i + 1];
+          const neighborIndex = childEntry.index + (isForward ? 1 : -1);
+          if (
+            neighborIndex < 0 ||
+            neighborIndex >= ancestorEntry.node.children.length
+          ) {
+            continue;
+          }
+
+          const sourceNode = ancestorEntry.node.children[childEntry.index];
+          const originalChildSize = sourceNode.size;
+          const detachResult = extractPaneNode(sourceNode, paneId);
+          if (!detachResult.removedPane) {
+            continue;
+          }
+
+          const neighborNodeId = ancestorEntry.node.children[neighborIndex].id;
+          const newChildren = [...ancestorEntry.node.children];
+
+          if (detachResult.node) {
+            const updatedChild =
+              originalChildSize !== undefined &&
+              detachResult.node.size === undefined
+                ? { ...detachResult.node, size: originalChildSize }
+                : detachResult.node;
+            newChildren[childEntry.index] = updatedChild;
+          } else {
+            newChildren.splice(childEntry.index, 1);
+          }
+
+          const neighborPosition = newChildren.findIndex(
+            (candidate) => candidate.id === neighborNodeId,
+          );
+          if (neighborPosition === -1) {
+            continue;
+          }
+
+          const insertIndex = isForward
+            ? neighborPosition + 1
+            : neighborPosition;
+          newChildren.splice(insertIndex, 0, detachResult.removedPane);
+
+          const updatedAncestor: LayoutNode = {
+            ...ancestorEntry.node,
+            children: newChildren,
+          };
+
+          let updatedNode: LayoutNode | null = updatedAncestor;
+          for (let j = i - 1; j >= 0; j -= 1) {
+            const parentEntry = path[j];
+            if (parentEntry.node.type !== "split") {
+              continue;
+            }
+
+            const childIndex = path[j + 1].index;
+            const parentChildren = [...parentEntry.node.children];
+
+            if (updatedNode) {
+              parentChildren[childIndex] = updatedNode;
+            } else {
+              parentChildren.splice(childIndex, 1);
+            }
+
+            if (parentChildren.length === 0) {
+              updatedNode = null;
+            } else if (parentChildren.length === 1) {
+              updatedNode = parentChildren[0];
+            } else {
+              updatedNode = {
+                ...parentEntry.node,
+                children: parentChildren,
+              };
+            }
+          }
+
+          if (!updatedNode) {
+            return tab;
+          }
+
+          return {
+            ...tab,
+            layout: updatedNode,
+          };
+        }
+
+        return tab;
+      }),
+    ),
   );
 }
 
@@ -427,7 +437,7 @@ export function detachPane(
   tabId: string,
   paneId: string,
 ): DetachPaneResult | null {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const targetTab = tabs.find((tab) => tab.id === tabId);
   if (!targetTab) {
     return null;
@@ -445,79 +455,83 @@ export function detachPane(
   let detachedPane: Pane | null = null;
   let tabClosed = false;
   let removedTabIndex = -1;
-  const previousActiveTabId = store.get(activeTabIdAtom);
+  const previousActiveTabId = activeTabIdAtom.get();
   let removedTabWasActive = false;
   let nextActiveTabId: string | null | undefined = undefined;
 
-  store.set(tabsAtom, (current) => {
-    const next: Tab[] = [];
+  tabsAtom.set(
+    produce((current) => {
+      const next: Tab[] = [];
 
-    current.forEach((tab, index) => {
-      if (tab.id !== tabId) {
-        next.push(tab);
-        return;
-      }
+      current.forEach((tab, index) => {
+        if (tab.id !== tabId) {
+          next.push(tab);
+          return;
+        }
 
-      removedTabIndex = index;
-      const pane = tab.panes[paneId];
-      if (!pane) {
-        next.push(tab);
-        return;
-      }
+        removedTabIndex = index;
+        const pane = tab.panes[paneId];
+        if (!pane) {
+          next.push(tab);
+          return;
+        }
 
-      const { node: newLayout, removedPane } = extractPaneNode(
-        tab.layout,
-        paneId,
-      );
+        const { node: newLayout, removedPane } = extractPaneNode(
+          tab.layout,
+          paneId,
+        );
 
-      if (!removedPane) {
-        next.push(tab);
-        return;
-      }
+        if (!removedPane) {
+          next.push(tab);
+          return;
+        }
 
-      // Use the pre-detach snapshot so callers don't receive an Immer draft
-      detachedPane = targetPane;
-      const newPanes = { ...tab.panes };
-      delete newPanes[paneId];
+        // Use the pre-detach snapshot so callers don't receive an Immer draft
+        detachedPane = targetPane;
+        const newPanes = { ...tab.panes };
+        delete newPanes[paneId];
 
-      if (!newLayout || Object.keys(newPanes).length === 0) {
-        tabClosed = true;
-        removedTabWasActive = tab.id === previousActiveTabId;
-        return;
-      }
+        if (!newLayout || Object.keys(newPanes).length === 0) {
+          tabClosed = true;
+          removedTabWasActive = tab.id === previousActiveTabId;
+          return;
+        }
 
-      const newActivePaneId =
-        tab.activePaneId === paneId
-          ? findFirstPaneId(newLayout)
-          : tab.activePaneId;
+        const newActivePaneId =
+          tab.activePaneId === paneId
+            ? findFirstPaneId(newLayout)
+            : tab.activePaneId;
 
-      next.push({
-        ...tab,
-        panes: newPanes,
-        layout: newLayout,
-        activePaneId: newActivePaneId,
+        next.push({
+          ...tab,
+          panes: newPanes,
+          layout: newLayout,
+          activePaneId: newActivePaneId,
+        });
       });
-    });
 
-    if (tabClosed) {
-      if (removedTabWasActive) {
-        if (next.length > 0) {
-          const targetIndex =
-            removedTabIndex >= next.length ? next.length - 1 : removedTabIndex;
-          nextActiveTabId = next[targetIndex]?.id ?? null;
-        } else {
+      if (tabClosed) {
+        if (removedTabWasActive) {
+          if (next.length > 0) {
+            const targetIndex =
+              removedTabIndex >= next.length
+                ? next.length - 1
+                : removedTabIndex;
+            nextActiveTabId = next[targetIndex]?.id ?? null;
+          } else {
+            nextActiveTabId = null;
+          }
+        } else if (next.length === 0) {
           nextActiveTabId = null;
         }
-      } else if (next.length === 0) {
-        nextActiveTabId = null;
       }
-    }
 
-    return next;
-  });
+      return next;
+    }),
+  );
 
   if (nextActiveTabId !== undefined) {
-    store.set(activeTabIdAtom, nextActiveTabId);
+    activeTabIdAtom.set(nextActiveTabId);
   }
 
   if (!detachedPane) {
@@ -539,7 +553,7 @@ export async function splitPane(
   insertBefore = false,
   options: SplitPaneOptions = {},
 ) {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
     return;
@@ -602,7 +616,7 @@ export function dropPane(
   paneId: string,
   target: PaneDropTarget,
 ): boolean {
-  const targetTab = store.get(tabsAtom).find((tab) => tab.id === target.tabId);
+  const targetTab = tabsAtom.get().find((tab) => tab.id === target.tabId);
   if (!targetTab || targetTab.locked) {
     return false;
   }
@@ -656,42 +670,44 @@ function insertPaneAtTabRoot(
   direction: SplitDirection,
   insertBefore = false,
 ) {
-  store.set(tabsAtom, (current) =>
-    current.map((currentTab) => {
-      if (currentTab.id !== tabId) {
-        return currentTab;
-      }
+  tabsAtom.set(
+    produce((current) =>
+      current.map((currentTab) => {
+        if (currentTab.id !== tabId) {
+          return currentTab;
+        }
 
-      if (currentTab.locked) {
-        return currentTab;
-      }
+        if (currentTab.locked) {
+          return currentTab;
+        }
 
-      const newLayoutNode: LayoutNode = {
-        id: generateId(),
-        type: "pane",
-        paneId: pane.id,
-      };
+        const newLayoutNode: LayoutNode = {
+          id: generateId(),
+          type: "pane",
+          paneId: pane.id,
+        };
 
-      // Wrap entire existing layout in a new split at root level
-      const newLayout: LayoutSplitNode = {
-        id: generateId(),
-        type: "split",
-        direction,
-        children: insertBefore
-          ? [newLayoutNode, currentTab.layout]
-          : [currentTab.layout, newLayoutNode],
-      };
+        // Wrap entire existing layout in a new split at root level
+        const newLayout: LayoutSplitNode = {
+          id: generateId(),
+          type: "split",
+          direction,
+          children: insertBefore
+            ? [newLayoutNode, currentTab.layout]
+            : [currentTab.layout, newLayoutNode],
+        };
 
-      return {
-        ...currentTab,
-        panes: {
-          ...currentTab.panes,
-          [pane.id]: pane,
-        },
-        layout: newLayout,
-        activePaneId: pane.id,
-      };
-    }),
+        return {
+          ...currentTab,
+          panes: {
+            ...currentTab.panes,
+            [pane.id]: pane,
+          },
+          layout: newLayout,
+          activePaneId: pane.id,
+        };
+      }),
+    ),
   );
 }
 
@@ -712,34 +728,36 @@ export function insertPaneNextTo(
     paneId: pane.id,
   };
 
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
+  tabsAtom.set(
+    produce((current) =>
+      current.map((tab) => {
+        if (tab.id !== tabId) {
+          return tab;
+        }
 
-      const { node: newLayout, modified } = splitLayoutNode(
-        tab.layout,
-        targetPaneId,
-        direction,
-        newLayoutNode,
-        insertBefore,
-      );
+        const { node: newLayout, modified } = splitLayoutNode(
+          tab.layout,
+          targetPaneId,
+          direction,
+          newLayoutNode,
+          insertBefore,
+        );
 
-      if (!modified) {
-        return tab;
-      }
+        if (!modified) {
+          return tab;
+        }
 
-      return {
-        ...tab,
-        panes: {
-          ...tab.panes,
-          [pane.id]: pane,
-        },
-        layout: newLayout,
-        activePaneId: pane.id,
-      };
-    }),
+        return {
+          ...tab,
+          panes: {
+            ...tab.panes,
+            [pane.id]: pane,
+          },
+          layout: newLayout,
+          activePaneId: pane.id,
+        };
+      }),
+    ),
   );
 }
 
@@ -749,7 +767,7 @@ export async function splitPaneWithAgentSession(
   direction: SplitDirection,
   insertBefore = false,
 ) {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
     return;
@@ -876,7 +894,7 @@ export function cloneTerminalPane(
   // Note: This method is only expected to be called from the clone
   // command, which is already guarded by checks for whether the pane
   // can be cloned. So we're not repeating those checks here.
-  const tab = store.get(tabsAtom).find(({ id }) => id === tabId);
+  const tab = tabsAtom.get().find(({ id }) => id === tabId);
   const sourcePane = tab.panes[paneId] as TerminalPane;
   insertPaneNextTo(
     tabId,
@@ -896,82 +914,84 @@ export function removePane(
   paneId: string,
   options: RemovePaneOptions = {},
 ) {
-  store.set(tabsAtom, (current) =>
-    current.map((tab) => {
-      if (tab.id !== tabId) {
-        return tab;
-      }
+  tabsAtom.set(
+    produce((current) =>
+      current.map((tab) => {
+        if (tab.id !== tabId) {
+          return tab;
+        }
 
-      if (tab.locked) {
-        return tab;
-      }
+        if (tab.locked) {
+          return tab;
+        }
 
-      const pane = tab.panes[paneId];
-      if (!pane) {
-        return tab;
-      }
+        const pane = tab.panes[paneId];
+        if (!pane) {
+          return tab;
+        }
 
-      const { node: newLayout, removedPane } = extractPaneNode(
-        tab.layout,
-        paneId,
-      );
-
-      if (!removedPane || !newLayout) {
-        return tab;
-      }
-
-      if (pane.type === "terminal") {
-        // Check if there are other panes across all tabs sharing this session
-        const allTabs = store.get(tabsAtom);
-        const otherPanesWithSameSession = allTabs.flatMap((t) =>
-          Object.values(t.panes).filter(
-            (p) =>
-              p.id !== paneId &&
-              p.type === "terminal" &&
-              p.sessionId === pane.sessionId,
-          ),
+        const { node: newLayout, removedPane } = extractPaneNode(
+          tab.layout,
+          paneId,
         );
 
-        // Only close the PTY if this is the last pane using this session
-        if (
-          otherPanesWithSameSession.length === 0 &&
-          !options.skipTerminalClose
-        ) {
-          api.closeTerminal(pane.sessionId);
+        if (!removedPane || !newLayout) {
+          return tab;
         }
-        // Always dispose the xterm instance for this specific pane
-        disposeSession(paneId);
-      } else if (pane.type === "editor") {
-        // Dispose the editor pane from EditorPaneRegistry
-        // This fully removes the editor (vs detach which just moves it off-screen)
-        disposeEditorPane(pane.id);
-      } else if (pane.type === "canvas") {
-        // Clean up canvas state (including history) from the global store
-        deleteCanvasState(paneId);
-      }
 
-      const newPanes = { ...tab.panes };
-      delete newPanes[paneId];
+        if (pane.type === "terminal") {
+          // Check if there are other panes across all tabs sharing this session
+          const allTabs = tabsAtom.get();
+          const otherPanesWithSameSession = allTabs.flatMap((t) =>
+            Object.values(t.panes).filter(
+              (p) =>
+                p.id !== paneId &&
+                p.type === "terminal" &&
+                p.sessionId === pane.sessionId,
+            ),
+          );
 
-      const newActivePaneId =
-        tab.activePaneId === paneId
-          ? findFirstPaneId(newLayout)
-          : tab.activePaneId;
+          // Only close the PTY if this is the last pane using this session
+          if (
+            otherPanesWithSameSession.length === 0 &&
+            !options.skipTerminalClose
+          ) {
+            api.closeTerminal(pane.sessionId);
+          }
+          // Always dispose the xterm instance for this specific pane
+          disposeSession(paneId);
+        } else if (pane.type === "editor") {
+          // Dispose the editor pane from EditorPaneRegistry
+          // This fully removes the editor (vs detach which just moves it off-screen)
+          disposeEditorPane(pane.id);
+        } else if (pane.type === "canvas") {
+          // Clean up canvas state (including history) from the global store
+          deleteCanvasState(paneId);
+        }
 
-      const removedActivePane = tab.activePaneId === paneId;
+        const newPanes = { ...tab.panes };
+        delete newPanes[paneId];
 
-      // If we're removing the active pane while in focus mode, exit focus mode
-      if (removedActivePane && isFocusModeActive()) {
-        exitFocusMode();
-      }
+        const newActivePaneId =
+          tab.activePaneId === paneId
+            ? findFirstPaneId(newLayout)
+            : tab.activePaneId;
 
-      return {
-        ...tab,
-        panes: newPanes,
-        layout: newLayout,
-        activePaneId: newActivePaneId,
-      };
-    }),
+        const removedActivePane = tab.activePaneId === paneId;
+
+        // If we're removing the active pane while in focus mode, exit focus mode
+        if (removedActivePane && isFocusModeActive()) {
+          exitFocusMode();
+        }
+
+        return {
+          ...tab,
+          panes: newPanes,
+          layout: newLayout,
+          activePaneId: newActivePaneId,
+        };
+      }),
+    ),
   );
 }
 
@@ -979,7 +999,7 @@ export function closeAgentSessionPanes(
   tabId: string,
   agentSessionId: string,
 ): number {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
     return 0;
@@ -1025,18 +1045,20 @@ export async function deleteAgentSession(
 }
 
 export function activatePane(tabId: string, paneId: string) {
-  store.set(tabsAtom, (tabs) => {
-    const tab = tabs.find(({ id }) => id === tabId);
-    if (!tab || tab.activePaneId === paneId) {
-      return tabs;
-    }
+  tabsAtom.set(
+    produce((tabs) => {
+      const tab = tabs.find(({ id }) => id === tabId);
+      if (!tab || tab.activePaneId === paneId) {
+        return tabs;
+      }
 
-    tab.activePaneId = paneId;
-  });
+      tab.activePaneId = paneId;
+    }),
+  );
 }
 
 export function closePane(tabId: string, paneId: string) {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const tab = tabs.find((t) => t.id === tabId);
   if (!tab) {
     return;

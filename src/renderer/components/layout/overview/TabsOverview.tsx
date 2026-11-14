@@ -9,7 +9,7 @@ import {
 import { closeTab, focusTab, openTab } from "@/store/actions/tab";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TabPreviewItem } from "./TabPreviewItem";
@@ -17,9 +17,9 @@ import { TabPreviewItem } from "./TabPreviewItem";
 export function TabsOverview() {
   const { mountTabsInPreview, unmountTabsFromPreview } = useTabContentPortal();
 
-  const tabLabels = useAtomValue(tabLabelsAtom);
-  const { showTabState } = useAtomValue(userSettingsAtom);
-  const setApplicationMode = useSetAtom(applicationModeAtom);
+  const tabLabels = useSelector(tabLabelsAtom);
+  const { showTabState } = useSelector(userSettingsAtom);
+  const setApplicationMode = applicationModeAtom.set;
 
   const allTabsContainerRefs = useRef<Record<string, HTMLDivElement>>({});
   const [hoveredTabId, setHoveredTabId] = useState<string | null>(null);

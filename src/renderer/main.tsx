@@ -2,11 +2,11 @@ import { App } from "@/app";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
 import { enableMapSet } from "immer";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { createRoot } from "react-dom/client";
 import { cn } from "./utils";
 
-// Enable Immer's Map and Set support for atomWithImmer
+// Enable Immer's Map and Set support for produce() on Map-valued atoms
 enableMapSet();
 
 import "./index.css";
@@ -15,7 +15,7 @@ const rootElement = document.getElementById("root");
 const root = createRoot(rootElement);
 
 function AppWrapper() {
-  const { useGradientBorders } = useAtomValue(userSettingsAtom);
+  const { useGradientBorders } = useSelector(userSettingsAtom);
 
   return (
     <TooltipProvider delayDuration={200}>

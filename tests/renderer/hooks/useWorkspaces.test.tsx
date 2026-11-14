@@ -4,9 +4,7 @@
 
 import type { Workspace, WorkspaceState } from "@shared/types";
 import { renderHook, waitFor } from "@testing-library/react";
-import { Provider } from "jotai";
-import type React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getState } = vi.hoisted(() => {
   const getState = vi.fn<() => Promise<WorkspaceState>>();
@@ -18,10 +16,7 @@ const { getState } = vi.hoisted(() => {
 });
 
 import { useWorkspaces } from "@/hooks/useWorkspaces";
-
-function JotaiWrapper({ children }: { children: React.ReactNode }) {
-  return <Provider>{children}</Provider>;
-}
+import { workspaceStateAtom } from "@/store/atoms";
 
 const lastWorkspace: Workspace = {
   name: "__last_workspace__",
@@ -31,6 +26,10 @@ const lastWorkspace: Workspace = {
 };
 
 describe("useWorkspaces", () => {
+  beforeEach(() => {
+    workspaceStateAtom.set({ workspaces: [] });
+  });
+
   it.each<[WorkspaceState, boolean]>([
     [{ workspaces: [], lastWorkspace }, true],
     [{ workspaces: [] }, false],
@@ -39,9 +38,7 @@ describe("useWorkspaces", () => {
     async (state, expected) => {
       getState.mockResolvedValue(state);
 
-      const { result } = renderHook(() => useWorkspaces(), {
-        wrapper: JotaiWrapper,
-      });
+      const { result } = renderHook(() => useWorkspaces());
 
       await waitFor(() => expect(getState).toHaveBeenCalled());
       await waitFor(() =>

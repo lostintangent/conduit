@@ -33,7 +33,7 @@ The workspace system uses three distinct representations optimized for different
 
 | Format         | Purpose     | Storage              | Optimized For                     |
 | -------------- | ----------- | -------------------- | --------------------------------- |
-| Renderer State | Runtime UI  | Memory (Jotai atoms) | Fast access, reactive updates     |
+| Renderer State | Runtime UI  | Memory (Store atoms) | Fast access, reactive updates     |
 | Workspace      | Persistence | JSON file            | Complete serialization            |
 | Template       | Sharing     | YAML file            | Human readability, minimal syntax |
 
@@ -68,7 +68,7 @@ The workspace system uses three distinct representations optimized for different
 
 ### Renderer State
 
-The renderer maintains workspace state in Jotai atoms for reactive UI updates. This format is optimized for fast pane lookups and real-time state management.
+The renderer maintains workspace state in TanStack Store atoms for reactive UI updates. This format is optimized for fast pane lookups and real-time state management.
 
 **Source:** `src/renderer/types.ts`
 

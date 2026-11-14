@@ -1,7 +1,7 @@
 /**
  * Pane Actions System Hook
  *
- * Loads user pane actions from file into the Jotai atom and keeps them in
+ * Loads user pane actions from file into the store atom and keeps them in
  * sync with external file changes. The atom starts with the default actions.
  */
 

@@ -11,7 +11,7 @@ import { closeTab, focusTab, updateTabProperty } from "@/store/actions/tab";
 import { userSettingsAtom } from "@/store/atoms";
 import type { TabDescriptor } from "@/store/tabLabels";
 import { cn } from "@/utils";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { Command, Lock, Trash2 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -51,7 +51,7 @@ export function TabButton({
   onDragEnd,
   onHoverChange,
 }: TabButtonProps) {
-  const { showTabState } = useAtomValue(userSettingsAtom);
+  const { showTabState } = useSelector(userSettingsAtom);
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");

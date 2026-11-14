@@ -3,7 +3,7 @@ import { dropPane } from "@/store/actions/pane";
 import { applicationModeAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import { type EdgeZone, getDirectionFromZone } from "@/utils/dragDrop";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import React, { useCallback, useState } from "react";
 
 const DROP_ZONE_THRESHOLD = 0.4; // 40% threshold for edge detection
@@ -69,7 +69,7 @@ export function usePaneDragDrop({
   const [isFocusModeDrag, setIsFocusModeDrag] = useState(false);
   const [tabEdgeDropZone, setTabEdgeDropZone] = useState<TabEdgeZone>(null);
 
-  const applicationMode = useAtomValue(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
   const isInDesignMode = applicationMode === "design";
 
   // Helper to check if a drag event is a focus mode drag

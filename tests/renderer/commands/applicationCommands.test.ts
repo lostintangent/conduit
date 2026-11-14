@@ -18,7 +18,6 @@ import * as focusModeActions from "@/store/actions/focusMode";
 import * as tabActions from "@/store/actions/tab";
 import { notificationsAtom } from "@/store/atoms";
 import type { Tab, TerminalPane } from "@/types";
-import { getDefaultStore } from "jotai";
 import { commandContext } from "./fixtures";
 
 // Mock store actions
@@ -444,7 +443,7 @@ describe("applicationCommands", () => {
         await command.run(commandContext({ activeTab: tab, allTabs: [tab] }));
 
         expect(cleanupAgentSession).toHaveBeenCalledTimes(2);
-        const [latest] = getDefaultStore().get(notificationsAtom);
+        const [latest] = notificationsAtom.get();
         expect(latest).toMatchObject({
           kind: "success",
           message: "Successfully deleted 2 worktrees",

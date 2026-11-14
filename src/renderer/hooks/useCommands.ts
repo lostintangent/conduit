@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import type { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
@@ -52,7 +52,7 @@ export function useCommands(
   }, [contextKeyService]);
 
   // Track keybinding changes via atom (already reactive)
-  const keybindingsMap = useAtomValue(keybindingsAtom);
+  const keybindingsMap = useSelector(keybindingsAtom);
 
   return useMemo(() => {
     // Return empty array if registries not ready

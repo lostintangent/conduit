@@ -25,7 +25,6 @@ import type {
 import { MAX_ACTIONS } from "@/commands/paneActions/core/types";
 import { preCommands } from "@/commands/preCommands";
 import { quickPaneAtom } from "@/store/atoms";
-import { useSetAtom } from "jotai";
 import {
   Check,
   ChevronDown,
@@ -51,7 +50,7 @@ export function PaneActionsTab({
   homeDirectory,
   onClose,
 }: PaneActionsTabProps) {
-  const setQuickPane = useSetAtom(quickPaneAtom);
+  const setQuickPane = quickPaneAtom.set;
   const actions = usePaneActions();
   const [expandedActions, setExpandedActions] = useState<Set<string>>(
     new Set(),

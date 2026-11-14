@@ -72,19 +72,9 @@ vi.mock("@/commands/menus/menuContextBuilders", () => ({
   getMenuContextBuilder: vi.fn(),
 }));
 
-vi.mock("@/store/atoms", () => ({
-  tabsAtom: { init: [] },
-}));
-
-vi.mock("jotai", () => ({
-  useAtomValue: vi.fn(() => []),
-  useSetAtom: vi.fn(() => vi.fn()),
-  atom: vi.fn((value) => ({ init: value })),
-}));
-
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
 import { useContextMenu } from "@/hooks/useContextMenu";
-import { useAtomValue } from "jotai";
+import { tabsAtom } from "@/store/atoms";
 
 describe("useContextMenu", () => {
   beforeEach(() => {
@@ -97,7 +87,7 @@ describe("useContextMenu", () => {
     (globalThis as any).window.conduit = mockApi;
 
     // Default mock for tabs
-    (useAtomValue as any).mockReturnValue([
+    tabsAtom.set([
       {
         id: "tab-1",
         title: "Tab 1",
@@ -107,7 +97,7 @@ describe("useContextMenu", () => {
           "pane-2": { type: "browser", url: "https://example.com" },
         },
       },
-    ]);
+    ] as any);
   });
 
   afterEach(() => {
@@ -347,7 +337,7 @@ describe("useContextMenu", () => {
     });
 
     it("should early return if tab not found", async () => {
-      (useAtomValue as any).mockReturnValue([]); // No tabs
+      tabsAtom.set([]); // No tabs
 
       const { result } = renderHook(() =>
         useContextMenu({ canChangeTitle: () => true }),

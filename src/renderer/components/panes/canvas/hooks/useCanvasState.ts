@@ -13,7 +13,7 @@ import {
   updateCanvasState,
 } from "@/store/canvasStore";
 import type { CanvasElement, FillStyle } from "@shared/types/canvas";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback } from "react";
 
 // =============================================================================
@@ -22,7 +22,7 @@ import { useCallback } from "react";
 
 export function useCanvasState(paneId: string) {
   // Subscribe only to this pane's atom (other panes' updates won't trigger re-render)
-  const state = useAtomValue(canvasStateAtomFamily(paneId));
+  const state = useSelector(canvasStateAtomFamily(paneId));
 
   // ---------------------------------------------------------------------------
   // Element Operations

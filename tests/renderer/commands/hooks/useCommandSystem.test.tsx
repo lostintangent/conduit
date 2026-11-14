@@ -8,7 +8,6 @@ import { describe, it, expect, beforeEach, type Mock, vi } from "vitest";
 window.conduit = {};
 
 import { renderHook, waitFor } from "@testing-library/react";
-import { Provider, createStore } from "jotai";
 import {
   type UseCommandSystemOptions,
   useCommandSystem,
@@ -18,17 +17,12 @@ import { ApplicationCommands } from "@/commands/applicationCommands";
 import type { ApplicationMode } from "@/store/atoms";
 
 describe("useCommandSystem", () => {
-  let store: ReturnType<typeof createStore>;
   let setApplicationModeMock: Mock<(mode: ApplicationMode) => void>;
 
   beforeEach(() => {
-    store = createStore();
+    keybindingsAtom.set(new Map());
     setApplicationModeMock = vi.fn();
   });
-
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <Provider store={store}>{children}</Provider>
-  );
 
   function options(
     overrides: Partial<UseCommandSystemOptions> = {},
@@ -62,7 +56,7 @@ describe("useCommandSystem", () => {
   function renderCommandSystem(
     overrides: Partial<UseCommandSystemOptions> = {},
   ) {
-    return renderHook(() => useCommandSystem(options(overrides)), { wrapper });
+    return renderHook(() => useCommandSystem(options(overrides)));
   }
 
   describe("initialization", () => {
@@ -167,7 +161,7 @@ describe("useCommandSystem", () => {
       renderCommandSystem();
 
       await waitFor(() => {
-        const keybindings = store.get(keybindingsAtom);
+        const keybindings = keybindingsAtom.get();
         expect(keybindings.size).toBeGreaterThan(0);
       });
     });
@@ -176,7 +170,7 @@ describe("useCommandSystem", () => {
       renderCommandSystem();
 
       await waitFor(() => {
-        const keybindings = store.get(keybindingsAtom);
+        const keybindings = keybindingsAtom.get();
         expect(
           keybindings.has(ApplicationCommands.VIEW_TOGGLE_FOCUS_MODE),
         ).toBe(true);
@@ -251,7 +245,6 @@ describe("useCommandSystem", () => {
         ({ mode }) => useCommandSystem(options({ applicationMode: mode })),
         {
           initialProps: { mode: "normal" as ApplicationMode },
-          wrapper,
         },
       );
 
@@ -278,7 +271,6 @@ describe("useCommandSystem", () => {
         ({ tab }) => useCommandSystem(options({ activeTab: tab })),
         {
           initialProps: { tab: mockTab1 },
-          wrapper,
         },
       );
 

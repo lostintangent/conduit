@@ -7,8 +7,8 @@
 import type { CanvasCommand } from "@/components/panes/canvas/history/canvasHistory";
 import { clearImageCache } from "@/components/panes/canvas/render/elements";
 import type { CanvasElement } from "@shared/types/canvas";
-import { atom, getDefaultStore } from "jotai";
-import { atomFamily } from "jotai-family";
+import { createAtom } from "@/store/createAtom";
+import type { Atom } from "@tanstack/react-store";
 
 // =============================================================================
 // Types
@@ -73,28 +73,33 @@ export const DEFAULT_CANVAS_STATE: CanvasState = {
  * Per-pane canvas state atoms. Each pane subscribes only to its own atom,
  * so updates to one canvas don't trigger re-renders in other canvases.
  */
-export const canvasStateAtomFamily = atomFamily((_paneId: string) =>
-  atom<CanvasState>({ ...DEFAULT_CANVAS_STATE }),
-);
+const canvasStateAtoms = new Map<string, Atom<CanvasState>>();
+
+export function canvasStateAtomFamily(paneId: string): Atom<CanvasState> {
+  let canvasStateAtom = canvasStateAtoms.get(paneId);
+  if (!canvasStateAtom) {
+    canvasStateAtom = createAtom<CanvasState>({ ...DEFAULT_CANVAS_STATE });
+    canvasStateAtoms.set(paneId, canvasStateAtom);
+  }
+  return canvasStateAtom;
+}
 
 // =============================================================================
 // Store Access
 // =============================================================================
 
-const store = getDefaultStore();
-
 /**
  * Get the canvas state for a specific pane.
  */
 export function getCanvasState(paneId: string): CanvasState {
-  return store.get(canvasStateAtomFamily(paneId));
+  return canvasStateAtomFamily(paneId).get();
 }
 
 /**
  * Set the canvas state for a specific pane.
  */
 export function setCanvasState(paneId: string, state: CanvasState): void {
-  store.set(canvasStateAtomFamily(paneId), state);
+  canvasStateAtomFamily(paneId).set(state);
 }
 
 /**
@@ -104,7 +109,7 @@ export function updateCanvasState(
   paneId: string,
   updater: (state: CanvasState) => CanvasState,
 ): void {
-  store.set(canvasStateAtomFamily(paneId), updater);
+  canvasStateAtomFamily(paneId).set(updater);
 }
 
 /**
@@ -113,7 +118,7 @@ export function updateCanvasState(
  */
 export function deleteCanvasState(paneId: string): void {
   // Clear image cache for all image elements in this pane
-  const state = store.get(canvasStateAtomFamily(paneId));
+  const state = canvasStateAtomFamily(paneId).get();
   for (const element of state.elements) {
     if (element.type === "image") {
       clearImageCache(element.id);
@@ -121,7 +126,7 @@ export function deleteCanvasState(paneId: string): void {
   }
 
   // Reset to default state and remove from family
-  canvasStateAtomFamily.remove(paneId);
+  canvasStateAtoms.delete(paneId);
 }
 
 // =============================================================================
@@ -226,7 +231,7 @@ export function migrateCanvasState(
   toPaneId: string,
   deleteSource = false,
 ): void {
-  const sourceState = store.get(canvasStateAtomFamily(fromPaneId));
+  const sourceState = canvasStateAtomFamily(fromPaneId).get();
   // Only migrate if source has content (not default state)
   if (
     sourceState.elements.length > 0 ||
@@ -236,7 +241,7 @@ export function migrateCanvasState(
     if (deleteSource) {
       // Don't use deleteCanvasState here as we don't want to clear image cache
       // (the images are still in use by the destination)
-      canvasStateAtomFamily.remove(fromPaneId);
+      canvasStateAtoms.delete(fromPaneId);
     }
   }
 }

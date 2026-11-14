@@ -6,7 +6,6 @@ import {
   walkLayout,
   type PaneDirection,
 } from "@/utils/layout";
-import { getDefaultStore } from "jotai";
 
 export type PaneNavigationDirection = PaneDirection;
 
@@ -27,7 +26,6 @@ type Candidate = PaneRect & {
   centerY: number;
 };
 
-const store = getDefaultStore();
 const CENTER_EPSILON = 1e-6;
 const OVERLAP_EPSILON = 1e-6;
 
@@ -226,7 +224,7 @@ export const navigatePane = (
   paneId: string,
   direction: PaneNavigationDirection,
 ): boolean => {
-  const tabs = store.get(tabsAtom);
+  const tabs = tabsAtom.get();
   const tab = tabs.find((entry) => entry.id === tabId);
   if (!tab) {
     return false;

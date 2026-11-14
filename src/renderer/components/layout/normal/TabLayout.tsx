@@ -48,7 +48,7 @@ import type {
 import { cn } from "@/utils";
 import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -289,20 +289,20 @@ export function TabLayout({
   handleEditorUpdate,
   onOpenPaneActions,
 }: TabLayoutProps) {
-  const tabs = useAtomValue(tabsAtom);
-  const activeTab = useAtomValue(activeTabAtom);
-  const activePaneId = useAtomValue(activePaneIdAtom);
+  const tabs = useSelector(tabsAtom);
+  const activeTab = useSelector(activeTabAtom);
+  const activePaneId = useSelector(activePaneIdAtom);
   const activeTabId = activeTab?.id ?? null;
 
-  const applicationMode = useAtomValue(applicationModeAtom);
-  const setApplicationMode = useSetAtom(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
+  const setApplicationMode = applicationModeAtom.set;
   const isInDesignMode = applicationMode === "design";
 
   const { dimInactivePanes, terminalLinkTarget } =
-    useAtomValue(userSettingsAtom);
+    useSelector(userSettingsAtom);
 
   // Sidebar state for terminal link clicks
-  const setSidebarState = useSetAtom(sidebarStateAtom);
+  const setSidebarState = sidebarStateAtom.set;
 
   const [hoveredAxisKeys, setHoveredAxisKeys] = useState<string[]>([]);
   const [hoveredPaneId, setHoveredPaneId] = useState<string | null>(null);

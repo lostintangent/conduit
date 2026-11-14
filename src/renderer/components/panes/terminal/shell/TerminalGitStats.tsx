@@ -27,7 +27,6 @@ import {
 import { useUncommittedDiffStats } from "@/hooks/useUncommittedDiffStats";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import { ApplicationCommands } from "@shared/commands";
-import { useSetAtom } from "jotai";
 import { memo, useCallback, useState } from "react";
 
 /**
@@ -40,7 +39,7 @@ const TerminalGitStatsInner = memo(function TerminalGitStatsInner({
   cwd: string;
 }) {
   const { stats, gitStatus, isGitRepo } = useUncommittedDiffStats(cwd);
-  const setSidebarState = useSetAtom(sidebarStateAtom);
+  const setSidebarState = sidebarStateAtom.set;
   const toggleSidebarCmd = useCommand(ApplicationCommands.VIEW_TOGGLE_SIDEBAR);
   const [isHovered, setIsHovered] = useState(false);
 

@@ -11,7 +11,7 @@ import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
 import { MenuId } from "@/commands/menus/types";
 import { tabsAtom } from "@/store/atoms";
 import { ApplicationCommands } from "@shared/commands";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 
@@ -31,7 +31,7 @@ export interface ContextMenuItemData {
 }
 
 export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
-  const tabs = useAtomValue(tabsAtom);
+  const tabs = useSelector(tabsAtom);
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
     Record<string, boolean>
   >({});

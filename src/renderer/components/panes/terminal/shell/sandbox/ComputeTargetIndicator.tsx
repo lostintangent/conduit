@@ -1,6 +1,6 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { tabsAtom } from "@/store/atoms";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useMemo } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
 
@@ -19,7 +19,7 @@ export function ComputeTargetIndicator({
   paneId,
   hideIndividualSandboxIndicator = false,
 }: ComputeTargetIndicatorProps) {
-  const tabs = useAtomValue(tabsAtom);
+  const tabs = useSelector(tabsAtom);
 
   // Memoize the current pane and tab lookup
   const { currentPane, currentTab } = useMemo(() => {

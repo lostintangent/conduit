@@ -21,7 +21,7 @@
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import { userSettingsAtom } from "@/store/atoms";
 import { cn } from "@/utils";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { FileText, Folder } from "lucide-react";
 import {
   forwardRef,
@@ -140,7 +140,7 @@ export const FileTreeNormal = memo(
     ref,
   ) {
     // Get user settings for home directory (used for "Add to Dotfiles" context menu)
-    const { homeDirectory } = useAtomValue(userSettingsAtom);
+    const { homeDirectory } = useSelector(userSettingsAtom);
 
     // Callback ref for scroll persistence across DOM moves
     const scrollContainerRef = useScrollPersistence(paneId, "fileTree");

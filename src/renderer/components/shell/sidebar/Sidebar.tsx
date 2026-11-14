@@ -11,7 +11,7 @@
 
 import { applicationModeAtom } from "@/store/atoms";
 import { sidebarStateAtom, type SidebarView } from "@/store/sidebarStore";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useSelector } from "@tanstack/react-store";
 import { Activity, useCallback, useEffect, useRef, useState } from "react";
 import { ResizablePanel } from "./ResizablePanel";
 import { SidebarActivityBar } from "./SidebarActivityBar";
@@ -41,7 +41,7 @@ export function Sidebar({ cwd }: SidebarProps) {
   const [sidebarState, setSidebarState] = useAtom(sidebarStateAtom);
   const { isOpen, view } = sidebarState;
 
-  const applicationMode = useAtomValue(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
 
   // Maximized state (full width) - not persisted, resets on close
   const [isMaximized, setIsMaximized] = useState(false);

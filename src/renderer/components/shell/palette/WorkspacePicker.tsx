@@ -4,7 +4,7 @@ import { workspaceStateAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import { formatRelativeTime } from "@/utils/time";
 import type { Workspace } from "@shared/types";
-import { useAtom } from "jotai";
+import { useAtom } from "@tanstack/react-store";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "../../ui/button";

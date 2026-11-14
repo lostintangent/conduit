@@ -8,9 +8,6 @@ import { tabsAtom, type ApplicationMode } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { LayoutNode, LayoutPaneNode, LayoutSplitNode } from "@/types";
 import { walkLayout } from "@/utils/layout";
-import { getDefaultStore } from "jotai";
-
-const store = getDefaultStore();
 
 const _layoutHasCustomSizes = (node: LayoutNode): boolean => {
   let hasCustomSize = false;
@@ -109,9 +106,8 @@ export function handleQuickOpen(
  * @param tabId - ID of the tab to reset
  */
 export function handleResetLayout(tabId: string): void {
-  const tabs = store.get(tabsAtom);
-  store.set(
-    tabsAtom,
+  const tabs = tabsAtom.get();
+  tabsAtom.set(
     tabs.map((tab) => {
       if (tab.id !== tabId) {
         return tab;
@@ -134,8 +130,8 @@ export function handleResetLayout(tabId: string): void {
  * Toggle the sidebar open/closed
  */
 export function handleToggleSidebar(): void {
-  const currentState = store.get(sidebarStateAtom);
-  store.set(sidebarStateAtom, {
+  const currentState = sidebarStateAtom.get();
+  sidebarStateAtom.set({
     ...currentState,
     isOpen: !currentState.isOpen,
   });
@@ -148,7 +144,7 @@ export function handleToggleSidebar(): void {
  * @param cwd - Optional CWD to navigate to (updates lock target if locked)
  */
 export function handleViewFileExplorer(cwd?: string): void {
-  store.set(sidebarStateAtom, {
+  sidebarStateAtom.set({
     isOpen: true,
     view: "editor",
     navigation: { cwd, editorTreeMode: "all" },

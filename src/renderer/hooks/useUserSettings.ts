@@ -1,5 +1,5 @@
 import { userSettingsAtom } from "@/store/atoms";
-import { useAtom } from "jotai";
+import { useAtom } from "@tanstack/react-store";
 import { useEffect } from "react";
 
 const api = window.conduit;

@@ -18,7 +18,6 @@ import {
 import { watchKeybindingsFile } from "@/commands/keybindings/watchKeybindings";
 import type { ApplicationMode } from "@/store/atoms";
 import { keybindingsAtom } from "@/store/atoms";
-import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 
 export interface CommandSystemState {
@@ -97,7 +96,7 @@ export function useCommandSystem(
     setIsQuickOpenOpen,
     setQuickOpenInitialValue,
   } = options;
-  const setKeybindings = useSetAtom(keybindingsAtom);
+  const setKeybindings = keybindingsAtom.set;
 
   const [commandSystem, setCommandSystem] = useState<{
     commandRegistry: CommandRegistry;

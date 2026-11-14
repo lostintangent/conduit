@@ -11,7 +11,7 @@ import type {
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BrowserToolbar } from "./toolbar/BrowserToolbar";
@@ -69,7 +69,7 @@ export function BrowserPane({
   onToggleDevTools,
   onHideToolbar,
 }: BrowserPaneProps) {
-  const applicationMode = useAtomValue(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
 
   const webviewRef = useRef<WebviewTag | null>(null);
   const webviewAnchorRef = useRef<HTMLDivElement | null>(null);

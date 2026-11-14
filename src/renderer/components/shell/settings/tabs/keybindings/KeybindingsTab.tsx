@@ -5,7 +5,7 @@
  */
 
 import { keybindingsAtom, quickPaneAtom } from "@/store/atoms";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import {
   AlertTriangle,
   Check,
@@ -50,7 +50,7 @@ export function KeybindingsTab({
   keybindingRegistry,
   homeDirectory,
 }: KeybindingsTabProps) {
-  const setQuickPane = useSetAtom(quickPaneAtom);
+  const setQuickPane = quickPaneAtom.set;
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "user" | "conflicts">(
@@ -58,7 +58,7 @@ export function KeybindingsTab({
   );
   const [copiedCommandId, setCopiedCommandId] = useState<string | null>(null);
 
-  const globalKeybindings = useAtomValue(keybindingsAtom);
+  const globalKeybindings = useSelector(keybindingsAtom);
 
   const rows = useMemo<KeybindingRow[]>(() => {
     const commands = commandRegistry.getAllCommands();

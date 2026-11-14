@@ -1,7 +1,8 @@
-import { atom, useAtom } from "jotai";
+import { createAtom } from "@/store/createAtom";
+import { useAtom } from "@tanstack/react-store";
 
 // Define atom (could also go in atoms.ts)
-const quickOpenRecentFilesAtom = atom<string[]>([]);
+export const quickOpenRecentFilesAtom = createAtom<string[]>([]);
 
 export function useQuickOpenRecentFiles() {
   const [recentFiles, setRecentFiles] = useAtom(quickOpenRecentFilesAtom);

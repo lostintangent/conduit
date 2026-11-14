@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/tooltip";
 import { applicationModeAtom } from "@/store/atoms";
 import { getHashedColor } from "@/utils/color";
-import { useAtomValue } from "jotai";
+import { useSelector } from "@tanstack/react-store";
 import { GitMerge, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 
@@ -22,7 +22,7 @@ export function SandboxIndicator({
   onDeleteAgentSession,
   overlayStyle: providedOverlayStyle,
 }: SandboxIndicatorProps) {
-  const applicationMode = useAtomValue(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
   const isSandboxVisibleMode =
     applicationMode === "normal" || applicationMode === "design";
 

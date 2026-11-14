@@ -8,11 +8,8 @@ import { dropPane } from "@/store/actions/pane";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { LayoutNode, Pane, Tab } from "@/types";
 import { enableMapSet } from "immer";
-import { getDefaultStore } from "jotai";
 
 enableMapSet();
-
-const store = getDefaultStore();
 
 const browserPane = (id: string): Pane => ({
   id,
@@ -47,12 +44,12 @@ function makeTab(id: string, paneIds: string[], locked = false): Tab {
 
 describe("dropPane", () => {
   beforeEach(() => {
-    store.set(tabsAtom, [makeTab("tab-1", ["a"]), makeTab("tab-2", ["b"])]);
-    store.set(activeTabIdAtom, "tab-1");
+    tabsAtom.set([makeTab("tab-1", ["a"]), makeTab("tab-2", ["b"])]);
+    activeTabIdAtom.set("tab-1");
   });
 
   it("keeps a tab's only pane when it is dropped on its own tab edge", () => {
-    const before = store.get(tabsAtom);
+    const before = tabsAtom.get();
 
     const moved = dropPane("tab-1", "a", {
       tabId: "tab-1",
@@ -61,11 +58,11 @@ describe("dropPane", () => {
     });
 
     expect(moved).toBe(false);
-    expect(store.get(tabsAtom)).toEqual(before);
+    expect(tabsAtom.get()).toEqual(before);
   });
 
   it("moves a pane to the edge of another tab and closes the emptied tab", () => {
-    store.set(activeTabIdAtom, "tab-2");
+    activeTabIdAtom.set("tab-2");
 
     const moved = dropPane("tab-1", "a", {
       tabId: "tab-2",
@@ -74,7 +71,7 @@ describe("dropPane", () => {
     });
 
     expect(moved).toBe(true);
-    const tabs = store.get(tabsAtom);
+    const tabs = tabsAtom.get();
     expect(tabs.map((tab) => tab.id)).toEqual(["tab-2"]);
     expect(Object.keys(tabs[0].panes)).toEqual(["b", "a"]);
     expect(tabs[0].layout).toMatchObject({
@@ -86,11 +83,8 @@ describe("dropPane", () => {
   });
 
   it("leaves the pane in place when the target tab is locked", () => {
-    store.set(tabsAtom, [
-      makeTab("tab-1", ["a"]),
-      makeTab("tab-2", ["b"], true),
-    ]);
-    const before = store.get(tabsAtom);
+    tabsAtom.set([makeTab("tab-1", ["a"]), makeTab("tab-2", ["b"], true)]);
+    const before = tabsAtom.get();
 
     const moved = dropPane("tab-1", "a", {
       tabId: "tab-2",
@@ -100,6 +94,6 @@ describe("dropPane", () => {
     });
 
     expect(moved).toBe(false);
-    expect(store.get(tabsAtom)).toEqual(before);
+    expect(tabsAtom.get()).toEqual(before);
   });
 });

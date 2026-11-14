@@ -12,7 +12,7 @@
  * are stored separately via usePersistedState (localStorage).
  */
 
-import { atom, getDefaultStore } from "jotai";
+import { createAtom } from "@/store/createAtom";
 
 // =============================================================================
 // Types
@@ -61,41 +61,39 @@ interface CwdMetadata {
 // =============================================================================
 
 /** Core sidebar UI state (open/close, view selection, navigation) */
-export const sidebarStateAtom = atom<SidebarState>({
+export const sidebarStateAtom = createAtom<SidebarState>({
   isOpen: false,
   view: "editor",
 });
 
 /** Per-CWD metadata cache - survives view switches within a session */
-const cwdMetadataAtom = atom<Map<string, CwdMetadata>>(new Map());
+const cwdMetadataAtom = createAtom<Map<string, CwdMetadata>>(new Map());
 
 /**
  * Global browser fallback URL - used when no CWD-specific URL exists.
  * This is the "last manually browsed URL" that has no project association.
  */
-const browserFallbackUrlAtom = atom(undefined as string | undefined);
+const browserFallbackUrlAtom = createAtom(undefined as string | undefined);
 
 // =============================================================================
 // Store Access
 // =============================================================================
 
-const store = getDefaultStore();
-
 // --- Sidebar Actions ---
 
 /** Close the sidebar */
 export function closeSidebar(): void {
-  store.set(sidebarStateAtom, (prev) => ({ ...prev, isOpen: false }));
+  sidebarStateAtom.set((prev) => ({ ...prev, isOpen: false }));
 }
 
 // --- CWD Metadata (Editor) ---
 
 export function getCwdEditorFile(cwd: string): string | undefined {
-  return store.get(cwdMetadataAtom).get(cwd)?.editorFile;
+  return cwdMetadataAtom.get().get(cwd)?.editorFile;
 }
 
 export function setCwdEditorFile(cwd: string, file: string): void {
-  store.set(cwdMetadataAtom, (current) => {
+  cwdMetadataAtom.set((current) => {
     const next = new Map(current);
     const metadata = next.get(cwd) ?? {};
     next.set(cwd, { ...metadata, editorFile: file });
@@ -104,7 +102,7 @@ export function setCwdEditorFile(cwd: string, file: string): void {
 }
 
 export function clearCwdEditorFile(cwd: string): void {
-  store.set(cwdMetadataAtom, (current) => {
+  cwdMetadataAtom.set((current) => {
     const next = new Map(current);
     const metadata = next.get(cwd);
     if (metadata) {
@@ -122,11 +120,11 @@ export function clearCwdEditorFile(cwd: string): void {
 // --- CWD Metadata (Browser) ---
 
 export function getCwdBrowserUrl(cwd: string): string | undefined {
-  return store.get(cwdMetadataAtom).get(cwd)?.browserUrl;
+  return cwdMetadataAtom.get().get(cwd)?.browserUrl;
 }
 
 export function setCwdBrowserUrl(cwd: string, url: string): void {
-  store.set(cwdMetadataAtom, (current) => {
+  cwdMetadataAtom.set((current) => {
     const next = new Map(current);
     const metadata = next.get(cwd) ?? {};
     next.set(cwd, { ...metadata, browserUrl: url });
@@ -137,11 +135,11 @@ export function setCwdBrowserUrl(cwd: string, url: string): void {
 // --- Browser Fallback URL ---
 
 export function getBrowserFallbackUrl(): string | undefined {
-  return store.get(browserFallbackUrlAtom);
+  return browserFallbackUrlAtom.get();
 }
 
 export function setBrowserFallbackUrl(url: string): void {
-  store.set(browserFallbackUrlAtom, url);
+  browserFallbackUrlAtom.set(url);
 }
 
 // =============================================================================

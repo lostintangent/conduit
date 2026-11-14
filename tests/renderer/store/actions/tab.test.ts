@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use hoisted pattern to ensure all mocks are set up before modules load
-const { mockApi, mockStoreGet, mockStoreSet } = vi.hoisted(() => {
+const { mockApi } = vi.hoisted(() => {
   const mockApi = {
     createTerminal: vi.fn(),
     captureTerminalCommand: vi.fn(),
@@ -15,19 +15,6 @@ const { mockApi, mockStoreGet, mockStoreSet } = vi.hoisted(() => {
 
   return {
     mockApi,
-    mockStoreGet: vi.fn(),
-    mockStoreSet: vi.fn(),
-  };
-});
-
-vi.mock("jotai", async () => {
-  const actual = await vi.importActual("jotai");
-  return {
-    ...actual,
-    getDefaultStore: vi.fn(() => ({
-      get: mockStoreGet,
-      set: mockStoreSet,
-    })),
   };
 });
 
@@ -38,12 +25,11 @@ vi.mock("@/store/actions/focusMode", () => ({
 
 // Import after setting up mocks
 import { duplicateTab, translateFilePath } from "@/store/actions/tab";
+import { tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
+import { enableMapSet } from "immer";
 
-/** Runs the updater that the action passed to store.set against `tabs`. */
-function applyTabsUpdate(tabs: Tab[]): Tab[] {
-  return mockStoreSet.mock.calls[0][1](tabs);
-}
+enableMapSet();
 
 describe("translateFilePath", () => {
   it("should return file unchanged when source and target CWDs are the same", () => {
@@ -106,6 +92,7 @@ describe("translateFilePath", () => {
 describe("duplicateTab", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    tabsAtom.set([]);
   });
 
   afterEach(() => {
@@ -113,7 +100,7 @@ describe("duplicateTab", () => {
   });
 
   it("should return null if source tab not found", async () => {
-    mockStoreGet.mockReturnValue([]);
+    tabsAtom.set([]);
 
     const result = await duplicateTab("nonexistent-tab-id");
 
@@ -141,7 +128,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
@@ -164,8 +151,7 @@ describe("duplicateTab", () => {
     expect(mockApi.sendKeypress).not.toHaveBeenCalled();
 
     // Verify new tab was added
-    expect(mockStoreSet).toHaveBeenCalled();
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     expect(newTabs).toHaveLength(2);
     expect(newTabs[1].name).toBe("My Tab 2");
@@ -203,7 +189,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal
       .mockResolvedValueOnce({
@@ -223,7 +209,7 @@ describe("duplicateTab", () => {
     expect(mockApi.captureTerminalCommand).toHaveBeenCalledTimes(2);
     expect(mockApi.createTerminal).toHaveBeenCalledTimes(2);
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     expect(newTabs).toHaveLength(2);
     expect(Object.keys(newTabs[1].panes)).toHaveLength(2);
@@ -249,13 +235,13 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
 
     const result = await duplicateTab("tab-1");
 
     expect(result).not.toBeNull();
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("editor");
@@ -285,13 +271,13 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
 
     const result = await duplicateTab("tab-1");
 
     expect(result).not.toBeNull();
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("browser");
@@ -326,7 +312,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
@@ -338,7 +324,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     const newPane = Object.values(newTabs[1].panes)[0];
     expect(newPane.type).toBe("terminal");
@@ -383,7 +369,7 @@ describe("duplicateTab", () => {
       },
     ];
 
-    mockStoreGet.mockReturnValue(tabs);
+    tabsAtom.set(tabs);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-3",
@@ -395,7 +381,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const newTabs = applyTabsUpdate(tabs);
+    const newTabs = tabsAtom.get();
 
     // Should be "My Tab 6" (highest existing is 5, so next is 6)
     expect(newTabs[2].name).toBe("My Tab 6");
@@ -450,7 +436,7 @@ describe("duplicateTab", () => {
       },
     ];
 
-    mockStoreGet.mockReturnValue(tabs);
+    tabsAtom.set(tabs);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-4",
@@ -460,7 +446,7 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    const newTabs = applyTabsUpdate(tabs);
+    const newTabs = tabsAtom.get();
 
     expect(newTabs).toHaveLength(4);
     expect(newTabs[0].id).toBe("tab-1");
@@ -500,7 +486,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal
       .mockResolvedValueOnce({
@@ -516,7 +502,7 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     // The duplicated tab should have the same active pane (by position)
     const newTab = newTabs[1];
@@ -574,7 +560,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.createTerminal
       .mockResolvedValueOnce({
         sessionId: "session-4",
@@ -594,7 +580,7 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     const newTab = newTabs[1];
     expect(newTab.layout.type).toBe("split");
@@ -621,7 +607,7 @@ describe("duplicateTab", () => {
       layout: { id: "layout-1", type: "pane", paneId: "pane-1" },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
@@ -633,7 +619,7 @@ describe("duplicateTab", () => {
 
     expect(result).not.toBeNull();
 
-    const newTabs = applyTabsUpdate([sourceTab]);
+    const newTabs = tabsAtom.get();
 
     // Should not have a name
     expect(newTabs[1].name).toBeUndefined();
@@ -662,7 +648,7 @@ describe("duplicateTab", () => {
 
     const mockCommand = "npm run dev";
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(mockCommand);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
@@ -704,7 +690,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue(null);
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
@@ -743,7 +729,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue("top");
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",
@@ -780,7 +766,7 @@ describe("duplicateTab", () => {
       },
     };
 
-    mockStoreGet.mockReturnValue([sourceTab]);
+    tabsAtom.set([sourceTab]);
     mockApi.captureTerminalCommand.mockResolvedValue("vim file.txt\n");
     mockApi.createTerminal.mockResolvedValue({
       sessionId: "session-2",

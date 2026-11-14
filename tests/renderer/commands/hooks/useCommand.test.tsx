@@ -9,12 +9,10 @@ import {
 } from "@/commands/hooks/useCommand";
 import { keybindingsAtom } from "@/store/atoms";
 import { renderHook, waitFor } from "@testing-library/react";
-import { Provider, createStore } from "jotai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { commandContext } from "../fixtures";
 
 describe("useCommand", () => {
-  let store: ReturnType<typeof createStore>;
   let registrations: Disposable[] = [];
 
   afterEach(() => {
@@ -49,31 +47,20 @@ describe("useCommand", () => {
       }),
     );
 
-    // Create a fresh Jotai store for each test
-    store = createStore();
-
-    // Populate the store with keybindings from registry
+    // Populate the atom with keybindings from registry (resets it per test)
     const allKeybindings = keybindingRegistry.getAllKeybindings();
-    store.set(keybindingsAtom, allKeybindings);
+    keybindingsAtom.set(allKeybindings);
   });
 
   describe("basic functionality", () => {
     it("should return command title", () => {
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       expect(result.current.title).toBe("Test Command");
     });
 
     it("should return keybindings for command", () => {
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       expect(result.current.keybindings).toHaveLength(1);
       expect(result.current.keybindings[0]).toMatchObject({
@@ -83,21 +70,13 @@ describe("useCommand", () => {
     });
 
     it("should return multiple keybindings for command with multiple bindings", () => {
-      const { result } = renderHook(() => useCommand("test.multiBinding"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.multiBinding"));
 
       expect(result.current.keybindings.length).toBeGreaterThanOrEqual(2);
     });
 
     it("should return primary keybinding", () => {
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       expect(result.current.primaryKeybinding).toBeTruthy();
       expect(typeof result.current.primaryKeybinding).toBe("string");
@@ -111,21 +90,13 @@ describe("useCommand", () => {
         run: () => {},
       });
 
-      const { result } = renderHook(() => useCommand("test.noKeybinding"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.noKeybinding"));
 
       expect(result.current.primaryKeybinding).toBeNull();
     });
 
     it("should not be disabled when command exists", () => {
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       expect(result.current.disabled).toBe(false);
     });
@@ -146,13 +117,9 @@ describe("useCommand", () => {
 
       // Update the store with new keybindings
       const allKeybindings = keybindingRegistry.getAllKeybindings();
-      store.set(keybindingsAtom, allKeybindings);
+      keybindingsAtom.set(allKeybindings);
 
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       // Should have 2 bindings: user override + default
       expect(result.current.keybindings.length).toBeGreaterThanOrEqual(2);
@@ -177,13 +144,9 @@ describe("useCommand", () => {
 
       // Update the store
       const allKeybindings = keybindingRegistry.getAllKeybindings();
-      store.set(keybindingsAtom, allKeybindings);
+      keybindingsAtom.set(allKeybindings);
 
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       // Primary keybinding should be the user override
       expect(result.current.primaryKeybinding).toBeTruthy();
@@ -195,11 +158,7 @@ describe("useCommand", () => {
 
   describe("execute function", () => {
     it("should provide an execute function", () => {
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       expect(typeof result.current.execute).toBe("function");
     });
@@ -217,11 +176,7 @@ describe("useCommand", () => {
       // Set a simple context builder
       registry.setContextBuilder(() => commandContext());
 
-      const { result } = renderHook(() => useCommand("test.executable"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.executable"));
 
       await result.current.execute();
 
@@ -229,14 +184,7 @@ describe("useCommand", () => {
     });
 
     it("should maintain stable execute function reference", () => {
-      const { result, rerender } = renderHook(
-        () => useCommand("test.command"),
-        {
-          wrapper: ({ children }) => (
-            <Provider store={store}>{children}</Provider>
-          ),
-        },
-      );
+      const { result, rerender } = renderHook(() => useCommand("test.command"));
 
       const firstExecute = result.current.execute;
 
@@ -248,11 +196,7 @@ describe("useCommand", () => {
 
   describe("missing commands", () => {
     it("should handle missing command gracefully", () => {
-      const { result } = renderHook(() => useCommand("nonexistent.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("nonexistent.command"));
 
       expect(result.current.title).toBe("");
       expect(result.current.keybindings).toEqual([]);
@@ -261,11 +205,7 @@ describe("useCommand", () => {
     });
 
     it("should return empty keybindings for missing command", () => {
-      const { result } = renderHook(() => useCommand("nonexistent.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("nonexistent.command"));
 
       expect(result.current.keybindings).toHaveLength(0);
     });
@@ -273,11 +213,7 @@ describe("useCommand", () => {
 
   describe("reactivity", () => {
     it("should update when keybindings change", async () => {
-      const { result } = renderHook(() => useCommand("test.command"), {
-        wrapper: ({ children }) => (
-          <Provider store={store}>{children}</Provider>
-        ),
-      });
+      const { result } = renderHook(() => useCommand("test.command"));
 
       const initialBindingsCount = result.current.keybindings.length;
 
@@ -292,7 +228,7 @@ describe("useCommand", () => {
       );
 
       const updatedKeybindings = keybindingRegistry.getAllKeybindings();
-      store.set(keybindingsAtom, updatedKeybindings);
+      keybindingsAtom.set(updatedKeybindings);
 
       // Wait for the hook to update
       await waitFor(() => {

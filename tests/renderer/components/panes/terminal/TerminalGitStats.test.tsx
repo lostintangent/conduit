@@ -16,17 +16,6 @@ vi.mock("@/hooks/useUncommittedDiffStats", () => ({
     mockUseUncommittedDiffStats(...args),
 }));
 
-// Mock useSetAtom - track sidebar state updates
-const mockSetSidebarState = vi.fn();
-
-vi.mock("jotai", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("jotai")>();
-  return {
-    ...actual,
-    useSetAtom: () => mockSetSidebarState,
-  };
-});
-
 // Mock useCommand
 const mockToggleSidebarCmd = {
   id: "view.toggleSidebar",
@@ -98,6 +87,7 @@ vi.mock("@/components/ui/separator", () => ({
 // ============================================================================
 
 import { TerminalGitStats } from "@/components/panes/terminal/shell/TerminalGitStats";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 
 // ============================================================================
 // Tests
@@ -227,7 +217,7 @@ describe("TerminalGitStats", () => {
       const button = screen.getByRole("button");
       fireEvent.click(button);
 
-      expect(mockSetSidebarState).toHaveBeenCalledWith({
+      expect(sidebarStateAtom.get()).toEqual({
         isOpen: true,
         view: "editor",
         navigation: { cwd: "/test/project", editorTreeMode: "changes" },
