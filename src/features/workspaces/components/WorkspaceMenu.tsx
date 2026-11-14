@@ -1,6 +1,6 @@
 import { useAtom, useSelector } from "@tanstack/react-store";
 import { Download, LayoutDashboard, Trash2 } from "lucide-react";
-import { type MouseEvent, useCallback } from "react";
+import { type MouseEvent, useCallback, useRef } from "react";
 
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import {
@@ -19,6 +19,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import { openWorkspace } from "@features/workspaces/client/actions";
 import {
   userSettingsAtom,
@@ -96,6 +97,21 @@ export const WorkspaceMenu = () => {
     [setWorkspaces],
   );
 
+  // Choosing an item hands focus to the active pane, which closing or opening
+  // a workspace replaces, rather than back to the Workspaces button.
+  // Dismissing the menu still returns focus to the button.
+  const dismissedRef = useRef(false);
+  const handleDismiss = useCallback(() => {
+    dismissedRef.current = true;
+  }, []);
+  const handleCloseAutoFocus = useCallback((event: Event) => {
+    if (!dismissedRef.current) {
+      event.preventDefault();
+      focusActivePane();
+    }
+    dismissedRef.current = false;
+  }, []);
+
   return (
     <DropdownMenu>
       {/* Workspaces button w/tooltip */}
@@ -117,7 +133,12 @@ export const WorkspaceMenu = () => {
       </Tooltip>
 
       {/* Workspaces list */}
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent
+        align="end"
+        onEscapeKeyDown={handleDismiss}
+        onInteractOutside={handleDismiss}
+        onCloseAutoFocus={handleCloseAutoFocus}
+      >
         {workspaces.workspaces.length > 0 && (
           <>
             {workspaces.workspaces.map((workspace) => {

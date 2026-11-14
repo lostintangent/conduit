@@ -1,4 +1,7 @@
-import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
+import {
+  focusActivePane,
+  useFocusWhenActive,
+} from "@/hooks/useFocusWhenActive";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -122,6 +125,60 @@ describe("useFocusWhenActive", () => {
     now = 1000;
     flushFrame();
     expect(focus.mock.calls).toEqual([[false], [true]]);
+    expect(frames.filter(Boolean)).toHaveLength(0);
+  });
+
+  it("takes lost focus back when asked", () => {
+    renderActivation();
+    flushFrame();
+    input.blur();
+
+    focusActivePane();
+    flushFrame();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("leaves focus that moved somewhere else when asked", () => {
+    renderActivation();
+    flushFrame();
+    outside.focus();
+
+    focusActivePane();
+    flushFrame();
+    expect(document.activeElement).toBe(outside);
+    expect(frames.filter(Boolean)).toHaveLength(0);
+  });
+
+  it("gives lost focus back to the active pane that had it last", () => {
+    const otherPane = document.createElement("div");
+    const otherInput = document.createElement("input");
+    otherPane.append(otherInput);
+    document.body.append(otherPane);
+    renderActivation();
+    renderHook(() =>
+      useFocusWhenActive(true, { current: otherPane }, () =>
+        otherInput.focus(),
+      ),
+    );
+
+    otherInput.focus();
+    otherInput.blur();
+    focusActivePane();
+    flushFrame();
+    expect(document.activeElement).toBe(otherInput);
+
+    input.focus();
+    input.blur();
+    focusActivePane();
+    flushFrame();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("asks only the active pane", () => {
+    const paneRef = { current: pane };
+    renderHook(() => useFocusWhenActive(false, paneRef, () => input.focus()));
+
+    focusActivePane();
     expect(frames.filter(Boolean)).toHaveLength(0);
   });
 

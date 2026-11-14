@@ -2,6 +2,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import * as React from "react";
 
+import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import { cn } from "@/utils";
 
 const Dialog = DialogPrimitive.Root;
@@ -36,13 +37,25 @@ const DialogContent = React.forwardRef<
   }
 >(
   (
-    { className, children, showClose = true, overlayClassName, ...props },
+    {
+      className,
+      children,
+      showClose = true,
+      overlayClassName,
+      onCloseAutoFocus,
+      ...props
+    },
     ref,
   ) => (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         ref={ref}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          // Without a trigger to return to, focus would be lost
+          focusActivePane();
+        }}
         className={cn(
           // z-[80] to appear above HyperTerminal (z-[70]) but below notifications (z-[90])
           "fixed left-[50%] top-[50%] z-[80] grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
