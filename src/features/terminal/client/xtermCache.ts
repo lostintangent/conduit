@@ -472,7 +472,7 @@ export function updateTerminalThemes() {
 export function showRuler(paneId: string, visible: boolean) {
   const instance = xtermInstancesByPane.get(paneId);
   if (instance) {
-    instance.terminal.options.overviewRuler = visible ? { width: 15 } : {};
+    instance.terminal.options.scrollbar = visible ? { width: 15 } : {};
   }
 }
 

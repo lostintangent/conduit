@@ -113,6 +113,13 @@ describe("a terminal's output in the renderer", () => {
 });
 
 describe("a terminal's visibility", () => {
+  // xterm measures glyphs on a 2D canvas when it opens, which happy-dom lacks.
+  beforeEach(() => {
+    vi.spyOn(OffscreenCanvas.prototype, "getContext").mockReturnValue({
+      measureText: (text: string) => ({ width: text.length * 8 }),
+    } as unknown as OffscreenCanvasRenderingContext2D);
+  });
+
   /** Creates a pane's terminal and puts it on the page. */
   function open(sessionId: string, paneId: string) {
     const { terminal } = getOrCreate(sessionId, paneId, settings);
@@ -124,6 +131,7 @@ describe("a terminal's visibility", () => {
   afterEach(() => {
     disposeSession("session");
     api.terminal.setVisible.mockClear();
+    vi.restoreAllMocks();
   });
 
   it("is reported to main when no pane shows a session, and when one does again", () => {
