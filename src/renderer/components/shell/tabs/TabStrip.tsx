@@ -571,7 +571,7 @@ export const TabStrip = ({
 
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const result = await api.createTerminal({ cwd });
+    const result = await api.terminal.create({ cwd });
     if (!result) return;
 
     const paneId = generateId();
@@ -582,7 +582,7 @@ export const TabStrip = ({
   const handleNewHyperTerminal = useCallback(async () => {
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const result = await api.createTerminal({ cwd });
+    const result = await api.terminal.create({ cwd });
     if (!result) return;
 
     const paneId = generateId();
@@ -592,7 +592,7 @@ export const TabStrip = ({
   const handleOpenQuickTerminal = useCallback(async () => {
     const api = window.conduit;
     const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const result = await api.createTerminal({ cwd });
+    const result = await api.terminal.create({ cwd });
     if (!result) return;
 
     setQuickPaneState({

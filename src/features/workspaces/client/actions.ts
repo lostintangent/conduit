@@ -21,7 +21,7 @@ export async function openWorkspace(workspace: Workspace) {
   // Shared across all tabs to support cross-tab terminal cloning
   const terminalSessions = new Map<
     string,
-    Awaited<ReturnType<typeof api.createTerminal>>
+    Awaited<ReturnType<typeof api.terminal.create>>
   >();
 
   const workspaceTabs: Tab[] = [];
@@ -35,7 +35,7 @@ export async function openWorkspace(workspace: Workspace) {
         const command =
           !pane.cloneOf && pane.command ? pane.command : undefined;
 
-        session = await api.createTerminal({
+        session = await api.terminal.create({
           cwd: pane.cwd ?? undefined,
           command,
           cols: pane.cols,

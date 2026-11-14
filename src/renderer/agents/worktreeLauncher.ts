@@ -36,10 +36,7 @@ export interface WorktreeLaunchOptions {
       cwd: string;
       preferredName: string;
     }) => Promise<AgentSessionInfo | null>;
-    createTerminal: (opts: {
-      cwd: string;
-    }) => Promise<{ sessionId: string } | null>;
-    sendKeypress: (sessionId: string, data: string) => void;
+    terminal: Pick<typeof window.conduit.terminal, "create" | "input">;
   };
   onClose?: () => void;
 }
@@ -118,7 +115,7 @@ export async function launchAgents(
       firstCwd = firstSession.worktreePath;
     }
 
-    const firstTerminal = await api.createTerminal({ cwd: firstCwd });
+    const firstTerminal = await api.terminal.create({ cwd: firstCwd });
     if (!firstTerminal) {
       throw new Error(
         useWorktrees
@@ -153,7 +150,7 @@ export async function launchAgents(
     );
 
     setTimeout(() => {
-      api.sendKeypress(firstTerminal.sessionId, firstCommand + "\r");
+      api.terminal.input(firstTerminal.sessionId, firstCommand + "\r");
     }, 100);
 
     let currentPaneId = paneId;
@@ -234,7 +231,7 @@ export async function launchAgents(
 
         setTimeout(
           () => {
-            api.sendKeypress(newPane.sessionId, command + "\r");
+            api.terminal.input(newPane.sessionId, command + "\r");
           },
           100 * (instanceIndex + 1),
         );

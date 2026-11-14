@@ -31,7 +31,8 @@ const manifest: Record<string, string[]> = JSON.parse(
 
 describe("feature discovery", () => {
   it("lists every feature's service methods, keyed by folder name", () => {
-    expect(Object.keys(manifest)).toEqual(["workspaces"]);
+    expect(Object.keys(manifest).sort()).toEqual(["terminal", "workspaces"]);
+    expect(manifest.terminal).toContain("create");
     expect(manifest.workspaces).toContain("getState");
   });
 

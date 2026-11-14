@@ -8,14 +8,6 @@ import type {
   BackgroundCommandRequest,
   BrowserPage,
   DotfilesStatus,
-  TerminalCaptureCommandResponse,
-  TerminalCreateOptions,
-  TerminalCreateResponse,
-  TerminalDataPayload,
-  TerminalExitPayload,
-  TerminalPromptRequest,
-  TerminalPromptResponse,
-  TerminalPromptStreamChunk,
   UserSettings,
   Workspace,
 } from "@shared/types";
@@ -30,60 +22,7 @@ import { createFeatureApis } from "./features";
 import { createEventListener } from "./utils";
 
 const conduitAPI = {
-  /* Terminal methods (UI->main) */
-
-  createTerminal: (options?: TerminalCreateOptions) =>
-    ipcRenderer.invoke(
-      "terminal:create",
-      options,
-    ) as Promise<TerminalCreateResponse | null>,
-
-  closeTerminal: (sessionId: string) =>
-    ipcRenderer.send("terminal:close", { sessionId }),
-
-  sendKeypress: (sessionId: string, input: string) =>
-    ipcRenderer.send("terminal:input", { sessionId, input }),
-
-  resize(sessionId: string, cols: number, rows: number) {
-    ipcRenderer.send("terminal:resize", { sessionId, cols, rows });
-  },
-
-  markTerminalReady: (sessionId: string) =>
-    ipcRenderer.send("terminal:ready", { sessionId }),
-
-  captureTerminalCommand: (sessionId: string) =>
-    ipcRenderer.invoke("terminal:capture-command", {
-      sessionId,
-    }) as Promise<TerminalCaptureCommandResponse>,
-
-  promptTerminal: (request: TerminalPromptRequest) =>
-    ipcRenderer.invoke(
-      "terminal:prompt",
-      request,
-    ) as Promise<TerminalPromptResponse>,
-
-  onPromptStream: (
-    sessionId: string,
-    listener: (chunk: TerminalPromptStreamChunk) => void,
-  ) =>
-    createEventListener<TerminalPromptStreamChunk>(
-      `terminal:prompt:stream:${sessionId}`,
-      listener,
-    ),
-
   /* UI event listeners (main->UI) */
-
-  // Notify when terminal process has new data to display
-  onData: (sessionId: string, listener: (data: string) => void) =>
-    createEventListener<TerminalDataPayload>("terminal:data", (payload) => {
-      if (payload.sessionId === sessionId) {
-        listener(payload.data);
-      }
-    }),
-
-  // Notify when terminal has exited (e.g. user ran `exit` command or closed shell)
-  onExit: (listener: (payload: TerminalExitPayload) => void) =>
-    createEventListener("terminal:exit", listener),
 
   // Notify when user requests a new tab (e.g. via menu or keyboard shortcut)
   onNewTabRequest: (listener: () => void) =>

@@ -43,11 +43,11 @@ export const terminalHandlers: Partial<HandlerMap> = {
     );
 
     for (const targetSessionId of targetSessionIds) {
-      window.conduit.sendKeypress(targetSessionId, args.input);
+      window.conduit.terminal.input(targetSessionId, args.input);
 
       if (args.enter) {
         await new Promise((resolve) => setTimeout(resolve, 50));
-        window.conduit.sendKeypress(targetSessionId, "\r");
+        window.conduit.terminal.input(targetSessionId, "\r");
       }
     }
   },

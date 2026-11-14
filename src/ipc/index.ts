@@ -18,10 +18,6 @@ import {
   handleGitWindowClose,
   initializeGitV2Handlers,
 } from "./git/handlers";
-import {
-  cleanupTerminalSessions,
-  initializeTerminalHandlers,
-} from "@features/terminal/main";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
 import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
 
@@ -59,7 +55,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   stopFeatures = await startFeatures();
 
   await initializeCliHandlers(sendToRenderer);
-  initializeTerminalHandlers(sendToRenderer);
 
   initializeUIHandlers(window);
   await initializeAgentHandlers();
@@ -84,19 +79,15 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 const SHUTDOWN_TIMEOUT_MS = 2000;
 
 /**
- * Release everything the window's session left running: PTYs, file watchers,
- * the CLI server, and the update timer.
+ * Release everything the window's session left running: file watchers, the
+ * CLI server, the update timer, and each feature's startup disposer (the
+ * terminal's PTYs and prompt processes).
  */
 async function shutdownIpcHandlers(): Promise<void> {
   cleanupUpdateHandlers();
 
   await Promise.race([
-    Promise.allSettled([
-      cleanupTerminalSessions(),
-      unwatchAll(),
-      shutdownCliServer(),
-      stopFeatures?.(),
-    ]),
+    Promise.allSettled([unwatchAll(), shutdownCliServer(), stopFeatures?.()]),
     delay(SHUTDOWN_TIMEOUT_MS),
   ]);
 }

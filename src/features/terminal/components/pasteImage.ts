@@ -33,7 +33,7 @@ export async function pasteImage(sessionId: string, file: File) {
 
     // Small delay to ensure clipboard is ready before sending paste
     setTimeout(() => {
-      api.sendKeypress(sessionId, "\u0016");
+      api.terminal.input(sessionId, "\u0016");
     }, 50);
   } catch (err) {
     console.error("Failed to process dropped image:", err);

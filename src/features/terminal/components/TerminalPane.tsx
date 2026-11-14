@@ -97,7 +97,7 @@ const registerTerminalKeyHandler = ({
         return true;
       }
 
-      api.sendKeypress(sessionId, "\u0003");
+      api.terminal.input(sessionId, "\u0003");
       onSynchronizedInput?.("\u0003");
       return false;
     }
@@ -312,7 +312,9 @@ export const TerminalPane = ({
       let assistantResponse = "";
 
       // Set up stream listener
-      const removeListener = api.onPromptStream(sessionId, (chunk) => {
+      const removeListener = api.terminal.on("promptStream", (payload) => {
+        if (payload.sessionId !== sessionId) return;
+        const { chunk } = payload;
         if (chunk.type === "data" && chunk.data) {
           assistantResponse += chunk.data;
           // Stream data to panel
@@ -354,7 +356,7 @@ export const TerminalPane = ({
 
       try {
         // Call IPC handler
-        const response = await api.promptTerminal({
+        const response = await api.terminal.prompt({
           sessionId,
           prompt: fullPrompt,
           agentCommand,
@@ -417,7 +419,7 @@ export const TerminalPane = ({
 
       if (playButtonTarget === "hyper") {
         // Open a new hyper terminal with command
-        const result = await api.createTerminal({ cwd, command });
+        const result = await api.terminal.create({ cwd, command });
         openHyperTerminal(result.sessionId, generateId(), result.cwd);
       } else {
         await splitPane(tabId, paneId, "row", false, {

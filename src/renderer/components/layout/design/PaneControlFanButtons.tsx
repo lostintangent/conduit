@@ -139,7 +139,7 @@ export function PaneControlFanButtons({
           // If there's a command configured, send it
           if (newPane?.sessionId && terminalConfig.command) {
             setTimeout(() => {
-              api.sendKeypress(
+              api.terminal.input(
                 newPane.sessionId,
                 terminalConfig.command + "\r",
               );

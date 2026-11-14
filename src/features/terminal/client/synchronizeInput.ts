@@ -35,6 +35,6 @@ export function broadcastTerminalInput(sourcePaneId: string, input: string) {
     // Suppress echo detection for broadcast targets' upcoming output.
     // The source pane handles its own suppression in xtermCache.ts.
     notifyUserInput(pane.sessionId);
-    api.sendKeypress(pane.sessionId, input);
+    api.terminal.input(pane.sessionId, input);
   });
 }

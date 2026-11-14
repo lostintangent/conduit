@@ -288,7 +288,7 @@ export function App() {
   }, [tabs, activeTab]);
 
   useEffect(() => {
-    const unsubscribeExit = api.onExit(({ sessionId }) => {
+    const unsubscribeExit = api.terminal.on("exit", ({ sessionId }) => {
       // Handle quick pane exit
       setQuickPaneState((current) => {
         if (
@@ -529,7 +529,7 @@ export function App() {
       current.onClose?.();
 
       if (current.type === "terminal") {
-        api.closeTerminal(current.sessionId);
+        api.terminal.close(current.sessionId);
         disposeSession(current.sessionId);
       }
 

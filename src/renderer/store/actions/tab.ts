@@ -134,7 +134,7 @@ export async function openTab(
   const activeTab = activeTabAtom.get();
   const cwd = getActiveTabCwd(activeTab);
 
-  const result = await api.createTerminal({
+  const result = await api.terminal.create({
     cwd: cwd || undefined,
     command: options?.command,
   });
@@ -212,7 +212,7 @@ export async function openTabFromExistingAgentSession(
   session: AgentSessionInfo,
 ): Promise<{ tabId: string; paneId: string; sessionId: string } | null> {
   // Create a new terminal session in the worktree
-  const result = await api.createTerminal({ cwd: session.worktreePath });
+  const result = await api.terminal.create({ cwd: session.worktreePath });
   if (!result) {
     return null;
   }
@@ -391,7 +391,7 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   terminalPanesToDispose.forEach((paneId) => disposeSession(paneId));
 
   // Close terminal sessions
-  sessionsToClose.forEach((sessionId) => api.closeTerminal(sessionId));
+  sessionsToClose.forEach((sessionId) => api.terminal.close(sessionId));
 
   // Dispose editor panes from EditorPaneRegistry
   // This fully removes editors (vs detach which just moves them off-screen)
@@ -511,13 +511,13 @@ export async function duplicateTab(
 
     if (sourcePane.type === "terminal") {
       // Capture command from source terminal before creating new one
-      const capturedCommand = await api.captureTerminalCommand(
+      const capturedCommand = await api.terminal.captureCommand(
         sourcePane.sessionId,
       );
 
       // Create a new terminal session with the specified cwd or the source's cwd
       const cwdToUse = options?.cwd || sourcePane.cwd;
-      const result = await api.createTerminal({
+      const result = await api.terminal.create({
         cwd: cwdToUse ?? undefined,
         command: capturedCommand ?? undefined,
       });
@@ -751,7 +751,7 @@ function getTabStatePriority(state: TabState | undefined): number {
 }
 
 export function registerTabEventHandlers() {
-  const unsubscribeExit = api.onExit(({ sessionId }) => {
+  const unsubscribeExit = api.terminal.on("exit", ({ sessionId }) => {
     const tabs = tabsAtom.get();
 
     for (const tab of tabs) {

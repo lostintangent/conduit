@@ -28,8 +28,8 @@ import type {
   AgentSessionCleanupResult,
   AgentSessionFinalizeResult,
   AgentSessionInfo,
-  TerminalCreateOptions,
 } from "@shared/types";
+import type { TerminalCreateOptions } from "@features/terminal/model";
 import { generateId } from "@shared/utils";
 import { produce } from "immer";
 
@@ -579,7 +579,7 @@ export async function splitPane(
       ? { cwd: defaultCwd }
       : undefined;
 
-  const result = await api.createTerminal(requestOptions);
+  const result = await api.terminal.create(requestOptions);
   if (!result) {
     return;
   }
@@ -956,7 +956,7 @@ export function removePane(
             otherPanesWithSameSession.length === 0 &&
             !options.skipTerminalClose
           ) {
-            api.closeTerminal(pane.sessionId);
+            api.terminal.close(pane.sessionId);
           }
           // Always dispose the xterm instance for this specific pane
           disposeSession(paneId);

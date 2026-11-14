@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Use hoisted pattern to ensure all mocks are set up before modules load
 const { mockApi } = vi.hoisted(() => {
   const mockApi = {
-    createTerminal: vi.fn(),
-    captureTerminalCommand: vi.fn(),
-    sendKeypress: vi.fn(),
+    terminal: {
+      create: vi.fn(),
+      captureCommand: vi.fn(),
+      input: vi.fn(),
+    },
   };
 
   // Set up window.conduit in hoisted scope
@@ -129,8 +131,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user",
       title: "bash",
@@ -141,14 +143,14 @@ describe("duplicateTab", () => {
     expect(result).not.toBeNull();
     expect(result?.tabId).toBeDefined();
 
-    // Verify captureTerminalCommand was called
-    expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
+    // Verify captureCommand was called
+    expect(mockApi.terminal.captureCommand).toHaveBeenCalledWith("session-1");
 
-    // Verify createTerminal was called with correct cwd
-    expect(mockApi.createTerminal).toHaveBeenCalledWith({ cwd: "/home/user" });
+    // Verify terminal.create was called with correct cwd
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({ cwd: "/home/user" });
 
-    // Verify sendKeypress was not called (no command to restore)
-    expect(mockApi.sendKeypress).not.toHaveBeenCalled();
+    // Verify terminal.input was not called (no command to restore)
+    expect(mockApi.terminal.input).not.toHaveBeenCalled();
 
     // Verify new tab was added
     const newTabs = tabsAtom.get();
@@ -190,8 +192,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create
       .mockResolvedValueOnce({
         sessionId: "session-3",
         cwd: "/home/user/project",
@@ -206,8 +208,8 @@ describe("duplicateTab", () => {
     const result = await duplicateTab("tab-1");
 
     expect(result).not.toBeNull();
-    expect(mockApi.captureTerminalCommand).toHaveBeenCalledTimes(2);
-    expect(mockApi.createTerminal).toHaveBeenCalledTimes(2);
+    expect(mockApi.terminal.captureCommand).toHaveBeenCalledTimes(2);
+    expect(mockApi.terminal.create).toHaveBeenCalledTimes(2);
 
     const newTabs = tabsAtom.get();
 
@@ -313,8 +315,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user/worktree",
       title: "bash",
@@ -370,8 +372,8 @@ describe("duplicateTab", () => {
     ];
 
     tabsAtom.set(tabs);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-3",
       cwd: "/home/user",
       title: "bash",
@@ -437,8 +439,8 @@ describe("duplicateTab", () => {
     ];
 
     tabsAtom.set(tabs);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-4",
       cwd: "/home",
       title: "bash",
@@ -487,8 +489,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create
       .mockResolvedValueOnce({
         sessionId: "session-3",
         cwd: "/home",
@@ -561,7 +563,7 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.createTerminal
+    mockApi.terminal.create
       .mockResolvedValueOnce({
         sessionId: "session-4",
         cwd: "/home",
@@ -607,8 +609,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home",
       title: "bash",
@@ -648,8 +650,8 @@ describe("duplicateTab", () => {
     const mockCommand = "npm run dev";
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(mockCommand);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(mockCommand);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user/project",
       title: "npm",
@@ -660,10 +662,10 @@ describe("duplicateTab", () => {
     expect(result).not.toBeNull();
 
     // Verify command was captured from source terminal
-    expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
+    expect(mockApi.terminal.captureCommand).toHaveBeenCalledWith("session-1");
 
-    // Verify command was passed to createTerminal
-    expect(mockApi.createTerminal).toHaveBeenCalledWith({
+    // Verify command was passed to terminal.create
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
       cwd: "/home/user/project",
       command: "npm run dev",
     });
@@ -690,8 +692,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue(null);
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user",
       title: "bash",
@@ -702,10 +704,10 @@ describe("duplicateTab", () => {
     expect(result).not.toBeNull();
 
     // Verify command capture was attempted
-    expect(mockApi.captureTerminalCommand).toHaveBeenCalledWith("session-1");
+    expect(mockApi.terminal.captureCommand).toHaveBeenCalledWith("session-1");
 
     // Verify no command was sent (terminal was idle)
-    expect(mockApi.sendKeypress).not.toHaveBeenCalled();
+    expect(mockApi.terminal.input).not.toHaveBeenCalled();
   });
 
   it("should add newline to commands that don't have one", async () => {
@@ -729,8 +731,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue("top");
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue("top");
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user",
       title: "bash",
@@ -738,8 +740,8 @@ describe("duplicateTab", () => {
 
     await duplicateTab("tab-1");
 
-    // Command should be passed to createTerminal (without newline - the IPC layer handles execution)
-    expect(mockApi.createTerminal).toHaveBeenCalledWith({
+    // Command should be passed to terminal.create (without newline - the IPC layer handles execution)
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
       cwd: "/home/user",
       command: "top",
     });
@@ -766,8 +768,8 @@ describe("duplicateTab", () => {
     };
 
     tabsAtom.set([sourceTab]);
-    mockApi.captureTerminalCommand.mockResolvedValue("vim file.txt\n");
-    mockApi.createTerminal.mockResolvedValue({
+    mockApi.terminal.captureCommand.mockResolvedValue("vim file.txt\n");
+    mockApi.terminal.create.mockResolvedValue({
       sessionId: "session-2",
       cwd: "/home/user",
       title: "bash",
@@ -776,7 +778,7 @@ describe("duplicateTab", () => {
     await duplicateTab("tab-1");
 
     // Command is passed through as-is (IPC layer handles execution)
-    expect(mockApi.createTerminal).toHaveBeenCalledWith({
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
       cwd: "/home/user",
       command: "vim file.txt\n",
     });

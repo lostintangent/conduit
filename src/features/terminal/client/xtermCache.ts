@@ -96,7 +96,18 @@ const xtermInstancesByPane = new Map<string, xtermInstance>();
 // but cloned terminals will share the same session ID.
 const panesBySession = new Map<string, Set<string>>();
 
-const sessionDataSubscriptions = new Map<string, { unsubscribe: () => void }>();
+// Output for every session arrives on one `terminal.on("data")` listener and
+// is dispatched here by session, so each chunk crosses contextBridge once
+// however many terminals are open.
+const sessionDataHandlers = new Map<string, (data: string) => void>();
+let dataSubscription: (() => void) | undefined;
+
+function onSessionData(sessionId: string, handler: (data: string) => void) {
+  sessionDataHandlers.set(sessionId, handler);
+  dataSubscription ??= api.terminal.on("data", ({ sessionId, data }) =>
+    sessionDataHandlers.get(sessionId)?.(data),
+  );
+}
 
 /**
  * Copy the terminal buffer from an existing pane to a new terminal instance.
@@ -217,7 +228,7 @@ export function getOrCreate(
         writeBuffer = [];
       };
 
-      const unsubscribe = api.onData(sessionId, (data: string) => {
+      onSessionData(sessionId, (data) => {
         writeBuffer.push(data);
         if (flushTimer === null) {
           flushTimer = setTimeout(flushWrites, 20);
@@ -226,8 +237,6 @@ export function getOrCreate(
         // Notify state tracker of activity
         stateTracker.notifyDataReceived(sessionId);
       });
-
-      sessionDataSubscriptions.set(sessionId, { unsubscribe });
     } else {
       // Since there are existing panes for this session, then this must
       // be a cloned terminal, and we need to restore the terminal buffer state.
@@ -240,7 +249,7 @@ export function getOrCreate(
       // Suppress echo detection for this terminal's upcoming output.
       // See also: synchronizeInput.ts which does the same for broadcast targets.
       stateTracker.notifyUserInput(sessionId);
-      api.sendKeypress(sessionId, input);
+      api.terminal.input(sessionId, input);
       inputHandlerRef.current?.(input);
     });
 
@@ -308,9 +317,9 @@ export function getOrCreate(
         if (newInstance.ready) return;
 
         newInstance.ready = true;
-        api.markTerminalReady(sessionId);
+        api.terminal.ready(sessionId);
       },
-      resize: (cols, rows) => api.resize(sessionId, cols, rows),
+      resize: (cols, rows) => api.terminal.resize(sessionId, cols, rows),
       dispose: () => {
         osc7Disposable.dispose();
         osc9Disposable.dispose();
@@ -326,9 +335,7 @@ export function getOrCreate(
         if (!panes || panes.size === 0) {
           panesBySession.delete(sessionId);
 
-          const dataSubscription = sessionDataSubscriptions.get(sessionId);
-          dataSubscription?.unsubscribe();
-          sessionDataSubscriptions.delete(sessionId);
+          sessionDataHandlers.delete(sessionId);
 
           stateTracker.untrackSession(sessionId);
         }

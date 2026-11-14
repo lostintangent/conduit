@@ -1,15 +1,13 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import type { TerminalCreateOptions } from "@shared/types";
 import { getTerminal, removeTerminal, storeTerminal } from ".";
+import type { TerminalCreateOptions } from "../../model";
+import { emit } from "../events";
 import { resolveShell, spawnTerminalProcess } from "../pty";
-import type { SendToRendererFn, TerminalInstance } from "../types";
+import type { TerminalInstance } from "../types";
 
-export async function createTerminal(
-  sendToRenderer: SendToRendererFn,
-  options?: TerminalCreateOptions,
-) {
+export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
   const cwd =
@@ -40,20 +38,17 @@ export async function createTerminal(
   };
 
   storeTerminal(terminal);
-  setupTerminalListeners(terminal, sendToRenderer);
+  setupTerminalListeners(terminal);
 
   return terminal;
 }
 
-function setupTerminalListeners(
-  terminal: TerminalInstance,
-  sendToRenderer: SendToRendererFn,
-) {
+function setupTerminalListeners(terminal: TerminalInstance) {
   const { id, pty } = terminal;
 
   pty.onData((data) => {
     if (terminal.isRendererReady) {
-      sendToRenderer("terminal:data", { sessionId: id, data });
+      emit("data", { sessionId: id, data });
     } else {
       terminal.bufferedOutput.push(data);
     }
@@ -67,7 +62,7 @@ function setupTerminalListeners(
   pty.onExit(({ exitCode, signal }) => {
     removeTerminal(id);
 
-    sendToRenderer("terminal:exit", {
+    emit("exit", {
       sessionId: id,
       exitCode: exitCode ?? null,
       signal: signal ?? null,
@@ -88,10 +83,7 @@ export async function killTerminal(terminalId: string) {
   }
 }
 
-export function markTerminalReady(
-  terminalId: string,
-  sendToRenderer: SendToRendererFn,
-) {
+export function markTerminalReady(terminalId: string) {
   const terminal = getTerminal(terminalId);
   if (!terminal) return;
 
@@ -100,7 +92,7 @@ export function markTerminalReady(
   // Flush all buffered output as a single message to avoid race conditions
   if (terminal.bufferedOutput.length > 0) {
     const data = terminal.bufferedOutput.join("");
-    sendToRenderer("terminal:data", { sessionId: terminal.id, data });
+    emit("data", { sessionId: terminal.id, data });
     terminal.bufferedOutput = [];
   }
 

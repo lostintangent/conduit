@@ -24,15 +24,16 @@ function createMockConduit(
   } = {},
 ): typeof window.conduit {
   return {
-    createTerminal: vi.fn(),
-    closeTerminal: vi.fn(),
-    sendKeypress: vi.fn(),
-    resize: vi.fn(),
-    markTerminalReady: vi.fn(),
-    onData: vi.fn(),
+    terminal: {
+      create: vi.fn(),
+      close: vi.fn(),
+      input: vi.fn(),
+      resize: vi.fn(),
+      ready: vi.fn(),
+      on: vi.fn(),
+    },
     onTitle: vi.fn(),
     onCwd: vi.fn(),
-    onExit: vi.fn(),
     onNewTabRequest: vi.fn(),
     onOpenWorkspaceRequest: vi.fn(),
     onContextMenuAction: vi.fn(),

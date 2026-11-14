@@ -1,17 +1,12 @@
-import { ipcMain, type WebContents } from "electron";
 import { spawn, type ChildProcess } from "node:child_process";
-import type {
-  TerminalPromptRequest,
-  TerminalPromptResponse,
-  TerminalPromptStreamChunk,
-} from "@shared/types";
+import type { TerminalPromptRequest, TerminalPromptResponse } from "../model";
+import { emit } from "./events";
 
 // Track active prompt requests for cleanup
 const activeRequests = new Map<string, ChildProcess>();
 
-async function handlePromptRequest(
+export async function promptTerminal(
   request: TerminalPromptRequest,
-  webContents: WebContents,
 ): Promise<TerminalPromptResponse> {
   const { prompt, agentCommand, sessionId } = request;
 
@@ -93,16 +88,10 @@ async function handlePromptRequest(
     // Stream stdout with error handling
     if (child.stdout) {
       child.stdout.on("data", (data: Buffer) => {
-        if (webContents.isDestroyed()) {
-          child.kill("SIGTERM");
-          return;
-        }
-
-        const chunk: TerminalPromptStreamChunk = {
-          type: "data",
-          data: data.toString(),
-        };
-        webContents.send(`terminal:prompt:stream:${sessionId}`, chunk);
+        emit("promptStream", {
+          sessionId,
+          chunk: { type: "data", data: data.toString() },
+        });
       });
 
       child.stdout.on("error", (error) => {
@@ -126,12 +115,7 @@ async function handlePromptRequest(
 
     // Handle completion
     child.on("close", (code, signal) => {
-      if (!webContents.isDestroyed()) {
-        const endChunk: TerminalPromptStreamChunk = {
-          type: "end",
-        };
-        webContents.send(`terminal:prompt:stream:${sessionId}`, endChunk);
-      }
+      emit("promptStream", { sessionId, chunk: { type: "end" } });
 
       if (signal === "SIGTERM" || signal === "SIGKILL") {
         safeResolve({
@@ -153,13 +137,10 @@ async function handlePromptRequest(
 
     // Handle spawn/execution errors
     child.on("error", (error) => {
-      if (!webContents.isDestroyed()) {
-        const errorChunk: TerminalPromptStreamChunk = {
-          type: "error",
-          error: error.message,
-        };
-        webContents.send(`terminal:prompt:stream:${sessionId}`, errorChunk);
-      }
+      emit("promptStream", {
+        sessionId,
+        chunk: { type: "error", error: error.message },
+      });
 
       safeResolve({
         success: false,
@@ -193,18 +174,4 @@ export function cleanupPromptRequests() {
     }
     activeRequests.delete(sessionId);
   }
-}
-
-export function initializePromptHandlers() {
-  ipcMain.handle(
-    "terminal:prompt",
-    async (event, request: TerminalPromptRequest) => {
-      return handlePromptRequest(request, event.sender);
-    },
-  );
-
-  // Cleanup on app quit
-  ipcMain.on("app:quit", () => {
-    cleanupPromptRequests();
-  });
 }

@@ -133,13 +133,13 @@ export function closeHyperTerminal(terminalId: string) {
     return;
   }
 
-  api.closeTerminal(terminalId);
+  api.terminal.close(terminalId);
   disposeSession(terminalId);
 }
 
 /**
  * Handles cleanup when a hyper terminal exits externally (e.g., process died).
- * Only disposes the session and removes from state without calling api.closeTerminal.
+ * Only disposes the session and removes from state without calling api.terminal.close.
  *
  * @param terminalId - The terminal session ID that exited
  */

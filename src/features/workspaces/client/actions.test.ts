@@ -48,7 +48,7 @@ describe("openWorkspace", () => {
       title: "zsh",
       cwd: "/tmp",
     }));
-    (window as any).conduit.createTerminal = createTerminal;
+    (window as any).conduit.terminal = { create: createTerminal };
     const workspace = {
       name: "Work",
       lastModified: 0,

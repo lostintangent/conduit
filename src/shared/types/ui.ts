@@ -15,3 +15,9 @@ export type HyperTerminal = {
   state: HyperTerminalState;
   position: HyperTerminalPosition | null;
 };
+
+export type BackgroundCommandRequest = {
+  command: string;
+  args?: string[];
+  cwd?: string | null;
+};

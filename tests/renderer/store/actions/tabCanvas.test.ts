@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.hoisted(() => {
-  (window as any).conduit = { closeTerminal: vi.fn() };
+  (window as any).conduit = { terminal: { close: vi.fn() } };
 });
 
 import { closeTab, duplicateTab } from "@/store/actions/tab";
