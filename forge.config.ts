@@ -21,6 +21,27 @@ function lockedNativeModuleSpecs(): string[] {
   });
 }
 
+// node-pty ships prebuilds for every platform, about 60 MB of Windows binaries
+// and debug symbols, and both modules ship what it takes to build from source.
+// The app only runs on macOS, so keep the one prebuild it loads.
+function pruneNativeModules(buildPath: string, arch: string) {
+  const modules = path.join(buildPath, "node_modules");
+  const prebuilds = path.join(modules, "node-pty", "prebuilds");
+  for (const dir of fs.readdirSync(prebuilds)) {
+    if (dir === `darwin-${arch}`) continue;
+    fs.rmSync(path.join(prebuilds, dir), { recursive: true });
+  }
+  for (const dir of [
+    "node-pty/deps",
+    "node-pty/src",
+    "node-pty/third_party",
+    "@parcel/watcher/src",
+    "node-addon-api",
+  ]) {
+    fs.rmSync(path.join(modules, dir), { recursive: true, force: true });
+  }
+}
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: {
@@ -66,11 +87,18 @@ const config: ForgeConfig = {
     prePackage: async () => {
       execFileSync("bun", ["build/bun.build.ts"], { stdio: "inherit" });
     },
-    packageAfterCopy: async (_, buildPath) => {
+    packageAfterCopy: async (
+      _,
+      buildPath,
+      _electronVersion,
+      _platform,
+      arch,
+    ) => {
       execFileSync("bun", ["add", "--no-save", ...lockedNativeModuleSpecs()], {
         cwd: buildPath,
         stdio: "inherit",
       });
+      pruneNativeModules(buildPath, arch);
       makeSpawnHelperExecutable(buildPath);
       // Electron reads name, version and main from the app's package.json.
       fs.copyFileSync(
