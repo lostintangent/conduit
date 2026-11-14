@@ -1,5 +1,11 @@
 // @ts-nocheck
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { render } from "../../../../../tests/renderer/queryRender";
 import { createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,13 +67,6 @@ vi.mock("@features/workbench/client/actions/notifications", () => ({
   enqueueNotification: vi.fn(),
 }));
 
-// The tree's listing subscription, passed as a prop
-const mockOnDirectoryListingChanged = vi.fn();
-const mockFsAPI = {
-  cwd: "/project",
-  onDirectoryListingChanged: mockOnDirectoryListingChanged,
-};
-
 // Mock useScrollPersistence
 vi.mock("@features/editor/components/hooks/useScrollPersistence", () => ({
   useScrollPersistence: () => vi.fn(),
@@ -75,6 +74,9 @@ vi.mock("@features/editor/components/hooks/useScrollPersistence", () => ({
 
 // NOW import component AFTER mocks
 import { FileTreeNormal } from "./FileTreeNormal";
+import { registerFileTreeCallbacks } from "@/commands/fileTreeCommands";
+import { createQueryClient } from "@/query";
+import { installFilesQueryBridge } from "@features/files/client/queries";
 
 // ============================================================================
 // Test Data
@@ -113,7 +115,6 @@ describe("FileTreeNormal", () => {
     // Default mock implementations
     files = mockFiles();
     files.readDirectory.mockResolvedValue(MOCK_DIRECTORY_ENTRIES);
-    mockOnDirectoryListingChanged.mockReturnValue(() => {});
   });
 
   // ===========================================================================
@@ -129,7 +130,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -144,7 +144,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -166,7 +165,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -194,7 +192,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -221,7 +218,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -255,7 +251,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={selectedFile}
           onFileSelect={mockOnFileSelect}
@@ -281,7 +276,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -320,7 +314,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -337,49 +330,178 @@ describe("FileTreeNormal", () => {
   });
 
   // ===========================================================================
-  // Event Subscriptions
+  // Shared Listings
   // ===========================================================================
 
-  describe("event subscriptions", () => {
-    it("should subscribe to directory listing changes", async () => {
+  describe("shared listings", () => {
+    /** Two trees on the folder, as when its pane is split. */
+    async function renderTwoTrees() {
+      render(
+        <>
+          {["left", "right"].map((paneId) => (
+            <FileTreeNormal
+              key={paneId}
+              paneId={paneId}
+              cwd={TEST_CWD}
+              gitStatus={MOCK_GIT_STATUS}
+              selectedFile={null}
+              onFileSelect={mockOnFileSelect}
+            />
+          ))}
+        </>,
+      );
+      await waitFor(() => {
+        expect(screen.getAllByTestId("tree-item-README.md")).toHaveLength(2);
+      });
+      const [left, right] = screen.getAllByTestId("file-tree-normal");
+      // The left tree mounts first, so it registers first
+      const commands = vi.mocked(registerFileTreeCallbacks).mock.calls[0][0];
+      return { left, right, commands };
+    }
+
+    /** Type a name into the tree's inline input, and commit it. */
+    function enterName(tree: HTMLElement, name: string) {
+      const input = within(tree).getByTestId("file-tree-rename-input");
+      fireEvent.change(input, { target: { value: name } });
+      fireEvent.keyDown(input, { key: "Enter" });
+    }
+
+    it("shows a rename in the other tree at once", async () => {
+      const { left, right, commands } = await renderTwoTrees();
+      const reads = files.readDirectory.mock.calls.length;
+
+      act(() => commands.onRename("/project/README.md"));
+      enterName(left, "GUIDE.md");
+
+      expect(
+        await within(right).findByTestId("tree-item-GUIDE.md"),
+      ).toBeDefined();
+      expect(within(right).queryByTestId("tree-item-README.md")).toBeNull();
+      expect(files.rename).toHaveBeenCalledWith(
+        TEST_CWD,
+        "/project/README.md",
+        "/project/GUIDE.md",
+      );
+      expect(files.readDirectory).toHaveBeenCalledTimes(reads);
+    });
+
+    it("shows a new file in the other tree at once", async () => {
+      const { left, right, commands } = await renderTwoTrees();
+      const reads = files.readDirectory.mock.calls.length;
+
+      await act(() => commands.onNewFile(TEST_CWD));
+      enterName(left, "notes.md");
+
+      expect(
+        await within(right).findByTestId("tree-item-notes.md"),
+      ).toBeDefined();
+      expect(files.writeFile).toHaveBeenCalledWith(
+        TEST_CWD,
+        "/project/notes.md",
+        new Uint8Array(0),
+      );
+      expect(mockOnFileSelect).toHaveBeenCalledWith(
+        { path: "/project/notes.md", name: "notes.md", type: "file" },
+        null,
+      );
+      expect(files.readDirectory).toHaveBeenCalledTimes(reads);
+    });
+
+    it("shows a delete in the other tree at once", async () => {
+      const { right, commands } = await renderTwoTrees();
+      const reads = files.readDirectory.mock.calls.length;
+
+      act(() => commands.onDelete("/project/README.md"));
+      fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+
+      await waitFor(() => {
+        expect(within(right).queryByTestId("tree-item-README.md")).toBeNull();
+      });
+      expect(files.delete).toHaveBeenCalledWith(
+        TEST_CWD,
+        "/project/README.md",
+        {
+          recursive: false,
+        },
+      );
+      expect(files.readDirectory).toHaveBeenCalledTimes(reads);
+    });
+
+    it("shows the listing the folder's watcher reports", async () => {
+      let report: (payload: unknown) => void = () => {};
+      window.conduit.files.on = vi.fn((_event, handler) => {
+        report = handler;
+        return () => {};
+      });
+      const queryClient = createQueryClient();
+      installFilesQueryBridge(queryClient);
       render(
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
+        { queryClient },
+      );
+      await screen.findByTestId("tree-item-README.md");
+
+      act(() =>
+        report({
+          subscriptionId: "sub",
+          path: TEST_CWD,
+          entries: [
+            ...MOCK_DIRECTORY_ENTRIES,
+            { name: "new.ts", type: "file" },
+          ],
+        }),
       );
 
-      await waitFor(() => {
-        expect(mockOnDirectoryListingChanged).toHaveBeenCalled();
-      });
+      expect(await screen.findByTestId("tree-item-new.ts")).toBeDefined();
+      expect(window.conduit.files.on).toHaveBeenCalledWith(
+        "directoryListingChanged",
+        expect.any(Function),
+      );
     });
 
-    it("should cleanup directory subscription on unmount", async () => {
-      const cleanupDir = vi.fn();
-      mockOnDirectoryListingChanged.mockReturnValue(cleanupDir);
-
-      const { unmount } = render(
+    it("reads a folder again when it's expanded after its listing goes stale", async () => {
+      files.readDirectory.mockImplementation(async (_cwd, dir) =>
+        dir === "/project/src" ? MOCK_SRC_ENTRIES : MOCK_DIRECTORY_ENTRIES,
+      );
+      render(
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
         />,
       );
+      await screen.findByTestId("tree-item-src");
+      const toggle = () =>
+        fireEvent.click(
+          screen
+            .getByTestId("tree-item-src")
+            .closest('[data-testid="file-tree-item"]')!
+            .querySelector('[data-testid="toggle-expand"]')!,
+        );
+      const srcReads = () =>
+        files.readDirectory.mock.calls.filter(
+          ([, dir]) => dir === "/project/src",
+        ).length;
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-normal")).toBeDefined();
-      });
+      toggle();
+      await waitFor(() => expect(srcReads()).toBe(1));
+      toggle();
+      // A folder its watcher ignores (node_modules, say) only catches up when
+      // it's read, so a listing kept from before isn't trusted for long
+      const now = Date.now();
+      const clock = vi.spyOn(Date, "now").mockReturnValue(now + 3000);
+      toggle();
 
-      unmount();
-
-      expect(cleanupDir).toHaveBeenCalled();
+      await waitFor(() => expect(srcReads()).toBe(2));
+      clock.mockRestore();
     });
   });
 
@@ -398,7 +520,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -411,7 +532,8 @@ describe("FileTreeNormal", () => {
       expect(screen.queryByText("Loading...")).toBeNull();
       expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
       expect(consoleError).toHaveBeenCalledWith(
-        "Failed to load file tree:",
+        "[query] Failed to load",
+        ["files", "listing", TEST_CWD],
         expect.any(Error),
       );
       consoleError.mockRestore();
@@ -428,7 +550,6 @@ describe("FileTreeNormal", () => {
         <FileTreeNormal
           paneId={TEST_PANE_ID}
           cwd={TEST_CWD}
-          fs={mockFsAPI as any}
           gitStatus={MOCK_GIT_STATUS}
           selectedFile={null}
           onFileSelect={mockOnFileSelect}
@@ -478,7 +599,6 @@ describe("FileTreeNormal", () => {
                 ref={paneId === "right" ? handle : undefined}
                 paneId={paneId}
                 cwd={TEST_CWD}
-                fs={mockFsAPI as any}
                 gitStatus={MOCK_GIT_STATUS}
                 selectedFile={selectedFile}
                 onFileSelect={mockOnFileSelect}

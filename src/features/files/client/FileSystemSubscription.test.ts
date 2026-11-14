@@ -61,9 +61,10 @@ describe("FileSystemSubscription", () => {
   // ===========================================================================
 
   describe("construction", () => {
-    it("should create instance with cwd", () => {
+    it("should create instance with cwd, and subscribe to it", () => {
       const api = new FileSystemSubscription("/test/project");
       expect(api.cwd).toBe("/test/project");
+      expect(files.subscribe).toHaveBeenCalledWith("/test/project");
       api.release();
     });
   });
@@ -71,58 +72,6 @@ describe("FileSystemSubscription", () => {
   // ===========================================================================
   // Event Subscriptions
   // ===========================================================================
-
-  describe("onDirectoryListingChanged", () => {
-    it("calls back when its directory changes", async () => {
-      const api = new FileSystemSubscription("/test/project");
-      const callback = vi.fn();
-      api.onDirectoryListingChanged("/test/project/src", callback);
-      await settle();
-
-      deliver("directoryListingChanged", {
-        subscriptionId: "test-sub-id",
-        path: "/test/project/src",
-        entries: [{ name: "file.txt", type: "file" }],
-      });
-      deliver("directoryListingChanged", {
-        subscriptionId: "test-sub-id",
-        path: "/test/project/other",
-        entries: [],
-      });
-
-      expect(files.subscribe).toHaveBeenCalledWith("/test/project");
-      expect(callback).toHaveBeenCalledTimes(1);
-      expect(callback).toHaveBeenCalledWith([
-        { name: "file.txt", type: "file" },
-      ]);
-
-      api.release();
-    });
-
-    it("stops calling a callback after its cleanup, and keeps the path's other callbacks", async () => {
-      const api = new FileSystemSubscription("/test/project");
-      const removed = vi.fn();
-      const kept = vi.fn();
-      const cleanup = api.onDirectoryListingChanged(
-        "/test/project/src",
-        removed,
-      );
-      api.onDirectoryListingChanged("/test/project/src", kept);
-      await settle();
-
-      cleanup();
-      deliver("directoryListingChanged", {
-        subscriptionId: "test-sub-id",
-        path: "/test/project/src",
-        entries: [],
-      });
-
-      expect(removed).not.toHaveBeenCalled();
-      expect(kept).toHaveBeenCalledWith([]);
-
-      api.release();
-    });
-  });
 
   describe("routing", () => {
     it("listens once per event however many folders are open, and hears only its own", async () => {
@@ -151,7 +100,6 @@ describe("FileSystemSubscription", () => {
       });
 
       expect(listening()).toEqual({
-        directoryListingChanged: 1,
         fileContentChanged: 1,
         fileDeleted: 1,
         fileRenamed: 1,
@@ -203,9 +151,6 @@ describe("FileSystemSubscription", () => {
       const api = new FileSystemSubscription("/test/project");
       api.release();
 
-      expect(() => api.onDirectoryListingChanged("/test", vi.fn())).toThrow(
-        "FileSystemSubscription has been released",
-      );
       expect(() => api.onAnyFileContentChanged(vi.fn())).toThrow(
         "FileSystemSubscription has been released",
       );
@@ -305,15 +250,14 @@ describe("FileSystemSubscription", () => {
         throw new Error("Listener error");
       });
       const goodCallback = vi.fn();
-      api.onDirectoryListingChanged("/test/project/src", badCallback);
-      api.onDirectoryListingChanged("/test/project/src", goodCallback);
+      api.onAnyFileContentChanged(badCallback);
+      api.onAnyFileContentChanged(goodCallback);
       await settle();
 
       expect(() =>
-        deliver("directoryListingChanged", {
+        deliver("fileContentChanged", {
           subscriptionId: "test-sub-id",
-          path: "/test/project/src",
-          entries: [],
+          path: "/test/project/src/a.ts",
         }),
       ).not.toThrow();
 

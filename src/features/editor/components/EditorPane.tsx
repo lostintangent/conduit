@@ -1433,7 +1433,6 @@ export function EditorPane({
             ref={fileTreeRef}
             paneId={pane.id}
             cwd={currentCwd}
-            fs={fs}
             git={git}
             selectedFile={selectedFile}
             selectedMapKey={selectedMapKey}

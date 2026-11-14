@@ -6,7 +6,7 @@
  * @example
  * ```tsx
  * const fs = useFileSystemSubscription(projectPath);
- * useEffect(() => fs.onDirectoryListingChanged(projectPath, setEntries), [fs, projectPath]);
+ * useEffect(() => fs.onAnyFileContentChanged(reload), [fs, reload]);
  * ```
  */
 
@@ -20,7 +20,6 @@ export function useFileSystemSubscription(cwd: string): FileSystemSubscription {
 
 export type {
   Cleanup,
-  DirectoryListingChangedCallback,
   FileContentChangedCallback,
   FileDeletedCallback,
   FileRenamedCallback,

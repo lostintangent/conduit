@@ -1,4 +1,5 @@
 import { App } from "@/app";
+import { installFilesQueryBridge } from "@features/files/client/queries";
 import { installGitQueryBridge } from "@features/git/client/queries";
 import {
   installSettingsQueryBridge,
@@ -18,6 +19,7 @@ enableMapSet();
 
 import "./index.css";
 
+installFilesQueryBridge(queryClient);
 installGitQueryBridge(queryClient);
 installSettingsQueryBridge(queryClient);
 

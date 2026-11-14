@@ -24,7 +24,6 @@
  */
 
 import type { GitFileStatus } from "@features/git/model";
-import type { FileSystemSubscription } from "@features/files/client/FileSystemSubscription";
 import type { GitSubscription } from "@features/git/client/GitSubscription";
 import { cn } from "@/utils";
 import { forwardRef, memo } from "react";
@@ -54,9 +53,6 @@ export interface FileTreePanelProps {
 
   /** Working directory (root of the tree) */
   cwd: string;
-
-  /** File system subscription (shared from parent) */
-  fs: FileSystemSubscription;
 
   /** Git subscription (shared from parent) */
   git: GitSubscription;
@@ -201,7 +197,6 @@ export const FileTreePanel = memo(
     {
       paneId,
       cwd,
-      fs,
       git,
       selectedFile,
       selectedMapKey,
@@ -336,7 +331,6 @@ export const FileTreePanel = memo(
               ref={ref}
               paneId={paneId}
               cwd={cwd}
-              fs={fs}
               selectedFile={selectedFile}
               onFileSelect={onFileSelect}
               onDirectoryChange={onDirectoryChange}

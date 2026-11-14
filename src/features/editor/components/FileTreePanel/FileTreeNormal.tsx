@@ -3,7 +3,8 @@
  *
  * Displays the file system hierarchy with:
  * - Lazy loading of directory contents (load when expanded)
- * - Real-time updates via FileSystemSubscription events
+ * - Listings shared with every tree on the folder, which the cwd's watcher
+ *   keeps current (see filesQueries)
  * - Git status badges from the parent's status map
  * - Keyboard navigation support
  *
@@ -18,8 +19,9 @@
  * ```
  */
 
-import type { FileSystemSubscription } from "@features/files/client/FileSystemSubscription";
+import { filesQueries, updateListing } from "@features/files/client/queries";
 import { useSettings } from "@features/settings/client/queries";
+import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/utils";
 import { FileText, Folder } from "lucide-react";
 import {
@@ -58,9 +60,6 @@ export interface FileTreeNormalProps {
 
   /** Working directory (root of the tree) */
   cwd: string;
-
-  /** File system subscription (shared from parent) */
-  fs: FileSystemSubscription;
 
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;
@@ -127,7 +126,6 @@ export const FileTreeNormal = memo(
     {
       paneId,
       cwd,
-      fs,
       selectedFile,
       onFileSelect,
       onDirectoryChange,
@@ -159,10 +157,23 @@ export const FileTreeNormal = memo(
       reset: resetExpandedPaths,
     } = useExpandedPaths({ initialPaths: [cwd] });
 
-    // Directory contents cache
-    const [directoryCache, setDirectoryCache] = useState<DirectoryCache>({});
-
-    const [isLoading, setIsLoading] = useState(true);
+    // The root's listing and each expanded folder's in it, by normalized path
+    const queryClient = useQueryClient();
+    const cwdKey = normalizePathForKey(cwd);
+    const shownDirs = [cwd];
+    for (const [key, path] of expandedPaths) {
+      if (key.startsWith(`${cwdKey}/`)) shownDirs.push(path);
+    }
+    const { directoryCache, isLoading } = useQueries({
+      queries: shownDirs.map((dir) => filesQueries.listing(cwd, dir)),
+      combine: (results) => {
+        const cache: DirectoryCache = {};
+        results.forEach(({ data }, i) => {
+          if (data) cache[normalizePathForKey(shownDirs[i])] = data;
+        });
+        return { directoryCache: cache, isLoading: results[0].isPending };
+      },
+    });
 
     // ---------------------------------------------------------------------------
     // Keyboard Navigation State
@@ -300,7 +311,6 @@ export const FileTreeNormal = memo(
 
     useEffect(() => {
       if (prevCwdRef.current !== cwd) {
-        setDirectoryCache({});
         resetExpandedPaths([cwd]);
         expandedToFileRef.current = null;
         setFocusedPath(null); // Reset focus when cwd changes
@@ -333,19 +343,10 @@ export const FileTreeNormal = memo(
       const loadAndExpand = async () => {
         for (const dir of parentDirs) {
           if (cancelled) return;
-          // Check cache at runtime, not as a dependency
-          const cacheKey = normalizePathForKey(dir);
-          if (!directoryCache[cacheKey]) {
-            try {
-              const entries = await window.conduit.files.readDirectory(
-                cwd,
-                dir,
-              );
-              if (cancelled) return;
-              setDirectoryCache((prev) => ({ ...prev, [cacheKey]: entries }));
-            } catch {
-              return;
-            }
+          try {
+            await queryClient.ensureQueryData(filesQueries.listing(cwd, dir));
+          } catch {
+            return;
           }
         }
         if (!cancelled) {
@@ -359,63 +360,8 @@ export const FileTreeNormal = memo(
       };
       // Dependencies are intentionally minimal: we want event-driven behavior
       // (run once per selection change), not reactive (run when cache updates).
-      // directoryCache, expandPathsToFile are read at runtime, not triggers.
+      // expandPathsToFile is read at runtime, not a trigger.
     }, [selectedFile?.path, cwd]);
-
-    // ---------------------------------------------------------------------------
-    // Initial Load
-    // ---------------------------------------------------------------------------
-
-    useEffect(() => {
-      let cancelled = false;
-
-      async function loadInitial() {
-        setIsLoading(true);
-        try {
-          // Load root directory
-          const entries = await window.conduit.files.readDirectory(cwd, cwd);
-          if (!cancelled) {
-            setDirectoryCache((prev) => ({
-              ...prev,
-              [normalizePathForKey(cwd)]: entries,
-            }));
-          }
-        } catch (error) {
-          console.error("Failed to load file tree:", error);
-        }
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-
-      loadInitial();
-
-      return () => {
-        cancelled = true;
-      };
-    }, [cwd]);
-
-    // ---------------------------------------------------------------------------
-    // Directory Change Subscription
-    // ---------------------------------------------------------------------------
-
-    useEffect(() => {
-      // Subscribe to directory changes for all expanded paths
-      const cleanups: (() => void)[] = [];
-
-      for (const path of expandedPaths) {
-        // path is already normalized (from useExpandedPaths), but be explicit
-        const cacheKey = normalizePathForKey(path);
-        const cleanup = fs.onDirectoryListingChanged(path, (entries) => {
-          setDirectoryCache((prev) => ({ ...prev, [cacheKey]: entries }));
-        });
-        cleanups.push(cleanup);
-      }
-
-      return () => {
-        cleanups.forEach((cleanup) => cleanup());
-      };
-    }, [fs, expandedPaths]);
 
     // ---------------------------------------------------------------------------
     // Handlers
@@ -442,29 +388,19 @@ export const FileTreeNormal = memo(
      */
     const handleToggleExpand = useCallback(
       async (path: string) => {
-        const isCurrentlyExpanded = isPathExpanded(path);
-        const cacheKey = normalizePathForKey(path);
-
-        if (isCurrentlyExpanded) {
-          // Collapsing: clear cache so we fetch fresh data when re-expanding
-          setDirectoryCache((cache) => {
-            const newCache = { ...cache };
-            delete newCache[cacheKey];
-            return newCache;
-          });
-        } else {
-          // Expanding: load fresh directory contents
+        // Expand once the contents are here. A listing that's been cached a
+        // while shows at once, and is read again (which re-checks it on disk).
+        if (!isPathExpanded(path)) {
           try {
-            const entries = await window.conduit.files.readDirectory(cwd, path);
-            setDirectoryCache((cache) => ({ ...cache, [cacheKey]: entries }));
-          } catch (error) {
-            console.error(`Failed to load directory ${path}:`, error);
+            await queryClient.ensureQueryData(filesQueries.listing(cwd, path));
+          } catch {
+            // The query cache logs it
           }
         }
 
         toggleExpanded(path);
       },
-      [cwd, isPathExpanded, toggleExpanded],
+      [cwd, isPathExpanded, queryClient, toggleExpanded],
     );
 
     // ---------------------------------------------------------------------------
@@ -580,20 +516,14 @@ export const FileTreeNormal = memo(
           const newRelative = getRelativePath(newPath, cwd);
           onPathRename?.(oldRelative, newRelative);
 
-          // Optimistic update: update directory cache immediately so the new name
+          // Optimistic update: update the listing immediately so the new name
           // is visible before the file watcher triggers a refresh
           const oldName = renamingPath.split("/").pop();
-          const cacheKey = normalizePathForKey(parentDir);
-          setDirectoryCache((prev) => {
-            const entries = prev[cacheKey];
-            if (!entries || !oldName) return prev;
-            return {
-              ...prev,
-              [cacheKey]: entries.map((entry) =>
-                entry.name === oldName ? { ...entry, name: newName } : entry,
-              ),
-            };
-          });
+          updateListing(queryClient, parentDir, (entries) =>
+            entries.map((entry) =>
+              entry.name === oldName ? { ...entry, name: newName } : entry,
+            ),
+          );
 
           // Now safe to hide the rename input - new name is already in cache
           setRenamingPath(null);
@@ -617,7 +547,7 @@ export const FileTreeNormal = memo(
           setRenamingPath(null);
         }
       },
-      [renamingPath, cwd, onPathRename],
+      [renamingPath, cwd, onPathRename, queryClient],
     );
 
     /**
@@ -723,24 +653,16 @@ export const FileTreeNormal = memo(
             await window.conduit.files.createDirectory(cwd, newPath);
           }
 
-          // Optimistic update: add new entry to directory cache
-          const cacheKey = normalizePathForKey(creatingInPath);
-          setDirectoryCache((prev) => {
-            const entries = prev[cacheKey];
-            if (!entries) return prev;
-            const newEntry: DirectoryEntry = {
-              name,
-              type:
-                creatingType === "file"
-                  ? ("file" as const)
-                  : ("directory" as const),
-              isSymlink: false,
-            };
-            return {
-              ...prev,
-              [cacheKey]: [...entries, newEntry],
-            };
-          });
+          // Optimistic update: add new entry to the listing
+          const newEntry: DirectoryEntry = {
+            name,
+            type: creatingType === "file" ? "file" : "directory",
+            isSymlink: false,
+          };
+          updateListing(queryClient, creatingInPath, (entries) => [
+            ...entries,
+            newEntry,
+          ]);
 
           // Clear creation state
           setCreatingInPath(null);
@@ -765,7 +687,7 @@ export const FileTreeNormal = memo(
           setCreatingType(null);
         }
       },
-      [creatingInPath, creatingType, cwd, onFileSelect],
+      [creatingInPath, creatingType, cwd, onFileSelect, queryClient],
     );
 
     // ---------------------------------------------------------------------------
@@ -835,19 +757,13 @@ export const FileTreeNormal = memo(
           recursive: isDirectory,
         });
 
-        // Optimistic update: remove from cache immediately
+        // Optimistic update: remove it from the listing immediately
         const parentDir = getParentPath(pathToDelete);
         const fileName = pathToDelete.split("/").pop();
         if (parentDir && fileName) {
-          const cacheKey = normalizePathForKey(parentDir);
-          setDirectoryCache((prev) => {
-            const entries = prev[cacheKey];
-            if (!entries) return prev;
-            return {
-              ...prev,
-              [cacheKey]: entries.filter((entry) => entry.name !== fileName),
-            };
-          });
+          updateListing(queryClient, parentDir, (entries) =>
+            entries.filter((entry) => entry.name !== fileName),
+          );
         }
 
         // Clear deleting state
@@ -869,7 +785,13 @@ export const FileTreeNormal = memo(
         });
         setDeletingPath(null);
       }
-    }, [deletingPath, getEntryForPath, getNextFocusAfterDelete, cwd]);
+    }, [
+      deletingPath,
+      getEntryForPath,
+      getNextFocusAfterDelete,
+      cwd,
+      queryClient,
+    ]);
 
     // ---------------------------------------------------------------------------
     // Context Menu Command Handlers
@@ -1374,7 +1296,7 @@ export const FileTreeNormal = memo(
     }
 
     // Loading state for initial load
-    if (isLoading && !directoryCache[normalizePathForKey(cwd)]) {
+    if (isLoading) {
       return (
         <div
           className="flex items-center justify-center h-full text-muted-foreground text-sm"

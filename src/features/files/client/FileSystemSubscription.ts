@@ -4,23 +4,17 @@
  * flowing until it's suspended or released.
  *
  * Instances for the same cwd are shared through `FileSystemSubscriptionPool`.
- * Reads and writes don't need one, and go to `window.conduit.files`.
+ * Reads and writes don't need one, and go to `window.conduit.files`. Folder
+ * listings are queries (see `filesQueries`), which the watcher's events keep
+ * current while an instance holds the cwd.
  */
 
 import type { Events } from "@shared/rpc";
-import type { Cleanup, DirectoryEntry } from "../model";
-import { normalizePathForKey } from "@/utils/pathUtils";
+import type { Cleanup } from "../model";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * Callback for directory listing change events.
- */
-export type DirectoryListingChangedCallback = (
-  entries: DirectoryEntry[],
-) => void;
 
 /**
  * Callback for file content change events.
@@ -40,24 +34,6 @@ export type FileRenamedCallback = (oldPath: string, newPath: string) => void;
 // Re-export Cleanup from shared types for convenience
 export type { Cleanup };
 
-/** Adds a listener under a key, and drops the key when its last listener leaves. */
-function addKeyedListener<T>(
-  listenersByKey: Map<string, Set<T>>,
-  key: string,
-  listener: T,
-): Cleanup {
-  const listeners = listenersByKey.get(key) ?? new Set<T>();
-  listenersByKey.set(key, listeners);
-  listeners.add(listener);
-
-  return () => {
-    listeners.delete(listener);
-    if (listeners.size === 0) {
-      listenersByKey.delete(key);
-    }
-  };
-}
-
 /** Calls each listener, so one that throws can't keep the rest from hearing. */
 function notify<Args extends unknown[]>(
   listeners: Iterable<(...args: Args) => void> | undefined,
@@ -74,14 +50,11 @@ function notify<Args extends unknown[]>(
 
 /** One instance's listeners, which hear its subscription's events. */
 class Listeners {
-  /** Directory listing listeners, by normalized path */
-  readonly directory = new Map<string, Set<DirectoryListingChangedCallback>>();
   readonly content = new Set<FileContentChangedCallback>();
   readonly deleted = new Set<FileDeletedCallback>();
   readonly renamed = new Set<FileRenamedCallback>();
 
   clear(): void {
-    this.directory.clear();
     this.content.clear();
     this.deleted.clear();
     this.renamed.clear();
@@ -115,9 +88,6 @@ function routeEvents(): void {
       }
     });
 
-  route("directoryListingChanged", (listeners, { path, entries }) =>
-    notify(listeners.directory.get(normalizePathForKey(path)), entries),
-  );
   route("fileContentChanged", (listeners, { path }) =>
     notify(listeners.content, path),
   );
@@ -159,20 +129,6 @@ export class FileSystemSubscription {
   // ---------------------------------------------------------------------------
   // Event Subscriptions
   // ---------------------------------------------------------------------------
-
-  /** Calls back with a directory's entries each time its listing changes. */
-  onDirectoryListingChanged(
-    path: string,
-    callback: DirectoryListingChangedCallback,
-  ): Cleanup {
-    this.ensureNotReleased();
-    this.ensureSubscribed();
-    return addKeyedListener(
-      this.listeners.directory,
-      normalizePathForKey(path),
-      callback,
-    );
-  }
 
   /** Calls back with each file whose content changes. */
   onAnyFileContentChanged(callback: FileContentChangedCallback): Cleanup {

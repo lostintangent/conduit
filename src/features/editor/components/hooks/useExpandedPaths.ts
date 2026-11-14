@@ -6,7 +6,8 @@
  *
  * Uses case-insensitive path comparison on macOS/Windows to handle paths
  * from different sources (CLI commands, file system API) that may have
- * different casing.
+ * different casing. Each path keeps the casing it was expanded with, which
+ * is what its folder is read by.
  */
 
 import { useState, useCallback, useRef } from "react";
@@ -17,9 +18,12 @@ export interface UseExpandedPathsOptions {
   initialPaths?: string[];
 }
 
+/** Expanded paths, by normalized path */
+type ExpandedPaths = ReadonlyMap<string, string>;
+
 export interface UseExpandedPathsResult {
-  /** Set of currently expanded paths */
-  expandedPaths: Set<string>;
+  /** Currently expanded paths, by normalized path */
+  expandedPaths: ExpandedPaths;
 
   /** Check if a path is expanded */
   isExpanded: (path: string) => boolean;
@@ -41,6 +45,10 @@ export interface UseExpandedPathsResult {
 
   /** Reset to initial state */
   reset: (paths?: string[]) => void;
+}
+
+function byKey(paths: string[]): ExpandedPaths {
+  return new Map(paths.map((path) => [normalizePathForKey(path), path]));
 }
 
 /**
@@ -66,15 +74,14 @@ export function useExpandedPaths(
 ): UseExpandedPathsResult {
   const { initialPaths = [] } = options;
 
-  // Store normalized paths for case-insensitive comparison
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
-    () => new Set(initialPaths.map(normalizePathForKey)),
+  const [expandedPaths, setExpandedPaths] = useState<ExpandedPaths>(() =>
+    byKey(initialPaths),
   );
 
   // Use a ref to hold the current expandedPaths for isExpanded.
   // This allows isExpanded to be a stable callback reference (no dependencies),
   // preventing consumers like renderDirectory from being recreated when paths change.
-  const expandedPathsRef = useRef<Set<string>>(expandedPaths);
+  const expandedPathsRef = useRef(expandedPaths);
   expandedPathsRef.current = expandedPaths;
 
   const isExpanded = useCallback(
@@ -85,11 +92,11 @@ export function useExpandedPaths(
   const toggle = useCallback((path: string) => {
     const key = normalizePathForKey(path);
     setExpandedPaths((prev) => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       if (next.has(key)) {
         next.delete(key);
       } else {
-        next.add(key);
+        next.set(key, path);
       }
       return next;
     });
@@ -99,8 +106,8 @@ export function useExpandedPaths(
     const key = normalizePathForKey(path);
     setExpandedPaths((prev) => {
       if (prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.add(key);
+      const next = new Map(prev);
+      next.set(key, path);
       return next;
     });
   }, []);
@@ -109,7 +116,7 @@ export function useExpandedPaths(
     const key = normalizePathForKey(path);
     setExpandedPaths((prev) => {
       if (!prev.has(key)) return prev;
-      const next = new Set(prev);
+      const next = new Map(prev);
       next.delete(key);
       return next;
     });
@@ -120,12 +127,12 @@ export function useExpandedPaths(
     if (parents.length === 0) return;
 
     setExpandedPaths((prev) => {
-      const next = new Set(prev);
+      const next = new Map(prev);
       let changed = false;
       for (const parent of parents) {
         const key = normalizePathForKey(parent);
         if (!next.has(key)) {
-          next.add(key);
+          next.set(key, parent);
           changed = true;
         }
       }
@@ -138,13 +145,13 @@ export function useExpandedPaths(
       if (filePaths.length === 0) return;
 
       setExpandedPaths((prev) => {
-        const next = new Set(prev);
+        const next = new Map(prev);
         let changed = false;
         for (const filePath of filePaths) {
           for (const parent of getParentPaths(filePath, rootPath)) {
             const key = normalizePathForKey(parent);
             if (!next.has(key)) {
-              next.add(key);
+              next.set(key, parent);
               changed = true;
             }
           }
@@ -157,9 +164,7 @@ export function useExpandedPaths(
 
   const reset = useCallback(
     (paths?: string[]) => {
-      setExpandedPaths(
-        new Set((paths ?? initialPaths).map(normalizePathForKey)),
-      );
+      setExpandedPaths(byKey(paths ?? initialPaths));
     },
     [initialPaths],
   );
