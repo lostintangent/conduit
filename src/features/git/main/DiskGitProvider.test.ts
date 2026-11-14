@@ -281,53 +281,6 @@ describe("DiskGitProvider", () => {
   // getFileStatus
   // ===========================================================================
 
-  describe("getFileStatus()", () => {
-    it("should return status for a specific file", async () => {
-      // Git returns paths relative to git root
-      mockGit.status.mockResolvedValue(
-        createMockStatusResult({
-          files: [{ path: "src/file.ts", index: "M", working_dir: " " }],
-        }),
-      );
-
-      // Use gitRoot as cwd for simpler path handling
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const fileStatus = await provider.getFileStatus("src/file.ts");
-
-      expect(fileStatus).not.toBeNull();
-      expect(fileStatus?.status).toBe("modified");
-      expect(fileStatus?.staged).toBe(true);
-    });
-
-    it("should return null for clean files", async () => {
-      mockGit.status.mockResolvedValue(createMockStatusResult({ files: [] }));
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const fileStatus = await provider.getFileStatus("clean-file.ts");
-
-      expect(fileStatus).toBeNull();
-    });
-
-    it("should find file status with different case on case-insensitive FS", async () => {
-      // Git returns path with certain casing
-      mockGit.status.mockResolvedValue(
-        createMockStatusResult({
-          files: [{ path: "README.md", index: "M", working_dir: " " }],
-        }),
-      );
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-
-      // Look up with different case
-      const fileStatus = await provider.getFileStatus("readme.md");
-
-      expect(fileStatus).not.toBeNull();
-      expect(fileStatus?.status).toBe("modified");
-      // The path in the status object should preserve git's casing
-      expect(fileStatus?.path).toBe("README.md");
-    });
-  });
-
   // ===========================================================================
   // getCurrentBranch
   // ===========================================================================
@@ -392,29 +345,6 @@ describe("DiskGitProvider", () => {
   // getFileDiff
   // ===========================================================================
 
-  describe("getFileDiff()", () => {
-    it("should return unstaged diff by default", async () => {
-      mockGit.diff.mockResolvedValue("diff --git a/file.ts b/file.ts\n...");
-
-      // Use gitRoot as cwd for simpler path handling
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const diff = await provider.getFileDiff("file.ts");
-
-      expect(diff).toContain("diff --git");
-      expect(mockGit.diff).toHaveBeenCalledWith(["--", "file.ts"]);
-    });
-
-    it("should return staged diff when specified", async () => {
-      mockGit.diff.mockResolvedValue("diff --git a/file.ts b/file.ts\n...");
-
-      // Use gitRoot as cwd for simpler path handling
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      await provider.getFileDiff("file.ts", true);
-
-      expect(mockGit.diff).toHaveBeenCalledWith(["--cached", "--", "file.ts"]);
-    });
-  });
-
   // ===========================================================================
   // getFileAtRef
   // ===========================================================================
@@ -436,53 +366,9 @@ describe("DiskGitProvider", () => {
   // hasUncommittedChanges
   // ===========================================================================
 
-  describe("hasUncommittedChanges()", () => {
-    it("should return false when clean", async () => {
-      mockGit.status.mockResolvedValue(
-        createMockStatusResult({ isClean: true }),
-      );
-
-      const provider = new DiskGitProvider(testGitRoot, testCwd);
-      const hasChanges = await provider.hasUncommittedChanges();
-
-      expect(hasChanges).toBe(false);
-    });
-
-    it("should return true when dirty", async () => {
-      mockGit.status.mockResolvedValue(
-        createMockStatusResult({ isClean: false }),
-      );
-
-      const provider = new DiskGitProvider(testGitRoot, testCwd);
-      const hasChanges = await provider.hasUncommittedChanges();
-
-      expect(hasChanges).toBe(true);
-    });
-  });
-
   // ===========================================================================
   // hasUnpushedCommits
   // ===========================================================================
-
-  describe("hasUnpushedCommits()", () => {
-    it("should return false when not ahead", async () => {
-      mockGit.status.mockResolvedValue(createMockStatusResult({ ahead: 0 }));
-
-      const provider = new DiskGitProvider(testGitRoot, testCwd);
-      const hasUnpushed = await provider.hasUnpushedCommits();
-
-      expect(hasUnpushed).toBe(false);
-    });
-
-    it("should return true when ahead", async () => {
-      mockGit.status.mockResolvedValue(createMockStatusResult({ ahead: 3 }));
-
-      const provider = new DiskGitProvider(testGitRoot, testCwd);
-      const hasUnpushed = await provider.hasUnpushedCommits();
-
-      expect(hasUnpushed).toBe(true);
-    });
-  });
 
   // ===========================================================================
   // stage
@@ -565,22 +451,6 @@ describe("DiskGitProvider", () => {
         "Partial commit",
         ["file1.ts"],
         {},
-      );
-    });
-
-    it("should fire onCommitCreated event", async () => {
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const eventHandler = vi.fn();
-      provider.onCommitCreated(eventHandler);
-
-      await provider.commit("Test message");
-
-      expect(eventHandler).toHaveBeenCalledWith(
-        expect.objectContaining({
-          commit: expect.objectContaining({
-            message: "Test commit",
-          }),
-        }),
       );
     });
   });
@@ -750,43 +620,6 @@ describe("DiskGitProvider", () => {
   // hasUpstream
   // ===========================================================================
 
-  describe("hasUpstream()", () => {
-    it("should return true when upstream is configured", async () => {
-      mockGit.raw.mockResolvedValue("origin/main\n");
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const hasUpstream = await provider.hasUpstream();
-
-      expect(hasUpstream).toBe(true);
-      expect(mockGit.raw).toHaveBeenCalledWith([
-        "rev-parse",
-        "--abbrev-ref",
-        "--symbolic-full-name",
-        "@{u}",
-      ]);
-    });
-
-    it("should return false when no upstream is configured", async () => {
-      mockGit.raw.mockRejectedValue(
-        new Error("fatal: no upstream configured for branch"),
-      );
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const hasUpstream = await provider.hasUpstream();
-
-      expect(hasUpstream).toBe(false);
-    });
-
-    it("should return false when result is empty", async () => {
-      mockGit.raw.mockResolvedValue("");
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const hasUpstream = await provider.hasUpstream();
-
-      expect(hasUpstream).toBe(false);
-    });
-  });
-
   // ===========================================================================
   // stash
   // ===========================================================================
@@ -827,34 +660,6 @@ describe("DiskGitProvider", () => {
   // ===========================================================================
   // getChangedFilesFromBranch
   // ===========================================================================
-
-  describe("getChangedFilesFromBranch()", () => {
-    it("should return files changed from base branch", async () => {
-      mockGit.raw.mockResolvedValue("abc123def456\n"); // merge-base result
-      mockGit.diff.mockResolvedValue("src/file1.ts\nsrc/file2.ts\nREADME.md\n");
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const files = await provider.getChangedFilesFromBranch("main");
-
-      expect(mockGit.raw).toHaveBeenCalledWith(["merge-base", "HEAD", "main"]);
-      expect(mockGit.diff).toHaveBeenCalledWith([
-        "--name-only",
-        "abc123def456",
-        "HEAD",
-      ]);
-      expect(files).toEqual(["src/file1.ts", "src/file2.ts", "README.md"]);
-    });
-
-    it("should return empty array when no changes", async () => {
-      mockGit.raw.mockResolvedValue("abc123\n");
-      mockGit.diff.mockResolvedValue("");
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const files = await provider.getChangedFilesFromBranch("main");
-
-      expect(files).toEqual([]);
-    });
-  });
 
   // ===========================================================================
   // getStatusFromBranch
@@ -1610,7 +1415,6 @@ describe("DiskGitProvider", () => {
       const watcherInstance = mockWatcherInstances[0];
       expect(watcherInstance).toBeDefined();
       expect(watcherInstance.watch).toHaveBeenCalled();
-      expect(provider.isWatching()).toBe(true);
     });
 
     it("should dispose watcher on dispose", async () => {
@@ -1663,16 +1467,6 @@ describe("DiskGitProvider", () => {
       const handler = vi.fn();
 
       const subscription = provider.onBranchChanged(handler);
-
-      expect(subscription).toBeDefined();
-      expect(typeof subscription.dispose).toBe("function");
-    });
-
-    it("should allow subscribing to onCommitCreated", () => {
-      const provider = new DiskGitProvider(testGitRoot, testCwd);
-      const handler = vi.fn();
-
-      const subscription = provider.onCommitCreated(handler);
 
       expect(subscription).toBeDefined();
       expect(typeof subscription.dispose).toBe("function");
@@ -1961,41 +1755,6 @@ describe("DiskGitProvider", () => {
       const files = await provider.getCommitFiles("abc123");
 
       expect(files).toEqual([]);
-    });
-  });
-
-  describe("getFileAtCommit()", () => {
-    it("should return file content at specified commit", async () => {
-      mockGit.show.mockResolvedValue("file content at commit");
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const content = await provider.getFileAtCommit("abc123", "file.ts");
-
-      expect(content).toBe("file content at commit");
-      expect(mockGit.show).toHaveBeenCalledWith(["abc123:file.ts"]);
-    });
-
-    it("should return null when file does not exist at commit", async () => {
-      mockGit.show.mockRejectedValue(
-        new Error("pathspec 'file.ts' did not match any file(s)"),
-      );
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      const content = await provider.getFileAtCommit(
-        "abc123",
-        "nonexistent.ts",
-      );
-
-      expect(content).toBeNull();
-    });
-
-    it("should convert absolute paths to relative", async () => {
-      mockGit.show.mockResolvedValue("content");
-
-      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
-      await provider.getFileAtCommit("abc123", "/test/repo/src/file.ts");
-
-      expect(mockGit.show).toHaveBeenCalledWith(["abc123:src/file.ts"]);
     });
   });
 });

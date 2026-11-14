@@ -6,7 +6,7 @@
  * normalization).
  *
  * Git integration: while a provider is referenced, it forwards file content
- * changes to GitProviderService and holds a GitProvider reference for its
+ * changes to GitProviderService and holds a git provider reference for its
  * repository, so git status refreshes when files change. Both are released
  * as soon as the last reference goes, rather than after the grace period.
  *
@@ -33,7 +33,7 @@ interface ProviderEntry {
   /** Forwards file content changes to GitProviderService */
   fileChangeDisposable?: { dispose: () => void };
 
-  /** Git root this provider holds a GitProvider reference for */
+  /** Git root this provider holds a git provider reference for */
   gitRoot?: string;
 }
 

@@ -1,8 +1,8 @@
 /**
  * DiskGitProvider - Git provider implementation using simple-git.
  *
- * This provider implements the GitProvider interface, providing unified
- * git operations with integrated status watching and debounced updates.
+ * Unified git operations for one repository, with integrated status
+ * watching and debounced updates.
  *
  * Key Features:
  * 1. **Repository-Scoped**: One provider per git root, not per CWD
@@ -31,18 +31,15 @@ import type { Disposable, Event } from "../../../ipc/fs/types";
 import type {
   CommitFile,
   CommitHistoryResult,
-  FileWithTime,
   GetCommitHistoryOptions,
   GitBranch,
   GitBranchChangedEvent,
   GitCheckoutOptions,
   GitCommit,
-  GitCommitCreatedEvent,
   GitCommitOptions,
   GitFileStatus,
   GitFileStatusCode,
   GitHeadChangedEvent,
-  GitProvider,
   GitStatus,
   GitStatusChangedEvent,
   HistoryCommit,
@@ -142,7 +139,7 @@ const IGNORED_GIT_PATHS = [
  * provider.dispose();
  * ```
  */
-export class DiskGitProvider implements GitProvider {
+export class DiskGitProvider {
   readonly gitRoot: string;
   readonly cwd: string;
 
@@ -188,15 +185,12 @@ export class DiskGitProvider implements GitProvider {
 
   private readonly _onStatusChanged = new EventEmitter<GitStatusChangedEvent>();
   private readonly _onBranchChanged = new EventEmitter<GitBranchChangedEvent>();
-  private readonly _onCommitCreated = new EventEmitter<GitCommitCreatedEvent>();
   private readonly _onHeadChanged = new EventEmitter<GitHeadChangedEvent>();
 
   readonly onStatusChanged: Event<GitStatusChangedEvent> =
     this._onStatusChanged.event;
   readonly onBranchChanged: Event<GitBranchChangedEvent> =
     this._onBranchChanged.event;
-  readonly onCommitCreated: Event<GitCommitCreatedEvent> =
-    this._onCommitCreated.event;
   readonly onHeadChanged: Event<GitHeadChangedEvent> =
     this._onHeadChanged.event;
 
@@ -272,13 +266,6 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Check if currently watching for changes.
-   */
-  isWatching(): boolean {
-    return this.watcher !== null && !this.disposed;
-  }
-
-  /**
    * Trigger a status refresh.
    *
    * This is called when working directory files change (detected by FileSystemV2).
@@ -321,7 +308,6 @@ export class DiskGitProvider implements GitProvider {
     // Dispose emitters
     this._onStatusChanged.dispose();
     this._onBranchChanged.dispose();
-    this._onCommitCreated.dispose();
     this._onHeadChanged.dispose();
   }
 
@@ -339,30 +325,6 @@ export class DiskGitProvider implements GitProvider {
     ]);
 
     return this.parseStatus(statusResult, branchSummary.current);
-  }
-
-  /**
-   * Get status for a specific file.
-   */
-  async getFileStatus(filePath: string): Promise<GitFileStatus | null> {
-    const status = await this.getStatus();
-    const relativePath = this.toRelativePath(filePath);
-
-    // Try exact match first
-    const exactMatch = status.files.get(relativePath);
-    if (exactMatch) {
-      return exactMatch;
-    }
-
-    // The filesystem is case-insensitive, so fall back to a case-insensitive lookup
-    const normalizedLookup = relativePath.toLowerCase();
-    for (const [key, value] of status.files) {
-      if (key.toLowerCase() === normalizedLookup) {
-        return value;
-      }
-    }
-
-    return null;
   }
 
   /**
@@ -430,70 +392,11 @@ export class DiskGitProvider implements GitProvider {
   }
 
   /**
-   * Get diff for a specific file.
-   */
-  async getFileDiff(filePath: string, staged = false): Promise<string> {
-    const relativePath = this.toRelativePath(filePath);
-
-    if (staged) {
-      return this.git.diff(["--cached", "--", relativePath]);
-    }
-    return this.git.diff(["--", relativePath]);
-  }
-
-  /**
    * Get file content at a specific ref.
    */
   async getFileAtRef(filePath: string, ref: string): Promise<string> {
     const relativePath = this.toRelativePath(filePath);
     return this.git.show([`${ref}:${relativePath}`]);
-  }
-
-  /**
-   * Check if there are uncommitted changes.
-   */
-  async hasUncommittedChanges(): Promise<boolean> {
-    const status = await this.git.status();
-    return !status.isClean();
-  }
-
-  /**
-   * Check if there are commits not pushed to upstream.
-   */
-  async hasUnpushedCommits(): Promise<boolean> {
-    const status = await this.git.status();
-    return status.ahead > 0;
-  }
-
-  /**
-   * Get files changed between current HEAD and a base branch.
-   *
-   * Returns files that have been added, modified, or deleted
-   * in the current branch compared to the base branch.
-   */
-  async getChangedFilesFromBranch(baseBranch: string): Promise<string[]> {
-    try {
-      // Get the merge base between current HEAD and base branch
-      const mergeBase = await this.git.raw(["merge-base", "HEAD", baseBranch]);
-
-      // Get files changed since the merge base
-      const result = await this.git.diff([
-        "--name-only",
-        mergeBase.trim(),
-        "HEAD",
-      ]);
-
-      return result
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-    } catch (error) {
-      console.error(
-        "[DiskGitProvider] Failed to get files changed since branch:",
-        error,
-      );
-      return [];
-    }
   }
 
   /**
@@ -749,48 +652,6 @@ export class DiskGitProvider implements GitProvider {
         error,
       );
       return null;
-    }
-  }
-
-  /**
-   * Get all dirty files with their modification timestamps.
-   *
-   * Returns files sorted by modification time (most recent first).
-   */
-  async getDirtyFilesWithTimes(): Promise<FileWithTime[]> {
-    try {
-      const status = await this.git.status();
-
-      if (status.files.length === 0) {
-        return [];
-      }
-
-      // Get all dirty file paths with their modification times
-      const filesWithTimes: FileWithTime[] = [];
-
-      for (const file of status.files) {
-        const absolutePath = path.join(this.gitRoot, file.path);
-        try {
-          const stats = await fsPromises.stat(absolutePath);
-          filesWithTimes.push({
-            path: file.path,
-            mtime: stats.mtimeMs,
-          });
-        } catch {
-          // File might not exist (deleted) - skip it
-        }
-      }
-
-      // Sort by mtime descending (most recent first)
-      filesWithTimes.sort((a, b) => b.mtime - a.mtime);
-
-      return filesWithTimes;
-    } catch (error) {
-      console.error(
-        "[DiskGitProvider] Failed to get dirty files with times:",
-        error,
-      );
-      return [];
     }
   }
 
@@ -1123,23 +984,6 @@ export class DiskGitProvider implements GitProvider {
     } catch (error) {
       console.error("[DiskGitProvider] Failed to get commit files:", error);
       return [];
-    }
-  }
-
-  /**
-   * Get file content at a specific commit.
-   */
-  async getFileAtCommit(
-    commitId: string,
-    filePath: string,
-  ): Promise<string | null> {
-    try {
-      const relativePath = this.toRelativePath(filePath);
-      const result = await this.git.show([`${commitId}:${relativePath}`]);
-      return result;
-    } catch {
-      // File might not exist at this commit
-      return null;
     }
   }
 
@@ -1558,9 +1402,6 @@ export class DiskGitProvider implements GitProvider {
         parents: latestCommit.refs ? latestCommit.refs.split(", ") : [],
       };
 
-      // Fire commit created event
-      this._onCommitCreated.fire({ commit });
-
       return commit;
     });
   }
@@ -1721,28 +1562,6 @@ export class DiskGitProvider implements GitProvider {
         await this.git.pull();
       }
     });
-  }
-
-  /**
-   * Check if the current branch has an upstream (tracking) branch configured.
-   *
-   * @returns true if an upstream is configured, false otherwise
-   */
-  async hasUpstream(): Promise<boolean> {
-    try {
-      // Use rev-parse to check for upstream ref
-      // This will fail if no upstream is set
-      const result = await this.git.raw([
-        "rev-parse",
-        "--abbrev-ref",
-        "--symbolic-full-name",
-        "@{u}",
-      ]);
-      return result.trim().length > 0;
-    } catch {
-      // Command fails if no upstream is set
-      return false;
-    }
   }
 
   // -------------------------------------------------------------------------
