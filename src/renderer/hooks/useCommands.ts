@@ -1,8 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useSelector } from "@tanstack/react-store";
 import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
-import type { ContextValues } from "@/commands/contextKeys/types";
 import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
 import { keybindingsAtom } from "@/store/atoms";
 import type { Command } from "@/types";
@@ -36,29 +35,27 @@ export function useCommands(
   commandRegistry: CommandRegistry | undefined,
   contextKeyService: ContextKeyService | undefined,
 ): Command[] {
-  // Context values as of the last change. Until one fires, the memo below
-  // reads them from the service.
-  const [changedContext, setChangedContext] = useState<ContextValues>();
-
-  useEffect(() => {
-    if (!contextKeyService) return;
-
-    return contextKeyService.onDidChangeContext(() => {
-      setChangedContext(contextKeyService.getAll());
-    });
-  }, [contextKeyService]);
+  // Also catches a change made between rendering and subscribing, like the
+  // app's first context update
+  const subscribe = useCallback(
+    (onChange: () => void) =>
+      contextKeyService?.onDidChangeContext(onChange) ?? (() => {}),
+    [contextKeyService],
+  );
+  const contextValues = useSyncExternalStore(subscribe, () =>
+    contextKeyService?.getAll(),
+  );
 
   // Track keybinding changes via atom (already reactive)
   const keybindingsMap = useSelector(keybindingsAtom);
 
   return useMemo(() => {
     // Return empty array if registries not ready
-    if (!commandRegistry || !contextKeyService) {
+    if (!commandRegistry || !contextValues) {
       return [];
     }
 
     const allCommands = commandRegistry.getAllCommands();
-    const contextValues = changedContext ?? contextKeyService.getAll();
 
     // Filter by when clause
     const availableCommands = allCommands.filter((cmd) => {
@@ -93,5 +90,5 @@ export function useCommands(
         },
       };
     });
-  }, [commandRegistry, contextKeyService, changedContext, keybindingsMap]);
+  }, [commandRegistry, contextValues, keybindingsMap]);
 }

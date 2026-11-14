@@ -13,14 +13,16 @@ export class ContextKeyService {
     if (this.values[key] === value) {
       return;
     }
-    this.values[key] = value;
+    // Replaced rather than changed, so values getAll returned stay as they were
+    this.values = { ...this.values, [key]: value };
     for (const listener of this.listeners) {
       listener(key, value);
     }
   }
 
-  getAll(): ContextValues {
-    return { ...this.values };
+  /** The current values, which are the same object until one changes */
+  getAll(): Readonly<ContextValues> {
+    return this.values;
   }
 
   onDidChangeContext(listener: ContextChangeListener): () => void {

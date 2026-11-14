@@ -27,6 +27,9 @@ describe("editor pane", () => {
       files: {
         // The app's own commits need an identity, which CI runners lack.
         ".gitconfig": "[user]\n\tname = E2E\n\temail = e2e@example.com\n",
+        // Reading this delays the commands until after the first tab opens,
+        // which once left the palette without the pane commands used below.
+        ".conduit/keybindings.json": "[]",
         "proj/README.md": "# Readme\n",
         "proj/src/a.ts": "export const a = 1;\n",
         "proj/src/b.ts": "export const b = 1;\n",

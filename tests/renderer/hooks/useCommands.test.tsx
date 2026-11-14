@@ -10,6 +10,7 @@ import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsA
 import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
 import { useCommands } from "@/hooks/useCommands";
 import { act, renderHook } from "@testing-library/react";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commandContext } from "../commands/fixtures";
 
@@ -220,6 +221,26 @@ describe("useCommands", () => {
       expect(
         result.current.find((cmd) => cmd.id === "test.dynamic"),
       ).toBeDefined();
+    });
+
+    it("shows a context change made before it starts listening, as the app's first one is", () => {
+      const paneOpen = new ContextKey<boolean>("paneOpen", false);
+      commandRegistry.registerCommand({
+        id: "test.paneCommand",
+        title: "Pane Command",
+        when: paneOpen.isTrue(),
+        run: vi.fn(),
+      });
+
+      const { result } = renderHook(() => {
+        // The app sets its context in an effect that runs before this one's
+        useEffect(() => {
+          contextKeyService.setGlobal(paneOpen.key, true);
+        }, []);
+        return useCommands(commandRegistry, contextKeyService);
+      });
+
+      expect(result.current.map(({ id }) => id)).toContain("test.paneCommand");
     });
   });
 
