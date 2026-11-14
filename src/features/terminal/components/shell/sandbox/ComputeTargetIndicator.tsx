@@ -21,16 +21,11 @@ export function ComputeTargetIndicator({
 }: ComputeTargetIndicatorProps) {
   const tabs = useSelector(tabsAtom);
 
-  // Memoize the current pane and tab lookup
-  const { currentPane, currentTab } = useMemo(() => {
-    for (const tab of tabs) {
-      const pane = tab.panes[paneId];
-      if (pane) {
-        return { currentPane: pane, currentTab: tab };
-      }
-    }
-    return {};
-  }, [tabs, paneId]);
+  const currentTab = useMemo(
+    () => tabs.find((tab) => tab.panes[paneId]),
+    [tabs, paneId],
+  );
+  const currentPane = currentTab?.panes[paneId];
 
   // This component is specifically for terminal panes
   const terminalPane =

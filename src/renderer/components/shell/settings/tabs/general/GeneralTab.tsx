@@ -134,8 +134,8 @@ export function GeneralTab({
                   });
                 }}
                 onReset={() => {
-                  const { [key]: _, ...rest } =
-                    userSettings.themeOverrides ?? {};
+                  const rest = { ...userSettings.themeOverrides };
+                  delete rest[key];
                   onUpdateSettings({
                     themeOverrides:
                       Object.keys(rest).length > 0 ? rest : undefined,

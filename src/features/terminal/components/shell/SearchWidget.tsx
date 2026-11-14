@@ -61,7 +61,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
   const searchAddon = terminal?.search ?? null;
   const xterm = terminal?.terminal ?? null;
   const hasSearchTerm = searchTerm.trim().length > 0;
-  const searchDecorations = useMemo(buildSearchDecorations, []);
+  const searchDecorations = useMemo(() => buildSearchDecorations(), []);
 
   const buildSearchOptions = useCallback(
     (
@@ -173,7 +173,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
         }),
       );
     },
-    [buildSearchOptions, clearSearchArtifacts, searchAddon],
+    [buildSearchOptions, clearSearchArtifacts, searchAddon, xterm],
   );
 
   const show = useCallback(
@@ -265,7 +265,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
     return searchResults.index >= 0
       ? `${searchResults.index + 1} of ${searchResults.count}`
       : `${searchResults.count} results`;
-  }, [hasSearchTerm, searchResults.count, searchResults.index]);
+  }, [searchResults.count, searchResults.index]);
 
   const searchStatusClass = useMemo(() => {
     if (searchResults.count < 0) {
