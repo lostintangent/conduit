@@ -55,6 +55,7 @@ describe("feature discovery", () => {
       "settings",
       "terminal",
       "updates",
+      "workbench",
       "workspaces",
     ]);
     expect(manifest.agents).toContain("spawnSession");

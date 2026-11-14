@@ -15,13 +15,9 @@ import { render } from "../../../../../tests/renderer/queryRender";
 // ============================================================================
 
 // Mock window.conduit for context menu
-const mockOnContextMenuCommand = vi.fn(() => () => {});
-const mockShowContextMenu = vi.fn();
-
 // @ts-ignore
 globalThis.window.conduit = {
-  onContextMenuCommand: mockOnContextMenuCommand,
-  showContextMenu: mockShowContextMenu,
+  workbench: { on: vi.fn(() => () => {}), showContextMenu: vi.fn() },
 };
 
 // Mock the command system

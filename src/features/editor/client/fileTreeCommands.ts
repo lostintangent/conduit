@@ -435,7 +435,7 @@ export const fileTreeCommands = [
     run: () => {
       const path = getTargetPath();
       if (path) {
-        window.conduit.writeClipboard(path);
+        window.conduit.workbench.writeClipboard(path);
       }
     },
   },
@@ -459,7 +459,7 @@ export const fileTreeCommands = [
       const cwd = getCwd();
       if (path) {
         const relativePath = getRelativePath(path, cwd);
-        window.conduit.writeClipboard(relativePath);
+        window.conduit.workbench.writeClipboard(relativePath);
       }
     },
   },
@@ -480,7 +480,7 @@ export const fileTreeCommands = [
     run: async () => {
       const path = getTargetPath() || getCwd();
       if (path) {
-        await window.conduit.showItemInFolder(path);
+        await window.conduit.workbench.showItemInFolder(path);
       }
     },
   },

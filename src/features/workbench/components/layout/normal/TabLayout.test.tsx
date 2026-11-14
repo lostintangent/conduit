@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const openExternal = vi.hoisted(() => {
   const openExternal = vi.fn();
-  (window as any).conduit = { openExternal };
+  (window as any).conduit = { workbench: { openExternal } };
   return openExternal;
 });
 

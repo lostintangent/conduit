@@ -1,11 +1,11 @@
-import { Menu } from "electron";
+import { BrowserWindow, Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ContextMenuItemData } from "@shared/commands";
 import { showContextMenu } from "../../../src/main/ui/contextMenu";
 
 // Mock Electron modules
 vi.mock("electron", () => ({
-  BrowserWindow: vi.fn(),
+  BrowserWindow: { getAllWindows: vi.fn() },
   Menu: {
     buildFromTemplate: vi.fn(),
   },
@@ -33,6 +33,8 @@ describe("contextMenu - Submenus", () => {
         send: mockSend,
       },
     };
+    // Context menu commands go to every window
+    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
   });
 
   describe("hierarchical groups", () => {
@@ -323,7 +325,7 @@ describe("contextMenu - Submenus", () => {
       // Simulate clicking submenu item
       clickHandler();
 
-      expect(mockSend).toHaveBeenCalledWith("ui:context-menu-command", {
+      expect(mockSend).toHaveBeenCalledWith("workbench:contextMenuCommand", {
         commandId: "tab.duplicateWithCwd",
         tabId: "tab-1",
         paneId: "pane-1",
@@ -358,7 +360,7 @@ describe("contextMenu - Submenus", () => {
       // Click first submenu item
       submenu[0].click();
       expect(mockSend).toHaveBeenCalledWith(
-        "ui:context-menu-command",
+        "workbench:contextMenuCommand",
         expect.objectContaining({
           commandId: "command.first",
         }),
@@ -367,7 +369,7 @@ describe("contextMenu - Submenus", () => {
       // Click second submenu item
       submenu[1].click();
       expect(mockSend).toHaveBeenCalledWith(
-        "ui:context-menu-command",
+        "workbench:contextMenuCommand",
         expect.objectContaining({
           commandId: "command.second",
         }),

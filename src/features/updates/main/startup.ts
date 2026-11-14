@@ -1,6 +1,6 @@
 import { app, autoUpdater } from "electron";
 import { emitter } from "../../../main/events";
-import { refreshApplicationMenu } from "../../../main/ui";
+import { refreshApplicationMenu } from "../../../main/ui/applicationMenu";
 import type { UpdateState } from "../model";
 
 const CHECK_INTERVAL_MS = 2 * 60 * 60 * 1000; // 2 hours

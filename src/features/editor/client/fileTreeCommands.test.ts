@@ -17,7 +17,7 @@ describe("Copy Relative Path", () => {
 
   beforeEach(() => {
     writeClipboard.mockClear();
-    Object.assign(window, { conduit: { writeClipboard } });
+    Object.assign(window, { conduit: { workbench: { writeClipboard } } });
 
     copyRelativePath = fileTreeCommands.find(
       (command) => command.id === FileTreeCommands.COPY_RELATIVE_PATH,

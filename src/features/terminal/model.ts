@@ -14,7 +14,7 @@ export type TerminalCreateOptions = {
 export type BackgroundCommandRequest = {
   command: string;
   args?: string[];
-  cwd?: string | null;
+  cwd?: string;
 };
 
 /* Terminal Prompt Mode types */

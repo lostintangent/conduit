@@ -110,7 +110,9 @@ export function BrowserMenu({
           <Copy size={12} />
           Copy URL
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => api.openExternal(currentPage.url)}>
+        <DropdownMenuItem
+          onClick={() => api.workbench.openExternal(currentPage.url)}
+        >
           <ExternalLink size={12} />
           Open in browser
         </DropdownMenuItem>

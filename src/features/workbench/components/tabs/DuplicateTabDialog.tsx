@@ -41,7 +41,7 @@ export function DuplicateTabDialog({
   };
 
   const handleFolderPicker = async () => {
-    const selectedPath = await api.showFolderPicker(cwd || undefined);
+    const selectedPath = await api.workbench.showFolderPicker(cwd || undefined);
     if (selectedPath) {
       setCwd(selectedPath);
     }

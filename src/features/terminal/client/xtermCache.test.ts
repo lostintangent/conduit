@@ -9,7 +9,7 @@ const api = vi.hoisted(() => {
       resize: vi.fn(),
       setVisible: vi.fn(),
     },
-    openExternal: vi.fn(),
+    workbench: { openExternal: vi.fn() },
   };
   Object.assign(window, { conduit: api });
   return api;

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit
 const mockApi = {
-  runBackgroundCommand: vi.fn(),
+  terminal: { runBackgroundCommand: vi.fn() },
 };
 
 global.window = {
@@ -34,7 +34,7 @@ describe("terminalHandlers", () => {
 
       await handleOpenInVSCode(mockActiveTab);
 
-      expect(mockApi.runBackgroundCommand).toHaveBeenCalledWith({
+      expect(mockApi.terminal.runBackgroundCommand).toHaveBeenCalledWith({
         command: "code-insiders",
         args: ["/home/user/project"],
         cwd: "/home/user/project",
@@ -63,7 +63,7 @@ describe("terminalHandlers", () => {
 
         await handleOpenInVSCode(mockActiveTab);
 
-        expect(mockApi.runBackgroundCommand).toHaveBeenCalledWith({
+        expect(mockApi.terminal.runBackgroundCommand).toHaveBeenCalledWith({
           command: "code-insiders",
           args: [path],
           cwd: path,
@@ -85,7 +85,7 @@ describe("terminalHandlers", () => {
 
       await handleOpenInVSCode(mockActiveTab);
 
-      expect(mockApi.runBackgroundCommand).not.toHaveBeenCalled();
+      expect(mockApi.terminal.runBackgroundCommand).not.toHaveBeenCalled();
     });
 
     it("should not call runBackgroundCommand when cwd is missing", async () => {
@@ -102,13 +102,13 @@ describe("terminalHandlers", () => {
 
       await handleOpenInVSCode(mockActiveTab);
 
-      expect(mockApi.runBackgroundCommand).not.toHaveBeenCalled();
+      expect(mockApi.terminal.runBackgroundCommand).not.toHaveBeenCalled();
     });
 
     it("should not call runBackgroundCommand when activeTab is null", async () => {
       await handleOpenInVSCode(null);
 
-      expect(mockApi.runBackgroundCommand).not.toHaveBeenCalled();
+      expect(mockApi.terminal.runBackgroundCommand).not.toHaveBeenCalled();
     });
 
     it("should not call runBackgroundCommand when activePane is missing", async () => {
@@ -120,12 +120,12 @@ describe("terminalHandlers", () => {
 
       await handleOpenInVSCode(mockActiveTab);
 
-      expect(mockApi.runBackgroundCommand).not.toHaveBeenCalled();
+      expect(mockApi.terminal.runBackgroundCommand).not.toHaveBeenCalled();
     });
 
     it("should propagate errors from runBackgroundCommand", async () => {
       const error = new Error("VS Code not found");
-      mockApi.runBackgroundCommand.mockRejectedValue(error);
+      mockApi.terminal.runBackgroundCommand.mockRejectedValue(error);
 
       const mockActiveTab = {
         id: "tab-123",

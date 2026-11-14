@@ -232,7 +232,7 @@ export function getOrCreate(
         handler(uri);
         return;
       }
-      api.openExternal(uri);
+      api.workbench.openExternal(uri);
     });
 
     terminal.loadAddon(fit);

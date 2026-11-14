@@ -1,4 +1,5 @@
-import type { TerminalCreateOptions } from "../model";
+import { spawn } from "node:child_process";
+import type { BackgroundCommandRequest, TerminalCreateOptions } from "../model";
 import { captureTerminalCommand } from "./command";
 import { promptTerminal } from "./prompt";
 import { getTerminal } from "./store";
@@ -36,6 +37,22 @@ const service = {
   },
 
   prompt: promptTerminal,
+
+  /** Starts a detached process, like an editor, that outlives Conduit. */
+  runBackgroundCommand({ command, args = [], cwd }: BackgroundCommandRequest) {
+    return new Promise<void>((resolve, reject) => {
+      const child = spawn(command, args, {
+        cwd,
+        detached: true,
+        stdio: "ignore",
+      });
+      child.once("error", reject);
+      child.once("spawn", () => {
+        child.unref();
+        resolve();
+      });
+    });
+  },
 };
 
 export default service;

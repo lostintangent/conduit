@@ -256,7 +256,7 @@ export function useFileTreeChangesContextMenu({
           });
 
         // Show native context menu
-        window.conduit.showContextMenu({
+        window.conduit.workbench.showContextMenu({
           tabId: "fileTreeChanges",
           menuItems: visibleItems,
         });
@@ -269,7 +269,8 @@ export function useFileTreeChangesContextMenu({
 
   // Listen for context menu command events
   useEffect(() => {
-    const unsubscribe = window.conduit.onContextMenuCommand((payload) => {
+    const { workbench } = window.conduit;
+    const unsubscribe = workbench.on("contextMenuCommand", (payload) => {
       // Only handle commands for our menu
       if (payload.tabId !== "fileTreeChanges") return;
 

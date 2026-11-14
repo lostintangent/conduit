@@ -1,4 +1,4 @@
-import { Menu } from "electron";
+import { BrowserWindow, Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ContextMenuItemData } from "@shared/commands";
 import {
@@ -8,7 +8,7 @@ import {
 
 // Mock Electron modules
 vi.mock("electron", () => ({
-  BrowserWindow: vi.fn(),
+  BrowserWindow: { getAllWindows: vi.fn() },
   Menu: {
     buildFromTemplate: vi.fn(),
   },
@@ -37,6 +37,8 @@ describe("contextMenu", () => {
         send: mockSend,
       },
     };
+    // Context menu commands go to every window
+    vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
   });
 
   describe("showContextMenu", () => {
@@ -261,7 +263,7 @@ describe("contextMenu", () => {
       // Simulate clicking the menu item
       clickHandler();
 
-      expect(mockSend).toHaveBeenCalledWith("ui:context-menu-command", {
+      expect(mockSend).toHaveBeenCalledWith("workbench:contextMenuCommand", {
         commandId: "test.command",
         tabId: "tab-1",
         paneId: "pane-1",
@@ -289,7 +291,7 @@ describe("contextMenu", () => {
 
       clickHandler();
 
-      expect(mockSend).toHaveBeenCalledWith("ui:context-menu-command", {
+      expect(mockSend).toHaveBeenCalledWith("workbench:contextMenuCommand", {
         commandId: "test.command",
         tabId: "tab-1",
         menuItems,
@@ -436,7 +438,7 @@ describe("contextMenu", () => {
 
       // Click first item
       template[0].click();
-      expect(mockSend).toHaveBeenCalledWith("ui:context-menu-command", {
+      expect(mockSend).toHaveBeenCalledWith("workbench:contextMenuCommand", {
         commandId: "command.first",
         tabId: "tab-1",
         menuItems,
@@ -444,7 +446,7 @@ describe("contextMenu", () => {
 
       // Click second item
       template[1].click();
-      expect(mockSend).toHaveBeenCalledWith("ui:context-menu-command", {
+      expect(mockSend).toHaveBeenCalledWith("workbench:contextMenuCommand", {
         commandId: "command.second",
         tabId: "tab-1",
         menuItems,

@@ -44,7 +44,7 @@ export default function TerminalLayoutPane({
             },
           });
         } else if (terminalLinkTarget === "default") {
-          window.conduit.openExternal(url);
+          window.conduit.workbench.openExternal(url);
         } else {
           openBrowserPane(tab.id, pane.id, url);
         }

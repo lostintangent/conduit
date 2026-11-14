@@ -18,8 +18,7 @@ import type { GitFileStatus } from "@features/git/model";
 // The context menu hook subscribes to its commands on mount
 Object.assign(window, {
   conduit: {
-    onContextMenuCommand: vi.fn(() => () => {}),
-    showContextMenu: vi.fn(),
+    workbench: { on: vi.fn(() => () => {}), showContextMenu: vi.fn() },
   },
 });
 

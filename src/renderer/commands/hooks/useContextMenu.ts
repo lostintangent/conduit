@@ -141,7 +141,7 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
         },
       );
 
-      api.showContextMenu({
+      api.workbench.showContextMenu({
         tabId,
         paneId,
         menuItems: menuItemsWithKeybindings,
@@ -151,7 +151,8 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
   );
 
   useEffect(() => {
-    const unsubscribeContextMenu = api.onContextMenuCommand(
+    const unsubscribeContextMenu = api.workbench.on(
+      "contextMenuCommand",
       ({ commandId, tabId, paneId }) => {
         const tab = tabsAtom.get().find((t) => t.id === tabId);
         if (!tab) {

@@ -12,8 +12,7 @@ const {
   mockKeybindingRegistry,
 } = vi.hoisted(() => {
   const api = {
-    showContextMenu: vi.fn(),
-    onContextMenuCommand: vi.fn(() => vi.fn()),
+    workbench: { showContextMenu: vi.fn(), on: vi.fn(() => vi.fn()) },
     git: { findRoot: vi.fn() },
   };
 
@@ -198,10 +197,10 @@ describe("useContextMenu", () => {
       await result.current(mockEvent, "tab-1");
 
       await waitFor(() => {
-        expect(mockApi.showContextMenu).toHaveBeenCalled();
+        expect(mockApi.workbench.showContextMenu).toHaveBeenCalled();
       });
 
-      const callArgs = mockApi.showContextMenu.mock.calls[0][0];
+      const callArgs = mockApi.workbench.showContextMenu.mock.calls[0][0];
       const menuItems = callArgs.menuItems;
 
       // Should only include visible items
@@ -245,10 +244,10 @@ describe("useContextMenu", () => {
       await result.current(mockEvent, "tab-1");
 
       await waitFor(() => {
-        expect(mockApi.showContextMenu).toHaveBeenCalled();
+        expect(mockApi.workbench.showContextMenu).toHaveBeenCalled();
       });
 
-      const callArgs = mockApi.showContextMenu.mock.calls[0][0];
+      const callArgs = mockApi.workbench.showContextMenu.mock.calls[0][0];
       const menuItems = callArgs.menuItems;
 
       // Should not include rename tab
@@ -285,10 +284,10 @@ describe("useContextMenu", () => {
       await result.current(mockEvent, "tab-1");
 
       await waitFor(() => {
-        expect(mockApi.showContextMenu).toHaveBeenCalled();
+        expect(mockApi.workbench.showContextMenu).toHaveBeenCalled();
       });
 
-      const callArgs = mockApi.showContextMenu.mock.calls[0][0];
+      const callArgs = mockApi.workbench.showContextMenu.mock.calls[0][0];
       const menuItems = callArgs.menuItems;
 
       // Should include rename tab
@@ -328,7 +327,7 @@ describe("useContextMenu", () => {
       await result.current(mockEvent, "tab-1");
 
       await waitFor(() => {
-        expect(mockApi.showContextMenu).toHaveBeenCalled();
+        expect(mockApi.workbench.showContextMenu).toHaveBeenCalled();
       });
 
       expect(
@@ -350,7 +349,7 @@ describe("useContextMenu", () => {
 
       await result.current(mockEvent, "tab-999");
 
-      expect(mockApi.showContextMenu).not.toHaveBeenCalled();
+      expect(mockApi.workbench.showContextMenu).not.toHaveBeenCalled();
     });
 
     it("should pass correct params to context builder", async () => {

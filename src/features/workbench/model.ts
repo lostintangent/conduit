@@ -5,6 +5,7 @@ import type {
   TerminalPane as SharedTerminalPane,
   TabMetadata,
 } from "@shared/types/panes";
+import type { ContextMenuOptions } from "@shared/commands";
 
 /* Layout types */
 
@@ -116,3 +117,16 @@ export type Notification = {
   actions?: NotificationAction[];
   createdAt: number;
 };
+
+declare module "@shared/rpc" {
+  interface Events {
+    workbench: {
+      /** File > New Tab. */
+      newTabRequested: void;
+      /** The item clicked in a menu from `showContextMenu`. */
+      contextMenuCommand: ContextMenuOptions & { commandId: string };
+      /** The window is closing and gives the page a second to save. */
+      beforeClose: void;
+    };
+  }
+}

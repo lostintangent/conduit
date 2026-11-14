@@ -7,7 +7,7 @@ import { releaseGitSubscriptions } from "@features/git/main/service";
 import { closeTerminals } from "@features/terminal/main/startup";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { startFeatures } from "./features";
-import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
+import { refreshApplicationMenu } from "./ui/applicationMenu";
 
 async function ensureConduitDirectory() {
   await fs.mkdir(path.join(app.getPath("home"), ".conduit"), {
@@ -25,13 +25,11 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   };
 
   await ensureConduitDirectory();
-  await initializeApplicationMenu(window);
+  await refreshApplicationMenu();
 
   stopFeatures = await startFeatures();
 
   await initializeCliHandlers(sendToRenderer);
-
-  initializeUIHandlers(window);
 
   const releaseSubscriptions = () => {
     releaseFileSubscriptions();

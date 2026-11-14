@@ -17,8 +17,7 @@ const { getState, saveWorkspace } = vi.hoisted(() => {
       ) => Promise<WorkspaceState>
     >();
   (globalThis as any).window.conduit = {
-    workspaces: { getState, saveWorkspace },
-    onOpenWorkspaceRequest: () => () => {},
+    workspaces: { getState, saveWorkspace, on: () => () => {} },
   };
   return { getState, saveWorkspace };
 });

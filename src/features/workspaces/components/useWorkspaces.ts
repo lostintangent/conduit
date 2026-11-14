@@ -39,7 +39,8 @@ export function useWorkspaces() {
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const unsubscribeOpenWorkspace = window.conduit.onOpenWorkspaceRequest(
+    const unsubscribeOpenWorkspace = window.conduit.workspaces.on(
+      "openRequested",
       (workspace) => openWorkspace(workspace),
     );
 

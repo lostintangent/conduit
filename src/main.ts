@@ -8,6 +8,7 @@ import {
   shutdownIpcHandlers,
 } from "./main/index";
 import { reloadAfterCrashes } from "./main/crashRecovery";
+import { emitter } from "./main/events";
 import { closeContextMenu } from "./main/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
@@ -93,9 +94,7 @@ async function createWindow() {
 
     // Notify the renderer to save state, and give
     // it 1s to do so before forcing the close.
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("app:before-close");
-    }
+    emitter("workbench")("beforeClose", undefined);
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.destroy();

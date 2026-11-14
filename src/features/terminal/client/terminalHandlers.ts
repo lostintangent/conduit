@@ -16,7 +16,7 @@ export async function handleOpenInVSCode(activeTab: any): Promise<void> {
       : undefined;
 
   if (activePane?.type === "terminal" && activePane.cwd) {
-    await window.conduit.runBackgroundCommand({
+    await window.conduit.terminal.runBackgroundCommand({
       command: "code-insiders",
       args: [activePane.cwd],
       cwd: activePane.cwd,

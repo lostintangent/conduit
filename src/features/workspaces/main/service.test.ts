@@ -16,7 +16,9 @@ vi.mock("electron", () => ({
     showOpenDialog: (options: OpenDialogOptions) => showOpenDialog(options),
   },
 }));
-vi.mock("../../../main/ui", () => ({ refreshApplicationMenu: async () => {} }));
+vi.mock("../../../main/ui/applicationMenu", () => ({
+  refreshApplicationMenu: async () => {},
+}));
 
 import type { Tab } from "@features/workbench/model";
 import { removeTerminal, storeTerminal } from "@features/terminal/main/store";

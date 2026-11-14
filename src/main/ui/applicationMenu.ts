@@ -1,8 +1,9 @@
-import { BrowserWindow, Menu, app, autoUpdater } from "electron";
+import { Menu, app, autoUpdater } from "electron";
 import type { Workspace } from "@features/workspaces/model";
 import { getUpdateStatus } from "@features/updates/main/startup";
 import type { UpdateStatus } from "@features/updates/model";
 import { getWorkspaces } from "@features/workspaces/main/service";
+import { emitter } from "../events";
 
 function getUpdateMenuLabel(status: UpdateStatus) {
   switch (status) {
@@ -37,7 +38,8 @@ function buildCheckForUpdatesMenuItem(): Electron.MenuItemConstructorOptions {
   };
 }
 
-export async function updateApplicationMenu(window: BrowserWindow) {
+/** Rebuilds the menu, which lists saved workspaces and the update status. */
+export async function refreshApplicationMenu() {
   const workspaces = await getWorkspaces();
   const updateMenuItem = buildCheckForUpdatesMenuItem();
 
@@ -63,11 +65,7 @@ export async function updateApplicationMenu(window: BrowserWindow) {
         {
           label: "New Tab",
           accelerator: "Cmd+T",
-          click: () => {
-            if (!window.isDestroyed()) {
-              window.webContents.send("ui:new-tab-request");
-            }
-          },
+          click: () => emitter("workbench")("newTabRequested", undefined),
         },
         ...(workspaces.length > 0
           ? [
@@ -76,14 +74,8 @@ export async function updateApplicationMenu(window: BrowserWindow) {
                 label: "Open Workspace...",
                 submenu: workspaces.map((workspace: Workspace) => ({
                   label: workspace.name,
-                  click: () => {
-                    if (!window.isDestroyed()) {
-                      window.webContents.send(
-                        "ui:open-workspace-request",
-                        workspace,
-                      );
-                    }
-                  },
+                  click: () =>
+                    emitter("workspaces")("openRequested", workspace),
                 })),
               },
             ]

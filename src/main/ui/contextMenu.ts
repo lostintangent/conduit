@@ -1,5 +1,8 @@
 import type { ContextMenuItemData, ContextMenuOptions } from "@shared/commands";
 import { BrowserWindow, Menu, type MenuItemConstructorOptions } from "electron";
+import { emitter } from "../events";
+
+const emit = emitter("workbench");
 
 /**
  * Parse a group string into parent group and submenu segment
@@ -87,10 +90,7 @@ export function showContextMenu(
   }
 
   const sendCommandToRenderer = (commandId: string) => {
-    window.webContents.send(`ui:context-menu-command`, {
-      commandId,
-      ...options,
-    });
+    emit("contextMenuCommand", { commandId, ...options });
   };
 
   // Group items into top-level and submenus

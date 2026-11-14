@@ -268,7 +268,7 @@ export function useFileTreeContextMenu({
 
         // Show native context menu
         // We use a unique tabId to identify our menu in the callback
-        window.conduit.showContextMenu({
+        window.conduit.workbench.showContextMenu({
           tabId: "fileTree",
           menuItems: visibleItems,
         });
@@ -281,7 +281,8 @@ export function useFileTreeContextMenu({
 
   // Listen for context menu command events
   useEffect(() => {
-    const unsubscribe = window.conduit.onContextMenuCommand((payload) => {
+    const { workbench } = window.conduit;
+    const unsubscribe = workbench.on("contextMenuCommand", (payload) => {
       // Only handle commands for our menu
       if (payload.tabId !== "fileTree") return;
 

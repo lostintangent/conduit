@@ -791,7 +791,7 @@ export function registerTabEventHandlers() {
     }
   });
 
-  const unsubscribeNewTab = api.onNewTabRequest(() => {
+  const unsubscribeNewTab = api.workbench.on("newTabRequested", () => {
     void openTab();
   });
 

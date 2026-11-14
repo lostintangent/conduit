@@ -9,7 +9,7 @@ const { mockApi } = vi.hoisted(() => {
       input: vi.fn(),
       on: vi.fn(),
     },
-    onNewTabRequest: vi.fn(),
+    workbench: { on: vi.fn() },
   };
 
   // Set up window.conduit in hoisted scope
@@ -1000,7 +1000,7 @@ describe("a tab whose terminal hasn't shown yet", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mockApi.terminal.on.mockReturnValue(() => {});
-    mockApi.onNewTabRequest.mockReturnValue(() => {});
+    mockApi.workbench.on.mockReturnValue(() => {});
     tabsAtom.set([
       terminalTab("hidden-tab", "session-1"),
       terminalTab("shown-tab", "session-2"),
@@ -1097,7 +1097,7 @@ describe("a tab with a collapsed pane", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mockApi.terminal.on.mockReturnValue(() => {});
-    mockApi.onNewTabRequest.mockReturnValue(() => {});
+    mockApi.workbench.on.mockReturnValue(() => {});
     unregister = registerTabEventHandlers();
     tabsAtom.set([splitTab(), shownTab]);
     activeTabIdAtom.set("shown-tab");

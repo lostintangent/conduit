@@ -298,7 +298,7 @@ export function App() {
       handleHyperTerminalExit(sessionId);
     });
 
-    const unsubscribeBeforeClose = api.onBeforeClose(() => {
+    const unsubscribeBeforeClose = api.workbench.on("beforeClose", () => {
       // Save the current workspace state as "last workspace"
       const tabs = tabsAtom.get();
       if (tabs.length > 0) {

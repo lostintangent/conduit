@@ -22,3 +22,10 @@ export type WorkspaceState = {
   workspaces: Workspace[];
   lastWorkspace?: Workspace;
 };
+
+declare module "@shared/rpc" {
+  interface Events {
+    /** Picked from File > Open Workspace. */
+    workspaces: { openRequested: Workspace };
+  }
+}
