@@ -19,7 +19,10 @@ import {
   initializeGitV2Handlers,
 } from "./git/handlers";
 import { initializeUIHandlers, initializeUserSettings } from "./ui";
-import { cleanupUpdateHandlers, initializeUpdateHandlers } from "./updates";
+import {
+  cleanupUpdateHandlers,
+  initializeUpdateHandlers,
+} from "@features/updates/main";
 
 async function ensureConduitDirectory(): Promise<string> {
   const homeDir = app.getPath("home");

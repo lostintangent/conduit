@@ -28,7 +28,7 @@ import { TabStrip } from "@/components/shell/tabs/TabStrip";
 import { TitleBar } from "@/components/shell/title/TitleBar";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
 import { InputDialog } from "@/components/ui/input-dialog";
-import { useAutoUpdater } from "@/hooks/useAutoUpdater";
+import { useAutoUpdater } from "@features/updates/components/useAutoUpdater";
 import { useCommands } from "@/hooks/useCommands";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
