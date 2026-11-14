@@ -121,6 +121,12 @@ interface EditorPaneEntry {
    * Used to save/restore scroll positions during DOM moves.
    */
   scrollContainers: Map<string, ScrollContainerEntry>;
+
+  /**
+   * The element in this pane that last had focus. It lives here rather than
+   * in the anchor, which remounts on every tab switch.
+   */
+  lastFocused: HTMLElement | null;
 }
 
 /**
@@ -241,7 +247,7 @@ export class EditorPaneRegistry {
    * @returns The pane entry
    */
   getOrCreate(paneId: string, config: EditorPaneConfig): EditorPaneEntry {
-    let entry = this.panes.get(paneId);
+    const entry = this.panes.get(paneId);
 
     if (entry) {
       // Update config if changed
@@ -270,7 +276,7 @@ export class EditorPaneRegistry {
     this.getOffscreenContainer().appendChild(wrapperElement);
 
     // Create new entry
-    entry = {
+    const created: EditorPaneEntry = {
       paneId,
       config,
       wrapperElement,
@@ -278,12 +284,17 @@ export class EditorPaneRegistry {
       pendingContainer: null,
       isReady: false,
       scrollContainers: new Map(),
+      lastFocused: null,
     };
 
-    this.panes.set(paneId, entry);
+    wrapperElement.addEventListener("focusin", (event) => {
+      created.lastFocused = event.target as HTMLElement;
+    });
+
+    this.panes.set(paneId, created);
     this._onEvent.fire({ type: "paneAdded", paneId, config });
 
-    return entry;
+    return created;
   }
 
   /**

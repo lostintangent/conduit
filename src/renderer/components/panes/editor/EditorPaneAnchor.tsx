@@ -20,11 +20,23 @@
  * ```
  */
 
+import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import type { EditorPane } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import { useEffect, useRef } from "react";
 import type { FileChangeData } from "./EditorPaneV2";
 import { EditorPaneRegistry, type EditorPaneConfig } from "./registry";
+
+// Monaco's text input (the left side of a diff editor is read-only)
+const MONACO_INPUT_SELECTOR = [".native-edit-context", "textarea.inputarea"]
+  .map(
+    (input) => `.monaco-editor:not(.original-in-monaco-diff-editor) ${input}`,
+  )
+  .join(", ");
+
+// The file tree's roving tab stop
+const TREE_TAB_STOP_SELECTOR =
+  '[role="tree"][tabindex="0"], [role="treeitem"] > [tabindex="0"]';
 
 export interface EditorPaneAnchorProps {
   /**
@@ -98,6 +110,13 @@ export interface EditorPaneAnchorProps {
   isInPreview?: boolean;
 
   /**
+   * Whether this is the active pane of the active tab. When it becomes
+   * active, focus returns to where it last was in this editor.
+   * @default false
+   */
+  isActive?: boolean;
+
+  /**
    * Additional CSS class names for the anchor container.
    */
   className?: string;
@@ -122,10 +141,33 @@ export function EditorPaneAnchor({
   hideFileTree,
   onClose,
   isInPreview = false,
+  isActive = false,
   className,
 }: EditorPaneAnchorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const registry = EditorPaneRegistry.getInstance();
+
+  // Focus goes back to where it last was if that's still showing (a narrow
+  // pane shows the tree or the editor, not both), and otherwise to the editor.
+  // The tree is a last resort once the pane has settled, since a revealed tab
+  // can show only the tree for a few frames.
+  useFocusWhenActive(isActive, containerRef, (settled) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const lastFocused = registry.get(paneId)?.lastFocused;
+    const canReturn =
+      lastFocused &&
+      container.contains(lastFocused) &&
+      lastFocused.checkVisibility();
+    const target =
+      (canReturn ? lastFocused : null) ??
+      findVisible(container, MONACO_INPUT_SELECTOR) ??
+      (settled || !lastFocused
+        ? findVisible(container, TREE_TAB_STOP_SELECTOR)
+        : null);
+    target?.focus({ preventScroll: true });
+  });
 
   // Build config object for registry
   // Use refs to keep callbacks stable
@@ -254,4 +296,12 @@ export function EditorPaneAnchor({
 export function disposeEditorPane(paneId: string): void {
   const registry = EditorPaneRegistry.getInstance();
   registry.dispose(paneId);
+}
+
+function findVisible(container: HTMLElement, selector: string) {
+  return (
+    [...container.querySelectorAll<HTMLElement>(selector)].find((element) =>
+      element.checkVisibility(),
+    ) ?? null
+  );
 }

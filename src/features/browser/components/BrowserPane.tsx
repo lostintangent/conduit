@@ -1,3 +1,4 @@
+import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { activatePane } from "@/store/actions/pane";
 import { applicationModeAtom } from "@/store/atoms";
 import {
@@ -46,6 +47,8 @@ type BrowserPaneProps = {
 
   disableInteraction: boolean;
   isInPreview: boolean;
+  /** Whether this is the active pane of the active tab */
+  isActive?: boolean;
   devToolsFor?: string;
   chromeless?: boolean;
   isDevToolsOpen: boolean;
@@ -63,6 +66,7 @@ export function BrowserPane({
   onHover,
   disableInteraction = false,
   isInPreview = false,
+  isActive = false,
   devToolsFor,
   chromeless,
   isDevToolsOpen,
@@ -71,6 +75,7 @@ export function BrowserPane({
 }: BrowserPaneProps) {
   const applicationMode = useSelector(applicationModeAtom);
 
+  const paneRef = useRef<HTMLDivElement | null>(null);
   const webviewRef = useRef<WebviewTag | null>(null);
   const webviewAnchorRef = useRef<HTMLDivElement | null>(null);
 
@@ -446,8 +451,20 @@ export function BrowserPane({
     );
   }, [applicationMode]);
 
+  // Focus the pane rather than the page: keys typed in a webview never reach
+  // the app's keybindings, so focusing it would trap keyboard users. The
+  // webview lives on document.body, outside this pane's DOM.
+  useFocusWhenActive(isActive, paneRef, () => {
+    if (document.activeElement === webviewRef.current) return;
+    paneRef.current?.focus({ preventScroll: true });
+  });
+
   return (
-    <div className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background">
+    <div
+      ref={paneRef}
+      tabIndex={-1}
+      className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background outline-none"
+    >
       {!(chromeless || devToolsFor) && (
         <BrowserToolbar
           currentPage={{ url: currentUrl, title: pageTitle }}

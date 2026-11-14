@@ -1,3 +1,4 @@
+import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { useImageDrop } from "@/hooks/useImageDrop";
 import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
 import { resolveColor, watchAppTheme } from "@/utils/theme";
@@ -69,6 +70,8 @@ type CanvasPaneProps = {
   paneId: string;
   tabId?: string;
   onContextMenu: (coords: { clientX: number; clientY: number }) => void;
+  /** Whether this is the active pane of the active tab */
+  isActive?: boolean;
 };
 
 // =============================================================================
@@ -155,8 +158,10 @@ export const CanvasPane = memo(function CanvasPane({
   paneId,
   tabId: _tabId,
   onContextMenu,
+  isActive = false,
 }: CanvasPaneProps) {
   // Refs
+  const paneRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
@@ -1657,11 +1662,17 @@ export const CanvasPane = memo(function CanvasPane({
     [tool, selectedStyleInfo, restyleElements],
   );
 
+  // The root takes the canvas's keyboard shortcuts
+  useFocusWhenActive(isActive, paneRef, () =>
+    paneRef.current?.focus({ preventScroll: true }),
+  );
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
     <div
+      ref={paneRef}
       className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background outline-none"
       tabIndex={0}
       onKeyDown={handleKeyDown}

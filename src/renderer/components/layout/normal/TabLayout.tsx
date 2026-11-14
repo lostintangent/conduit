@@ -553,6 +553,7 @@ export function TabLayout({
                     }
                   }}
                   isInPreview={isInPreview}
+                  isActive={isActivePane}
                   onClose={() => closePane(tab.id, pane.id)}
                   className="h-full w-full"
                 />
@@ -569,6 +570,7 @@ export function TabLayout({
                   paneId={pane.id}
                   tabId={tab.id}
                   disableInteraction={resizingNode !== null}
+                  isActive={isActivePane}
                   onContextMenu={onBrowserContextMenu}
                   onUrlChange={(nextUrl) =>
                     handleBrowserUpdate(tab.id, pane.id, { url: nextUrl })
@@ -621,6 +623,7 @@ export function TabLayout({
                   pane={pane}
                   paneId={pane.id}
                   tabId={tab.id}
+                  isActive={isActivePane}
                   onContextMenu={onPaneContextMenu}
                 />
               </div>

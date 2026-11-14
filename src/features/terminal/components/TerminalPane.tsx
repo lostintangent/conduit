@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { useImageDrop } from "@/hooks/useImageDrop";
 import {
   createHyperTerminal,
@@ -168,6 +169,7 @@ export const TerminalPane = ({
 
   const toggleSyncCmd = useCommand(ApplicationCommands.TAB_TOGGLE_SYNCHRONIZE);
 
+  const paneRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<TerminalInstance | null>(null);
   const applicationModeRef = useRef<ApplicationMode>(applicationMode);
@@ -515,12 +517,9 @@ export const TerminalPane = ({
     };
   }, [handleSynchronizedInput, isTabSynchronized]);
 
-  // Focus the terminal when the pane becomes active
-  useEffect(() => {
-    if (!isActive) return;
-
-    focusTerminal();
-  }, [isActive]);
+  useFocusWhenActive(isActive, paneRef, () =>
+    terminalRef.current?.terminal.focus(),
+  );
 
   useEffect(() => {
     if (!isActive) {
@@ -550,6 +549,7 @@ export const TerminalPane = ({
 
   return (
     <div
+      ref={paneRef}
       className="group w-full h-full flex-1 min-w-0 min-h-0 overflow-hidden relative bg-background"
       onContextMenu={onContextMenu}
       onMouseDown={onActivate}
