@@ -290,8 +290,11 @@ describe("BranchSwitcher", () => {
       });
 
       const mainOption = screen.getByTestId("branch-option-main");
-      // Radix uses data-disabled="" for disabled items (attribute presence, not value)
-      expect(mainOption.hasAttribute("data-disabled")).toBe(true);
+      expect(mainOption.getAttribute("aria-disabled")).toBe("true");
+
+      fireEvent.click(mainOption);
+      expect(mockGit.checkout).not.toHaveBeenCalled();
+      expect(mockOnBranchSwitch).not.toHaveBeenCalled();
     });
   });
 
@@ -342,36 +345,6 @@ describe("BranchSwitcher", () => {
       });
 
       expect(screen.getByText("Create new branch...")).toBeDefined();
-    });
-
-    it("should show input when create branch option is clicked", async () => {
-      const mockGit = createMockGitAPI();
-
-      render(
-        <BranchSwitcher
-          git={mockGit}
-          currentBranch="main"
-          onBranchSwitch={mockOnBranchSwitch}
-        />,
-      );
-
-      const trigger = screen.getByTestId("branch-switcher-trigger");
-      await act(async () => {
-        fireEvent.pointerDown(trigger, { button: 0, pointerType: "mouse" });
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-option")).toBeDefined();
-      });
-
-      const createOption = screen.getByTestId("create-branch-option");
-      await act(async () => {
-        fireEvent.click(createOption);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("create-branch-input")).toBeDefined();
-      });
     });
 
     it("should create branch and switch when enter is pressed", async () => {

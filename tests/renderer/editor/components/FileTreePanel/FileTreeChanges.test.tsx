@@ -1,6 +1,12 @@
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 
 // ============================================================================
 // Mocks - MUST BE BEFORE COMPONENT IMPORT
@@ -173,29 +179,6 @@ describe("FileTreeChanges", () => {
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
     mockRevert.mockResolvedValue(undefined);
-  });
-
-  // ===========================================================================
-  // Initial Rendering
-  // ===========================================================================
-
-  describe("initial rendering", () => {
-    it("should render changes view", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-    });
   });
 
   // ===========================================================================
@@ -480,32 +463,6 @@ describe("FileTreeChanges", () => {
   // ===========================================================================
 
   describe("git actions - staging", () => {
-    it("should show stage button for unstaged files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Hover over an unstaged file to reveal action buttons
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-
-      // Stage button should be present (visible on hover)
-      const stageButton = unstagedItem.querySelector(
-        '[data-testid="stage-button"]',
-      );
-      expect(stageButton).toBeDefined();
-    });
-
     it("should call stage and mark the file seen when stage button is clicked", async () => {
       const markSeen = vi.fn();
       render(
@@ -576,30 +533,6 @@ describe("FileTreeChanges", () => {
   // ===========================================================================
 
   describe("git actions - unstaging", () => {
-    it("should show unstage button for staged files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Staged file should have unstage button
-      const stagedItem = screen.getByTestId("change-item-utils.ts");
-      const unstageButton = stagedItem.querySelector(
-        '[data-testid="unstage-button"]',
-      );
-      expect(unstageButton).toBeDefined();
-    });
-
     it("should call unstage and mark the file seen when unstage button is clicked", async () => {
       const markSeen = vi.fn();
       render(
@@ -638,29 +571,6 @@ describe("FileTreeChanges", () => {
   // ===========================================================================
 
   describe("git actions - revert", () => {
-    it("should show revert button for unstaged files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-      const revertButton = unstagedItem.querySelector(
-        '[data-testid="revert-button"]',
-      );
-      expect(revertButton).toBeDefined();
-    });
-
     it("should call revert when revert button is clicked", async () => {
       render(
         <FileTreeChanges
@@ -741,8 +651,9 @@ describe("FileTreeChanges", () => {
       const revertButton = untrackedItem.querySelector(
         '[data-testid="revert-button"]',
       );
-      // Untracked files should now show revert button (will delete the file)
-      expect(revertButton).toBeDefined();
+      // Reverting an untracked file deletes it
+      fireEvent.click(revertButton!);
+      expect(mockRevert).toHaveBeenCalledWith(["new-file.ts"]);
     });
   });
 
@@ -808,7 +719,7 @@ describe("FileTreeChanges", () => {
       });
 
       const deletedItem = screen.getByTestId("change-item-README.md");
-      expect(deletedItem.textContent).toContain("D");
+      expect(within(deletedItem).getByTitle(/^Deleted/)).toBeDefined();
     });
   });
 
@@ -847,8 +758,6 @@ describe("FileTreeChanges", () => {
       await waitFor(() => {
         expect(mockStage).toHaveBeenCalled();
       });
-
-      expect(true).toBe(true);
     });
 
     it("should handle unstage errors gracefully", async () => {
@@ -881,8 +790,6 @@ describe("FileTreeChanges", () => {
       await waitFor(() => {
         expect(mockUnstage).toHaveBeenCalled();
       });
-
-      expect(true).toBe(true);
     });
 
     it("should handle revert errors gracefully", async () => {
@@ -915,8 +822,6 @@ describe("FileTreeChanges", () => {
       await waitFor(() => {
         expect(mockRevert).toHaveBeenCalled();
       });
-
-      expect(true).toBe(true);
     });
   });
 
@@ -1269,11 +1174,12 @@ describe("FileTreeChanges", () => {
         expect(screen.getByTestId("file-tree-changes")).toBeDefined();
       });
 
-      // Should have staged section with the staged entry
-      expect(screen.getByTestId("section-staged-changes")).toBeDefined();
-
-      // Should have changes section with both unstaged entries
-      expect(screen.getByTestId("section-changes")).toBeDefined();
+      const staged = screen.getByTestId("section-staged-changes");
+      const changes = screen.getByTestId("section-changes");
+      expect(within(staged).getByText("partial.ts")).toBeDefined();
+      expect(within(changes).getByText("partial.ts")).toBeDefined();
+      expect(within(changes).getByText("other.ts")).toBeDefined();
+      expect(within(staged).queryByText("other.ts")).toBeNull();
     });
 
     it("should normalize selectedMapKey with suffix to match file without suffix", async () => {
@@ -1348,58 +1254,6 @@ describe("FileTreeChanges", () => {
   // ===========================================================================
 
   describe("stage all / unstage all", () => {
-    it("should show stage all button on Changes section", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_UNSTAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const changesSection = screen.getByTestId("section-changes");
-      const stageAllButton = changesSection.querySelector(
-        '[data-testid="stage-all-button"]',
-      );
-
-      expect(stageAllButton).toBeDefined();
-    });
-
-    it("should show unstage all button on Staged Changes section", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_STAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedSection = screen.getByTestId("section-staged-changes");
-      const unstageAllButton = stagedSection.querySelector(
-        '[data-testid="unstage-all-button"]',
-      );
-
-      expect(unstageAllButton).toBeDefined();
-    });
-
     it("should stage all unstaged files when stage all button is clicked", async () => {
       mockGetStatus.mockResolvedValue(MOCK_STATUS_UNSTAGED_ONLY);
 

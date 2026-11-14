@@ -157,7 +157,7 @@ describe("FileTreeNormal", () => {
         />,
       );
 
-      expect(screen.getByTestId("file-tree-loading")).toBeDefined();
+      expect(screen.getByText("Loading...")).toBeDefined();
     });
 
     it("should render root directory entries after loading", async () => {
@@ -206,6 +206,11 @@ describe("FileTreeNormal", () => {
 
   describe("directory sorting", () => {
     it("should show directories before files", async () => {
+      mockReadDirectory.mockResolvedValue([
+        { name: "a.txt", type: "file" },
+        { name: "src", type: "directory" },
+      ]);
+
       render(
         <FileTreeNormal
           paneId={TEST_PANE_ID}
@@ -221,9 +226,9 @@ describe("FileTreeNormal", () => {
         expect(screen.getByTestId("file-tree-normal")).toBeDefined();
       });
 
-      // First item should be the directory (src)
-      const srcItem = screen.getByTestId("tree-item-src");
-      expect(srcItem.getAttribute("data-type")).toBe("directory");
+      const items = screen.getAllByRole("treeitem");
+      expect(items[0].textContent).toContain("src");
+      expect(items[1].textContent).toContain("a.txt");
     });
   });
 
@@ -282,8 +287,8 @@ describe("FileTreeNormal", () => {
         expect(screen.getByTestId("file-tree-normal")).toBeDefined();
       });
 
-      const selectedItem = screen.getByTestId("tree-item-package.json");
-      expect(selectedItem.className).toContain("bg-accent");
+      const selected = screen.getByRole("treeitem", { selected: true });
+      expect(selected.textContent).toContain("package.json");
     });
   });
 
@@ -320,26 +325,6 @@ describe("FileTreeNormal", () => {
       await waitFor(() => {
         expect(mockReadDirectory).toHaveBeenCalledWith("/project/src");
       });
-    });
-
-    it("should have expand toggle for directories", async () => {
-      render(
-        <FileTreeNormal
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          fs={mockFsAPI as any}
-          gitStatus={MOCK_GIT_STATUS}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-normal")).toBeDefined();
-      });
-
-      const toggleButton = screen.getByTestId("toggle-expand");
-      expect(toggleButton).toBeDefined();
     });
   });
 
@@ -423,6 +408,9 @@ describe("FileTreeNormal", () => {
   describe("error handling", () => {
     it("should handle readDirectory errors gracefully", async () => {
       mockReadDirectory.mockRejectedValueOnce(new Error("Permission denied"));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
 
       render(
         <FileTreeNormal
@@ -435,7 +423,16 @@ describe("FileTreeNormal", () => {
         />,
       );
 
-      expect(true).toBe(true);
+      expect(
+        await screen.findByRole("tree", { name: "File tree" }),
+      ).toBeDefined();
+      expect(screen.queryByText("Loading...")).toBeNull();
+      expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
+      expect(consoleError).toHaveBeenCalledWith(
+        "Failed to load file tree:",
+        expect.any(Error),
+      );
+      consoleError.mockRestore();
     });
   });
 
@@ -444,23 +441,6 @@ describe("FileTreeNormal", () => {
   // ===========================================================================
 
   describe("accessibility", () => {
-    it("should have file-tree-normal test id", async () => {
-      render(
-        <FileTreeNormal
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          fs={mockFsAPI as any}
-          gitStatus={MOCK_GIT_STATUS}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-normal")).toBeDefined();
-      });
-    });
-
     it("should have data-path attributes on items", async () => {
       render(
         <FileTreeNormal
