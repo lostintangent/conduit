@@ -12,7 +12,7 @@ export type {
   UseAutoSizeEditorResult,
 } from "./useAutoSizeEditor";
 export { useDiffContent } from "./useDiffContent";
-export type { DiffContent, DiffError, DiffErrorType } from "./useDiffContent";
+export type { DiffContent } from "./useDiffContent";
 export { useDiffModeTransition } from "./useDiffModeTransition";
 export type { UseDiffModeTransitionResult } from "./useDiffModeTransition";
 export { useEditorActions } from "./useEditorActions";
@@ -31,11 +31,7 @@ export type {
   UseFilePrefetchResult,
 } from "./useFilePrefetch";
 export { useGitContent } from "./useGitContent";
-export type {
-  GitContentError,
-  GitContentErrorType,
-  GitContentResult,
-} from "./useGitContent";
+export type { GitContentResult } from "./useGitContent";
 export { useFileTreeContextMenu } from "./useFileTreeContextMenu";
 export type {
   UseFileTreeContextMenuOptions,

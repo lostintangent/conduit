@@ -30,32 +30,12 @@ import {
   contentSourceToGitRef,
   isGitSource,
 } from "../types";
-import { isBinaryContent } from "../utils";
-
-// ============================================================================
-// Error Types
-// ============================================================================
-
-/**
- * Specific error types for git content loading.
- */
-export type GitContentErrorType =
-  | "not_tracked" // File is not tracked by git
-  | "not_in_ref" // File doesn't exist at the specified ref
-  | "ref_not_found" // Git ref (branch/commit) doesn't exist
-  | "binary_file" // File appears to be binary
-  | "unknown"; // Other/unexpected error
-
-/**
- * Structured error information for git content loading failures.
- */
-export interface GitContentError {
-  /** The type of error for programmatic handling */
-  type: GitContentErrorType;
-
-  /** Human-readable error message */
-  message: string;
-}
+import {
+  binaryFileError,
+  type ContentError,
+  gitReadError,
+  isBinaryContent,
+} from "../utils";
 
 /**
  * Result returned by useGitContent hook.
@@ -68,76 +48,8 @@ export interface GitContentResult {
   isLoading: boolean;
 
   /** Structured error information if loading failed */
-  error: GitContentError | null;
+  error: ContentError | null;
 }
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Create a GitContentError from an error object and context.
- */
-function createGitContentError(
-  error: unknown,
-  ref: string,
-  _filePath: string,
-): GitContentError {
-  const originalMessage =
-    error instanceof Error ? error.message : String(error);
-  const errorMsg = originalMessage.toLowerCase();
-
-  // Binary file
-  if (errorMsg.includes("binary")) {
-    return {
-      type: "binary_file",
-      message: `File appears to be binary`,
-    };
-  }
-
-  // Git ref/revision not found
-  if (
-    (errorMsg.includes("bad revision") ||
-      errorMsg.includes("unknown revision") ||
-      errorMsg.includes("ambiguous argument")) &&
-    !errorMsg.includes("exists in index")
-  ) {
-    return {
-      type: "ref_not_found",
-      message: `Git ref "${ref || "index"}" not found`,
-    };
-  }
-
-  // File exists but has no committed version
-  if (errorMsg.includes("exists on disk") && errorMsg.includes("fatal")) {
-    return {
-      type: "not_tracked",
-      message: `File is not tracked in git`,
-    };
-  }
-
-  // File not in git
-  if (
-    errorMsg.includes("does not exist") ||
-    errorMsg.includes("did not match") ||
-    (errorMsg.includes("pathspec") && errorMsg.includes("error"))
-  ) {
-    return {
-      type: "not_in_ref",
-      message: `File does not exist at ${ref || "index"}`,
-    };
-  }
-
-  // Unknown error - preserve the original message
-  return {
-    type: "unknown",
-    message: originalMessage || "Failed to load content from git",
-  };
-}
-
-// ============================================================================
-// Hook Implementation
-// ============================================================================
 
 /**
  * Fetches file content from a git source.
@@ -176,7 +88,7 @@ export function useGitContent(
     return {
       content: null,
       isLoading: false,
-      error: createGitContentError(query.error, ref, filePath),
+      error: gitReadError(query.error, ref, filePath),
     };
   }
   if (!query.isSuccess) {
@@ -186,7 +98,7 @@ export function useGitContent(
     return {
       content: null,
       isLoading: false,
-      error: { type: "binary_file", message: "File appears to be binary" },
+      error: binaryFileError(filePath),
     };
   }
   return { content: query.data, isLoading: false, error: null };

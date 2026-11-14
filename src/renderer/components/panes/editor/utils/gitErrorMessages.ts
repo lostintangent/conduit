@@ -332,3 +332,77 @@ function cleanGitErrorMessage(raw: string): string {
 
   return raw || "An unknown git error occurred";
 }
+
+/** Why an editor or diff couldn't show a file's content. */
+export interface ContentError {
+  type:
+    | "not_tracked" // Git has no version of the file at the ref
+    | "not_committed" // The file is on disk but has no version at the ref yet
+    | "ref_not_found" // The branch or commit doesn't exist
+    | "binary_file"
+    | "file_not_found" // The working copy can't be read
+    | "unknown";
+  message: string;
+}
+
+/**
+ * Classify a failed read of a file at a git ref, where "" is the index. The
+ * order matters, since some git messages match more than one pattern.
+ */
+export function gitReadError(
+  error: unknown,
+  ref: string,
+  filePath: string,
+): ContentError {
+  const originalMessage =
+    error instanceof Error ? error.message : String(error);
+  const errorMsg = originalMessage.toLowerCase();
+  const at = ref || "index";
+
+  if (errorMsg.includes("binary")) return binaryFileError(filePath);
+
+  // "fatal: bad revision 'x'", "unknown revision or path not in the working
+  // tree", "ambiguous argument 'x': unknown revision"
+  if (
+    (errorMsg.includes("bad revision") ||
+      errorMsg.includes("unknown revision") ||
+      errorMsg.includes("ambiguous argument")) &&
+    !errorMsg.includes("exists in index")
+  ) {
+    return { type: "ref_not_found", message: `Git ref "${at}" not found` };
+  }
+
+  // "fatal: path 'x' exists on disk, but not in 'HEAD'"
+  if (errorMsg.includes("exists on disk") && errorMsg.includes("fatal")) {
+    return {
+      type: "not_committed",
+      message: `File "${filePath}" has no committed version yet`,
+    };
+  }
+
+  // "fatal: path 'x' does not exist in 'HEAD'", "error: pathspec 'x' did not
+  // match any file(s)"
+  if (
+    errorMsg.includes("does not exist") ||
+    errorMsg.includes("did not match") ||
+    (errorMsg.includes("pathspec") && errorMsg.includes("error"))
+  ) {
+    return {
+      type: "not_tracked",
+      message: `File "${filePath}" is not tracked in git at ${at}`,
+    };
+  }
+
+  // Keep git's own message, which says more than a generic one would
+  return {
+    type: "unknown",
+    message: originalMessage || "Failed to read the file from git",
+  };
+}
+
+export function binaryFileError(filePath: string): ContentError {
+  return {
+    type: "binary_file",
+    message: `File "${filePath}" appears to be a binary file`,
+  };
+}

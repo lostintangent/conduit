@@ -40,12 +40,7 @@ export {
   useResponsiveLayout,
 } from "./hooks";
 
-export type {
-  DiffContent,
-  GitContentError,
-  GitContentResult,
-  LayoutMode,
-} from "./hooks";
+export type { DiffContent, GitContentResult, LayoutMode } from "./hooks";
 
 // Re-export registries
 export {
