@@ -111,7 +111,11 @@ vi.mock("node:fs/promises", async () => {
 // ============================================================================
 
 import { DiskGitProvider } from "../../../src/ipc/git/DiskGitProvider";
-import type { GitStatus, GitFileStatus } from "../../../src/ipc/git/types";
+import type {
+  GitFileStatus,
+  GitStatus,
+  GitStatusChangedEvent,
+} from "../../../src/ipc/git/types";
 
 // ============================================================================
 // Test Helpers
@@ -683,6 +687,46 @@ describe("DiskGitProvider", () => {
         "origin",
         "HEAD",
       ]);
+    });
+
+    it("shows a stage made during a slow push before the push ends", async () => {
+      mockGit.status.mockResolvedValue(createMockStatusResult({ ahead: 1 }));
+      const provider = new DiskGitProvider(testGitRoot, testGitRoot);
+      await provider.startWatching();
+      const nextStatusChange = () =>
+        Promise.race([
+          new Promise<GitStatusChangedEvent>((resolve) => {
+            const subscription = provider.onStatusChanged((event) => {
+              subscription.dispose();
+              resolve(event);
+            });
+          }),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
+        ]);
+
+      let finishPush!: () => void;
+      mockGit.push.mockReturnValueOnce(
+        new Promise<void>((resolve) => (finishPush = resolve)),
+      );
+      const push = provider.push();
+
+      const staged = { path: "a.ts", index: "M", working_dir: " " };
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({ ahead: 1, files: [staged], isClean: false }),
+      );
+      const stageShown = nextStatusChange();
+      await provider.stage(["a.ts"]);
+      expect((await stageShown)?.added).toEqual(["a.ts"]);
+
+      mockGit.status.mockResolvedValue(
+        createMockStatusResult({ ahead: 0, files: [staged], isClean: false }),
+      );
+      const pushShown = nextStatusChange();
+      finishPush();
+      await push;
+      expect((await pushShown)?.status.ahead).toBe(0);
+
+      provider.dispose();
     });
   });
 

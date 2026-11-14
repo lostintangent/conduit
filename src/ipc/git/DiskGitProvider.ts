@@ -1688,7 +1688,9 @@ export class DiskGitProvider implements GitProvider {
    * @param setUpstream - If true, set upstream tracking (for new branches)
    */
   async push(force = false, setUpstream = false): Promise<void> {
-    await this.withOperationTracking(async () => {
+    // Not held like the other operations: a push only moves a remote-tracking
+    // ref, so status keeps refreshing while it waits on the network
+    try {
       const options: string[] = [];
 
       if (force) {
@@ -1701,7 +1703,9 @@ export class DiskGitProvider implements GitProvider {
       }
 
       await this.git.push(options);
-    });
+    } finally {
+      this.scheduleStatusRefresh();
+    }
   }
 
   /**
