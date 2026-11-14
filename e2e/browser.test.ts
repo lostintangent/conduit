@@ -141,6 +141,21 @@ describe("browser automation from the CLI", () => {
     expect(buttons.map((element) => element.text)).toEqual(["Greet"]);
   });
 
+  it("saves a screenshot of the page", async () => {
+    expect(await terminal.run("conduit browser-capture > ~/capture.txt")).toBe(
+      0,
+    );
+    const output = fs.readFileSync(path.join(app.home, "capture.txt"), "utf8");
+    const file = output.match(/^Screenshot saved to: (.+\.png)$/m)![1];
+    const png = fs.readFileSync(file);
+    fs.rmSync(file);
+
+    // The PNG signature, then the header's width and height
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    expect(png.readUInt32BE(16)).toBeGreaterThan(0);
+    expect(png.readUInt32BE(20)).toBeGreaterThan(0);
+  });
+
   it("keeps quick open in the terminal's directory while the browser is focused", async () => {
     // Outside home, so falling back to the home directory finds nothing.
     const project = fs.mkdtempSync("/tmp/conduit-e2e-project-");

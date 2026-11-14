@@ -32,7 +32,6 @@ function findCallingTerminalTab(
 export function useCliClient(activeCwd: string) {
   const handleCliRequest = useEffectEvent(
     async ({ requestId, sessionId, command: { name, args } }: CliRequest) => {
-      let isResponseSuppressed = false;
       // Read when the request arrives, so the window doesn't re-render for
       // every tab change just to keep these current.
       const tabs = tabsAtom.get();
@@ -55,26 +54,16 @@ export function useCliClient(activeCwd: string) {
         return;
       }
 
-      const suppressResponse = () => {
-        isResponseSuppressed = true;
-      };
-
       const context: HandlerContext = {
-        requestId,
         sessionId,
         activeTab,
         activeCwd,
-        suppressResponse,
         findCallingTerminalTab: () =>
           findCallingTerminalTab(tabs, sessionId, activeTab),
       };
 
       try {
-        const result = await handler((args ?? {}) as any, context);
-
-        if (!isResponseSuppressed) {
-          respondResult(result);
-        }
+        respondResult(await handler((args ?? {}) as any, context));
       } catch (error) {
         respondError((error as Error).message);
       }

@@ -2,11 +2,9 @@ import type { Tab } from "@features/workbench/model";
 import type { CliCommand, CliCommandArgs } from "@shared/cli/types";
 
 export type HandlerContext = {
-  requestId: string;
   sessionId: string;
   activeTab: Tab | null;
   activeCwd: string;
-  suppressResponse: () => void;
   findCallingTerminalTab: () => Tab;
 };
 

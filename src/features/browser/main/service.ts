@@ -1,4 +1,8 @@
 import { ClipboardItem, clipboard } from "electron";
+import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { capturePage, getWebContents } from "./capture";
 
 const service = {
@@ -10,6 +14,14 @@ const service = {
       type: "image/png",
     });
     await clipboard.write([new ClipboardItem({ "image/png": png })]);
+  },
+
+  /** Saves a screenshot of the page to a temporary PNG and returns its path. */
+  async saveScreenshot(webContentsId: number): Promise<string> {
+    const image = await capturePage(getWebContents(webContentsId));
+    const file = path.join(tmpdir(), `capture-${randomUUID()}.png`);
+    await fs.writeFile(file, image.toPNG());
+    return file;
   },
 
   /** Opens the page's DevTools inside the pane's own DevTools webview. */

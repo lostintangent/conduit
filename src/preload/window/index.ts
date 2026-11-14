@@ -1,9 +1,9 @@
 import type { BackgroundCommandRequest } from "@features/terminal/model";
 import type { Workspace } from "@features/workspaces/model";
+import type { CliRequest, CliResponse } from "@shared/cli/types";
 import type { ContextMenuOptions } from "@shared/commands";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
-import configureCliModule from "./modules/cli";
 import { createFeatureApis } from "./features";
 import { createEventListener } from "./utils";
 
@@ -53,7 +53,13 @@ const conduitAPI = {
   writeClipboard: (text: string) =>
     ipcRenderer.send("ui:write-clipboard", text),
 
-  cli: configureCliModule,
+  cli: {
+    onRequest: (listener: (request: CliRequest) => void) =>
+      createEventListener("cli:request", listener),
+
+    respondToRequest: <T>(response: CliResponse<T>) =>
+      ipcRenderer.invoke("cli:respond", response) as Promise<void>,
+  },
 };
 
 export type ConduitAPI = typeof conduitAPI & FeatureApis;

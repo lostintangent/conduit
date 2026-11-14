@@ -110,13 +110,13 @@ export default {
 
   "browser-capture": async (args, context) => {
     const webview = resolveBrowserPane(context, args?.paneId);
-
-    context.suppressResponse();
-
-    await window.conduit.cli.completeCaptureBrowserRequest({
-      requestId: context.requestId,
-      webContentsId: webview.getWebContentsId(),
-    });
+    try {
+      return await window.conduit.browser.saveScreenshot(
+        webview.getWebContentsId(),
+      );
+    } catch {
+      throw new Error("Failed to capture browser pane");
+    }
   },
 
   "browser-navigate": (args, context) => {
