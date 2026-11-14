@@ -217,7 +217,6 @@ export function registerApplicationCommands(
     keybinding: { key: "Cmd+K Cmd+W" },
     run: (context) => {
       void handleSaveWorkspace(
-        context.allTabs,
         context.activeTab?.id,
         context.setShowCreateWorkspaceDialog,
       );

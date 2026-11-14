@@ -533,14 +533,12 @@ describe("applicationCommands", () => {
         )!;
         const mockContext = commandContext({
           activeTab: { id: "tab-123" },
-          allTabs: [{ id: "tab-123" }],
           setShowCreateWorkspaceDialog: vi.fn(),
         });
 
         command.run(mockContext);
 
         expect(handlers.handleSaveWorkspace).toHaveBeenCalledWith(
-          mockContext.allTabs,
           "tab-123",
           mockContext.setShowCreateWorkspaceDialog,
         );

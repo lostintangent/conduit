@@ -5,22 +5,19 @@
  */
 
 import {
-  previousTabsSnapshotAtom,
-  workspaceHasChangesAtom,
-  workspaceNameAtom,
-  workspaceStateAtom,
-} from "@/store/atoms";
-import type { Tab } from "@/types";
+  workspaceMutations,
+  workspacesQuery,
+} from "@features/workspaces/client/queries";
+import { queryClient, runMutation } from "@/query";
+import { workspaceNameAtom } from "@/store/atoms";
 
 /**
- * Save the current workspace
+ * Save the open workspace, or ask for a name when none is open
  *
- * @param tabs - All tabs
  * @param activeTabId - ID of the active tab
  * @param setShowCreateWorkspaceDialog - Function to show create workspace dialog
  */
 export async function handleSaveWorkspace(
-  tabs: Tab[],
   activeTabId: string | undefined,
   setShowCreateWorkspaceDialog?: (show: boolean) => void,
 ): Promise<void> {
@@ -28,21 +25,8 @@ export async function handleSaveWorkspace(
     return;
   }
 
-  const workspaceName = workspaceNameAtom.get();
-
-  if (workspaceName) {
-    const state = await window.conduit.workspaces.saveWorkspace(
-      workspaceName,
-      tabs,
-      activeTabId,
-    );
-
-    workspaceStateAtom.set(state);
-
-    // Reset the has changes flag and update the reference snapshot after successful save
-    const savedSnapshot = JSON.stringify(tabs);
-    previousTabsSnapshotAtom.set(savedSnapshot);
-    workspaceHasChangesAtom.set(false);
+  if (workspaceNameAtom.get()) {
+    await runMutation(workspaceMutations.save(), undefined);
   } else {
     setShowCreateWorkspaceDialog?.(true);
   }
@@ -94,7 +78,7 @@ export function handleOpenWorkspace(
  * Open the last workspace
  */
 export async function handleOpenLastWorkspace(): Promise<void> {
-  const state = await window.conduit.workspaces.getState();
+  const state = await queryClient.ensureQueryData(workspacesQuery);
   if (state.lastWorkspace) {
     const { openWorkspace } =
       await import("@features/workspaces/client/actions");

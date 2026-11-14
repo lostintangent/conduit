@@ -102,3 +102,21 @@ describe("workspaces.renameWorkspace", () => {
     );
   });
 });
+
+describe("workspaces.deleteWorkspace", () => {
+  it("resolves to the workspaces left, and rejects when it can't save them", async () => {
+    await service.saveWorkspace("Doomed", [], undefined);
+    const { workspaces } = await service.deleteWorkspace("Doomed");
+    expect(workspaces.map(({ name }) => name)).not.toContain("Doomed");
+
+    // A folder where the file goes makes the write fail
+    const file = path.join(home, ".conduit", "workspaces.json");
+    rmSync(file);
+    mkdirSync(file);
+    try {
+      await expect(service.deleteWorkspace("Work")).rejects.toThrow("EISDIR");
+    } finally {
+      rmSync(file, { recursive: true });
+    }
+  });
+});

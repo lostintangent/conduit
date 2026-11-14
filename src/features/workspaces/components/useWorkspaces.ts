@@ -1,24 +1,31 @@
+import { openWorkspace } from "@features/workspaces/client/actions";
 import {
-  closeWorkspace as closeWorkspaceAction,
-  openWorkspace,
-} from "@features/workspaces/client/actions";
+  workspaceMutations,
+  workspacesQuery,
+} from "@features/workspaces/client/queries";
 import {
   activeTabIdAtom,
   previousTabsSnapshotAtom,
   tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-  workspaceStateAtom,
 } from "@/store/atoms";
 import { useSettings } from "@features/settings/client/queries";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAtom, useSelector } from "@tanstack/react-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const workspace = window.conduit.workspaces;
-
 export function useWorkspaces() {
-  const [workspaceName, setWorkspaceName] = useAtom(workspaceNameAtom);
-  const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
+  const workspaceName = useSelector(workspaceNameAtom);
+  const { data: hasLastWorkspace = false } = useQuery({
+    ...workspacesQuery,
+    select: (state) => Boolean(state.lastWorkspace),
+  });
+  // Autosave has its own observer, so it can't replace the save dialog's
+  // onSuccess, which only the latest mutate call on an observer gets.
+  const { mutate: autosave } = useMutation(workspaceMutations.save());
+  const { mutate: save } = useMutation(workspaceMutations.save());
+  const { mutate: rename } = useMutation(workspaceMutations.rename());
 
   const tabs = useSelector(tabsAtom);
   const activeTabId = useSelector(activeTabIdAtom);
@@ -38,14 +45,7 @@ export function useWorkspaces() {
   // Track workspace changes - compare tabs deeply to detect changes
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load workspaces on mount
   useEffect(() => {
-    const loadWorkspaces = async () => {
-      const workspaces = await workspace.getState();
-      setWorkspaces(workspaces);
-    };
-    loadWorkspaces();
-
     const unsubscribeOpenWorkspace = window.conduit.onOpenWorkspaceRequest(
       (workspace) => openWorkspace(workspace),
     );
@@ -85,20 +85,7 @@ export function useWorkspaces() {
 
         // Schedule auto-save after 2 seconds
         autoSaveTimerRef.current = setTimeout(() => {
-          if (activeTabId) {
-            workspace
-              .saveWorkspace(workspaceName, tabs, activeTabId)
-              .then((state) => {
-                setWorkspaces(state);
-                setPreviousTabsSnapshot(JSON.stringify(tabs));
-                setWorkspaceHasChanges(false);
-              })
-              .catch((error) => {
-                console.error("Auto-save failed:", error);
-                // Clear timer reference on error
-                autoSaveTimerRef.current = null;
-              });
-          }
+          if (activeTabId) autosave();
         }, 2000);
       }
     }
@@ -107,8 +94,8 @@ export function useWorkspaces() {
     workspaceName,
     activeTabId,
     autoSaveWorkspaces,
+    autosave,
     setWorkspaceHasChanges,
-    setWorkspaces,
     previousTabsSnapshot,
     setPreviousTabsSnapshot,
   ]);
@@ -124,12 +111,9 @@ export function useWorkspaces() {
     }
   }, [workspaceName, setPreviousTabsSnapshot]);
 
+  /** Saves the window's tabs as a new workspace and opens it. */
   const saveWorkspace = useCallback(
-    async (
-      customName: string,
-      tabs: any[],
-      activeTabId: string | undefined,
-    ) => {
+    (customName: string, onSaved?: () => void) => {
       let name = customName.trim();
       if (name.length === 0) {
         const now = new Date();
@@ -142,17 +126,18 @@ export function useWorkspaces() {
         })}`;
       }
 
-      const state = await workspace.saveWorkspace(name, tabs, activeTabId);
-
-      setWorkspaces(state);
-      setShowCreateWorkspaceDialog(false);
-      setWorkspaceName(name);
+      save(name, {
+        onSuccess: () => {
+          setShowCreateWorkspaceDialog(false);
+          onSaved?.();
+        },
+      });
     },
-    [setWorkspaceName, setWorkspaces],
+    [save],
   );
 
   const renameWorkspace = useCallback(
-    async (newName: string) => {
+    (newName: string) => {
       const trimmedName = newName.trim();
       if (
         !workspaceName ||
@@ -163,41 +148,17 @@ export function useWorkspaces() {
         return;
       }
 
-      try {
-        const state = await workspace.renameWorkspace(
-          workspaceName,
-          trimmedName,
-        );
-
-        setWorkspaces(state);
-        setWorkspaceName(trimmedName);
-        setShowRenameWorkspaceDialog(false);
-      } catch (error) {
-        console.error("Failed to rename workspace:", error);
-      }
+      rename(
+        { from: workspaceName, to: trimmedName },
+        { onSuccess: () => setShowRenameWorkspaceDialog(false) },
+      );
     },
-    [workspaceName, setWorkspaceName, setWorkspaces],
-  );
-
-  const closeWorkspace = useCallback(
-    async (tabs: any[], activeTabId?: string) => {
-      if (workspaceName && tabs.length > 0 && activeTabId) {
-        const state = await workspace.saveWorkspace(
-          workspaceName,
-          tabs,
-          activeTabId,
-        );
-        setWorkspaces(state);
-      }
-
-      closeWorkspaceAction();
-    },
-    [workspaceName, setWorkspaces],
+    [workspaceName, rename],
   );
 
   return {
     workspaceName,
-    hasLastWorkspace: Boolean(workspaces.lastWorkspace),
+    hasLastWorkspace,
 
     showWorkspacePicker,
     setShowWorkspacePicker,
@@ -208,6 +169,5 @@ export function useWorkspaces() {
 
     saveWorkspace,
     renameWorkspace,
-    closeWorkspace,
   };
 }

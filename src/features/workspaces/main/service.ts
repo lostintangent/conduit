@@ -149,16 +149,13 @@ async function saveWorkspace(
   }
 }
 
-async function deleteWorkspace(name: string): Promise<void> {
-  try {
-    workspaceState.workspaces = workspaceState.workspaces.filter(
-      (workspace) => workspace.name !== name,
-    );
+async function deleteWorkspace(name: string): Promise<WorkspaceState> {
+  workspaceState.workspaces = workspaceState.workspaces.filter(
+    (workspace) => workspace.name !== name,
+  );
 
-    await saveWorkspaceState();
-  } catch (error) {
-    console.error("Failed to delete workspace:", error);
-  }
+  await saveWorkspaceState();
+  return workspaceState;
 }
 
 async function saveLastWorkspace(

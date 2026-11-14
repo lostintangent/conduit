@@ -31,11 +31,14 @@ import {
   handleRenameWorkspace,
   handleSaveWorkspace,
 } from "@/commands/handlers/workspaceHandlers";
+import { workspacesQuery } from "@features/workspaces/client/queries";
+import { queryClient } from "@/query";
 import {
+  activeTabIdAtom,
   previousTabsSnapshotAtom,
+  tabsAtom,
   workspaceHasChangesAtom,
   workspaceNameAtom,
-  workspaceStateAtom,
 } from "@/store/atoms";
 
 describe("workspaceHandlers", () => {
@@ -79,14 +82,15 @@ describe("workspaceHandlers", () => {
     mockSetShowCreateWorkspaceDialog = vi.fn();
 
     // Reset the workspace atoms
+    queryClient.clear();
+    tabsAtom.set(mockTabs);
     workspaceNameAtom.set(null);
-    workspaceStateAtom.set({ workspaces: [] });
     previousTabsSnapshotAtom.set("");
     workspaceHasChangesAtom.set(true);
   });
 
   describe("handleSaveWorkspace", () => {
-    it("should save workspace when workspaceName exists", async () => {
+    it("saves the open workspace and marks it unchanged", async () => {
       const activeTabId = "tab-1";
       const workspaceName = "my-workspace";
       const mockSessions: Workspace[] = [
@@ -99,24 +103,20 @@ describe("workspaceHandlers", () => {
       ];
 
       workspaceNameAtom.set(workspaceName);
+      activeTabIdAtom.set(activeTabId);
       mockWorkspaceApi.saveWorkspace.mockResolvedValue({
         workspaces: mockSessions,
         lastWorkspace: mockSessions[0],
       });
 
-      await handleSaveWorkspace(
-        mockTabs,
-        activeTabId,
-        mockSetShowCreateWorkspaceDialog,
-      );
+      await handleSaveWorkspace(activeTabId, mockSetShowCreateWorkspaceDialog);
 
       expect(mockWorkspaceApi.saveWorkspace).toHaveBeenCalledWith(
         workspaceName,
         mockTabs,
         activeTabId,
       );
-      // workspaceStateAtom, previousTabsSnapshotAtom, workspaceHasChangesAtom
-      expect(workspaceStateAtom.get()).toEqual({
+      expect(queryClient.getQueryData(workspacesQuery.queryKey)).toEqual({
         workspaces: mockSessions,
         lastWorkspace: mockSessions[0],
       });
@@ -130,11 +130,7 @@ describe("workspaceHandlers", () => {
 
       workspaceNameAtom.set(null);
 
-      await handleSaveWorkspace(
-        mockTabs,
-        activeTabId,
-        mockSetShowCreateWorkspaceDialog,
-      );
+      await handleSaveWorkspace(activeTabId, mockSetShowCreateWorkspaceDialog);
 
       expect(mockWorkspaceApi.saveWorkspace).not.toHaveBeenCalled();
       expect(mockSetShowCreateWorkspaceDialog).toHaveBeenCalledWith(true);
@@ -143,49 +139,12 @@ describe("workspaceHandlers", () => {
     it("should return early when activeTabId is undefined", async () => {
       const getWorkspaceName = vi.spyOn(workspaceNameAtom, "get");
 
-      await handleSaveWorkspace(
-        mockTabs,
-        undefined,
-        mockSetShowCreateWorkspaceDialog,
-      );
+      await handleSaveWorkspace(undefined, mockSetShowCreateWorkspaceDialog);
 
       expect(getWorkspaceName).not.toHaveBeenCalled();
       getWorkspaceName.mockRestore();
       expect(mockWorkspaceApi.saveWorkspace).not.toHaveBeenCalled();
       expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
-    });
-
-    it("should update atoms after successful save", async () => {
-      const activeTabId = "tab-1";
-      const workspaceName = "my-workspace";
-      const mockSessions: Workspace[] = [
-        {
-          name: workspaceName,
-          lastModified: Date.now(),
-          tabs: toWorkspaceTabs(mockTabs),
-          activeTabId,
-        },
-      ];
-
-      workspaceNameAtom.set(workspaceName);
-      mockWorkspaceApi.saveWorkspace.mockResolvedValue({
-        workspaces: mockSessions,
-        lastWorkspace: mockSessions[0],
-      });
-
-      await handleSaveWorkspace(
-        mockTabs,
-        activeTabId,
-        mockSetShowCreateWorkspaceDialog,
-      );
-
-      // Check that atoms were updated
-      expect(workspaceStateAtom.get()).toEqual({
-        workspaces: mockSessions,
-        lastWorkspace: mockSessions[0],
-      });
-      expect(previousTabsSnapshotAtom.get()).toBe(JSON.stringify(mockTabs));
-      expect(workspaceHasChangesAtom.get()).toBe(false);
     });
   });
 

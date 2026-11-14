@@ -1,18 +1,19 @@
 import type { Workspace, WorkspaceState } from "@shared/types";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { createQueryClient } from "@/query";
+import { render } from "../../../../tests/renderer/queryRender";
 import { describe, expect, it, vi } from "vitest";
 
 const { workspaceApi } = vi.hoisted(() => {
   const workspaceApi = {
-    getState: vi.fn<() => Promise<WorkspaceState>>(),
-    deleteWorkspace: vi.fn<(name: string) => Promise<void>>(),
+    deleteWorkspace: vi.fn<(name: string) => Promise<WorkspaceState>>(),
   };
   (globalThis as any).window.conduit = { workspaces: workspaceApi };
   return { workspaceApi };
 });
 
+import { workspacesQuery } from "@features/workspaces/client/queries";
 import { WorkspacePicker } from "@features/workspaces/components/WorkspacePicker";
-import { workspaceStateAtom } from "@/store/atoms";
 
 const workspace = (name: string): Workspace => ({
   name,
@@ -25,11 +26,13 @@ describe("WorkspacePicker", () => {
   it("removes a deleted workspace from the list", async () => {
     const alpha = workspace("Alpha");
     const beta = workspace("Beta");
-    workspaceStateAtom.set({ workspaces: [alpha, beta] });
-    workspaceApi.getState.mockResolvedValue({ workspaces: [beta] });
-    workspaceApi.deleteWorkspace.mockResolvedValue();
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(workspacesQuery.queryKey, {
+      workspaces: [alpha, beta],
+    });
+    workspaceApi.deleteWorkspace.mockResolvedValue({ workspaces: [beta] });
 
-    render(<WorkspacePicker isOpen onClose={() => {}} />);
+    render(<WorkspacePicker isOpen onClose={() => {}} />, { queryClient });
 
     await screen.findByText("Alpha");
     fireEvent.click(screen.getAllByLabelText("Delete session")[0]);

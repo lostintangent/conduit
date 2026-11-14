@@ -1,20 +1,27 @@
-import type { Workspace } from "@shared/types";
+import type { Workspace, WorkspaceState } from "@shared/types";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../../tests/renderer/queryRender";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.hoisted(() => {
-  (globalThis as any).window.conduit = { workspaces: {} };
+const { workspaceApi } = vi.hoisted(() => {
+  const workspaceApi = {
+    getState: vi.fn<() => Promise<WorkspaceState>>(),
+    importFromFile: vi.fn<() => Promise<Workspace | null>>(),
+  };
+  (globalThis as any).window.conduit = { workspaces: workspaceApi };
+  return { workspaceApi };
 });
 vi.mock("@features/workspaces/client/actions", () => ({
   openWorkspace: vi.fn(),
 }));
 
 import { openWorkspace } from "@features/workspaces/client/actions";
+import { workspacesQuery } from "@features/workspaces/client/queries";
 import { WorkspaceMenu } from "@features/workspaces/components/WorkspaceMenu";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
-import { workspaceNameAtom, workspaceStateAtom } from "@/store/atoms";
+import { createQueryClient } from "@/query";
+import { workspaceNameAtom } from "@/store/atoms";
 
 const workspace = (name: string): Workspace => ({
   name,
@@ -34,7 +41,8 @@ const ActivePane = (): null => {
 };
 
 const openMenu = async () => {
-  workspaceStateAtom.set({
+  const queryClient = createQueryClient();
+  queryClient.setQueryData(workspacesQuery.queryKey, {
     workspaces: [workspace("Alpha"), workspace("Beta")],
   });
   workspaceNameAtom.set("Alpha");
@@ -44,6 +52,7 @@ const openMenu = async () => {
       <ActivePane />
       <WorkspaceMenu />
     </TooltipProvider>,
+    { queryClient },
   );
   await waitFor(() => expect(document.activeElement).toBe(paneInput));
 
@@ -65,6 +74,25 @@ describe("WorkspaceMenu", () => {
       expect.objectContaining({ name: "Beta" }),
     );
     await waitFor(() => expect(document.activeElement).toBe(paneInput));
+  });
+
+  it("lists and opens an imported workspace", async () => {
+    await openMenu();
+    const imported = workspace("Gamma");
+    workspaceApi.importFromFile.mockResolvedValue(imported);
+    workspaceApi.getState.mockResolvedValue({
+      workspaces: [imported, workspace("Alpha"), workspace("Beta")],
+    });
+
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Import Workspace..." }),
+    );
+
+    await waitFor(() => expect(openWorkspace).toHaveBeenCalledWith(imported));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Workspaces" }), {
+      key: "Enter",
+    });
+    expect(await screen.findByRole("menuitem", { name: /Gamma/ })).toBeTruthy();
   });
 
   it("returns focus to its button when dismissed", async () => {

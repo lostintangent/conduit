@@ -3,7 +3,7 @@ import type { QuickPaneDescriptor } from "@/components/layout/quick/QuickPaneDia
 import { getDefaultActions } from "@/commands/paneActions/core/defaults";
 import type { Action } from "@/commands/paneActions/core/types";
 import type { Notification, Tab } from "@/types";
-import type { HyperTerminal, WorkspaceState } from "@shared/types";
+import type { HyperTerminal } from "@shared/types";
 import { createAtom, createFrozenAtom } from "@/store/createAtom";
 
 export const tabsAtom = createFrozenAtom<Tab[]>([]);
@@ -21,9 +21,6 @@ export const activePaneIdAtom = createAtom<string | null>(() => {
 });
 
 export const workspaceNameAtom = createAtom(null as string | null);
-export const workspaceStateAtom = createAtom<WorkspaceState>({
-  workspaces: [],
-});
 export const workspaceHasChangesAtom = createAtom<boolean>(false);
 export const previousTabsSnapshotAtom = createAtom<string>("");
 

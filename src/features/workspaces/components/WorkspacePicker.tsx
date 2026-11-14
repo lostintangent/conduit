@@ -1,10 +1,13 @@
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import { openWorkspace } from "@features/workspaces/client/actions";
-import { workspaceStateAtom } from "@/store/atoms";
+import {
+  workspaceMutations,
+  workspacesQuery,
+} from "@features/workspaces/client/queries";
 import { cn } from "@/utils";
 import { formatRelativeTime } from "@/utils/time";
 import type { Workspace } from "@shared/types";
-import { useAtom } from "@tanstack/react-store";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,10 +23,14 @@ type WorkspacePickerDialog = {
   onClose: () => void;
 };
 
-const workspace = window.conduit.workspaces;
-
 export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
-  const [{ workspaces }, setWorkspaceState] = useAtom(workspaceStateAtom);
+  const { data: workspaces = [] } = useQuery({
+    ...workspacesQuery,
+    select: (state) => state.workspaces,
+  });
+  const { mutate: deleteWorkspaceMutation } = useMutation(
+    workspaceMutations.delete(),
+  );
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -33,20 +40,20 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
   }, [isOpen]);
 
   const deleteWorkspace = useCallback(
-    async (name: string) => {
-      await workspace.deleteWorkspace(name);
-      const state = await workspace.getState();
-      setWorkspaceState(state);
-
-      if (state.workspaces.length === 0) {
-        onClose();
-      } else {
-        setSelectedIndex((current) =>
-          Math.min(current, state.workspaces.length - 1),
-        );
-      }
+    (name: string) => {
+      deleteWorkspaceMutation(name, {
+        onSuccess: ({ workspaces }) => {
+          if (workspaces.length === 0) {
+            onClose();
+          } else {
+            setSelectedIndex((current) =>
+              Math.min(current, workspaces.length - 1),
+            );
+          }
+        },
+      });
     },
-    [onClose, setWorkspaceState],
+    [onClose, deleteWorkspaceMutation],
   );
 
   const handleKeyDown = useCallback(
@@ -85,7 +92,7 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
         event.preventDefault();
         const selectedWorkspace = workspaces[selectedIndex];
         if (selectedWorkspace) {
-          void deleteWorkspace(selectedWorkspace.name);
+          deleteWorkspace(selectedWorkspace.name);
         }
       }
     },
@@ -105,7 +112,7 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
   const handleDeleteWorkspace = useCallback(
     (session: Workspace, event: React.MouseEvent) => {
       event.stopPropagation();
-      void deleteWorkspace(session.name);
+      deleteWorkspace(session.name);
     },
     [deleteWorkspace],
   );

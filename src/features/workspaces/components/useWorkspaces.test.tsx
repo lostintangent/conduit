@@ -1,7 +1,7 @@
 import type { Workspace, WorkspaceState } from "@shared/types";
 import { waitFor } from "@testing-library/react";
 import { renderHook } from "../../../../tests/renderer/queryRender";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { getState } = vi.hoisted(() => {
   const getState = vi.fn<() => Promise<WorkspaceState>>();
@@ -13,7 +13,6 @@ const { getState } = vi.hoisted(() => {
 });
 
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
-import { workspaceStateAtom } from "@/store/atoms";
 
 const lastWorkspace: Workspace = {
   name: "__last_workspace__",
@@ -23,10 +22,6 @@ const lastWorkspace: Workspace = {
 };
 
 describe("useWorkspaces", () => {
-  beforeEach(() => {
-    workspaceStateAtom.set({ workspaces: [] });
-  });
-
   it.each<[WorkspaceState, boolean]>([
     [{ workspaces: [], lastWorkspace }, true],
     [{ workspaces: [] }, false],

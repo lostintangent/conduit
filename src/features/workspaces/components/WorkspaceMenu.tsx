@@ -1,4 +1,5 @@
-import { useAtom, useSelector } from "@tanstack/react-store";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useSelector } from "@tanstack/react-store";
 import { Download, LayoutDashboard, Trash2 } from "lucide-react";
 import { type MouseEvent, useCallback } from "react";
 
@@ -22,10 +23,10 @@ import {
 import { useSettings } from "@features/settings/client/queries";
 import { openWorkspace } from "@features/workspaces/client/actions";
 import {
-  workspaceHasChangesAtom,
-  workspaceNameAtom,
-  workspaceStateAtom,
-} from "@/store/atoms";
+  workspaceMutations,
+  workspacesQuery,
+} from "@features/workspaces/client/queries";
+import { workspaceHasChangesAtom, workspaceNameAtom } from "@/store/atoms";
 import { cn } from "@/utils";
 import type { Workspace } from "@shared/types";
 
@@ -34,7 +35,12 @@ const api = window.conduit;
 export const WorkspaceMenu = () => {
   const autoSaveWorkspaces = useSettings((s) => s.autoSaveWorkspaces);
 
-  const [workspaces, setWorkspaces] = useAtom(workspaceStateAtom);
+  const { data: workspaces = [] } = useQuery({
+    ...workspacesQuery,
+    select: (state) => state.workspaces,
+  });
+  const { mutate: importWorkspace } = useMutation(workspaceMutations.import());
+  const { mutate: deleteWorkspace } = useMutation(workspaceMutations.delete());
   const workspaceName = useSelector(workspaceNameAtom);
   const hasWorkspaceChanges = useSelector(workspaceHasChangesAtom);
 
@@ -45,22 +51,13 @@ export const WorkspaceMenu = () => {
   );
   const closeWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_CLOSE);
 
-  const handleImportWorkspace = useCallback(async () => {
-    const workspace = await api.workspaces.importFromFile();
-    if (workspace) {
-      setWorkspaces((current) => {
-        // Remove existing workspace with the same name if it exists
-        const filtered = current.workspaces.filter(
-          (w) => w.name !== workspace.name,
-        );
-        return {
-          ...current,
-          workspaces: [workspace, ...filtered],
-        };
-      });
-      openWorkspace(workspace);
-    }
-  }, [setWorkspaces]);
+  const handleImportWorkspace = useCallback(() => {
+    importWorkspace(undefined, {
+      onSuccess: (workspace) => {
+        if (workspace) void openWorkspace(workspace);
+      },
+    });
+  }, [importWorkspace]);
 
   const handleOpenWorkspace = useCallback(
     (workspace: Workspace) => {
@@ -79,21 +76,13 @@ export const WorkspaceMenu = () => {
   );
 
   const handleDeleteWorkspace = useCallback(
-    async (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
+    (workspace: Workspace, e: MouseEvent<HTMLButtonElement>) => {
       // Prevent the click from bubbling up to the menu item
       // which would result in the workspace being opened
       e.stopPropagation();
-
-      // Delete the workspace and then remove it from state
-      await api.workspaces.deleteWorkspace(workspace.name);
-      setWorkspaces((current) => ({
-        ...current,
-        workspaces: current.workspaces.filter(
-          ({ name }) => name !== workspace.name,
-        ),
-      }));
+      deleteWorkspace(workspace.name);
     },
-    [setWorkspaces],
+    [deleteWorkspace],
   );
 
   return (
@@ -118,9 +107,9 @@ export const WorkspaceMenu = () => {
 
       {/* Workspaces list. Opening or closing a workspace replaces the active pane, so focus goes there. */}
       <DropdownMenuContent align="end" focusPaneOnSelect>
-        {workspaces.workspaces.length > 0 && (
+        {workspaces.length > 0 && (
           <>
-            {workspaces.workspaces.map((workspace) => {
+            {workspaces.map((workspace) => {
               const isCurrentWorkspace = workspaceName === workspace.name;
 
               return (

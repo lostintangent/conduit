@@ -34,6 +34,8 @@ import { useContextMenu } from "@/hooks/useContextMenu";
 import { useLayoutResizing } from "@/hooks/useLayoutResizing";
 import { useSettings } from "@features/settings/client/queries";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
+import { workspaceMutations } from "@features/workspaces/client/queries";
+import { runMutation } from "@/query";
 import {
   closeHyperTerminal,
   handleHyperTerminalExit,
@@ -303,10 +305,10 @@ export function App() {
     const unsubscribeBeforeClose = api.onBeforeClose(() => {
       // Save the current workspace state as "last workspace"
       if (tabsRef.current.length > 0) {
-        void api.workspaces.saveLastWorkspace(
-          tabsRef.current,
-          activeTabRef.current?.id,
-        );
+        void runMutation(workspaceMutations.saveLast(), {
+          tabs: tabsRef.current,
+          activeTabId: activeTabRef.current?.id,
+        });
       }
     });
 
@@ -447,16 +449,15 @@ export function App() {
   );
 
   const handleDuplicateWorkspace = useCallback(
-    async (name: string) => {
+    (name: string) => {
       if (!workspaceName || !activeTab) {
         return;
       }
 
       // Save the current tabs as a new workspace with the provided name
-      await saveWorkspace(name, tabs, activeTab.id);
-      setShowDuplicateWorkspaceDialog(false);
+      saveWorkspace(name, () => setShowDuplicateWorkspaceDialog(false));
     },
-    [workspaceName, activeTab, tabs, saveWorkspace],
+    [workspaceName, activeTab, saveWorkspace],
   );
 
   const handleDuplicateTabWithCwd = useCallback(
@@ -777,7 +778,7 @@ export function App() {
         isOpen={showCreateWorkspaceDialog}
         initialValue=""
         onClose={() => setShowCreateWorkspaceDialog(false)}
-        onSave={(name) => saveWorkspace(name, tabs, activeTab?.id)}
+        onSave={(name) => saveWorkspace(name)}
         title="Save workspace"
         placeholder="e.g., Frontend Dev, API Testing..."
       />
