@@ -4,7 +4,7 @@ import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { PublisherGitHub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
-import { execFileSync, execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
@@ -63,7 +63,7 @@ const config: ForgeConfig = {
     // @parcel/watcher always loads its prebuilt @parcel/watcher-<platform>-<arch>
     // package, so building it from source would only ship an unused copy.
     onlyModules: ["node-pty"],
-    // Only force rebuild during packaging, not during dev (npm start)
+    // Only force rebuild during packaging, not during dev (bun start)
     force: !!process.env.ELECTRON_FORGE_PACKAGING,
   },
   hooks: {
@@ -71,13 +71,10 @@ const config: ForgeConfig = {
       execFileSync("bun", ["build/bun.build.ts"], { stdio: "inherit" });
     },
     packageAfterCopy: async (_, buildPath) => {
-      execSync(
-        `npm install --omit=dev ${lockedNativeModuleSpecs().join(" ")}`,
-        {
-          cwd: buildPath,
-          stdio: "inherit",
-        },
-      );
+      execFileSync("bun", ["add", "--no-save", ...lockedNativeModuleSpecs()], {
+        cwd: buildPath,
+        stdio: "inherit",
+      });
       // Electron reads name, version and main from the app's package.json.
       fs.copyFileSync(
         path.resolve(__dirname, "package.json"),

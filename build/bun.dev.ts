@@ -1,12 +1,12 @@
 /**
- * Dev loop for `npm start` (replaces `electron-forge start` + plugin-vite).
+ * Dev loop for `bun start` (replaces `electron-forge start` + plugin-vite).
  *
  *   - Renderer: Bun's dev server with HMR and React Fast Refresh. Tailwind
  *     comes from bunfig.toml's [serve.static] plugins.
  *   - Main, CLI and preloads: rebuilt on any change under src/ outside
  *     src/renderer, then Electron restarts. Type `rs` to restart manually.
  *
- * Arguments after `npm start --` are passed through to Electron.
+ * Arguments after `bun start` are passed through to Electron.
  */
 import { rebuild } from "@electron/rebuild";
 import { type ChildProcess, spawn } from "node:child_process";
