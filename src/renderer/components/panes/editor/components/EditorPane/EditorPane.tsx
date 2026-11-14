@@ -54,7 +54,7 @@ import { DeletedFileBanner } from "./DeletedFileBanner";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
 import { ExternalChangeWarning } from "./ExternalChangeWarning";
 import { ImagePreview } from "./ImagePreview";
-import { MarkdownPreview } from "./MarkdownPreview";
+import { LazyMarkdownPreview } from "./LazyMarkdownPreview";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
 
 /**
@@ -663,7 +663,7 @@ export const EditorPane = memo(function EditorPane({
           isImageFile(filePath) ? (
             <ImagePreview filePath={filePath} cwd={cwd} />
           ) : (
-            <MarkdownPreview content={previewContent} />
+            <LazyMarkdownPreview content={previewContent} />
           )
         ) : viewMode.type === "editor" ? (
           // Regular editor - conditionally rendered

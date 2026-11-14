@@ -6,7 +6,6 @@
  * - RegularEditorWrapper: Wrapper for Monaco standalone editor
  * - DiffEditorWrapper: Wrapper for Monaco diff editor
  * - ExternalChangeWarning: Warning banner for external changes
- * - MarkdownPreview: Markdown preview using streamdown
  *
  * Also exports shared constants for editor configuration:
  * - EDITOR_MAX_HEIGHT: Max height for auto-sizing
@@ -26,9 +25,6 @@ export { ExternalChangeWarning } from "./ExternalChangeWarning";
 export type { ExternalChangeWarningProps } from "./ExternalChangeWarning";
 
 export { DeletedFileBanner } from "./DeletedFileBanner";
-
-export { MarkdownPreview } from "./MarkdownPreview";
-export type { MarkdownPreviewProps } from "./MarkdownPreview";
 
 export { ImagePreview } from "./ImagePreview";
 export type { ImagePreviewProps } from "./ImagePreview";

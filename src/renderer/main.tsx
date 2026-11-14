@@ -1,5 +1,6 @@
 import { App } from "@/app";
 import { installGitQueryBridge } from "@/api/gitQueries";
+import { preloadMarkdownPreview } from "@/components/panes/editor/components/EditorPane/LazyMarkdownPreview";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { userSettingsAtom } from "@/store/atoms";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -59,3 +60,7 @@ root.render(
     <AppWrapper />
   </QueryClientProvider>,
 );
+
+// The Markdown preview stays out of the startup bundle. Load it once startup
+// has gone idle, so opening a Markdown file never waits on it
+requestIdleCallback(() => void preloadMarkdownPreview());
