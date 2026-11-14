@@ -82,15 +82,7 @@ export type BrowserCaptureArgs = {
   paneId?: string;
 };
 
-import type {
-  CliCommand,
-  CliCommandArgs,
-  CliCommandResult,
-  DefineCommand,
-} from "./types";
-
-// Re-export DefineCommand for external use
-export type { DefineCommand } from "./types";
+import type { CliCommand, CliCommandArgs, CliCommandResult } from "./types";
 
 /**
  * All browser command names from CliCommand.
