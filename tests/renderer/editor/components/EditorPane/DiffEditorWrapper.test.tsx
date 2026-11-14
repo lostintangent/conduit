@@ -404,6 +404,40 @@ describe("DiffEditorWrapper", () => {
       });
     });
 
+    // Recreating the editor on a theme change dropped its models, and nothing
+    // set them again, so an open diff went blank.
+    it("should keep the diff when the theme changes", async () => {
+      const { rerender } = render(
+        <DiffEditorWrapper
+          editorId="test-diff"
+          cwd="/test"
+          filePath="/test/file.ts"
+          theme="vs-dark"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockDiffEditor.setModel).toHaveBeenCalled();
+      });
+
+      rerender(
+        <DiffEditorWrapper
+          editorId="test-diff"
+          cwd="/test"
+          filePath="/test/file.ts"
+          theme="vs-light"
+        />,
+      );
+
+      await waitFor(() => {
+        expect(mockSetTheme).toHaveBeenCalledWith("vs-light");
+      });
+      expect(mockCreateDiffEditor).toHaveBeenCalledTimes(1);
+      expect(mockDiffEditor.setModel).toHaveBeenLastCalledWith(
+        mockDiffEditor.createViewModel.mock.results[0]?.value,
+      );
+    });
+
     it("should update diff editor options when readOnly changes", async () => {
       const { rerender } = render(
         <DiffEditorWrapper

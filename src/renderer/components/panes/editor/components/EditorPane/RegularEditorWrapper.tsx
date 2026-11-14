@@ -358,7 +358,10 @@ export function RegularEditorWrapper({
       editorRef.current = null;
     };
     // Note: onMount handled via ref to avoid editor recreation when callback changes
-  }, [editorId, theme, effectiveReadOnly, isGitSourceMode]);
+    // Note: theme and effectiveReadOnly are NOT in dependencies - the options effect
+    // below applies them. Recreating the editor would drop its model, and the model
+    // effects wouldn't attach it again, which leaves the editor blank.
+  }, [editorId, isGitSourceMode]);
 
   // ---------------------------------------------------------------------------
   // Git Source Model Creation

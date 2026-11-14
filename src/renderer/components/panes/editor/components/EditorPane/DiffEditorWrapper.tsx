@@ -337,9 +337,10 @@ export function DiffEditorWrapper({
       diffEditorRef.current = null;
     };
     // Note: onMount handled via ref, filePath via ref for cleanup
-    // Note: effectiveReadOnly is NOT in dependencies - we update it via updateOptions
-    // to avoid recreating the entire editor (which causes keyboard listener leaks)
-  }, [theme, editorId, hideUnchangedRegions]);
+    // Note: theme and effectiveReadOnly are NOT in dependencies - the options effect
+    // below applies them. Recreating the editor would drop its models, and the model
+    // setup effect wouldn't set them again, which leaves the diff blank.
+  }, [editorId, hideUnchangedRegions]);
 
   // ---------------------------------------------------------------------------
   // Model Setup

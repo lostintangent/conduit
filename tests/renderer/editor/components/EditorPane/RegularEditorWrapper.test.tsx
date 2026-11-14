@@ -361,6 +361,36 @@ describe("RegularEditorWrapper", () => {
         );
       });
     });
+
+    // Recreating the editor dropped its model, and the model effect didn't
+    // attach it again, so the open file went blank.
+    it.each([
+      ["theme", { theme: "vs-light" }],
+      ["readOnly", { readOnly: true }],
+    ])("should keep the open file when %s changes", async (_, changed) => {
+      const props = {
+        editorId: "test-editor",
+        cwd: "/test",
+        filePath: "/test/file.ts",
+        theme: "vs-dark",
+        readOnly: false,
+      };
+      const { rerender } = render(<RegularEditorWrapper {...props} />);
+
+      await waitFor(() => {
+        expect(mockEditor.setModel).toHaveBeenCalledWith(mockModel);
+      });
+
+      rerender(<RegularEditorWrapper {...props} {...changed} />);
+
+      await waitFor(() => {
+        expect(mockEditor.updateOptions).toHaveBeenCalledWith(
+          expect.objectContaining(changed),
+        );
+      });
+      expect(monaco.editor.create).toHaveBeenCalledTimes(1);
+      expect(mockEditor.dispose).not.toHaveBeenCalled();
+    });
   });
 
   // ===========================================================================
