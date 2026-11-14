@@ -54,7 +54,7 @@ export interface UseCreateBranchResult {
   error: string | null;
 
   /** Ref for the input element (for focus management) */
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
 
   /** Whether a creation is in progress */
   isSubmitting: boolean;

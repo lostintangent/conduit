@@ -508,7 +508,10 @@ export function TabLayout({
                     setSidebarState({
                       isOpen: true,
                       view: "browser",
-                      navigation: { cwd: pane.cwd, browserUrl: url },
+                      navigation: {
+                        cwd: pane.cwd ?? undefined,
+                        browserUrl: url,
+                      },
                     });
                   } else if (terminalLinkTarget === "default") {
                     window.conduit.openExternal(url);
@@ -804,7 +807,7 @@ export function TabLayout({
             // when the previous sibling pane isn't collapsed, when the tab
             // isn't locked, and when we're not in focus mode.
             const shouldRenderHandles =
-              primaryAxis !== null &&
+              previousSibling !== null &&
               !isInFocusMode &&
               !isLocked &&
               (previousSibling.type === "split" ||

@@ -232,7 +232,7 @@ export function SearchWidget({ terminal, onClosed, ref }: SearchWidgetProps) {
     clearSearchArtifacts();
     // Clear any stale pressed keys to ensure global keybindings work after closing
     clearPressedKeys();
-    onClosed();
+    onClosed?.();
   };
 
   useEffect(() => {

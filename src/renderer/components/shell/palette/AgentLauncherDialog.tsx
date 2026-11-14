@@ -168,7 +168,7 @@ export function AgentLauncherDialog({
         count: 1,
         instances: [{ id: `${agentId}-1`, instructions: "" }],
       };
-      const updatedInstances = [...agentData.instances];
+      const updatedInstances = [...(agentData.instances ?? [])];
       updatedInstances[instanceIndex] = {
         ...updatedInstances[instanceIndex],
         instructions,

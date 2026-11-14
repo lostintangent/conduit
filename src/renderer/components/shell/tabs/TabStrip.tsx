@@ -413,8 +413,9 @@ export const TabStrip = ({
         return;
       }
 
-      // Handle tab drag (existing tab reordering logic)
-      if (draggingTab.id === overTabId) {
+      // Handle tab drag (existing tab reordering logic). External drags, like
+      // files from Finder, have no dragging tab.
+      if (!draggingTab || draggingTab.id === overTabId) {
         return;
       }
 
@@ -470,6 +471,7 @@ export const TabStrip = ({
       e.preventDefault();
 
       if (
+        draggingTab &&
         dropTargetIndex !== null &&
         dropTargetIndex !== draggingTab.originalIndex
       ) {
@@ -568,16 +570,16 @@ export const TabStrip = ({
       return;
     }
 
-    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
+    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory ?? ""));
   }, [activeTab, homeDirectory, hasMinimizedTerminals]);
 
   // Always opens a new hyper terminal (used in dropdown menu)
   const handleNewHyperTerminal = useCallback(async () => {
-    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
+    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory ?? ""));
   }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
-    await openQuickTerminal(getActiveTabCwd(activeTab, homeDirectory));
+    await openQuickTerminal(getActiveTabCwd(activeTab, homeDirectory ?? ""));
   }, [activeTab, homeDirectory]);
 
   // Use margins to create gaps that reveal the overlay underneath

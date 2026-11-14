@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useModelState } from "../../../../src/renderer/components/panes/editor/hooks/useModelState";
 import { pathToUri } from "../../../../src/renderer/components/panes/editor/registry";
-import type { ModelStateEvent } from "../../../../src/renderer/components/panes/editor/types";
+import type {
+  ModelState,
+  ModelStateEvent,
+} from "../../../../src/renderer/components/panes/editor/types";
 
 // ============================================================================
 // Mocks
 // ============================================================================
 
 const mockRegistry = {
-  getModelState: vi.fn((_uri?: string) => ({
+  getModelState: vi.fn((_uri?: string): ModelState | undefined => ({
     isDirty: false,
     isOrphaned: false,
     hasExternalChanges: false,
@@ -100,11 +103,35 @@ describe("useModelState", () => {
     });
 
     it("should return null if model does not exist", () => {
-      mockRegistry.getModelState.mockReturnValue(null);
+      mockRegistry.getModelState.mockReturnValue(undefined);
 
       const { result } = renderHook(() => useModelState("/test/file.ts"));
 
       expect(result.current).toBe(null);
+    });
+
+    it("should read the full state when the model is created after mount", () => {
+      mockRegistry.getModelState.mockReturnValue(undefined);
+      const { result } = renderHook(() => useModelState("/test/file.ts"));
+
+      mockRegistry.getModelState.mockReturnValue({
+        isDirty: true,
+        isOrphaned: false,
+        hasExternalChanges: true,
+      });
+      act(() => {
+        fireEvent({
+          type: "dirty",
+          uri: pathToUri("/test/file.ts"),
+          isDirty: true,
+        });
+      });
+
+      expect(result.current).toEqual({
+        isDirty: true,
+        isOrphaned: false,
+        hasExternalChanges: true,
+      });
     });
   });
 
@@ -374,7 +401,7 @@ describe("useModelState", () => {
             hasExternalChanges: false,
           };
         }
-        return null;
+        return undefined;
       });
 
       const { result, rerender } = renderHook(

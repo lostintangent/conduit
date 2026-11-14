@@ -41,7 +41,7 @@ export function useModelState(filePath: string | null): ModelState | null {
 
     const registry = MonacoModelRegistry.getInstance();
     const modelKey = createModelKey(filePath);
-    return registry.getModelState(modelKey);
+    return registry.getModelState(modelKey) ?? null;
   });
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function useModelState(filePath: string | null): ModelState | null {
     const modelKey = createModelKey(filePath);
 
     // Get initial state
-    const initialState = registry.getModelState(modelKey);
+    const initialState = registry.getModelState(modelKey) ?? null;
     setState(initialState);
 
     // Subscribe to state changes
@@ -73,7 +73,7 @@ export function useModelState(filePath: string | null): ModelState | null {
         setState((prevState) => {
           if (prevState === null) {
             // Model was just created - get full state
-            return registry.getModelState(modelKey);
+            return registry.getModelState(modelKey) ?? null;
           }
 
           // Update the specific property that changed

@@ -220,7 +220,7 @@ export function GeneralTab({
                   <Plus className="w-4 h-4" />
                 </button>
               )}
-              {dotfilesStatus !== "disabled" && dotfilesRepo && (
+              {dotfilesStatus !== "disabled" && dotfilesRepo && repoPath && (
                 <button
                   onClick={() =>
                     setQuickPane({

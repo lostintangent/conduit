@@ -15,7 +15,7 @@ import { useSelector } from "@tanstack/react-store";
 import { Play } from "lucide-react";
 
 type RepoScriptsMenuProps = {
-  cwd?: string;
+  cwd?: string | null;
   onRunScript?: (script: string) => void;
 };
 

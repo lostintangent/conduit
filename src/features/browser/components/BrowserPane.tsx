@@ -315,7 +315,7 @@ export function BrowserPane({
     };
 
     const handleWebViewContextMenu = (
-      event: Event & { params?: ContextMenuParams },
+      event: Event & { params: ContextMenuParams },
     ) => {
       const { left, top } = webview.getBoundingClientRect();
       const { x, y } = event.params;
@@ -486,6 +486,7 @@ export function BrowserPane({
           onHideToolbar={onHideToolbar}
           onCaptureScreenshot={async () => {
             const webContentsId = webviewRef.current?.getWebContentsId();
+            if (webContentsId === undefined) return;
             await browser.captureScreenshot(webContentsId);
           }}
           tabId={tabId}

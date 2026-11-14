@@ -354,7 +354,7 @@ export function CanvasToolbar({
   selectedColor,
   selectedWidth,
   selectedFill,
-  isSpacePressed,
+  isSpacePressed = false,
   tabId,
   isEmpty,
   showDotGrid,

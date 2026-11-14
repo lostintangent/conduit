@@ -422,7 +422,7 @@ export const TerminalPane = ({
         await createHyperTerminal(cwd, command);
       } else {
         await splitPane(tabId, paneId, "row", false, {
-          terminalOptions: { cwd, command },
+          terminalOptions: { cwd: cwd ?? undefined, command },
         });
       }
     },
@@ -471,7 +471,7 @@ export const TerminalPane = ({
         : undefined,
     });
 
-    terminalRef.current?.setLinkHandler(onLinkClick);
+    terminalRef.current?.setLinkHandler(onLinkClick ?? null);
 
     return () => {
       detachKeyHandler?.();

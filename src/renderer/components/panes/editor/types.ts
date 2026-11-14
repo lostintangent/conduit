@@ -210,7 +210,7 @@ export type ViewMode =
       /** Parent commit for comparison (first parent for merges) */
       parentCommitId: string;
       /** File status (added, modified, deleted, etc.) */
-      fileStatus?: GitFileStatusCode;
+      fileStatus: GitFileStatusCode;
       /** Original path before rename/copy (for renamed/copied files) */
       originalPath?: string;
     }

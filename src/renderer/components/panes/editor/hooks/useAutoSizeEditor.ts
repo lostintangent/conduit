@@ -31,7 +31,7 @@ export interface UseAutoSizeEditorResult {
   enabled: boolean;
 
   /** Ref to attach to the container element */
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
