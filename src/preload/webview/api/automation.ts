@@ -51,6 +51,14 @@ function scrollElementIntoView(element: Element) {
   }
 }
 
+// Each button's `button` index, its bit in `buttons` while pressed, and the
+// event a browser fires for it in place of a plain click.
+const BUTTONS = {
+  left: { button: 0, buttons: 1, click: "click" },
+  middle: { button: 1, buttons: 4, click: "auxclick" },
+  right: { button: 2, buttons: 2, click: "contextmenu" },
+} as const;
+
 function dispatchMouseEvent(
   element: Element,
   type: string,
@@ -146,15 +154,32 @@ export const automation = {
       view: window,
       clientX: rect.left + (offset?.x ?? rect.width / 2),
       clientY: rect.top + (offset?.y ?? rect.height / 2),
-      button: button === "left" ? 0 : button === "middle" ? 1 : 2,
+      button: BUTTONS[button].button,
     };
+    const pressed = { ...init, buttons: BUTTONS[button].buttons };
+    const pointer = { pointerId: 1, pointerType: "mouse", isPrimary: true };
 
-    // Like a person's clicks, each one counts up in `detail`, and the
-    // second left click also fires a dblclick.
+    // Like a person's clicks: each pointer event precedes its mouse event, a
+    // canceled pointerdown suppresses mousedown and mouseup, `detail` counts
+    // up, and the second left click also fires a dblclick.
     for (let detail = 1; detail <= clicks; detail++) {
-      element.dispatchEvent(new MouseEvent("mousedown", { ...init, detail }));
-      element.dispatchEvent(new MouseEvent("mouseup", { ...init, detail }));
-      element.dispatchEvent(new MouseEvent("click", { ...init, detail }));
+      const mouseEvents = element.dispatchEvent(
+        new PointerEvent("pointerdown", { ...pressed, ...pointer }),
+      );
+      if (mouseEvents) {
+        element.dispatchEvent(
+          new MouseEvent("mousedown", { ...pressed, detail }),
+        );
+      }
+      element.dispatchEvent(
+        new PointerEvent("pointerup", { ...init, ...pointer }),
+      );
+      if (mouseEvents) {
+        element.dispatchEvent(new MouseEvent("mouseup", { ...init, detail }));
+      }
+      element.dispatchEvent(
+        new MouseEvent(BUTTONS[button].click, { ...init, detail }),
+      );
       if (detail === 2 && button === "left") {
         element.dispatchEvent(new MouseEvent("dblclick", { ...init, detail }));
       }

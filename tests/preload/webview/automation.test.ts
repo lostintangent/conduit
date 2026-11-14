@@ -4,10 +4,19 @@ import { describeElement } from "../../../src/preload/webview/api/selectors";
 
 // Bun's jsdom globals reject `view: window` and lack CSS.escape, both of
 // which the webview's Chromium provides.
-const { MouseEvent: DomMouseEvent, CSS: DomCSS } = globalThis;
+const {
+  MouseEvent: DomMouseEvent,
+  PointerEvent: DomPointerEvent,
+  CSS: DomCSS,
+} = globalThis;
 beforeAll(() => {
   globalThis.MouseEvent = class extends DomMouseEvent {
     constructor(type: string, { view: _, ...init }: MouseEventInit = {}) {
+      super(type, init);
+    }
+  };
+  globalThis.PointerEvent = class extends DomPointerEvent {
+    constructor(type: string, { view: _, ...init }: PointerEventInit = {}) {
       super(type, init);
     }
   };
@@ -15,6 +24,7 @@ beforeAll(() => {
 });
 afterAll(() => {
   globalThis.MouseEvent = DomMouseEvent;
+  globalThis.PointerEvent = DomPointerEvent;
   globalThis.CSS = DomCSS;
 });
 
@@ -23,6 +33,16 @@ function handleFor(element: Element) {
   if (!descriptor) throw new Error("Element has no descriptor");
   return descriptor.handle;
 }
+
+const ALL_CLICK_EVENTS = [
+  "pointerdown",
+  "mousedown",
+  "pointerup",
+  "mouseup",
+  "click",
+  "auxclick",
+  "contextmenu",
+];
 
 function recordMouseEvents(element: Element) {
   const events: string[] = [];
@@ -70,6 +90,60 @@ describe("browser automation", () => {
       automation.click({ handle: handleFor(button), offset: {} });
 
       expect(events).toEqual(["mousedown:1", "mouseup:1", "click:1"]);
+    });
+
+    it.each([
+      [
+        "left",
+        ["pointerdown 0/1", "mousedown 0/1", "pointerup 0/0", "mouseup 0/0"],
+        "click 0/0",
+      ],
+      [
+        "middle",
+        ["pointerdown 1/4", "mousedown 1/4", "pointerup 1/0", "mouseup 1/0"],
+        "auxclick 1/0",
+      ],
+      [
+        "right",
+        ["pointerdown 2/2", "mousedown 2/2", "pointerup 2/0", "mouseup 2/0"],
+        "contextmenu 2/0",
+      ],
+    ] as const)("sends pointer events and the %s button's click event", (button, presses, click) => {
+      const target = document.createElement("div");
+      document.body.append(target);
+      const events: string[] = [];
+      for (const type of ALL_CLICK_EVENTS) {
+        target.addEventListener(type, (event) => {
+          const { button, buttons } = event as MouseEvent;
+          events.push(`${type} ${button}/${buttons}`);
+        });
+      }
+
+      automation.click({ handle: handleFor(target), button, offset: {} });
+
+      expect(events).toEqual([...presses, click]);
+    });
+
+    it("opens a menu that toggles on pointerdown, like Radix's trigger", () => {
+      const trigger = document.createElement("button");
+      document.body.append(trigger);
+      let open = false;
+      trigger.addEventListener("pointerdown", (event) => {
+        if (event.button === 0 && event.pointerType === "mouse") {
+          open = !open;
+          event.preventDefault();
+        }
+      });
+      const events: string[] = [];
+      for (const type of ALL_CLICK_EVENTS) {
+        trigger.addEventListener(type, () => events.push(type));
+      }
+
+      automation.click({ handle: handleFor(trigger), offset: {} });
+
+      expect(open).toBe(true);
+      // A canceled pointerdown suppresses mousedown and mouseup, not click.
+      expect(events).toEqual(["pointerdown", "pointerup", "click"]);
     });
   });
 
