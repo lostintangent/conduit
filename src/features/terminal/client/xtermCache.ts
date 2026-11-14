@@ -229,17 +229,8 @@ export function getOrCreate(
       panesBySession.set(sessionId, sessionPanes);
       stateTracker.trackSession(sessionId);
 
-      // Buffer writes to batch them for performance
-      let writeBuffer: string[] = [];
-      let flushTimer: NodeJS.Timeout | null = null;
-
-      const flushWrites = () => {
-        flushTimer = null;
-        if (writeBuffer.length === 0) return;
-
-        const data = writeBuffer.join("");
-        writeBuffer = [];
-
+      // xterm batches writes to its own frame, so output goes straight in.
+      onSessionData(sessionId, (data) => {
         // Clones parse the same output, so only the first pane's terminal
         // acknowledges it. A terminal disposed mid-parse still finishes.
         let parsed: (() => void) | undefined = () =>
@@ -249,13 +240,6 @@ export function getOrCreate(
           parsed = undefined;
         });
         parsed?.();
-      };
-
-      onSessionData(sessionId, (data) => {
-        writeBuffer.push(data);
-        if (flushTimer === null) {
-          flushTimer = setTimeout(flushWrites, 20);
-        }
 
         // Notify state tracker of activity
         stateTracker.notifyDataReceived(sessionId);

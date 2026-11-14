@@ -29,8 +29,7 @@ function output(sessionId: string, data: string) {
     ([event]) => event === "data",
   )?.[1];
   listener?.({ sessionId, data });
-  // The 20 ms write batch, then xterm's parse, which it puts on a timer.
-  vi.advanceTimersByTime(20);
+  // xterm parses on its next timer tick.
   vi.advanceTimersByTime(1);
 }
 
@@ -43,6 +42,16 @@ describe("a terminal's output in the renderer", () => {
     disposeSession("session");
     api.terminal.ack.mockClear();
     vi.useRealTimers();
+  });
+
+  it("is written to xterm as it arrives", () => {
+    const write = vi.spyOn(
+      getOrCreate("session", "pane", settings).terminal,
+      "write",
+    );
+
+    output("session", "hello");
+    expect(write).toHaveBeenCalledWith("hello", expect.any(Function));
   });
 
   it("is acknowledged once parsed, in batches of at least 5,000 characters", () => {
