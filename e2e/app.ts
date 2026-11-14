@@ -38,7 +38,8 @@ export interface LaunchOptions {
   name: string;
   /**
    * Files to create in the isolated home before launch, keyed by relative path.
-   * Files that start with `#!` are made executable.
+   * Files that start with `#!` are made executable. A `.zshrc` here replaces
+   * the default one, which sets a short prompt.
    */
   files?: Record<string, string>;
   /** Written to ~/.conduit/settings.json before launch. */
@@ -225,7 +226,14 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   if (home === fs.realpathSync(os.homedir())) {
     throw new Error("Refusing to launch Conduit with your own home");
   }
-  for (const [file, content] of Object.entries(options.files ?? {})) {
+  const files = {
+    // A prompt without the host name, which is long on CI runners. zsh erases
+    // the line above a prompt that wrapped before its pane resized, which
+    // would erase a command's output when a split or focus mode resizes it.
+    ".zshrc": "PROMPT='%1~ %# '\n",
+    ...options.files,
+  };
+  for (const [file, content] of Object.entries(files)) {
     fs.mkdirSync(path.dirname(path.join(home, file)), { recursive: true });
     fs.writeFileSync(path.join(home, file), content, {
       mode: content.startsWith("#!") ? 0o755 : 0o644,
