@@ -5,7 +5,8 @@ export type TerminalCreateOptions = {
   rows?: number;
   /**
    * With no size, start the shell at the first resize instead of at 80x24, so
-   * a visible pane's first prompt draws at the width the pane fits to.
+   * a visible pane's first prompt draws at the width the pane fits to. Input
+   * sent before then is written once the shell starts.
    */
   waitForSize?: boolean;
 };

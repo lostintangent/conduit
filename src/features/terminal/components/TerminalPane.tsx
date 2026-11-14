@@ -8,15 +8,14 @@ import {
 } from "@/components/ui/tooltip";
 import { useImageDrop } from "@/hooks/useImageDrop";
 import {
+  createHyperTerminal,
   isHyperTerminal,
-  openHyperTerminal,
 } from "@/store/actions/hyperTerminal";
 import { splitPane } from "@/store/actions/pane";
 import type { ApplicationMode } from "@/store/atoms";
 import { applicationModeAtom, userSettingsAtom } from "@/store/atoms";
 import type { TerminalPane as TerminalPaneType } from "@/types";
 import { constructPrompt } from "@features/terminal/client/prompt";
-import { generateId } from "@shared/utils";
 import { useSelector } from "@tanstack/react-store";
 import { Keyboard } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -418,9 +417,7 @@ export const TerminalPane = ({
       const command = `npm i && npm run ${scriptName}`;
 
       if (playButtonTarget === "hyper") {
-        // Open a new hyper terminal with command
-        const result = await api.terminal.create({ cwd, command });
-        openHyperTerminal(result.sessionId, generateId(), result.cwd);
+        await createHyperTerminal(cwd, command);
       } else {
         await splitPane(tabId, paneId, "row", false, {
           terminalOptions: { cwd, command },

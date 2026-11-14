@@ -626,8 +626,14 @@ export async function splitPane(
 
   const defaultCwd = sourceTerminalPane?.cwd ?? undefined;
 
+  // A split in the visible tab from a pane that can't be measured, like an
+  // editor or a pane that hasn't fit yet, starts its shell once it has fit.
+  const size =
+    getSplitTerminalSize(tab.layout, paneId, direction) ??
+    (tabId === activeTabIdAtom.get() ? { waitForSize: true } : undefined);
+
   const result = await api.terminal.create({
-    ...getSplitTerminalSize(tab.layout, paneId, direction),
+    ...size,
     ...(options.terminalOptions ?? { cwd: defaultCwd }),
   });
   if (!result) {

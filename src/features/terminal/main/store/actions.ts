@@ -10,6 +10,7 @@ import type { TerminalInstance } from "../types";
 type UnsizedTerminal = {
   cwd: string;
   command?: string;
+  input: string[];
   isRendererReady: boolean;
 };
 
@@ -27,6 +28,7 @@ export async function createTerminal(options?: TerminalCreateOptions) {
     unsizedTerminals.set(id, {
       cwd,
       command: options.command,
+      input: [],
       isRendererReady: false,
     });
     return { id, cwd, title: path.basename(resolveShell()) };
@@ -98,6 +100,17 @@ function setupTerminalListeners(terminal: TerminalInstance) {
   });
 }
 
+/** Input sent before a shell starts, like an agent's command, waits for it. */
+export function writeTerminal(terminalId: string, data: string) {
+  const unsized = unsizedTerminals.get(terminalId);
+  if (unsized) {
+    unsized.input.push(data);
+    return;
+  }
+
+  getTerminal(terminalId)?.pty.write(data);
+}
+
 export function resizeTerminal(terminalId: string, cols: number, rows: number) {
   cols = Math.max(1, Math.floor(cols));
   rows = Math.max(1, Math.floor(rows));
@@ -105,11 +118,12 @@ export function resizeTerminal(terminalId: string, cols: number, rows: number) {
   const unsized = unsizedTerminals.get(terminalId);
   if (unsized) {
     unsizedTerminals.delete(terminalId);
-    spawnTerminal(terminalId, unsized.cwd, {
+    const terminal = spawnTerminal(terminalId, unsized.cwd, {
       command: unsized.command,
       cols,
       rows,
     });
+    if (unsized.input.length > 0) terminal.pty.write(unsized.input.join(""));
     if (unsized.isRendererReady) markTerminalReady(terminalId);
     return;
   }

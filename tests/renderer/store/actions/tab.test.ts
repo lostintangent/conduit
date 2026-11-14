@@ -34,7 +34,12 @@ vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
 }));
 
 // Import after setting up mocks
-import { duplicateTab, openTab, translateFilePath } from "@/store/actions/tab";
+import {
+  duplicateTab,
+  openTab,
+  openTabFromExistingAgentSession,
+  translateFilePath,
+} from "@/store/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { enableMapSet } from "immer";
@@ -156,7 +161,10 @@ describe("duplicateTab", () => {
     expect(mockApi.terminal.captureCommand).toHaveBeenCalledWith("session-1");
 
     // Verify terminal.create was called with correct cwd
-    expect(mockApi.terminal.create).toHaveBeenCalledWith({ cwd: "/home/user" });
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      waitForSize: true,
+    });
 
     // Verify terminal.input was not called (no command to restore)
     expect(mockApi.terminal.input).not.toHaveBeenCalled();
@@ -281,6 +289,64 @@ describe("duplicateTab", () => {
       cols: 61,
       rows: 44,
     });
+  });
+
+  it("starts a copied pane it can't measure, like a collapsed one, once the copy has fit", async () => {
+    tabsAtom.set([
+      {
+        id: "tab-1",
+        name: "Split View",
+        activePaneId: "pane-1",
+        panes: {
+          "pane-1": {
+            id: "pane-1",
+            type: "terminal",
+            sessionId: "session-1",
+            cwd: "/home/user",
+            title: "zsh",
+          },
+          "pane-2": {
+            id: "pane-2",
+            type: "terminal",
+            sessionId: "session-2",
+            cwd: "/home/user",
+            title: "zsh",
+          },
+        },
+        layout: {
+          id: "layout-1",
+          type: "split",
+          direction: "row",
+          children: [
+            { id: "layout-2", type: "pane", paneId: "pane-1" },
+            { id: "layout-3", type: "pane", paneId: "pane-2", collapsed: true },
+          ],
+        },
+      },
+    ]);
+    getTerminalSize.mockImplementation((paneId: string) =>
+      paneId === "pane-1" ? { cols: 127, rows: 45 } : undefined,
+    );
+    mockApi.terminal.captureCommand.mockResolvedValue(null);
+    mockApi.terminal.create.mockResolvedValue({
+      sessionId: "session-3",
+      cwd: "/home/user",
+      title: "zsh",
+    });
+
+    await duplicateTab("tab-1");
+
+    expect(mockApi.terminal.create).toHaveBeenNthCalledWith(1, {
+      cwd: "/home/user",
+      cols: 127,
+      rows: 45,
+    });
+    expect(mockApi.terminal.create).toHaveBeenNthCalledWith(2, {
+      cwd: "/home/user",
+      waitForSize: true,
+    });
+    const copy = tabsAtom.get()[1];
+    expect(JSON.stringify(copy.layout)).not.toContain("collapsed");
   });
 
   it("should duplicate editor panes with same file path", async () => {
@@ -734,6 +800,7 @@ describe("duplicateTab", () => {
     expect(mockApi.terminal.create).toHaveBeenCalledWith({
       cwd: "/home/user/project",
       command: "npm run dev",
+      waitForSize: true,
     });
   });
 
@@ -810,6 +877,7 @@ describe("duplicateTab", () => {
     expect(mockApi.terminal.create).toHaveBeenCalledWith({
       cwd: "/home/user",
       command: "top",
+      waitForSize: true,
     });
   });
 
@@ -847,6 +915,7 @@ describe("duplicateTab", () => {
     expect(mockApi.terminal.create).toHaveBeenCalledWith({
       cwd: "/home/user",
       command: "vim file.txt\n",
+      waitForSize: true,
     });
   });
 });
@@ -909,6 +978,40 @@ describe("openTab", () => {
     await openTab();
 
     expect(mockApi.terminal.create).toHaveBeenCalledWith({
+      waitForSize: true,
+    });
+  });
+});
+
+describe("openTabFromExistingAgentSession", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getTerminalSize.mockReset();
+  });
+
+  afterEach(() => {
+    tabsAtom.set([]);
+    activeTabIdAtom.set(() => undefined);
+  });
+
+  it("starts the worktree's terminal once its tab has fit when no pane can be measured", async () => {
+    mockApi.terminal.create.mockResolvedValue({
+      sessionId: "session-1",
+      cwd: "/repo/.worktrees/fix",
+      title: "zsh",
+    });
+
+    await openTabFromExistingAgentSession({
+      id: "agent-1",
+      repoRoot: "/repo",
+      worktreePath: "/repo/.worktrees/fix",
+      branchName: "fix",
+      baseRef: "main",
+      createdAt: 0,
+    });
+
+    expect(mockApi.terminal.create).toHaveBeenCalledWith({
+      cwd: "/repo/.worktrees/fix",
       waitForSize: true,
     });
   });

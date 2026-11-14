@@ -7,6 +7,7 @@ import {
   killTerminal,
   markTerminalReady,
   resizeTerminal,
+  writeTerminal,
 } from "./store/actions";
 
 const service = {
@@ -18,9 +19,7 @@ const service = {
   /** Called once the renderer can show output, which flushes what buffered. */
   ready: markTerminalReady,
 
-  input(sessionId: string, input: string) {
-    getTerminal(sessionId)?.pty.write(input);
-  },
+  input: writeTerminal,
 
   resize: resizeTerminal,
 

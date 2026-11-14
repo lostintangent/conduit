@@ -132,11 +132,16 @@ export function generateIncrementedTabTitle(
 
 /**
  * A new tab fills the content area that the active pane fits within, so the
- * active pane is never wider than the new tab will be.
+ * active pane is never wider than the new tab will be. With no pane to
+ * measure, as in a fresh window, the shell starts once the new tab has fit.
  */
 function getNewTabTerminalSize() {
   const activeTab = activeTabAtom.get();
-  return activeTab && getTerminalSize(activeTab.activePaneId);
+  return (
+    (activeTab && getTerminalSize(activeTab.activePaneId)) ?? {
+      waitForSize: true,
+    }
+  );
 }
 
 export async function openTab(
@@ -149,9 +154,7 @@ export async function openTab(
   const result = await api.terminal.create({
     cwd: cwd || undefined,
     command: options?.command,
-    // With no pane to measure, as in a fresh window, the shell starts once
-    // the new tab's pane has fit.
-    ...(getNewTabTerminalSize() ?? { waitForSize: true }),
+    ...getNewTabTerminalSize(),
   });
   if (!result) {
     return null;
@@ -538,8 +541,10 @@ export async function duplicateTab(
       const result = await api.terminal.create({
         cwd: cwdToUse ?? undefined,
         command: capturedCommand ?? undefined,
-        // The copy has the same layout, so each pane keeps its size.
-        ...getTerminalSize(oldPaneId),
+        // The copy has the same layout, so each pane keeps its size. It's
+        // focused with every pane expanded, so a pane that can't be measured,
+        // as in a background tab, starts once its copy has fit.
+        ...(getTerminalSize(oldPaneId) ?? { waitForSize: true }),
       });
       if (!result) {
         continue;

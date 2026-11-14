@@ -20,9 +20,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  openHyperTerminal,
+  createHyperTerminal,
   restoreMinimizedHyperTerminals,
 } from "@/store/actions/hyperTerminal";
+import { openQuickTerminal } from "@/store/actions/quickPane";
 import {
   focusTab,
   getActiveTabCwd,
@@ -34,13 +35,11 @@ import {
   activeTabIdAtom,
   applicationModeAtom,
   hyperTerminalsAtom,
-  quickPaneAtom,
   tabsAtom,
   userSettingsAtom,
 } from "@/store/atoms";
 import { tabLabelsAtom } from "@/store/tabLabels";
 import type { TabPosition } from "@shared/types";
-import { generateId } from "@shared/utils";
 import { useAtom, useSelector } from "@tanstack/react-store";
 import {
   ChevronDown,
@@ -88,7 +87,6 @@ export const TabStrip = ({
     useSelector(userSettingsAtom);
   const shouldShowLaunchButton = showLaunchButton ?? false;
   const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
-  const setQuickPaneState = quickPaneAtom.set;
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
   const hasMultipleTabs = tabs.length > 1;
@@ -569,38 +567,17 @@ export const TabStrip = ({
       return;
     }
 
-    const api = window.conduit;
-    const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const result = await api.terminal.create({ cwd });
-    if (!result) return;
-
-    const paneId = generateId();
-    openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
   }, [activeTab, homeDirectory, hasMinimizedTerminals]);
 
   // Always opens a new hyper terminal (used in dropdown menu)
   const handleNewHyperTerminal = useCallback(async () => {
-    const api = window.conduit;
-    const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const result = await api.terminal.create({ cwd });
-    if (!result) return;
-
-    const paneId = generateId();
-    openHyperTerminal(result.sessionId, paneId, result.cwd ?? null);
+    await createHyperTerminal(getActiveTabCwd(activeTab, homeDirectory));
   }, [activeTab, homeDirectory]);
 
   const handleOpenQuickTerminal = useCallback(async () => {
-    const api = window.conduit;
-    const cwd = getActiveTabCwd(activeTab, homeDirectory);
-    const result = await api.terminal.create({ cwd });
-    if (!result) return;
-
-    setQuickPaneState({
-      type: "terminal",
-      sessionId: result.sessionId,
-      cwd: result.cwd ?? null,
-    });
-  }, [activeTab, homeDirectory, setQuickPaneState]);
+    await openQuickTerminal(getActiveTabCwd(activeTab, homeDirectory));
+  }, [activeTab, homeDirectory]);
 
   // Use margins to create gaps that reveal the overlay underneath
   // On Windows, no rounded corners (Windows 11 handles rounding)

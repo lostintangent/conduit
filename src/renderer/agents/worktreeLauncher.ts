@@ -115,7 +115,12 @@ export async function launchAgents(
       firstCwd = firstSession.worktreePath;
     }
 
-    const firstTerminal = await api.terminal.create({ cwd: firstCwd });
+    const { openTabFromExistingSession } = await import("@/store/actions/tab");
+    // Its tab may be split for more instances, so no other pane's size fits.
+    const firstTerminal = await api.terminal.create({
+      cwd: firstCwd,
+      waitForSize: true,
+    });
     if (!firstTerminal) {
       throw new Error(
         useWorktrees
@@ -125,7 +130,6 @@ export async function launchAgents(
     }
 
     // Create the initial tab with the first agent
-    const { openTabFromExistingSession } = await import("@/store/actions/tab");
     const { tabId, paneId } = openTabFromExistingSession({
       sessionId: firstTerminal.sessionId,
       cwd: firstCwd,

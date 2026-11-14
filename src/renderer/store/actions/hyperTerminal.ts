@@ -2,6 +2,7 @@ import { disposeSession } from "@features/terminal/client/xtermCache";
 import { openTabFromExistingSession } from "@/store/actions/tab";
 import { hyperTerminalsAtom } from "@/store/atoms";
 import type { HyperTerminalPosition } from "@shared/types";
+import { generateId } from "@shared/utils";
 import { produce } from "immer";
 
 const api = window.conduit;
@@ -69,6 +70,22 @@ export function openHyperTerminal(
       }
     }),
   );
+}
+
+/**
+ * Starts a shell in a new hyper terminal. It has no pane to measure, so the
+ * shell starts once the hyper terminal has fit.
+ */
+export async function createHyperTerminal(
+  cwd: string | null,
+  command?: string,
+) {
+  const result = await api.terminal.create({
+    cwd: cwd ?? undefined,
+    command,
+    waitForSize: true,
+  });
+  openHyperTerminal(result.sessionId, generateId(), result.cwd ?? null);
 }
 
 /**

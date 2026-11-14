@@ -16,6 +16,7 @@ import {
   killTerminal,
   markTerminalReady,
   resizeTerminal,
+  writeTerminal,
 } from "./actions";
 
 function fakePty() {
@@ -82,6 +83,19 @@ describe("a terminal that waits for its size", () => {
     resizeTerminal(id, 69, 24);
 
     expect(pty.write).toHaveBeenCalledWith("npm run dev\r");
+  });
+
+  it("keeps input sent before its first fit, like an agent's command", async () => {
+    const { id } = await createTerminal({ waitForSize: true });
+
+    writeTerminal(id, "claude");
+    writeTerminal(id, "\r");
+    expect(pty.write).not.toHaveBeenCalled();
+
+    resizeTerminal(id, 69, 24);
+
+    expect(pty.write).toHaveBeenCalledTimes(1);
+    expect(pty.write).toHaveBeenCalledWith("claude\r");
   });
 
   it("never starts a shell when closed before its first fit", async () => {

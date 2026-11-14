@@ -206,8 +206,22 @@ describe("splitPane", () => {
     });
   });
 
-  it("leaves the size to the shell when the pane has no measured size", async () => {
+  it("starts a split in the visible tab once it has fit when the pane has no measured size", async () => {
     setTab(leaf("a"), ["a"]);
+    activeTabIdAtom.set("tab-1");
+    getTerminalSize.mockReturnValue(undefined);
+
+    await splitPane("tab-1", "a", "row");
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      waitForSize: true,
+    });
+  });
+
+  it("starts a split in a background tab right away when the pane has no measured size", async () => {
+    setTab(leaf("a"), ["a"]);
+    activeTabIdAtom.set("tab-2");
     getTerminalSize.mockReturnValue(undefined);
 
     await splitPane("tab-1", "a", "row");
