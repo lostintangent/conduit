@@ -609,11 +609,12 @@ describe("EditorPaneV2", () => {
         expect(screen.getByTestId("editor-file-path").textContent).toBe(
           "no-file",
         );
+        // So its tab stops naming the file. The pane tells it from an effect,
+        // which can run after the render that cleared the file.
+        expect(onClearFile).toHaveBeenCalledTimes(1);
       });
       expect(treeContainer.hidden).toBe(false);
       expect(editorContainer.hidden).toBe(true);
-      // So its tab stops naming the file
-      expect(onClearFile).toHaveBeenCalledTimes(1);
     });
     it("should show the tree in split mode when the open file goes away while it's collapsed", async () => {
       const modified = { path: "test.ts", status: "modified", staged: false };
