@@ -107,35 +107,48 @@ describe("terminal and CLI", () => {
     });
   }
 
-  it("sends a hidden tab's output a few times a second", async () => {
+  it("holds a hidden tab's output for a moment, and not a shown tab's", async () => {
     await recordOutput();
     await terminal.type("conduit tab-new --title E2E-HIDDEN\n");
     const tab = app.page.getByRole("tab", { name: /E2E-HIDDEN/ });
     await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
     const shell = await app.terminal();
+    // A pane tells main it hid or showed in the frame after it does.
+    const reported = () =>
+      app.page.evaluate(
+        () =>
+          new Promise((done) =>
+            requestAnimationFrame(() => requestAnimationFrame(done)),
+          ),
+      );
+    // Two lines 120 ms apart, about half of what main holds a hidden tab's
+    // output for. `zselect` waits without forking a slow `sleep`.
+    const twoLines = (name: string) =>
+      `printf 'E2E-${name}-%s\\n' A; zselect -t 12; printf 'E2E-${name}-%s\\n' B`;
+    const messageWith = (line: string) =>
+      until(
+        async () => (await recorded()).find((data) => data.includes(line)),
+        line,
+      );
 
-    // Like an agent's status line, 40 ticks over about a second.
+    // The shell waits until main has heard that its tab hid.
+    const hid = path.join(app.home, "tab-hid");
     await shell.type(
-      "sleep 1; for i in {1..40}; do echo E2E-TICK-$i; sleep 0.025; done\n",
+      `zmodload zsh/zselect; until [[ -e ${hid} ]]; do zselect -t 5; done; ${twoLines("HELD")}\n`,
     );
     await app.page.getByRole("tab").first().click();
-    const ticks = await until(async () => {
-      const ticks = (await recorded()).filter((data) =>
-        /E2E-TICK-\d/.test(data),
-      );
-      return ticks.join("").includes("E2E-TICK-40\r\n") && ticks;
-    }, "the last tick");
-    expect(ticks.length).toBeLessThan(12);
+    await shell.locator.waitFor({ state: "hidden" });
+    await reported();
+    fs.writeFileSync(hid, "");
+    expect(await messageWith("E2E-HELD-A\r\n")).toContain("E2E-HELD-B\r\n");
 
-    // Shown again, each tick goes out as it's printed.
     await tab.click();
-    await shell.waitForText(/^E2E-TICK-40$/m);
-    await shell.type(
-      "for i in {1..20}; do echo E2E-TOCK-$i; sleep 0.025; done\n",
+    await shell.locator.waitFor();
+    await reported();
+    await shell.type(`${twoLines("SHOWN")}\n`);
+    expect(await messageWith("E2E-SHOWN-A\r\n")).not.toContain(
+      "E2E-SHOWN-B\r\n",
     );
-    await shell.waitForText(/^E2E-TOCK-20$/m);
-    const tocks = (await recorded()).filter((data) => /E2E-TOCK-\d/.test(data));
-    expect(tocks.length).toBeGreaterThan(15);
     await shell.type("exit\n");
     await count(tab, 0, "E2E-HIDDEN tabs once its shell exits");
   });
