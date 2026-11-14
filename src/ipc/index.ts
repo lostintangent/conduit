@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { initializeAgentHandlers } from "./agent";
-import { initializeBrowserHandlers } from "@features/browser/main/capture";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
 import { startFeatures } from "./features";
 import {
@@ -51,7 +50,6 @@ async function initializeIpcHandlers(window: BrowserWindow) {
 
   initializeUIHandlers(window);
   await initializeAgentHandlers();
-  initializeBrowserHandlers();
 
   // Initialize filesystem and git handlers (v2)
   initializeFileSystemV2Handlers();

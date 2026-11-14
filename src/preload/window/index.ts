@@ -12,7 +12,6 @@ import type {
 } from "@shared/types";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
-import configureBrowserModule from "./modules/browser";
 import configureCliModule from "./modules/cli";
 import fsModule from "./modules/fs";
 import gitModule from "./modules/git";
@@ -136,7 +135,6 @@ const conduitAPI = {
       extension,
     }) as Promise<string>,
 
-  browser: configureBrowserModule,
   cli: configureCliModule,
   fs: fsModule,
   git: gitModule,

@@ -32,11 +32,13 @@ const manifest: Record<string, string[]> = JSON.parse(
 describe("feature discovery", () => {
   it("lists every feature's service methods, keyed by folder name", () => {
     expect(Object.keys(manifest).sort()).toEqual([
+      "browser",
       "dotfiles",
       "terminal",
       "updates",
       "workspaces",
     ]);
+    expect(manifest.browser).toContain("captureScreenshot");
     expect(manifest.dotfiles).toContain("addFile");
     expect(manifest.terminal).toContain("create");
     expect(manifest.updates).toContain("install");

@@ -1,12 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises";
-import {
-  ClipboardItem,
-  clipboard,
-  ipcMain,
-  type Rectangle,
-  type WebContents,
-  webContents,
-} from "electron";
+import type { Rectangle, WebContents } from "electron";
 
 const CAPTURE_ATTEMPTS = 10;
 const CAPTURE_RETRY_MS = 100;
@@ -22,34 +15,4 @@ export async function capturePage(contents: WebContents, rect?: Rectangle) {
       await delay(CAPTURE_RETRY_MS);
     }
   }
-}
-
-export function initializeBrowserHandlers() {
-  ipcMain.handle(
-    "browser:capture-screenshot",
-    async (_, webContentsId: number) => {
-      const contents = webContents.fromId(webContentsId);
-      const image = await capturePage(contents);
-      // Copy the bytes because TypeScript doesn't accept a Node Buffer as a BlobPart.
-      const png = new Blob([new Uint8Array(image.toPNG())], {
-        type: "image/png",
-      });
-      await clipboard.write([new ClipboardItem({ "image/png": png })]);
-    },
-  );
-
-  ipcMain.handle(
-    "browser:show-devtools",
-    (_, sourceWebContentsId: number, devToolsWebContentsId: number) => {
-      const sourceContents = webContents.fromId(sourceWebContentsId);
-      const devToolsContents = webContents.fromId(devToolsWebContentsId);
-
-      sourceContents.setDevToolsWebContents(devToolsContents);
-      sourceContents.openDevTools();
-
-      // This is a needed workaround to ensure the DevTools reloads
-      // properly when opened in a separate window. Unfortunately it's required :/
-      devToolsContents.executeJavaScript("window.location.reload()");
-    },
-  );
 }
