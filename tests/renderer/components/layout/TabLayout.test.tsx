@@ -298,6 +298,20 @@ describe("TabLayout tab switching", () => {
     await nextFrame();
     expect(highlightedPanes()).toEqual(["a1"]);
   });
+
+  it("takes focus out of a tab as soon as another tab shows", () => {
+    tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
+    activeTabIdAtom.set("tab-1");
+    renderTabLayout();
+    const terminal = screen.getByTestId("terminal-tab-1");
+    terminal.tabIndex = -1;
+    terminal.focus();
+
+    act(() => activeTabIdAtom.set("tab-2"));
+
+    // Keys typed before tab 2's pane takes focus would go to tab 1's shell
+    expect(document.activeElement).toBe(document.body);
+  });
 });
 
 describe("TabLayout pane errors", () => {

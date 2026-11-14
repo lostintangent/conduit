@@ -51,7 +51,13 @@ import { countPanesInLayout, layoutContainsPaneId } from "@/utils/layout";
 import { getUnifiedSandboxForTab } from "@/utils/sandbox";
 import { shallow, useSelector } from "@tanstack/react-store";
 import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 const INTERSECTION_TOLERANCE = 0.08;
@@ -266,12 +272,14 @@ function buildGridTemplateStyles(
 // Only the content hides with the tab, so the panel stays attached.
 function TabPanel({
   tabId,
+  isActive,
   isVisible,
   tabContent,
   children,
   ...props
 }: React.ComponentProps<"div"> & {
   tabId: string;
+  isActive: boolean;
   isVisible: boolean;
   tabContent: React.ReactNode;
 }) {
@@ -287,8 +295,16 @@ function TabPanel({
     [attachPanel, tabId, host],
   );
 
+  // A hidden element keeps focus until the next tab's pane takes it a frame
+  // later, so keys typed in between would go to this tab, e.g. to its shell
+  useLayoutEffect(() => {
+    if (!isActive && host.contains(document.activeElement)) {
+      (document.activeElement as HTMLElement).blur();
+    }
+  }, [isActive, host]);
+
   return (
-    <div {...props} ref={ref}>
+    <div {...props} aria-hidden={!isActive} ref={ref}>
       <Activity mode={isVisible ? "visible" : "hidden"}>
         {children}
         {createPortal(tabContent, host)}
@@ -982,10 +998,10 @@ export function TabLayout({
         <TabPanel
           key={tab.id}
           tabId={tab.id}
+          isActive={isActive}
           isVisible={isActive || isTabInPreview(tab.id)}
           tabContent={tabContent}
           role="tabpanel"
-          aria-hidden={!isActive}
           className={
             isActive
               ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
