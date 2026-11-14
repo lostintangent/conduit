@@ -286,7 +286,7 @@ export function GeneralTab({
           value={terminalFontFamily}
           onChange={(value) => {
             setTerminalFontFamily(value);
-            updateTerminalFonts(value, userSettings.terminalFontSize!);
+            updateTerminalFonts(value, userSettings.terminalFontSize);
           }}
           onBlur={() => {
             if (terminalFontFamily !== userSettings.terminalFontFamily) {
@@ -304,7 +304,7 @@ export function GeneralTab({
             const fontSize = parseInt(value, 10);
             if (!isNaN(fontSize) && fontSize > 0) {
               onUpdateSettings({ terminalFontSize: fontSize });
-              updateTerminalFonts(userSettings.terminalFontFamily!, fontSize);
+              updateTerminalFonts(userSettings.terminalFontFamily, fontSize);
             }
           }}
           min={8}

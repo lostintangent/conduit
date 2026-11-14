@@ -27,7 +27,10 @@ export function TabPreviewOverlay({
       return;
     }
 
-    mountTabsInPreview({ [preview.tabId]: previewContainerRef.current! });
+    const container = previewContainerRef.current;
+    if (container) {
+      mountTabsInPreview({ [preview.tabId]: container });
+    }
 
     return unmountTabsFromPreview;
   }, [preview, mountTabsInPreview, unmountTabsFromPreview]);

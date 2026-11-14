@@ -60,7 +60,8 @@ export function TabButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const showCloseButton = isHovered && !disableClick && !tab.locked;
-  const showAgentIndicator = showTabState && tab.progressState !== null;
+  const progressState = showTabState ? tab.progressState : null;
+  const showAgentIndicator = progressState !== null;
   const showIdleIndicator =
     showTabState &&
     !showAgentIndicator &&
@@ -216,7 +217,7 @@ export function TabButton({
             }}
           />
         ) : showAgentIndicator ? (
-          <AgentIndicator progressState={tab.progressState!} />
+          <AgentIndicator progressState={progressState} />
         ) : showIdleIndicator ? (
           <IdleIndicator tabState={tab.tabState} />
         ) : tab.locked ? (

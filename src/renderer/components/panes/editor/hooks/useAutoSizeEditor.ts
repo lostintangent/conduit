@@ -49,7 +49,7 @@ export function useAutoSizeEditor({
   const currentHeightRef = useRef<number>(0);
 
   const updateHeight = useCallback(() => {
-    if (!enabled || !containerRef.current) return;
+    if (maxHeight === undefined || !containerRef.current) return;
 
     let contentHeight = 0;
     let activeEditor: monaco.editor.ICodeEditor | null = null;
@@ -68,7 +68,7 @@ export function useAutoSizeEditor({
     // Clamp height between min and max
     const clampedHeight = Math.max(
       EDITOR_MIN_HEIGHT,
-      Math.min(contentHeight, maxHeight!),
+      Math.min(contentHeight, maxHeight),
     );
 
     // Only update DOM if height actually changed
@@ -78,11 +78,11 @@ export function useAutoSizeEditor({
 
       // If content fits in container (not clamped to max), reset scroll to top
       // This prevents the "scroll then resize" visual glitch
-      if (contentHeight <= maxHeight! && activeEditor) {
+      if (contentHeight <= maxHeight && activeEditor) {
         activeEditor.setScrollTop(0);
       }
     }
-  }, [enabled, maxHeight, editor, diffEditor]);
+  }, [maxHeight, editor, diffEditor]);
 
   useEffect(() => {
     if (!enabled) return;

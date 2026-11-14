@@ -19,6 +19,7 @@
  * <EditorPane
  *   editorId="main-editor"
  *   cwd="/project"
+ *   git={git}
  *   selectedFile={{ path: "/project/src/index.ts", name: "index.ts", type: "file" }}
  *   viewMode={{ type: 'editor' }}
  *   theme="dark"
@@ -80,7 +81,7 @@ export interface EditorPaneProps {
   cwd: string;
 
   /** Git API instance (shared from parent) */
-  git?: GitV2API;
+  git: GitV2API;
 
   /** Currently selected file (null for empty state) */
   selectedFile: FileNode | null;
@@ -293,7 +294,7 @@ export const EditorPane = memo(function EditorPane({
     files: historicalFiles,
     isLoading: isCommitLoading,
     error: commitError,
-  } = useCommitDetails(commitReviewId, git!);
+  } = useCommitDetails(commitReviewId, git);
 
   // Convert commit data to metadata format expected by ReviewCommitPane
   const commitMetadata = useMemo(() => {
@@ -494,7 +495,7 @@ export const EditorPane = memo(function EditorPane({
 
   // Changes review mode - render full-height pane with its own toolbar
   // This is checked first because review mode doesn't require a selected file
-  if (viewMode.type === "changesReview" && git) {
+  if (viewMode.type === "changesReview") {
     return (
       <div
         className="flex flex-col h-full w-full bg-background"
@@ -521,7 +522,7 @@ export const EditorPane = memo(function EditorPane({
 
   // Commit file diff mode - read-only historical diff view
   // Shows diff between parent commit and the commit using FileEditor in standalone mode
-  if (viewMode.type === "commitFileDiff" && git) {
+  if (viewMode.type === "commitFileDiff") {
     const {
       filePath: commitFilePath,
       commitId,
@@ -563,7 +564,7 @@ export const EditorPane = memo(function EditorPane({
   // This shows the full commit with all file diffs in a scrollable list
   // Uses ReviewCommitPane for consistent UI. Keyed by commit, since a cached
   // commit loads without an intervening loading state.
-  if (viewMode.type === "commitReview" && git) {
+  if (viewMode.type === "commitReview") {
     const { commitId, parentCommitId } = viewMode;
 
     return (
@@ -721,23 +722,6 @@ export const EditorPane = memo(function EditorPane({
               onMount={handleDiffEditorMount}
             />
           </EditorErrorBoundary>
-        ) : viewMode.type === "changesReview" && git ? (
-          // Changes review pane
-          <ReviewWorkingPane
-            cwd={cwd}
-            git={git}
-            baseBranch={baseBranch}
-            onExitReview={onExitReview}
-            selectedFilePath={displayFilePath || undefined}
-            selectedMapKey={selectedMapKey}
-            hasUpstream={hasUpstream}
-            isPulling={isPulling}
-            isPushing={isPushing}
-            onPull={onPull ?? (() => {})}
-            onPush={onPush ?? (() => {})}
-            unseenTracking={unseenTracking}
-            isFileDirty={isFileDirty}
-          />
         ) : null}
       </div>
     </div>

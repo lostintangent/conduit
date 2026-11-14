@@ -369,6 +369,7 @@ export const CanvasPane = memo(function CanvasPane({
 
       const shouldShow =
         screenX !== undefined &&
+        screenY !== undefined &&
         (tool === "pen" || tool === "eraser") &&
         !isPanning &&
         !isSpacePressed;
@@ -380,7 +381,7 @@ export const CanvasPane = memo(function CanvasPane({
 
       const size = strokeWidth * viewport.zoom;
       el.style.left = `${screenX - size / 2}px`;
-      el.style.top = `${screenY! - size / 2}px`;
+      el.style.top = `${screenY - size / 2}px`;
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
       el.style.borderColor =

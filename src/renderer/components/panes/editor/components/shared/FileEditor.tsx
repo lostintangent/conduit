@@ -299,11 +299,9 @@ export function FileEditor(props: FileEditorProps) {
     originalSource: ContentSource;
     modifiedSource: ContentSource;
   } => {
-    if (isCommitContext) {
-      return {
-        originalSource: parentCommitId!,
-        modifiedSource: commitId!,
-      };
+    // Only a commit context has commit ids
+    if (parentCommitId !== undefined && commitId !== undefined) {
+      return { originalSource: parentCommitId, modifiedSource: commitId };
     }
 
     if (isNormalContext) {
@@ -324,7 +322,6 @@ export function FileEditor(props: FileEditorProps) {
       return { originalSource: "head", modifiedSource: "workingDirectory" };
     }
   }, [
-    isCommitContext,
     isNormalContext,
     normalSource,
     baseBranch,
