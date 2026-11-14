@@ -8,7 +8,6 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
-import { makeSpawnHelperExecutable } from "./build/scripts/spawn-helper";
 
 const NATIVE_MODULES = ["node-pty", "@parcel/watcher", "@vscode/ripgrep"];
 
@@ -99,7 +98,6 @@ const config: ForgeConfig = {
         stdio: "inherit",
       });
       pruneNativeModules(buildPath, arch);
-      makeSpawnHelperExecutable(buildPath);
       // Electron reads name, version and main from the app's package.json.
       fs.copyFileSync(
         path.resolve(__dirname, "package.json"),

@@ -23,13 +23,10 @@ import {
   katexDir,
   monacoWorkerDir,
 } from "./bun.build";
-import { makeSpawnHelperExecutable } from "./scripts/spawn-helper";
 
 const root = path.resolve(import.meta.dir, "..");
 // Outside Electron, the electron package exports the binary's path.
 const electronPath = electronBinary as unknown as string;
-
-makeSpawnHelperExecutable(root);
 
 await Promise.all([buildMonacoWorkers({ dev: true }), copyKatex()]);
 
