@@ -1,5 +1,5 @@
-import { act, render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const openExternal = vi.hoisted(() => {
   const openExternal = vi.fn();
@@ -17,7 +17,13 @@ vi.mock("@features/terminal/components/TerminalPane", () => ({
 
 import { TabContentPortalProvider } from "@/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@/components/layout/normal/TabLayout";
-import { activeTabIdAtom, tabsAtom, userSettingsAtom } from "@/store/atoms";
+import {
+  activeTabIdAtom,
+  applicationModeAtom,
+  tabsAtom,
+  userSettingsAtom,
+} from "@/store/atoms";
+import { sidebarStateAtom } from "@/store/sidebarStore";
 import type { Tab } from "@/types";
 import { enableMapSet } from "immer";
 
@@ -72,5 +78,45 @@ describe("TabLayout terminal links", () => {
 
     expect(openExternal).toHaveBeenCalledWith("https://example.com");
     expect(tabsAtom.get()[0].panes).toEqual(tab.panes);
+  });
+
+  it("follows a link target change made while the terminal is open", () => {
+    userSettingsAtom.set({
+      ...userSettingsAtom.get(),
+      terminalLinkTarget: "default",
+    });
+    renderTabLayout();
+
+    act(() =>
+      userSettingsAtom.set({
+        ...userSettingsAtom.get(),
+        terminalLinkTarget: "sidebar",
+      }),
+    );
+    act(() => terminalProps!.onLinkClick("https://example.com"));
+
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(sidebarStateAtom.get()).toMatchObject({
+      isOpen: true,
+      view: "browser",
+      navigation: { cwd: "/repo", browserUrl: "https://example.com" },
+    });
+  });
+});
+
+describe("TabLayout pane controls", () => {
+  afterEach(() => applicationModeAtom.set("normal"));
+
+  it("hides the close button once the last other tab closes", () => {
+    tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
+    activeTabIdAtom.set("tab-1");
+    applicationModeAtom.set("design");
+    renderTabLayout();
+
+    expect(screen.queryByTitle("Close pane (Alt+W)")).not.toBeNull();
+
+    act(() => tabsAtom.set([tab]));
+
+    expect(screen.queryByTitle("Close pane (Alt+W)")).toBeNull();
   });
 });

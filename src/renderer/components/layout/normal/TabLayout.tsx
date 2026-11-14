@@ -257,6 +257,21 @@ function buildGridTemplateStyles(
     : { gridTemplateRows: templateValue };
 }
 
+// Registers its node as the tab's portal mount point. The ref callback must
+// stay stable, because a new one would remove and re-add the mount point on
+// every render, and each of those updates re-renders the layout.
+function TabPanel({
+  tabId,
+  ...props
+}: React.ComponentProps<"div"> & { tabId: string }) {
+  const { setLayoutMountPoint } = useTabContentPortal();
+  const ref = useCallback(
+    (node: HTMLDivElement | null) => setLayoutMountPoint(tabId, node),
+    [setLayoutMountPoint, tabId],
+  );
+  return <div {...props} ref={ref} />;
+}
+
 interface TabLayoutProps {
   handleContextMenu: (
     event: React.MouseEvent,
@@ -310,20 +325,12 @@ export function TabLayout({
     string | null
   >(null);
 
-  const { setLayoutMountPoint, getActiveMountPoint, isTabInPreview } =
-    useTabContentPortal();
+  const { getActiveMountPoint, isTabInPreview } = useTabContentPortal();
 
   const shouldShowTerminalDimensions = applicationMode === "normal";
 
-  // In order to mount/unmound the tab content portals, we need a stable ref
-  // callback for each tab container. So this is simply a map of tab IDs to ref callbacks.
-  const tabContainerCallbackRefs = useRef<
-    Record<string, (node: HTMLDivElement | null) => void>
-  >({});
-
   const {
     draggedPaneId,
-    dragHoverPaneId,
     tabEdgeDropZone,
     createDragHandlers,
     createDropHandlers,
@@ -692,14 +699,15 @@ export function TabLayout({
       resizingNode,
       setHoveredPaneId,
       draggedPaneId,
-      dragHoverPaneId,
       hoveredPaneId,
       isTabInPreview,
       hoveredPreviewPaneId,
       setHoveredPreviewPaneId,
       setApplicationMode,
-      setPaneCollapsed,
+      setSidebarState,
       dimInactivePanes,
+      terminalLinkTarget,
+      onOpenPaneActions,
     ],
   );
 
@@ -886,27 +894,19 @@ export function TabLayout({
     ],
   );
 
-  const renderLayout = useCallback(
-    (
-      node: LayoutNode,
-      tab: Tab,
-      hasUnifiedSandbox: boolean,
-      ctx: TabRenderContext,
-      parentDirection?: SplitDirection,
-    ) => {
-      if (node.type === "pane") {
-        return renderPaneNode(
-          node,
-          tab,
-          hasUnifiedSandbox,
-          ctx,
-          parentDirection,
-        );
-      }
-      return renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox, ctx);
-    },
-    [renderPaneNode, renderSplitNode],
-  );
+  // A plain arrow rather than a useCallback or function declaration, because
+  // the React Compiler skips the whole component for a recursive useCallback
+  // and for a recursive function declaration that a later useCallback uses.
+  const renderLayout = (
+    node: LayoutNode,
+    tab: Tab,
+    hasUnifiedSandbox: boolean,
+    ctx: TabRenderContext,
+    parentDirection?: SplitDirection,
+  ): React.ReactNode =>
+    node.type === "pane"
+      ? renderPaneNode(node, tab, hasUnifiedSandbox, ctx, parentDirection)
+      : renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox, ctx);
 
   const isFocusModeActive = applicationMode === "focus";
 
@@ -914,17 +914,8 @@ export function TabLayout({
     (tab: Tab): React.ReactNode => {
       const isActive = tab.id === activeTabId;
 
-      // If this is the first time we're rendering this tab, create and store
-      // its container ref callback that sets up the portal mount point.
-      if (!tabContainerCallbackRefs.current[tab.id]) {
-        tabContainerCallbackRefs.current[tab.id] = (
-          node: HTMLDivElement | null,
-        ) => setLayoutMountPoint(tab.id, node);
-      }
-
-      // Get the ref callback for this tab container and it's active
-      // mount point, which is either the tab or the tab preview hover.
-      const tabContainerRef = tabContainerCallbackRefs.current[tab.id];
+      // Get the tab's active mount point, which is either the tab or the tab
+      // preview hover.
       const portalTarget = getActiveMountPoint(tab.id);
 
       // Check if all panes share the same sandbox context
@@ -955,8 +946,9 @@ export function TabLayout({
         isActive && isInDesignMode && draggedPaneId && tabEdgeDropZone;
 
       return (
-        <div
+        <TabPanel
           key={tab.id}
+          tabId={tab.id}
           role="tabpanel"
           aria-hidden={!isActive}
           className={
@@ -964,7 +956,6 @@ export function TabLayout({
               ? "flex-1 flex min-h-0 min-w-0 overflow-hidden relative"
               : "flex-1 hidden min-h-0 min-w-0 overflow-hidden relative"
           }
-          ref={tabContainerRef}
           onDragOver={tabDropHandlers?.onDragOver}
           onDragLeave={tabDropHandlers?.onDragLeave}
           onDrop={tabDropHandlers?.onDrop}
@@ -1008,18 +999,18 @@ export function TabLayout({
               }
             />
           )}
-        </div>
+        </TabPanel>
       );
     },
     [
       activeTabId,
       getActiveMountPoint,
       renderLayout,
-      setLayoutMountPoint,
       createTabContainerDropHandlers,
       isInDesignMode,
       draggedPaneId,
       tabEdgeDropZone,
+      tabs.length,
     ],
   );
 
