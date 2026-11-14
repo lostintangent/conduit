@@ -13,19 +13,19 @@ import {
   setCanvasState,
 } from "@features/canvas/client/canvasStore";
 import type { Tab } from "@features/workbench/model";
-import type { CanvasElement } from "@features/canvas/model";
+import type { ShapeElement } from "@features/canvas/model";
 import { enableMapSet } from "immer";
 
 enableMapSet();
 
-const element = {
+const element: ShapeElement = {
   id: "rect-1",
-  type: "rectangle",
-  x: 10,
-  y: 20,
-  width: 30,
-  height: 40,
-} as unknown as CanvasElement;
+  type: "shape",
+  shapeType: "rectangle",
+  transform: { x: 10, y: 20, rotation: 0, scaleX: 1, scaleY: 1 },
+  size: { width: 30, height: 40 },
+  style: { color: "#000000", width: 2 },
+};
 
 const canvasState: CanvasState = {
   backgroundColor: "#ffffff",
