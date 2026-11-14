@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Check formatting
+        run: bun fmt --check
+
       - name: Run linter
         run: bun lint --quiet
 
