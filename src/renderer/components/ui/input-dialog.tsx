@@ -40,7 +40,12 @@ export function InputDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={() => onSave(value)}>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSave(value);
+          }}
+        >
           <input
             autoFocus
             className="w-full py-2.5 px-3 rounded-lg border border-muted bg-input text-inherit font-[inherit] text-[0.95rem] focus:outline-2 focus:outline-ring focus:outline-offset-2"
