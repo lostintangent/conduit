@@ -137,32 +137,25 @@ export const automation = {
     }
     scrollElementIntoView(element);
 
-    if (
-      button === "left" &&
-      !offset &&
-      typeof (element as HTMLElement).click === "function"
-    ) {
-      for (let i = 0; i < clicks; i++) {
-        (element as HTMLElement).click();
+    const rect = element.getBoundingClientRect();
+    const init: MouseEventInit = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: rect.left + (offset?.x ?? rect.width / 2),
+      clientY: rect.top + (offset?.y ?? rect.height / 2),
+      button: button === "left" ? 0 : button === "middle" ? 1 : 2,
+    };
+
+    // Like a person's clicks, each one counts up in `detail`, and the
+    // second left click also fires a dblclick.
+    for (let detail = 1; detail <= clicks; detail++) {
+      element.dispatchEvent(new MouseEvent("mousedown", { ...init, detail }));
+      element.dispatchEvent(new MouseEvent("mouseup", { ...init, detail }));
+      element.dispatchEvent(new MouseEvent("click", { ...init, detail }));
+      if (detail === 2 && button === "left") {
+        element.dispatchEvent(new MouseEvent("dblclick", { ...init, detail }));
       }
-    } else {
-      const rect = element.getBoundingClientRect();
-      const clientX = rect.left + (offset?.x ?? rect.width / 2);
-      const clientY = rect.top + (offset?.y ?? rect.height / 2);
-
-      const init: MouseEventInit = {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        clientX,
-        clientY,
-        button: button === "left" ? 0 : button === "middle" ? 1 : 2,
-        detail: clicks,
-      };
-
-      element.dispatchEvent(new MouseEvent("mousedown", init));
-      element.dispatchEvent(new MouseEvent("mouseup", init));
-      element.dispatchEvent(new MouseEvent("click", init));
     }
   },
 
