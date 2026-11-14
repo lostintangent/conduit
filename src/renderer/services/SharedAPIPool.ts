@@ -1,28 +1,38 @@
 /**
- * Ref-counted pool that lets React components with the same cwd share one API
- * instance, so there is one IPC subscription per cwd.
+ * Ref-counted pool that gives everything using the same cwd one API instance,
+ * so there is one IPC subscription per cwd.
  *
- * - `acquire()` increments the refCount, `release()` decrements it.
- * - When the refCount reaches 0 the instance is disposed after a 5s grace
- *   period (matching the backend), which avoids thrashing on rapid
- *   mount/unmount cycles such as tab switches. Re-acquiring cancels disposal.
+ * - An instance lasts as long as the pool, so a reference taken during render
+ *   stays usable for however long its component is hidden.
+ * - `acquire()` and `release()` count its holders. Once it has none for 5s
+ *   (matching the backend), it suspends its subscription, and the next
+ *   acquire resumes it. The grace period avoids thrashing on rapid
+ *   mount/unmount cycles such as tab switches.
  * - Trailing slashes are stripped so "/project" and "/project/" share an
  *   instance; `normalizeKey` can additionally fold case.
  *
  * @see FileSystemProviderService / GitProviderService - backend equivalents
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 const GRACE_PERIOD_MS = 5000;
+
+/** An API whose subscription can stop and restart, keeping its listeners. */
+export interface SharedAPI {
+  suspend(): void;
+  resume(): void;
+  /** Stop for good. */
+  release(): void;
+}
 
 interface ManagedInstance<T> {
   api: T;
   refCount: number;
-  disposeTimer?: ReturnType<typeof setTimeout>;
+  suspendTimer?: ReturnType<typeof setTimeout>;
 }
 
-export class SharedAPIPool<T extends { release(): void }> {
+export class SharedAPIPool<T extends SharedAPI> {
   private instances = new Map<string, ManagedInstance<T>>();
 
   constructor(
@@ -30,20 +40,22 @@ export class SharedAPIPool<T extends { release(): void }> {
     private readonly normalizeKey: (path: string) => string = (path) => path,
   ) {}
 
+  /**
+   * The instance for `cwd`, without holding it. One created here suspends
+   * after the grace period unless something acquires it.
+   */
+  get(cwd: string): T {
+    return this.managed(cwd).api;
+  }
+
   acquire(cwd: string): T {
-    const key = this.makeKey(cwd);
-    const existing = this.instances.get(key);
-
-    if (existing) {
-      clearTimeout(existing.disposeTimer);
-      existing.disposeTimer = undefined;
-      existing.refCount++;
-      return existing.api;
+    const managed = this.managed(cwd);
+    clearTimeout(managed.suspendTimer);
+    managed.suspendTimer = undefined;
+    if (managed.refCount++ === 0) {
+      managed.api.resume();
     }
-
-    const api = this.create(cwd);
-    this.instances.set(key, { api, refCount: 1 });
-    return api;
+    return managed.api;
   }
 
   release(cwd: string): void {
@@ -53,7 +65,7 @@ export class SharedAPIPool<T extends { release(): void }> {
       return;
     }
 
-    // An extra release would leave an orphaned grace timer that disposes the
+    // An extra release would leave an orphaned grace timer that suspends the
     // instance after a later acquire.
     if (managed.refCount === 0) {
       console.warn(`[SharedAPIPool] Released more than acquired: ${key}`);
@@ -62,10 +74,7 @@ export class SharedAPIPool<T extends { release(): void }> {
 
     managed.refCount--;
     if (managed.refCount === 0) {
-      managed.disposeTimer = setTimeout(
-        () => this.dispose(key),
-        GRACE_PERIOD_MS,
-      );
+      this.suspendLater(managed);
     }
   }
 
@@ -74,26 +83,35 @@ export class SharedAPIPool<T extends { release(): void }> {
     return this.instances.get(this.makeKey(cwd))?.refCount ?? 0;
   }
 
-  /** Test-only introspection (true even during the grace period). */
+  /** Test-only introspection. */
   hasInstance(cwd: string): boolean {
     return this.instances.has(this.makeKey(cwd));
   }
 
   disposeAll(): void {
-    for (const key of this.instances.keys()) {
-      this.dispose(key);
+    for (const managed of this.instances.values()) {
+      clearTimeout(managed.suspendTimer);
+      managed.api.release();
     }
+    this.instances.clear();
   }
 
-  private dispose(key: string): void {
-    const managed = this.instances.get(key);
+  private managed(cwd: string): ManagedInstance<T> {
+    const key = this.makeKey(cwd);
+    let managed = this.instances.get(key);
     if (!managed) {
-      return;
+      managed = { api: this.create(cwd), refCount: 0 };
+      this.instances.set(key, managed);
+      this.suspendLater(managed);
     }
+    return managed;
+  }
 
-    clearTimeout(managed.disposeTimer);
-    managed.api.release();
-    this.instances.delete(key);
+  private suspendLater(managed: ManagedInstance<T>): void {
+    managed.suspendTimer = setTimeout(() => {
+      managed.suspendTimer = undefined;
+      managed.api.suspend();
+    }, GRACE_PERIOD_MS);
   }
 
   private makeKey(cwd: string): string {
@@ -102,7 +120,7 @@ export class SharedAPIPool<T extends { release(): void }> {
 }
 
 /** Lazily-created singleton pool with a test reset hook. */
-export function createSharedAPIPool<T extends { release(): void }>(
+export function createSharedAPIPool<T extends SharedAPI>(
   create: (cwd: string) => T,
   normalizeKey?: (path: string) => string,
 ) {
@@ -118,36 +136,21 @@ export function createSharedAPIPool<T extends { release(): void }>(
 }
 
 /**
- * Hold a reference to the pool's instance for `cwd` while the component is
- * mounted, swapping references when `cwd` changes.
+ * The pool's instance for `cwd`, held while the component is mounted and
+ * shown. Holding it is an effect, so a hidden `<Activity>` lets go of it and
+ * takes it back when it's shown again, which re-runs effects but not render.
+ * The instance is the same either way.
  */
-export function useSharedAPI<T extends { release(): void }>(
+export function useSharedAPI<T extends SharedAPI>(
   pool: SharedAPIPool<T>,
   cwd: string,
 ): T {
   const normalizedCwd = cwd.replace(/\/+$/, "");
-  const acquiredRef = useRef<{ cwd: string; api: T } | null>(null);
-
-  if (acquiredRef.current?.cwd !== normalizedCwd) {
-    const previous = acquiredRef.current;
-    if (previous) {
-      pool.release(previous.cwd);
-    }
-    acquiredRef.current = {
-      cwd: normalizedCwd,
-      api: pool.acquire(normalizedCwd),
-    };
-  }
 
   useEffect(() => {
-    return () => {
-      const acquired = acquiredRef.current;
-      if (acquired) {
-        pool.release(acquired.cwd);
-        acquiredRef.current = null;
-      }
-    };
-  }, []);
+    pool.acquire(normalizedCwd);
+    return () => pool.release(normalizedCwd);
+  }, [pool, normalizedCwd]);
 
-  return acquiredRef.current.api;
+  return pool.get(normalizedCwd);
 }

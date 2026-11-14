@@ -136,6 +136,9 @@ export class FileSystemV2API {
   /** Cleanup functions for IPC event listeners */
   private ipcCleanups: Cleanup[] = [];
 
+  /** Whether the subscription is stopped until `resume()` */
+  private suspended = false;
+
   /** Whether this instance has been released */
   private released = false;
 
@@ -468,6 +471,26 @@ export class FileSystemV2API {
   // ---------------------------------------------------------------------------
 
   /**
+   * Unsubscribe from the main process until `resume()`. Listeners stay, and
+   * hear nothing until then.
+   */
+  suspend(): void {
+    if (this.released || this.suspended) {
+      return;
+    }
+    this.suspended = true;
+    this.unsubscribe();
+  }
+
+  resume(): void {
+    if (this.released || !this.suspended) {
+      return;
+    }
+    this.suspended = false;
+    this.ensureSubscribed();
+  }
+
+  /**
    * Release all resources held by this API instance.
    *
    * After calling this, the instance cannot be used.
@@ -486,13 +509,7 @@ export class FileSystemV2API {
     }
     this.ipcCleanups = [];
 
-    // Unsubscribe from main process (this also releases the provider reference)
-    if (this.subscriptionId) {
-      window.conduit.fs.unsubscribe(this.subscriptionId).catch(() => {
-        // Ignore errors during cleanup
-      });
-      this.subscriptionId = null;
-    }
+    this.unsubscribe();
 
     // Clear all listeners
     this.directoryListeners.clear();
@@ -515,6 +532,16 @@ export class FileSystemV2API {
   // ---------------------------------------------------------------------------
   // Private Methods
   // ---------------------------------------------------------------------------
+
+  /** Unsubscribe from the main process, which also releases its provider. */
+  private unsubscribe(): void {
+    if (this.subscriptionId) {
+      window.conduit.fs.unsubscribe(this.subscriptionId).catch(() => {
+        // Ignore errors during cleanup
+      });
+      this.subscriptionId = null;
+    }
+  }
 
   /**
    * Set up IPC event listeners.
@@ -678,12 +705,13 @@ export class FileSystemV2API {
    *
    * Uses a promise to prevent multiple concurrent subscription requests.
    * If a subscription is already in progress, returns the existing promise.
-   * Also handles the race condition where release() is called while the
-   * subscription IPC is in flight - in that case, immediately unsubscribes.
+   * Also handles the race condition where suspend() or release() is called
+   * while the subscription IPC is in flight - in that case, immediately
+   * unsubscribes.
    */
   private ensureSubscribed(): void {
-    // Already subscribed
-    if (this.subscriptionId) {
+    // Already subscribed, or not meant to be
+    if (this.subscriptionId || this.suspended || this.released) {
       return;
     }
 
@@ -696,11 +724,11 @@ export class FileSystemV2API {
     this.subscriptionPromise = window.conduit.fs
       .subscribe(this.cwd, "all")
       .then((id: string) => {
-        // Check if we were released while waiting for the subscription
-        // This handles the race condition where release() is called
-        // before the IPC completes
-        if (this.released) {
-          // Immediately unsubscribe since we're already released
+        // Check if we were suspended or released while waiting for the
+        // subscription. This handles the race condition where suspend() or
+        // release() is called before the IPC completes
+        if (this.suspended || this.released) {
+          // Immediately unsubscribe since we're no longer meant to listen
           window.conduit.fs.unsubscribe(id).catch(() => {
             // Ignore errors during cleanup
           });

@@ -32,9 +32,18 @@ const { MockFileSystemV2API } = vi.hoisted(() => {
   class MockAPI {
     readonly cwd: string;
     private _released = false;
+    private _suspended = false;
 
     constructor(cwd: string) {
       this.cwd = cwd;
+    }
+
+    suspend(): void {
+      this._suspended = true;
+    }
+
+    resume(): void {
+      this._suspended = false;
     }
 
     release(): void {
@@ -43,6 +52,10 @@ const { MockFileSystemV2API } = vi.hoisted(() => {
 
     get isReleased(): boolean {
       return this._released;
+    }
+
+    get isSuspended(): boolean {
+      return this._suspended;
     }
   }
 
@@ -58,6 +71,9 @@ vi.mock("../../../src/renderer/api/FileSystemV2API", () => ({
 
 // Import after mocks are set up
 import { FileSystemV2APIService } from "../../../src/renderer/services/FileSystemV2APIService";
+
+const isSuspended = (api: unknown) =>
+  (api as InstanceType<typeof MockFileSystemV2API>).isSuspended;
 
 // ============================================================================
 // Tests
@@ -139,15 +155,15 @@ describe("FileSystemV2APIService", () => {
       expect(service.getRefCount("/test/project")).toBe(3);
     });
 
-    it("should cancel pending disposal when re-acquired", () => {
+    it("should cancel a pending suspension when re-acquired", () => {
       const service = FileSystemV2APIService.getInstance();
       const api = service.acquire("/test/project");
 
-      // Release to start disposal timer
+      // Release to start the suspension timer
       service.release("/test/project");
       expect(service.getRefCount("/test/project")).toBe(0);
 
-      // Re-acquire before disposal
+      // Re-acquire before it suspends
       const api2 = service.acquire("/test/project");
       expect(api).toBe(api2);
       expect(service.getRefCount("/test/project")).toBe(1);
@@ -155,9 +171,7 @@ describe("FileSystemV2APIService", () => {
       // Fast forward past grace period
       vi.advanceTimersByTime(10000);
 
-      // Instance should still exist
-      expect(service.hasInstance("/test/project")).toBe(true);
-      expect(api.isReleased).toBe(false);
+      expect(isSuspended(api)).toBe(false);
     });
   });
 
@@ -185,25 +199,25 @@ describe("FileSystemV2APIService", () => {
       }).not.toThrow();
     });
 
-    it("should start grace period when refCount reaches 0", () => {
+    it("should suspend the instance once it's gone unheld for the grace period", () => {
       const service = FileSystemV2APIService.getInstance();
       const api = service.acquire("/test/project");
 
       service.release("/test/project");
 
-      // Instance should still exist during grace period
-      expect(service.hasInstance("/test/project")).toBe(true);
-      expect(api.isReleased).toBe(false);
+      // Still watching during grace period
+      expect(isSuspended(api)).toBe(false);
 
       // Fast forward past grace period (5 seconds)
       vi.advanceTimersByTime(5000);
 
-      // Instance should now be disposed
-      expect(service.hasInstance("/test/project")).toBe(false);
-      expect(api.isReleased).toBe(true);
+      // Suspended, but kept rather than released
+      expect(service.hasInstance("/test/project")).toBe(true);
+      expect(isSuspended(api)).toBe(true);
+      expect(api.isReleased).toBe(false);
     });
 
-    it("should not dispose instance if re-acquired during grace period", () => {
+    it("should not suspend the instance if re-acquired during grace period", () => {
       const service = FileSystemV2APIService.getInstance();
       const api = service.acquire("/test/project");
 
@@ -218,9 +232,7 @@ describe("FileSystemV2APIService", () => {
       // Fast forward past original grace period
       vi.advanceTimersByTime(5000);
 
-      // Instance should still exist
-      expect(service.hasInstance("/test/project")).toBe(true);
-      expect(api.isReleased).toBe(false);
+      expect(isSuspended(api)).toBe(false);
     });
 
     it("should ignore extra releases so a later acquire keeps the instance", () => {
@@ -236,8 +248,42 @@ describe("FileSystemV2APIService", () => {
       vi.advanceTimersByTime(5000);
 
       expect(service.getRefCount("/test/project")).toBe(1);
-      expect(api.isReleased).toBe(false);
+      expect(isSuspended(api)).toBe(false);
       warn.mockRestore();
+    });
+
+    it("should resume the same instance when acquired after it suspends", () => {
+      const service = FileSystemV2APIService.getInstance();
+      const api = service.acquire("/test/project");
+
+      service.release("/test/project");
+      vi.advanceTimersByTime(5000);
+      expect(isSuspended(api)).toBe(true);
+
+      expect(service.acquire("/test/project")).toBe(api);
+      expect(isSuspended(api)).toBe(false);
+    });
+  });
+
+  describe("get", () => {
+    it("should return the instance without holding it", () => {
+      const service = FileSystemV2APIService.getInstance();
+      const api = service.acquire("/test/project");
+
+      expect(service.get("/test/project/")).toBe(api);
+      expect(service.getRefCount("/test/project")).toBe(1);
+    });
+
+    it("should suspend an instance it creates unless something acquires it", () => {
+      const service = FileSystemV2APIService.getInstance();
+      const unheld = service.get("/project/a");
+      const held = service.get("/project/b");
+      service.acquire("/project/b");
+
+      vi.advanceTimersByTime(5000);
+
+      expect(isSuspended(unheld)).toBe(true);
+      expect(isSuspended(held)).toBe(false);
     });
   });
 
@@ -337,13 +383,13 @@ describe("FileSystemV2APIService", () => {
       expect(api2.isReleased).toBe(true);
     });
 
-    it("should clear all pending disposal timers on reset", () => {
+    it("should clear all pending suspensions on reset", () => {
       const service = FileSystemV2APIService.getInstance();
 
       const api = service.acquire("/test/project");
       service.release("/test/project");
 
-      // Reset before disposal
+      // Reset before it suspends
       FileSystemV2APIService.resetInstance();
 
       // Fast forward past grace period

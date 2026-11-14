@@ -192,6 +192,76 @@ describe("GitV2API", () => {
     });
   });
 
+  describe("suspend", () => {
+    it("unsubscribes until it resumes, and keeps its listeners", async () => {
+      const api = new GitV2API("/test/project");
+      const listener = vi.fn();
+      api.onStatusChanged(listener);
+      await api.whenReady();
+
+      api.suspend();
+      await settle();
+      expect(mockGit.unsubscribe).toHaveBeenCalledWith("test-sub-id");
+      expect(api.watchedSince).toBeNull();
+      expect(() => api.onStatusChanged(vi.fn())).not.toThrow();
+      expect(mockGit.subscribe).toHaveBeenCalledTimes(1);
+
+      mockGit.subscribe.mockResolvedValue("resumed-sub-id");
+      api.resume();
+      await api.whenReady();
+      emit("statusChanged", statusEvent("resumed-sub-id"));
+
+      expect(mockGit.subscribe).toHaveBeenCalledTimes(2);
+      expect(api.watchedSince).not.toBeNull();
+      expect(cwdForGitSubscription("resumed-sub-id")).toBe("/test/project");
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      api.release();
+    });
+
+    it("makes reads wait until it resumes, or is released", async () => {
+      const api = new GitV2API("/test/project");
+      await api.whenReady();
+      api.suspend();
+
+      let ready = false;
+      const readyPromise = api.whenReady().then(() => {
+        ready = true;
+      });
+      await settle();
+      expect(ready).toBe(false);
+
+      api.resume();
+      await readyPromise;
+      expect(api.watchedSince).not.toBeNull();
+
+      api.suspend();
+      const released = api.whenReady();
+      api.release();
+      await expect(released).resolves.toBeUndefined();
+    });
+
+    it("unsubscribes a subscription that arrives after it suspends", async () => {
+      let resolveSubscription: ((value: string) => void) | null = null;
+      mockGit.subscribe.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSubscription = resolve;
+          }),
+      );
+
+      const api = new GitV2API("/test/project");
+      api.suspend();
+      resolveSubscription!("late-subscription-id");
+      await settle();
+
+      expect(mockGit.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
+      expect(api.watchedSince).toBeNull();
+
+      api.release();
+    });
+  });
+
   describe("whenReady", () => {
     it("resolves without subscribing again once subscribed", async () => {
       const api = new GitV2API("/test/project");

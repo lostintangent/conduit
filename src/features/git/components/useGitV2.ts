@@ -1,7 +1,7 @@
 /**
  * React hook returning the GitV2API instance shared by every component using
- * the same cwd (see GitV2APIService). The reference is released on unmount or
- * when cwd changes.
+ * the same cwd (see GitV2APIService), held while the component is mounted and
+ * shown (see useSharedAPI).
  */
 
 import type { GitV2API } from "../client/GitV2API";

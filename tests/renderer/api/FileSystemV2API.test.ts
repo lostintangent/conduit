@@ -550,6 +550,57 @@ describe("FileSystemV2API", () => {
     });
   });
 
+  describe("suspend", () => {
+    it("unsubscribes until it resumes, and keeps its listeners", async () => {
+      let fileListener = null as ((payload: unknown) => void) | null;
+      mockFs.onFileContentChanged.mockImplementation((listener) => {
+        fileListener = listener;
+        return vi.fn();
+      });
+      const api = new FileSystemV2API("/test/project");
+      const callback = vi.fn();
+      api.onFileContentChanged("/test/project/a.ts", callback);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      api.suspend();
+      expect(mockFs.unsubscribe).toHaveBeenCalledWith("test-sub-id");
+      expect(() => api.onAnyFileContentChanged(vi.fn())).not.toThrow();
+      expect(mockFs.subscribe).toHaveBeenCalledTimes(1);
+
+      mockFs.subscribe.mockResolvedValue("resumed-sub-id");
+      api.resume();
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      fileListener!({
+        subscriptionId: "resumed-sub-id",
+        path: "/test/project/a.ts",
+      });
+
+      expect(mockFs.subscribe).toHaveBeenCalledTimes(2);
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      api.release();
+    });
+
+    it("unsubscribes a subscription that arrives after it suspends", async () => {
+      let resolveSubscription: ((value: string) => void) | null = null;
+      mockFs.subscribe.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveSubscription = resolve;
+          }),
+      );
+
+      const api = new FileSystemV2API("/test/project");
+      api.suspend();
+      resolveSubscription!("late-subscription-id");
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(mockFs.unsubscribe).toHaveBeenCalledWith("late-subscription-id");
+
+      api.release();
+    });
+  });
+
   // ===========================================================================
   // Error Handling
   // ===========================================================================

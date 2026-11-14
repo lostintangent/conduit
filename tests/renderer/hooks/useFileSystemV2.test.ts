@@ -62,7 +62,7 @@ const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
 
     // Mock service instance
     const serviceInstance = {
-      acquire: vi.fn((cwd: string) => {
+      get: vi.fn((cwd: string) => {
         let entry = instances.get(cwd);
         if (!entry) {
           const api = new MockAPI(cwd);
@@ -70,8 +70,12 @@ const { mockFs, MockFileSystemV2API, mockService, mockServiceInstance } =
           instances.set(cwd, entry);
           (entry as any).api = api;
         }
-        entry.refCount++;
         return (entry as any).api;
+      }),
+      acquire: vi.fn((cwd: string) => {
+        const api = serviceInstance.get(cwd);
+        instances.get(cwd)!.refCount++;
+        return api;
       }),
       release: vi.fn((cwd: string) => {
         const entry = instances.get(cwd);

@@ -1,9 +1,10 @@
 /**
  * A cwd's git subscription, for the renderer. Each instance subscribes as
  * it's created, which keeps the repository's watcher running and its events
- * flowing until it's released. Reads and writes call `window.conduit.git` by
- * cwd (see `gitQueries` and `gitMutations`), and use an instance only to wait
- * for its watcher and to tell whether it has kept their cache current.
+ * flowing until it's suspended or released. Reads and writes call
+ * `window.conduit.git` by cwd (see `gitQueries` and `gitMutations`), and use
+ * an instance only to wait for its watcher and to tell whether it has kept
+ * their cache current.
  *
  * Instances for different cwds in one repository share its provider in main.
  */
@@ -30,6 +31,10 @@ export class GitV2API {
   /** The subscription in flight, so there's only ever one. */
   private subscriptionPromise: Promise<void> | null = null;
 
+  /** While suspended, settles when it resumes. */
+  private resumed: { promise: Promise<void>; resolve: () => void } | null =
+    null;
+
   private released = false;
 
   constructor(cwd: string) {
@@ -39,15 +44,17 @@ export class GitV2API {
 
   /**
    * Resolves once the subscription is live, or once it's failed, so a read
-   * that waits for it can't miss a change made in between.
+   * that waits for it can't miss a change made in between. While suspended,
+   * that's after it resumes.
    */
   async whenReady(): Promise<void> {
+    await this.resumed?.promise;
     await this.subscriptionPromise;
   }
 
   /**
    * When this instance's watcher went live, or null while it has none (still
-   * subscribing, released, or outside a repository).
+   * subscribing, suspended, released, or outside a repository).
    */
   get watchedSince(): number | null {
     return this._watchedSince;
@@ -72,13 +79,41 @@ export class GitV2API {
     });
   }
 
+  /**
+   * Unsubscribe until `resume()`. Status listeners stay, and hear nothing
+   * until then.
+   */
+  suspend(): void {
+    if (this.released || this.resumed) {
+      return;
+    }
+    let resolve!: () => void;
+    const promise = new Promise<void>((r) => (resolve = r));
+    this.resumed = { promise, resolve };
+    this.unsubscribe();
+  }
+
+  resume(): void {
+    const resumed = this.resumed;
+    if (this.released || !resumed) {
+      return;
+    }
+    this.resumed = null;
+    this.ensureSubscribed();
+    resumed.resolve();
+  }
+
   /** Unsubscribe, after which the instance can't be used. */
   release(): void {
     if (this.released) {
       return;
     }
     this.released = true;
+    this.unsubscribe();
+    this.resumed?.resolve();
+  }
 
+  private unsubscribe(): void {
     if (this.subscriptionId) {
       subscriptionCwds.delete(this.subscriptionId);
       window.conduit.git.unsubscribe(this.subscriptionId).catch(() => {
@@ -90,11 +125,17 @@ export class GitV2API {
   }
 
   /**
-   * Subscribe unless subscribed or subscribing. A release that lands while
-   * the subscription is in flight unsubscribes it as soon as it arrives.
+   * Subscribe unless subscribed, subscribing, suspended or released. A
+   * suspension or release that lands while the subscription is in flight
+   * unsubscribes it as soon as it arrives.
    */
   private ensureSubscribed(): void {
-    if (this.subscriptionId || this.subscriptionPromise) {
+    if (
+      this.subscriptionId ||
+      this.subscriptionPromise ||
+      this.resumed ||
+      this.released
+    ) {
       return;
     }
 
@@ -105,7 +146,7 @@ export class GitV2API {
           return; // Not a git repository
         }
 
-        if (this.released) {
+        if (this.released || this.resumed) {
           window.conduit.git.unsubscribe(subscriptionId).catch(() => {
             // Ignore errors during cleanup
           });
