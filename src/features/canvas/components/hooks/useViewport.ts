@@ -2,7 +2,7 @@ import {
   type ViewportState,
   canvasStateAtomFamily,
   setViewport as storeSetViewport,
-} from "@/store/canvasStore";
+} from "@features/canvas/client/canvasStore";
 import { useSelector } from "@tanstack/react-store";
 import { useCallback } from "react";
 import { type Point } from "../utils/transformUtils";

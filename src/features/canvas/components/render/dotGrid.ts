@@ -3,9 +3,9 @@
  * Renders a grid of dots that adapts to the background color.
  */
 
-import type { ViewportState } from "@/store/canvasStore";
+import type { ViewportState } from "@features/canvas/client/canvasStore";
 import { isLightColor } from "@/utils/color";
-import type { Size } from "@shared/types/canvas";
+import type { Size } from "@features/canvas/model";
 
 // =============================================================================
 // Constants

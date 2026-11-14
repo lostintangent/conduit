@@ -1,4 +1,4 @@
-import { deleteCanvasState } from "@/store/canvasStore";
+import { deleteCanvasState } from "@features/canvas/client/canvasStore";
 import { disposeEditorPane } from "@/components/panes/editor";
 import {
   disposeSession,

@@ -1,7 +1,7 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { useImageDrop } from "@/hooks/useImageDrop";
 import { useOnHide } from "@/hooks/useOnHide";
-import { DEFAULT_CANVAS_STATE } from "@/store/canvasStore";
+import { DEFAULT_CANVAS_STATE } from "@features/canvas/client/canvasStore";
 import { resolveColor, watchAppTheme } from "@/utils/theme";
 import type { CanvasPane as CanvasPaneType } from "@shared/types";
 import type {
@@ -13,14 +13,14 @@ import type {
   ShapeType,
   StrokePoint,
   Transform,
-} from "@shared/types/canvas";
+} from "@features/canvas/model";
 import {
   createImageElement,
   createShapeElement,
   createStrokeElement,
   createTextElement,
   generateElementId,
-} from "@shared/types/canvas";
+} from "@features/canvas/model";
 import {
   memo,
   useCallback,

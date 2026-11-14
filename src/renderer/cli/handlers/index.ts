@@ -1,5 +1,5 @@
 import { browserHandlers } from "./browser";
-import { canvasHandlers } from "./canvas";
+import { canvasHandlers } from "@features/canvas/cli/handler";
 import { editorHandlers } from "./editor";
 import { notificationHandlers } from "./notification";
 import { paneHandlers } from "./pane";

@@ -8,7 +8,7 @@ import { ResizeHandle } from "@/components/layout/normal/ResizeHandle";
 import { useTabContentPortal } from "@/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@/components/layout/normal/usePaneDragDrop";
 import { BrowserPane } from "@features/browser/components/BrowserPane";
-import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
+import { CanvasPane } from "@features/canvas/components/CanvasPane";
 import { EditorPaneAnchor } from "@/components/panes/editor";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";

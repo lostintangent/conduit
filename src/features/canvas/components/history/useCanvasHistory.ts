@@ -15,8 +15,8 @@ import {
   type CanvasHistoryState,
   EMPTY_HISTORY,
   canvasStateAtomFamily,
-} from "@/store/canvasStore";
-import type { CanvasElement, Transform } from "@shared/types/canvas";
+} from "@features/canvas/client/canvasStore";
+import type { CanvasElement, Transform } from "@features/canvas/model";
 import { useAtom } from "@tanstack/react-store";
 import { useCallback } from "react";
 import {

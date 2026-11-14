@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/utils/index";
-import type { CanvasTool, FillStyle, ShapeType } from "@shared/types/canvas";
+import type { CanvasTool, FillStyle, ShapeType } from "@features/canvas/model";
 import {
   ArrowRight,
   ChevronDown,

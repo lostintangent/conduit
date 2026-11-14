@@ -32,11 +32,11 @@ import {
   EMPTY_HISTORY,
   getCanvasState,
   setCanvasState,
-} from "@/store/canvasStore";
+} from "@features/canvas/client/canvasStore";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import { walkLayout } from "@/utils/layout";
 import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
-import { generateElementId } from "@shared/types/canvas";
+import { generateElementId } from "@features/canvas/model";
 import { generateId } from "@shared/utils";
 import path from "path-browserify";
 import { produce } from "immer";

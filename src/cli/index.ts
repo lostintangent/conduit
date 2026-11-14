@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { CLI_COMMAND_NAME } from "../shared/cli/types";
 import registerBrowserCommands from "./commands/browser";
-import registerCanvasCommands from "./commands/canvas";
+import registerCanvasCommands from "@features/canvas/cli/command";
 import registerEditorCommands from "./commands/editor";
 import registerPaneCommands from "./commands/pane";
 import registerTabCommands from "./commands/tab";

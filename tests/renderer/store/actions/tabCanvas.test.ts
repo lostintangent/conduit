@@ -11,9 +11,9 @@ import {
   DEFAULT_CANVAS_STATE,
   getCanvasState,
   setCanvasState,
-} from "@/store/canvasStore";
+} from "@features/canvas/client/canvasStore";
 import type { Tab } from "@/types";
-import type { CanvasElement } from "@shared/types/canvas";
+import type { CanvasElement } from "@features/canvas/model";
 import { enableMapSet } from "immer";
 
 enableMapSet();

@@ -10,7 +10,7 @@ import type {
   ShapeElement,
   StrokeElement,
   TextElement,
-} from "@shared/types/canvas";
+} from "@features/canvas/model";
 import { getElementBounds } from "../render/elements";
 import {
   type HandleType,

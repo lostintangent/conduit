@@ -4,7 +4,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/utils/index";
-import type { FillPattern, FillStyle } from "@shared/types/canvas";
+import type { FillPattern, FillStyle } from "@features/canvas/model";
 import { ChevronDown } from "lucide-react";
 
 // =============================================================================

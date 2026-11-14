@@ -8,8 +8,8 @@
  * When transitioning between modes, canvas state is migrated to preserve content.
  */
 
-import { CanvasPane } from "@/components/panes/canvas/CanvasPane";
-import { migrateCanvasState } from "@/store/canvasStore";
+import { CanvasPane } from "@features/canvas/components/CanvasPane";
+import { migrateCanvasState } from "@features/canvas/client/canvasStore";
 import { sidebarPaneIds } from "@/store/sidebarStore";
 import { noop } from "@/utils";
 import { useEffect, useMemo, useRef } from "react";

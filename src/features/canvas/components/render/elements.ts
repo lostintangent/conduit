@@ -10,7 +10,7 @@ import type {
   ShapeElement,
   StrokeElement,
   TextElement,
-} from "@shared/types/canvas";
+} from "@features/canvas/model";
 import {
   HANDLE_SIZE,
   ROTATION_HANDLE_DISTANCE,

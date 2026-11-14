@@ -11,12 +11,16 @@
  * - All functions are pure - no side effects
  */
 
-import type { CanvasElement, FillStyle, Transform } from "@shared/types/canvas";
+import type {
+  CanvasElement,
+  FillStyle,
+  Transform,
+} from "@features/canvas/model";
 import {
   type CanvasHistoryState,
   EMPTY_HISTORY,
   MAX_HISTORY_SIZE,
-} from "@/store/canvasStore";
+} from "@features/canvas/client/canvasStore";
 
 // Re-export for consumers
 export type { CanvasHistoryState };

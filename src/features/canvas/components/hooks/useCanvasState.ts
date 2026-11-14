@@ -11,8 +11,8 @@ import {
   setSelectedIds as storeSetSelectedIds,
   updateElement as storeUpdateElement,
   updateCanvasState,
-} from "@/store/canvasStore";
-import type { CanvasElement, FillStyle } from "@shared/types/canvas";
+} from "@features/canvas/client/canvasStore";
+import type { CanvasElement, FillStyle } from "@features/canvas/model";
 import { useSelector } from "@tanstack/react-store";
 import { useCallback } from "react";
 

@@ -1,4 +1,4 @@
-import type { HandlerMap } from "./types";
+import type { HandlerMap } from "@/cli/handlers/types";
 
 const api = window.conduit;
 

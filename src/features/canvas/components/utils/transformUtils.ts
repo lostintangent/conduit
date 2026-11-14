@@ -3,7 +3,7 @@
  * Provides math helpers for resize and rotation operations.
  */
 
-import type { CanvasElement, Point } from "@shared/types/canvas";
+import type { CanvasElement, Point } from "@features/canvas/model";
 
 // Re-export Point for convenience
 export type { Point };

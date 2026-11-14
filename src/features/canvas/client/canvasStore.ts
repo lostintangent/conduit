@@ -4,9 +4,9 @@
  * unmount/remount cycles (e.g., switching tabs, rearranging panes).
  */
 
-import type { CanvasCommand } from "@/components/panes/canvas/history/canvasHistory";
-import { clearImageCache } from "@/components/panes/canvas/render/elements";
-import type { CanvasElement } from "@shared/types/canvas";
+import type { CanvasCommand } from "@features/canvas/components/history/canvasHistory";
+import { clearImageCache } from "@features/canvas/components/render/elements";
+import type { CanvasElement } from "@features/canvas/model";
 import { createAtom } from "@/store/createAtom";
 import type { Atom } from "@tanstack/react-store";
 
