@@ -86,7 +86,8 @@ describe("editor", () => {
   });
 
   it("opens a file from the CLI with its language's support", async () => {
-    expect(await terminal.run(`cd ${project}`)).toBe(0);
+    // The shell is still in the project through /tmp, so the file's path has
+    // to match the sidebar's for the diff mode below to show.
     await terminal.type("conduit open src/a.ts\n");
     await waitForTextIn(editor(), "export const b = 2;");
     await app.page

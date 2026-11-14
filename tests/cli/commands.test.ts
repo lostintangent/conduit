@@ -1,5 +1,8 @@
 import { Command } from "commander";
-import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The app answers every command with success, so `terminal-wait` doesn't
 // exit the test process.
@@ -10,6 +13,7 @@ const sendCliCommand = vi.hoisted(() =>
 vi.mock("../../src/cli/ipc/ipc", () => ({ sendCliCommand }));
 
 import registerBrowserCommands from "../../src/cli/commands/browser";
+import registerEditorCommands from "../../src/cli/commands/editor";
 import registerPaneCommands from "../../src/cli/commands/pane";
 import registerTerminalCommands from "@features/terminal/cli/command";
 import "../../src/cli/ipc";
@@ -20,6 +24,7 @@ async function run(args: string[]) {
     .configureOutput({ writeErr: () => {} });
   registerPaneCommands(program);
   registerBrowserCommands(program);
+  registerEditorCommands(program);
   registerTerminalCommands(program);
 
   sendCliCommand.mockClear();
@@ -153,4 +158,58 @@ describe("terminal-wait", () => {
       expect(sendCliCommand).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("editor-open", () => {
+  // The shell cd'd into `project` through the `link` symlink, so $PWD keeps
+  // the link while the process's cwd is resolved.
+  let root: string;
+  let project: string;
+  let link: string;
+  const shellCwd = process.env.PWD;
+
+  beforeEach(() => {
+    root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "cli-")));
+    project = path.join(root, "project");
+    link = path.join(root, "link");
+    fs.mkdirSync(path.join(project, "src"), { recursive: true });
+    fs.writeFileSync(path.join(project, "src", "a.ts"), "");
+    fs.writeFileSync(path.join(root, "outside.ts"), "");
+    fs.symlinkSync(project, link);
+    vi.spyOn(process, "cwd").mockReturnValue(project);
+    process.env.PWD = link;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.PWD = shellCwd;
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  const opened = (cwd: string, filePath?: string) => [
+    "editor-open",
+    { cwd, filePath },
+  ];
+
+  it("opens paths inside the working directory under the shell's $PWD", async () => {
+    const file = opened(`${link}/src`, `${link}/src/a.ts`);
+
+    expect(await run(["open", "src/a.ts"])).toEqual(file);
+    expect(await run(["open", `${project}/src/a.ts`])).toEqual(file);
+    expect(await run(["open", "."])).toEqual(opened(link));
+  });
+
+  it("keeps the resolved path when $PWD is another directory", async () => {
+    process.env.PWD = root;
+
+    expect(await run(["open", "src/a.ts"])).toEqual(
+      opened(`${project}/src`, `${project}/src/a.ts`),
+    );
+  });
+
+  it("keeps the resolved path of a file outside the working directory", async () => {
+    expect(await run(["open", "../outside.ts"])).toEqual(
+      opened(root, `${root}/outside.ts`),
+    );
+  });
 });
