@@ -617,10 +617,13 @@ export const TerminalPane = ({
       )}
 
       {/* Agent session indicator */}
-      <ComputeTargetIndicator
-        paneId={paneId}
-        hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
-      />
+      {tabId && (
+        <ComputeTargetIndicator
+          tabId={tabId}
+          agentSessionId={pane.agentSessionId}
+          hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
+        />
+      )}
 
       {/* Repository scripts menu */}
       <div className="pointer-events-auto absolute top-3 right-3 flex flex-col items-end gap-2 text-white z-50">

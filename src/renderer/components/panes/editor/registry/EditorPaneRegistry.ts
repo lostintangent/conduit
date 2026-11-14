@@ -71,6 +71,12 @@ export interface EditorPaneConfig {
   hideIndividualSandboxIndicator?: boolean;
 
   /**
+   * The tab the pane is in, which its agent session pill's actions apply to.
+   * Unset for panes outside a tab.
+   */
+  tabId?: string;
+
+  /**
    * Callback when close button is clicked.
    * If provided, shows a close button in the editor toolbar.
    */

@@ -94,6 +94,12 @@ export interface EditorPaneAnchorProps {
   hideIndividualSandboxIndicator?: boolean;
 
   /**
+   * The tab the pane is in, which its agent session pill's actions apply to.
+   * Unset for panes outside a tab.
+   */
+  tabId?: string;
+
+  /**
    * Callback fired when the close button is clicked.
    * If provided, shows a close button in the editor toolbar.
    */
@@ -137,6 +143,7 @@ export function EditorPaneAnchor({
   onHover,
   hideFileTree,
   hideIndividualSandboxIndicator,
+  tabId,
   onClose,
   isInPreview = false,
   isActive = false,
@@ -215,6 +222,7 @@ export function EditorPaneAnchor({
     onClose: () => callbacksRef.current.onClose?.(),
     hideFileTree,
     hideIndividualSandboxIndicator,
+    tabId,
   });
 
   // Update pane in stable callbacks when it changes
@@ -224,16 +232,19 @@ export function EditorPaneAnchor({
     registry.updateConfig(paneId, { pane });
   }, [pane, paneId, registry]);
 
-  // Update what the pane hides in stable callbacks when it changes
+  // Update what the pane hides, and its tab, in stable callbacks when they
+  // change
   useEffect(() => {
     stableCallbacks.current.hideFileTree = hideFileTree;
     stableCallbacks.current.hideIndividualSandboxIndicator =
       hideIndividualSandboxIndicator;
+    stableCallbacks.current.tabId = tabId;
     registry.updateConfig(paneId, {
       hideFileTree,
       hideIndividualSandboxIndicator,
+      tabId,
     });
-  }, [hideFileTree, hideIndividualSandboxIndicator, paneId, registry]);
+  }, [hideFileTree, hideIndividualSandboxIndicator, tabId, paneId, registry]);
 
   // Register with registry and attach/detach
   useEffect(() => {

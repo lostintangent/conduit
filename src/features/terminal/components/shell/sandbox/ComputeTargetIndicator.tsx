@@ -1,11 +1,10 @@
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
-import { tabsAtom } from "@/store/atoms";
-import { useSelector } from "@tanstack/react-store";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { SandboxIndicator } from "./SandboxIndicator";
 
 type ComputeTargetIndicatorProps = {
-  paneId: string;
+  tabId: string;
+  agentSessionId?: string;
   hideIndividualSandboxIndicator?: boolean;
 };
 
@@ -16,45 +15,30 @@ type ComputeTargetIndicatorProps = {
  * This keeps the core TerminalPane component agnostic to agent sessions.
  */
 export function ComputeTargetIndicator({
-  paneId,
+  tabId,
+  agentSessionId,
   hideIndividualSandboxIndicator = false,
 }: ComputeTargetIndicatorProps) {
-  const tabs = useSelector(tabsAtom);
-
-  const currentTab = useMemo(
-    () => tabs.find((tab) => tab.panes[paneId]),
-    [tabs, paneId],
-  );
-  const currentPane = currentTab?.panes[paneId];
-
-  // This component is specifically for terminal panes
-  const terminalPane =
-    currentPane?.type === "terminal" ? currentPane : undefined;
-
-  const agentSessionId = terminalPane?.agentSessionId ?? null;
-
   // Use sandbox handlers from the shared hook
   const {
     handleCompleteAgentSession: handleCompleteAgentSessionBase,
     handleDeleteAgentSession: handleDeleteAgentSessionBase,
-  } = useSandboxHandlers({
-    tabId: currentTab?.id ?? "",
-  });
+  } = useSandboxHandlers({ tabId });
 
   // Wrap the base handlers to check for required values
   const handleCompleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
+    if (!agentSessionId) {
       return;
     }
     await handleCompleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, currentTab, handleCompleteAgentSessionBase]);
+  }, [agentSessionId, handleCompleteAgentSessionBase]);
 
   const handleDeleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
+    if (!agentSessionId) {
       return;
     }
     await handleDeleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
+  }, [agentSessionId, handleDeleteAgentSessionBase]);
 
   if (hideIndividualSandboxIndicator) {
     return null;
@@ -62,7 +46,7 @@ export function ComputeTargetIndicator({
 
   return (
     <SandboxIndicator
-      agentSessionId={agentSessionId}
+      agentSessionId={agentSessionId ?? null}
       onCompleteAgentSession={handleCompleteAgentSession}
       onDeleteAgentSession={handleDeleteAgentSession}
     />

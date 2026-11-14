@@ -1410,4 +1410,25 @@ describe("EditorPaneV2 in a tab", () => {
     expect(pills()).toBe(1);
     expect(editorPills()).toBe(1);
   });
+
+  it("merges from the editor's pill and closes the session's panes in its tab", async () => {
+    const finalize = vi.fn().mockResolvedValue({ status: "merged" });
+    window.conduit.finalizeAgentSession = finalize;
+    renderTab(
+      [editor, terminal("term", { cwd: "/project" })],
+      row("editor", "term"),
+    );
+
+    fireEvent.click(
+      screen
+        .getByTestId("editor-pane-v2")
+        .querySelector(".lucide-git-merge")
+        .closest("button"),
+    );
+
+    await waitFor(() =>
+      expect(Object.keys(tabsAtom.get()[0].panes)).toEqual(["term"]),
+    );
+    expect(finalize).toHaveBeenCalledWith({ sessionId: "agent-1" });
+  });
 });

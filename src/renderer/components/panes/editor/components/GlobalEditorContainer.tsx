@@ -80,6 +80,7 @@ function EditorPaneWrapper({
       onHover={config.onHover}
       hideFileTree={config.hideFileTree}
       hideIndividualSandboxIndicator={config.hideIndividualSandboxIndicator}
+      tabId={config.tabId}
       onClose={config.onClose}
     />,
     wrapperElement,

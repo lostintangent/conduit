@@ -24,7 +24,7 @@ import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "@/hooks/useGitV2";
 import { useSandboxHandlers } from "@/hooks/useSandboxHandlers";
 import { enqueueNotification } from "@/store/actions/notifications";
-import { tabsAtom, userSettingsAtom } from "@/store/atoms";
+import { userSettingsAtom } from "@/store/atoms";
 import type { EditorPane as EditorPaneType } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
 import {
@@ -172,6 +172,12 @@ export interface EditorPaneV2Props {
   hideIndividualSandboxIndicator?: boolean;
 
   /**
+   * The tab the pane is in, which its agent session pill's actions apply to.
+   * Unset for panes outside a tab.
+   */
+  tabId?: string;
+
+  /**
    * Callback fired when the close button is clicked.
    * If provided, shows a close button in the editor toolbar.
    * The meaning of "close" depends on the context:
@@ -208,6 +214,7 @@ export function EditorPaneV2({
   onHover,
   hideFileTree = false,
   hideIndividualSandboxIndicator = false,
+  tabId,
   onClose,
 }: EditorPaneV2Props) {
   const {
@@ -223,44 +230,33 @@ export function EditorPaneV2({
   // Get editor theme from user settings
   const editorTheme = useEditorTheme();
 
-  // Get current tab for sandbox handlers
-  const tabs = useSelector(tabsAtom);
-
   // Get user settings for unseen tracking preference
   const userSettings = useSelector(userSettingsAtom);
   const trackUnseenChanges =
     userSettings.trackUnseenChangesInReviewMode ?? true;
-  const currentTab = useMemo(() => {
-    for (const tab of tabs) {
-      if (tab.panes[pane.id]) {
-        return tab;
-      }
-    }
-    return undefined;
-  }, [tabs, pane.id]);
 
   // Use sandbox handlers from the shared hook
   const {
     handleCompleteAgentSession: handleCompleteAgentSessionBase,
     handleDeleteAgentSession: handleDeleteAgentSessionBase,
   } = useSandboxHandlers({
-    tabId: currentTab?.id ?? "",
+    tabId: tabId ?? "",
   });
 
   // Wrap the base handlers to check for required values
   const handleCompleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
+    if (!agentSessionId || !tabId) {
       return;
     }
     await handleCompleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, currentTab, handleCompleteAgentSessionBase]);
+  }, [agentSessionId, tabId, handleCompleteAgentSessionBase]);
 
   const handleDeleteAgentSession = useCallback(async () => {
-    if (!agentSessionId || !currentTab) {
+    if (!agentSessionId || !tabId) {
       return;
     }
     await handleDeleteAgentSessionBase(agentSessionId);
-  }, [agentSessionId, currentTab, handleDeleteAgentSessionBase]);
+  }, [agentSessionId, tabId, handleDeleteAgentSessionBase]);
 
   // Preference for showing diff vs regular editor for git-modified files
   // This is session-local state (like changesViewMode), not persisted
