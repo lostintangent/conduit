@@ -24,7 +24,7 @@
  */
 
 import { gitKeys, gitQueries } from "../client/queries";
-import type { GitFileStatus } from "../client/GitV2API";
+import type { GitFileStatus } from "../model";
 import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
 import { useFileSystemV2 } from "@/hooks/useFileSystemV2";
 import { useGitV2 } from "./useGitV2";

@@ -46,6 +46,7 @@ describe("feature discovery", () => {
     expect(Object.keys(manifest).sort()).toEqual([
       "browser",
       "dotfiles",
+      "git",
       "settings",
       "terminal",
       "updates",
@@ -53,6 +54,7 @@ describe("feature discovery", () => {
     ]);
     expect(manifest.browser).toContain("captureScreenshot");
     expect(manifest.dotfiles).toContain("addFile");
+    expect(manifest.git).toContain("subscribe");
     expect(manifest.settings).toContain("update");
     expect(manifest.terminal).toContain("create");
     expect(manifest.updates).toContain("install");

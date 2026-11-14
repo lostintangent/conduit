@@ -7,7 +7,7 @@
 import { useId } from "react";
 import path from "path-browserify";
 import { FileText } from "lucide-react";
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import { cn } from "@/utils";
 import {
   Tooltip,

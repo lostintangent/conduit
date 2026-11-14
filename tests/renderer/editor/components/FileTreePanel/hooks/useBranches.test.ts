@@ -12,7 +12,7 @@ import {
   filterBranchesByQuery,
 } from "@/components/panes/editor/components/FileTreePanel/hooks/useBranches";
 import type { GitV2API } from "@features/git/client/GitV2API";
-import type { GitBranch } from "@features/git/client/GitV2API";
+import type { GitBranch } from "@features/git/model";
 
 // ============================================================================
 // Test Data

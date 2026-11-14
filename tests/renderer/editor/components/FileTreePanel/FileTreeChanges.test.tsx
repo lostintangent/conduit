@@ -94,6 +94,7 @@ const mockGetStatus = vi.fn();
 const mockStage = vi.fn();
 const mockUnstage = vi.fn();
 const mockRevert = vi.fn();
+const mockIsGitAvailable = vi.fn();
 
 const mockGitAPI = {
   cwd: TEST_CWD,
@@ -104,15 +105,8 @@ globalThis.window.conduit.git = {
   stage: mockStage,
   unstage: mockUnstage,
   revert: mockRevert,
+  isGitAvailable: mockIsGitAvailable,
 };
-
-// Mock useGitAvailable hook
-vi.mock("@features/git/components/useGitAvailable", () => ({
-  useGitAvailable: () => ({
-    isAvailable: true,
-    isLoading: false,
-  }),
-}));
 
 // Mock EditorPaneRegistry for scroll persistence
 const mockRegistryInstance = {
@@ -186,6 +180,7 @@ describe("FileTreeChanges", () => {
     mockStage.mockResolvedValue(undefined);
     mockUnstage.mockResolvedValue(undefined);
     mockRevert.mockResolvedValue(undefined);
+    mockIsGitAvailable.mockResolvedValue(true);
   });
 
   // ===========================================================================
@@ -212,6 +207,24 @@ describe("FileTreeChanges", () => {
       });
 
       expect(screen.getByText("No changes")).toBeDefined();
+    });
+
+    it("should say git isn't installed when it isn't", async () => {
+      mockIsGitAvailable.mockResolvedValue(false);
+
+      render(
+        <FileTreeChanges
+          viewMode="flat"
+          paneId={TEST_PANE_ID}
+          cwd={TEST_CWD}
+          git={mockGitAPI as any}
+          selectedFile={null}
+          onFileSelect={mockOnFileSelect}
+        />,
+      );
+
+      expect(await screen.findByText("Git is not installed")).toBeDefined();
+      expect(screen.queryByTestId("section-staged-changes")).toBeNull();
     });
   });
 

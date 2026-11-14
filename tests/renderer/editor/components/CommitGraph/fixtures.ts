@@ -1,7 +1,4 @@
-import type {
-  TrackedBranch,
-  TrackedBranchType,
-} from "@features/git/client/GitV2API";
+import type { TrackedBranch, TrackedBranchType } from "@features/git/model";
 
 /** Builds a tracked branch the way DiskGitProvider reports it. */
 export function trackedBranch(

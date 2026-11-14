@@ -9,7 +9,7 @@ import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { render } from "../../../queryRender";
 import { BranchSelector } from "@/components/panes/editor/components/FileTreePanel/BranchSelector";
 import type { GitV2API } from "@features/git/client/GitV2API";
-import type { GitBranch } from "@features/git/client/GitV2API";
+import type { GitBranch } from "@features/git/model";
 
 // ============================================================================
 // Test Data
@@ -55,8 +55,6 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
     getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
     getUpstreamStatus: vi.fn().mockResolvedValue({ ahead: 0, behind: 0 }),
     onStatusChanged: vi.fn().mockReturnValue(() => {}),
-    onBranchChanged: vi.fn().mockReturnValue(() => {}),
-    onCommitCreated: vi.fn().mockReturnValue(() => {}),
     dispose: vi.fn(),
     ...overrides,
   } as unknown as GitV2API;

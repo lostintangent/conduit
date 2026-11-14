@@ -46,7 +46,7 @@ import type {
   GraphColor,
   SegmentColor,
 } from "../types";
-import type { TrackedBranchInfo } from "@features/git/client/GitV2API";
+import type { TrackedBranchInfo } from "@features/git/model";
 import { getNextColor } from "./colors";
 
 // =============================================================================

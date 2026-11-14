@@ -458,6 +458,19 @@ export interface GitHeadChangedEvent {
   isBranchSwitch: boolean;
 }
 
+/** An event from a `git.subscribe` watcher, which carries its id. */
+type Subscribed<Event> = Event & { subscriptionId: string };
+
+declare module "@shared/rpc" {
+  interface Events {
+    git: {
+      statusChanged: Subscribed<GitStatusChangedEvent>;
+      branchChanged: Subscribed<GitBranchChangedEvent>;
+      headChanged: Subscribed<GitHeadChangedEvent>;
+    };
+  }
+}
+
 // ============================================================================
 // Provider Interface
 // ============================================================================

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import {
   buildFolderTree,
   buildVisualOrderFromTree,

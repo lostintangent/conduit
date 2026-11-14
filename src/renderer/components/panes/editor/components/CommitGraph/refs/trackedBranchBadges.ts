@@ -10,7 +10,7 @@
  * - Base branch: Orange
  */
 
-import type { TrackedBranchInfo } from "@features/git/client/GitV2API";
+import type { TrackedBranchInfo } from "@features/git/model";
 import type { GitRef } from "../types";
 import type { RefWithColorHint } from "./RefBadge";
 

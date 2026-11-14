@@ -20,7 +20,7 @@
  * ```
  */
 
-import type { CommitFile } from "@features/git/client/GitV2API";
+import type { CommitFile } from "@features/git/model";
 import { cn } from "@/utils";
 import { GitCommit } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";

@@ -26,7 +26,7 @@
 import type {
   CommitFile as GitCommitFile,
   HistoryCommit as GitHistoryCommit,
-} from "@features/git/client/GitV2API";
+} from "@features/git/model";
 
 // Re-export with original names for external consumers
 export type { GitCommitFile as CommitFile, GitHistoryCommit as HistoryCommit };

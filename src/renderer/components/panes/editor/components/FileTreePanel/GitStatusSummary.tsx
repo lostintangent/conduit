@@ -18,7 +18,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import { useMemo } from "react";
 import { GitBadge, getStatusConfig } from "../shared";
 

@@ -26,7 +26,7 @@
 import { memo, useCallback, useMemo } from "react";
 import { FileText } from "lucide-react";
 import { cn } from "@/utils";
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import type { CommitFile } from "../types";
 import { GitBadge, getStatusConfig } from "../../shared";
 import { DiffStatsDisplay } from "../../FileDiffStats/DiffStatsDisplay";

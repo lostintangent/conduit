@@ -25,7 +25,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/utils";

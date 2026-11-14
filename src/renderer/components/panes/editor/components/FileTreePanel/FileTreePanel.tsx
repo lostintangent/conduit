@@ -23,7 +23,7 @@
  * ```
  */
 
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import { cn } from "@/utils";

@@ -8,11 +8,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
-import type {
-  CommitFile,
-  GitV2API,
-  HistoryCommit,
-} from "@features/git/client/GitV2API";
+import type { CommitFile, HistoryCommit } from "@features/git/model";
+import type { GitV2API } from "@features/git/client/GitV2API";
 
 export interface CommitDetailsResult {
   /** The commit metadata (null while loading or on error) */

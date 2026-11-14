@@ -32,10 +32,9 @@ import {
   ChevronDown,
   AlertCircle,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
-import { useGitAvailable } from "@features/git/components/useGitAvailable";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
-import { gitMutations } from "@features/git/client/queries";
+import { gitMutations, gitQueries } from "@features/git/client/queries";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import {
   useScrollPersistence,
@@ -51,7 +50,7 @@ import {
   // MapKey helpers (centralized operations)
   normalizeMapKey,
 } from "../../utils";
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";
@@ -324,8 +323,9 @@ export function FileTreeChanges({
   );
   const followFocus = useFocusFollowsRow(treeRef);
 
-  const { isAvailable: isGitAvailable, isLoading: isCheckingGit } =
-    useGitAvailable();
+  const { data: isGitAvailable, isPending: isCheckingGit } = useQuery(
+    gitQueries.available,
+  );
 
   const { mutate: stage } = useMutation(gitMutations.stage(git.cwd));
   const { mutate: unstage } = useMutation(gitMutations.unstage(git.cwd));

@@ -969,7 +969,7 @@ export function EditorPaneV2({
    * Handle branch switch callback.
    *
    * The actual state updates (currentBranch, hasUpstream) happen through
-   * the onBranchChanged event subscription. This callback is for any
+   * the git query bridge's branchChanged events. This callback is for any
    * additional actions needed when the user explicitly switches branches.
    */
   const handleBranchSwitch = useCallback(

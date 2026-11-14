@@ -178,7 +178,10 @@ describe("useGitV2", () => {
     it("should not be released initially", () => {
       const { result } = renderHook(() => useGitV2("/test/project"));
 
-      expect(result.current.isReleased).toBe(false);
+      expect(
+        (result.current as unknown as InstanceType<typeof MockGitV2API>)
+          .isReleased,
+      ).toBe(false);
     });
   });
 

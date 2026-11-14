@@ -48,7 +48,7 @@ import {
 } from "../../utils";
 
 import type { DirectoryEntry } from "@/../../src/ipc/fs/types";
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { enqueueNotification } from "@/store/actions/notifications";
 import type { FileNode } from "../../types";

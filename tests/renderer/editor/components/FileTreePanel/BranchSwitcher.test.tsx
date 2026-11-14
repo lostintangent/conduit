@@ -5,7 +5,7 @@
  * different branches with conflict handling.
  */
 
-import type { GitBranch } from "@features/git/client/GitV2API";
+import type { GitBranch } from "@features/git/model";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import { BranchSwitcher } from "@/components/panes/editor/components/FileTreePanel/BranchSwitcher";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
@@ -65,8 +65,6 @@ function createMockGitAPI(overrides: Partial<GitV2API> = {}): GitV2API {
     getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
     getUpstreamStatus: vi.fn().mockResolvedValue({ ahead: 0, behind: 0 }),
     onStatusChanged: vi.fn().mockReturnValue(() => {}),
-    onBranchChanged: vi.fn().mockReturnValue(() => {}),
-    onCommitCreated: vi.fn().mockReturnValue(() => {}),
     dispose: vi.fn(),
     ...overrides,
   } as unknown as GitV2API;

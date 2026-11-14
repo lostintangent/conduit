@@ -60,6 +60,9 @@ vi.mock("./GitV2API", () => ({
 // Import after mocks are set up
 import { GitV2APIService } from "./GitV2APIService";
 
+const isReleased = (api: unknown) =>
+  (api as InstanceType<typeof MockGitV2API>).isReleased;
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -158,7 +161,7 @@ describe("GitV2APIService", () => {
 
       // Instance should still exist
       expect(service.hasInstance("/test/project")).toBe(true);
-      expect(api.isReleased).toBe(false);
+      expect(isReleased(api)).toBe(false);
     });
   });
 
@@ -194,14 +197,14 @@ describe("GitV2APIService", () => {
 
       // Instance should still exist during grace period
       expect(service.hasInstance("/test/project")).toBe(true);
-      expect(api.isReleased).toBe(false);
+      expect(isReleased(api)).toBe(false);
 
       // Fast forward past grace period (5 seconds)
       vi.advanceTimersByTime(5000);
 
       // Instance should now be disposed
       expect(service.hasInstance("/test/project")).toBe(false);
-      expect(api.isReleased).toBe(true);
+      expect(isReleased(api)).toBe(true);
     });
 
     it("should not dispose instance if re-acquired during grace period", () => {
@@ -221,7 +224,7 @@ describe("GitV2APIService", () => {
 
       // Instance should still exist
       expect(service.hasInstance("/test/project")).toBe(true);
-      expect(api.isReleased).toBe(false);
+      expect(isReleased(api)).toBe(false);
     });
   });
 
@@ -262,8 +265,8 @@ describe("GitV2APIService", () => {
 
       GitV2APIService.resetInstance();
 
-      expect(api1.isReleased).toBe(true);
-      expect(api2.isReleased).toBe(true);
+      expect(isReleased(api1)).toBe(true);
+      expect(isReleased(api2)).toBe(true);
     });
 
     it("should clear all pending disposal timers on reset", () => {
@@ -279,7 +282,7 @@ describe("GitV2APIService", () => {
       vi.advanceTimersByTime(10000);
 
       // API should have been released during reset, not by timer
-      expect(api.isReleased).toBe(true);
+      expect(isReleased(api)).toBe(true);
     });
   });
 });

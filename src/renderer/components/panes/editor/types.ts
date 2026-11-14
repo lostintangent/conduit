@@ -6,7 +6,7 @@
  */
 
 import type * as monaco from "monaco-editor";
-import type { GitFileStatusCode } from "@features/git/client/GitV2API";
+import type { GitFileStatusCode } from "@features/git/model";
 
 // ============================================================================
 // Common Types

@@ -121,15 +121,12 @@ const mockGit = {
   getStatus: vi.fn().mockResolvedValue({ files: new Map(), branch: "main" }),
   getStatusFromBranch: vi.fn().mockResolvedValue(new Map()),
   onStatusChanged: vi.fn().mockReturnValue(() => {}),
-  onBranchChanged: vi.fn().mockReturnValue(() => {}),
   getCurrentBranch: vi.fn().mockResolvedValue("main"),
   getMostRecentDirtyFile: vi.fn().mockResolvedValue(null),
   getMostRecentCommittedFile: vi.fn().mockResolvedValue(null),
   whenReady: vi.fn().mockResolvedValue(undefined),
   release: vi.fn(),
   getBranches: vi.fn().mockResolvedValue([]),
-  getChangedFilesFromBranch: vi.fn().mockResolvedValue([]),
-  hasUpstream: vi.fn().mockResolvedValue(true),
 };
 vi.mock("@features/git/components/useGitV2", () => ({
   useGitV2: () => mockGit,

@@ -10,7 +10,7 @@ import {
   buildTrackedBranchBadges,
   isSameBranch,
 } from "@/components/panes/editor/components/CommitGraph/refs/trackedBranchBadges";
-import type { TrackedBranchInfo } from "@features/git/client/GitV2API";
+import type { TrackedBranchInfo } from "@features/git/model";
 import { trackedBranch } from "../fixtures";
 
 // =============================================================================

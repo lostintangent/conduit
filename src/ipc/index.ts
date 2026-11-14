@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { releaseGitSubscriptions } from "@features/git/main/service";
 import { closeTerminals } from "@features/terminal/main/startup";
 import { initializeAgentHandlers } from "./agent";
 import { initializeCliHandlers, shutdownCliServer } from "./cli";
@@ -12,11 +13,6 @@ import {
   releaseFileSystemSubscriptions,
 } from "./fs/handlers";
 import { unwatchAll } from "./fs/ParcelFileWatcher";
-import {
-  cleanupGitV2Handlers,
-  initializeGitV2Handlers,
-  releaseGitSubscriptions,
-} from "@features/git/main/handlers";
 import { initializeApplicationMenu, initializeUIHandlers } from "./ui";
 
 async function ensureConduitDirectory() {
@@ -44,15 +40,13 @@ async function initializeIpcHandlers(window: BrowserWindow) {
   initializeUIHandlers(window);
   await initializeAgentHandlers();
 
-  // Initialize filesystem and git handlers (v2)
   initializeFileSystemV2Handlers();
-  initializeGitV2Handlers();
 
   // Captured now, since webContents is gone by the time the window closes.
   const windowId = window.webContents.id;
   const releaseSubscriptions = () => {
     releaseFileSystemSubscriptions(windowId);
-    releaseGitSubscriptions(windowId);
+    releaseGitSubscriptions();
   };
   window.on("closed", releaseSubscriptions);
 
@@ -89,7 +83,6 @@ async function shutdownIpcHandlers(): Promise<void> {
 export { featuresArgument } from "./features";
 export {
   cleanupFileSystemV2Handlers,
-  cleanupGitV2Handlers,
   initializeIpcHandlers,
   shutdownIpcHandlers,
 };

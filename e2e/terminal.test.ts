@@ -12,7 +12,10 @@ interface Watching {
   };
   git: {
     subscribe(cwd: string): Promise<string | null>;
-    onStatusChanged(listener: (event: SubscriptionEvent) => void): void;
+    on(
+      event: "statusChanged",
+      listener: (event: SubscriptionEvent) => void,
+    ): void;
   };
 }
 type SubscriptionEvent = { subscriptionId: string };
@@ -151,7 +154,7 @@ describe("terminal and CLI", () => {
       const record = ({ subscriptionId }: SubscriptionEvent) =>
         scope.notified.push(subscriptionId);
       scope.conduit.fs.onFileContentChanged(record);
-      scope.conduit.git.onStatusChanged(record);
+      scope.conduit.git.on("statusChanged", record);
     });
     const after = await subscribe();
 

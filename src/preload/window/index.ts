@@ -12,7 +12,6 @@ import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";
 import fsModule from "./modules/fs";
-import gitModule from "./modules/git";
 import { createFeatureApis } from "./features";
 import { createEventListener } from "./utils";
 
@@ -107,7 +106,6 @@ const conduitAPI = {
 
   cli: configureCliModule,
   fs: fsModule,
-  git: gitModule,
 };
 
 export type ConduitAPI = typeof conduitAPI & FeatureApis;

@@ -44,7 +44,7 @@ import { gitKeys, gitQueries } from "@features/git/client/queries";
 import type { GitV2API } from "@features/git/client/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import { useFileEditsSettled } from "@/hooks/useFileEditsSettled";
-import type { FileDiffStat } from "@features/git/client/GitV2API";
+import type { FileDiffStat } from "@features/git/model";
 
 // Re-export for convenience
 export type { FileDiffStat };

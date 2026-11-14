@@ -4,13 +4,8 @@ import {
   type QueryClient,
   queryOptions,
 } from "@tanstack/react-query";
-import {
-  cwdForGitSubscription,
-  deserializeGitStatus,
-  type GitFileStatus,
-  type GitStatus,
-  type GitV2API,
-} from "./GitV2API";
+import type { GitFileStatus, GitStatus } from "../model";
+import { cwdForGitSubscription, type GitV2API } from "./GitV2API";
 
 type ChangedFiles = Map<string, GitFileStatus>;
 
@@ -65,6 +60,13 @@ function whileWatched(git: GitV2API) {
 }
 
 export const gitQueries = {
+  /** Whether git runs at all, which main checks once. */
+  available: queryOptions({
+    queryKey: ["git-available"],
+    queryFn: () => window.conduit.git.isGitAvailable(),
+    staleTime: Infinity,
+  }),
+
   /** HEAD status, or null outside a repository. */
   status: (git: GitV2API) =>
     queryOptions({
@@ -328,12 +330,12 @@ export function installGitQueryBridge(queryClient: QueryClient): () => void {
   // re-read (after publishing, say) can write the change before its event.
   const reportedRefs = new Map<string, string>();
 
+  const { git } = window.conduit;
   const cleanups = [
-    window.conduit.git.onStatusChanged((payload) => {
-      const cwd = cwdForGitSubscription(payload.subscriptionId);
+    git.on("statusChanged", ({ subscriptionId, status }) => {
+      const cwd = cwdForGitSubscription(subscriptionId);
       if (cwd === undefined) return;
 
-      const status = deserializeGitStatus(payload.status);
       applyGitStatus(queryClient, cwd, status);
 
       const refs = [status.ahead, status.behind, status.upstream].join(" ");
@@ -344,19 +346,16 @@ export function installGitQueryBridge(queryClient: QueryClient): () => void {
       }
     }),
 
-    window.conduit.git.onBranchChanged((payload) => {
-      const cwd = cwdForGitSubscription(payload.subscriptionId);
+    git.on("branchChanged", ({ subscriptionId, currentBranch }) => {
+      const cwd = cwdForGitSubscription(subscriptionId);
       if (cwd !== undefined) {
-        queryClient.setQueryData(
-          gitKeys.currentBranch(cwd),
-          payload.currentBranch,
-        );
+        queryClient.setQueryData(gitKeys.currentBranch(cwd), currentBranch);
         invalidateHistory(queryClient, cwd);
       }
     }),
 
-    window.conduit.git.onHeadChanged((payload) => {
-      const cwd = cwdForGitSubscription(payload.subscriptionId);
+    git.on("headChanged", ({ subscriptionId }) => {
+      const cwd = cwdForGitSubscription(subscriptionId);
       if (cwd !== undefined) {
         invalidateHistory(queryClient, cwd);
       }

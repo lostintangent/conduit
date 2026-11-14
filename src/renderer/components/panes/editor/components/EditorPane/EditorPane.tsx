@@ -27,7 +27,8 @@
  * ```
  */
 
-import type { GitFileStatus, GitV2API } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import * as monaco from "monaco-editor";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {

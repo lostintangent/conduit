@@ -2,13 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockGit, emit } = vi.hoisted(() => {
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
-  const on = (channel: string) =>
-    vi.fn((listener: (payload: unknown) => void) => {
-      const channelListeners = listeners.get(channel) ?? new Set();
-      listeners.set(channel, channelListeners);
-      channelListeners.add(listener);
-      return () => channelListeners.delete(listener);
-    });
 
   const git = {
     subscribe: vi.fn(),
@@ -20,18 +13,23 @@ const { mockGit, emit } = vi.hoisted(() => {
     getPerFileDiffStats: vi.fn(),
     getCommitHistory: vi.fn(),
     getTrackedBranches: vi.fn(),
-    onStatusChanged: on("status"),
-    onBranchChanged: on("branch"),
-    onCommitCreated: on("commit"),
-    onHeadChanged: on("head"),
+    on: vi.fn((event: string, listener: (payload: unknown) => void) => {
+      const eventListeners = listeners.get(event) ?? new Set();
+      listeners.set(event, eventListeners);
+      eventListeners.add(listener);
+      return () => eventListeners.delete(listener);
+    }),
   };
   (globalThis as any).window = (globalThis as any).window || {};
   (globalThis as any).window.conduit = { git };
 
   return {
     mockGit: git,
-    emit: (channel: "status" | "branch" | "head", payload: unknown) => {
-      for (const listener of listeners.get(channel) ?? []) listener(payload);
+    emit: (
+      event: "statusChanged" | "branchChanged" | "headChanged",
+      payload: unknown,
+    ) => {
+      for (const listener of listeners.get(event) ?? []) listener(payload);
     },
   };
 });
@@ -53,12 +51,12 @@ import {
 } from "@tanstack/react-query";
 import { mockGitWrites } from "../../../../tests/renderer/gitWrites";
 
-const serializedStatus = (branch: string, files: string[] = []) => ({
+const gitStatus = (branch: string, files: string[] = []) => ({
   branch,
   upstream: `origin/${branch}`,
   ahead: 0,
   behind: 0,
-  files: Object.fromEntries(
+  files: new Map(
     files.map((path) => [path, { path, status: "modified", staged: false }]),
   ),
 });
@@ -69,8 +67,7 @@ const statusEvent = (
   overrides: { ahead?: number; upstream?: string } = {},
 ) => ({
   subscriptionId,
-  gitRoot: "/repo",
-  status: { ...serializedStatus(branch, ["changed.ts"]), ...overrides },
+  status: { ...gitStatus(branch, ["changed.ts"]), ...overrides },
   added: ["changed.ts"],
   modified: [] as string[],
   removed: [] as string[],
@@ -93,14 +90,17 @@ beforeEach(() => {
   mockGit.subscribe.mockImplementation(async () => `sub-${++nextSubscription}`);
   mockGit.unsubscribe.mockResolvedValue(undefined);
   mockGit.findRoot.mockResolvedValue("/repo");
-  mockGit.getStatus.mockResolvedValue(serializedStatus("main"));
-  mockGit.getStatusFromBranch.mockResolvedValue({});
+  mockGit.getStatus.mockResolvedValue(gitStatus("main"));
+  mockGit.getStatusFromBranch.mockResolvedValue(new Map());
   mockGit.getUncommittedDiffStats.mockResolvedValue({
     added: 1,
     removed: 0,
     files: 1,
   });
-  mockGit.getPerFileDiffStats.mockResolvedValue({ staged: {}, unstaged: {} });
+  mockGit.getPerFileDiffStats.mockResolvedValue({
+    staged: new Map(),
+    unstaged: new Map(),
+  });
   mockGit.getCommitHistory.mockResolvedValue({ commits: [], hasMore: false });
   mockGit.getTrackedBranches.mockResolvedValue({});
 });
@@ -134,7 +134,7 @@ describe("installGitQueryBridge", () => {
     await watch("/repo/a");
     const b = await watch("/repo/b");
 
-    emit("status", statusEvent("sub-2", "feature"));
+    emit("statusChanged", statusEvent("sub-2", "feature"));
 
     const status = queryClient.getQueryData(gitQueries.status(b).queryKey);
     expect(status?.branch).toBe("feature");
@@ -151,9 +151,8 @@ describe("installGitQueryBridge", () => {
     uninstall = installGitQueryBridge(queryClient);
     await watch("/repo");
 
-    emit("branch", {
+    emit("branchChanged", {
       subscriptionId: "sub-1",
-      gitRoot: "/repo",
       previousBranch: "main",
       currentBranch: "feature",
     });
@@ -169,7 +168,7 @@ describe("installGitQueryBridge", () => {
     const git = await watch("/repo");
     git.release();
 
-    emit("status", statusEvent("sub-1", "feature"));
+    emit("statusChanged", statusEvent("sub-1", "feature"));
 
     expect(queryClient.getQueryData(gitKeys.status("/repo"))).toBeUndefined();
   });
@@ -192,7 +191,7 @@ describe("installGitQueryBridge", () => {
       expect(mockGit.getPerFileDiffStats).toHaveBeenCalledTimes(1);
     });
 
-    emit("status", statusEvent("sub-1", "main"));
+    emit("statusChanged", statusEvent("sub-1", "main"));
 
     await vi.waitFor(() => {
       expect(mockGit.getStatusFromBranch).toHaveBeenCalledTimes(2);
@@ -203,17 +202,20 @@ describe("installGitQueryBridge", () => {
   });
 
   it.each([
-    ["head", { previousHead: "a", currentHead: "b", isBranchSwitch: false }],
-    ["branch", { previousBranch: "main", currentBranch: "feature" }],
+    [
+      "headChanged",
+      { previousHead: "a", currentHead: "b", isBranchSwitch: false },
+    ],
+    ["branchChanged", { previousBranch: "main", currentBranch: "feature" }],
   ] as const)(
-    "re-reads the observed commit history when a %s event arrives",
-    async (channel, payload) => {
+    "re-reads the observed commit history on %s",
+    async (event, payload) => {
       const queryClient = createQueryClient();
       uninstall = installGitQueryBridge(queryClient);
       const git = await watch("/repo");
       const unobserve = await observeHistory(queryClient, git);
 
-      emit(channel, { subscriptionId: "sub-1", gitRoot: "/repo", ...payload });
+      emit(event, { subscriptionId: "sub-1", ...payload });
 
       await vi.waitFor(() => {
         expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(2);
@@ -229,12 +231,12 @@ describe("installGitQueryBridge", () => {
     const git = await watch("/repo");
     const unobserve = await observeHistory(queryClient, git);
 
-    emit("status", statusEvent("sub-1", "main"));
-    emit("status", statusEvent("sub-1", "main"));
+    emit("statusChanged", statusEvent("sub-1", "main"));
+    emit("statusChanged", statusEvent("sub-1", "main"));
     expect(queryClient.isFetching()).toBe(0);
     expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(1);
 
-    emit("status", statusEvent("sub-1", "main", { ahead: 1 }));
+    emit("statusChanged", statusEvent("sub-1", "main", { ahead: 1 }));
     await vi.waitFor(() =>
       expect(mockGit.getCommitHistory).toHaveBeenCalledTimes(2),
     );
@@ -245,7 +247,7 @@ describe("installGitQueryBridge", () => {
       upstream: "origin/published",
     });
     emit(
-      "status",
+      "statusChanged",
       statusEvent("sub-1", "main", { ahead: 1, upstream: "origin/published" }),
     );
     await vi.waitFor(() =>
@@ -284,8 +286,8 @@ describe("gitQueries", () => {
   it("keeps the last changed files listed until the next comparison loads", async () => {
     const queryClient = createQueryClient();
     const git = await watch("/repo");
-    mockGit.getStatus.mockResolvedValue(serializedStatus("main", ["head.ts"]));
-    const comparisons = new Map<string, (files: object) => void>();
+    mockGit.getStatus.mockResolvedValue(gitStatus("main", ["head.ts"]));
+    const comparisons = new Map<string, (files: Map<string, object>) => void>();
     mockGit.getStatusFromBranch.mockImplementation(
       (_cwd: string, base: string) =>
         new Promise((resolve) => comparisons.set(base, resolve)),
@@ -302,7 +304,9 @@ describe("gitQueries", () => {
     observer.setOptions(listed("a"));
     expect(files()).toEqual(["head.ts"]);
     await vi.waitFor(() => expect(comparisons.has("a")).toBe(true));
-    comparisons.get("a")!({ "a.ts": { path: "a.ts", status: "added" } });
+    comparisons.get("a")!(
+      new Map([["a.ts", { path: "a.ts", status: "added" }]]),
+    );
     await vi.waitFor(() => expect(files()).toEqual(["a.ts"]));
 
     observer.setOptions(listed("b"));

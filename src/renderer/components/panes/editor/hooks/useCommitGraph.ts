@@ -9,10 +9,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
 import { gitQueries } from "@features/git/client/queries";
-import type {
-  GitV2API,
-  TrackedBranchInfo,
-} from "@features/git/client/GitV2API";
+import type { TrackedBranchInfo } from "@features/git/model";
+import type { GitV2API } from "@features/git/client/GitV2API";
 import type { CommitGraphNode } from "../components/CommitGraph/types";
 import { computeSwimlanes } from "../components/CommitGraph/graph/swimlanes";
 

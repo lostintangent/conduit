@@ -90,14 +90,6 @@ vi.mock("@/hooks/useFileSystemV2", () => ({
   useFileSystemV2: () => mockFsAPI,
 }));
 
-// Mock useGitAvailable hook
-vi.mock("@features/git/components/useGitAvailable", () => ({
-  useGitAvailable: () => ({
-    isAvailable: true,
-    isLoading: false,
-  }),
-}));
-
 // Mock useScrollPersistence
 vi.mock("@/components/panes/editor/hooks/useScrollPersistence", () => ({
   useScrollPersistence: () => vi.fn(),

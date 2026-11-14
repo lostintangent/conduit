@@ -4,7 +4,7 @@ import {
   isDiffableStatus,
   normalizeMapKey,
 } from "../../../../src/renderer/components/panes/editor/utils/gitStatusHelpers";
-import type { GitFileStatus } from "@features/git/client/GitV2API";
+import type { GitFileStatus } from "@features/git/model";
 
 // Helper to create a minimal GitFileStatus
 function createStatus(
