@@ -1,6 +1,6 @@
 import * as monaco from "monaco-editor";
 import type { ComponentProps } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { GitContentResult } from "../hooks/useGitContent";
 import { RegularEditorWrapper } from "./RegularEditorWrapper";
@@ -21,7 +21,9 @@ const { model, editor, viewStates, git } = vi.hoisted(() => ({
     updateOptions: vi.fn(),
     focus: vi.fn(),
     dispose: vi.fn(),
-    onDidBlurEditorText: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidBlurEditorText: vi.fn((_listener: () => void) => ({
+      dispose: vi.fn(),
+    })),
   },
   viewStates: { save: vi.fn(), restore: vi.fn() },
   git: { content: {} as GitContentResult },
@@ -87,6 +89,10 @@ describe("RegularEditorWrapper", () => {
     vi.clearAllMocks();
     model.uri.fsPath = "/test/file.ts";
     git.content = { content: null, isLoading: false, error: null };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("editor creation", () => {
@@ -163,6 +169,22 @@ describe("RegularEditorWrapper", () => {
       expect(viewStates.save).not.toHaveBeenCalled();
 
       unmount();
+
+      expect(viewStates.save).toHaveBeenCalledWith(
+        "test-editor",
+        "/test/file.ts",
+        editor,
+      );
+    });
+
+    // A rename carries a file's saved view state to its new path, and the
+    // editor has lost focus by the time you rename its file
+    it("should save viewstate once the editor loses focus", () => {
+      vi.useFakeTimers();
+      renderEditor();
+
+      editor.onDidBlurEditorText.mock.lastCall![0]();
+      vi.runAllTimers();
 
       expect(viewStates.save).toHaveBeenCalledWith(
         "test-editor",

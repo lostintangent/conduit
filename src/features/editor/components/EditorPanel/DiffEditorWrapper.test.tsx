@@ -2,6 +2,7 @@ import * as monaco from "monaco-editor";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { ViewStateRegistry } from "../../client/ViewStateRegistry";
 import { useAutoSizeEditor } from "../hooks/useAutoSizeEditor";
 import type { DiffContent } from "../hooks/useDiffContent";
 import { DiffEditorWrapper } from "./DiffEditorWrapper";
@@ -10,7 +11,11 @@ const { model, modifiedEditor, diffEditor, diff, made } = vi.hoisted(() => {
   // Names each view model and side model as it's made, and logs their
   // disposal in order
   const made = { viewModels: 0, models: 0, disposed: [] as string[] };
-  const modifiedEditor = { focus: vi.fn(), saveViewState: () => null };
+  const modifiedEditor = {
+    focus: vi.fn(),
+    saveViewState: vi.fn((): object | null => null),
+    restoreViewState: vi.fn(),
+  };
   return {
     made,
     // The working directory model useMonacoModel returns. A test that
@@ -111,6 +116,7 @@ describe("DiffEditorWrapper", () => {
     model.uri.fsPath = "/test/file.ts";
     diff.content = diffContent();
     Object.assign(made, { viewModels: 0, models: 0, disposed: [] });
+    ViewStateRegistry.resetInstance();
   });
 
   afterEach(() => {
@@ -380,6 +386,18 @@ describe("DiffEditorWrapper", () => {
         expect(diffEditor.createViewModel).toHaveBeenCalledTimes(2);
         expect(made.disposed).toEqual(["viewModel1", "model1"]);
       });
+    });
+  });
+
+  describe("view state", () => {
+    it("should put you back where you were when an editable diff is reopened", () => {
+      const where = { scrollTop: 120 };
+      modifiedEditor.saveViewState.mockReturnValueOnce(where);
+      renderDiff().unmount();
+
+      renderDiff();
+
+      expect(modifiedEditor.restoreViewState).toHaveBeenCalledWith(where);
     });
   });
 
