@@ -1,5 +1,6 @@
 import { hasWorkspace } from "@/commands/contextKeys/appContextKeys";
 import { USER_KEYBINDING_WEIGHT } from "@/commands/keybindings/types";
+import { monacoDefaultKeybindings } from "../../../setup/monaco-keys";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { editor } = vi.hoisted(() => ({
@@ -11,7 +12,9 @@ const { editor } = vi.hoisted(() => ({
 
 vi.mock("monaco-editor", async () => {
   const { KeyMod, KeyCode } = await import("../../../setup/monaco-keys");
-  return { editor, KeyMod, KeyCode };
+  // The app's commands import the editor pane, whose Monaco setup skips
+  // itself when there are no languages
+  return { editor, KeyMod, KeyCode, languages: undefined };
 });
 
 // The bridge subscribes for the app's lifetime, so each test loads fresh
@@ -27,26 +30,30 @@ async function bridgeFreshApp() {
   bridgeAppChords();
 
   const [[bridgeCommand, runAppCommand]] = editor.registerCommand.mock.calls;
+  /** The chords Monaco currently has bound to the bridge, and their app commands */
+  const bridgedRules = () => {
+    const rules: {
+      keybinding: number;
+      command: string;
+      commandArgs: string;
+    }[] = editor.addKeybindingRules.mock.lastCall?.[0] ?? [];
+    return rules
+      .filter(({ command }) => command === bridgeCommand)
+      .map(
+        ({ keybinding, commandArgs }) =>
+          [keybindingLabel(keybinding), commandArgs] as const,
+      );
+  };
   return {
     commandRegistry: commands.getCommandRegistry(),
     keybindingRegistry: commands.getKeybindingRegistry(),
     updateKeybindingsAtom,
+    bridgedRules,
     /** The chords Monaco currently has bound to the bridge, by app command */
-    bridgedChords: () => {
-      const rules: {
-        keybinding: number;
-        command: string;
-        commandArgs: string;
-      }[] = editor.addKeybindingRules.mock.lastCall?.[0] ?? [];
-      return Object.fromEntries(
-        rules
-          .filter(({ command }) => command === bridgeCommand)
-          .map(({ keybinding, commandArgs }) => [
-            commandArgs,
-            keybindingLabel(keybinding),
-          ]),
-      );
-    },
+    bridgedChords: () =>
+      Object.fromEntries(
+        bridgedRules().map(([chord, commandId]) => [commandId, chord]),
+      ),
     /** What Monaco does when a bridged chord is pressed */
     pressBridgedChord: (commandId: string) => runAppCommand(null, commandId),
   };
@@ -158,5 +165,59 @@ describe("bridgeAppChords", () => {
 
     expect(firstRules?.dispose).toHaveBeenCalledTimes(1);
     expect(app.bridgedChords()).toEqual({ "workspace.close": "cmd+k cmd+r" });
+  });
+
+  it("gives a chord bound twice to the command the keyboard runs", async () => {
+    const app = await bridgeFreshApp();
+    // At equal weight the first registered wins, so Cmd+K Cmd+G goes to B,
+    // though A has a binding registered before either
+    app.keybindingRegistry.register("test.a", { key: "Cmd+K Cmd+J" });
+    app.keybindingRegistry.register("test.b", { key: "Cmd+K Cmd+G" });
+    app.keybindingRegistry.register("test.a", { key: "Cmd+K Cmd+G" });
+    app.updateKeybindingsAtom();
+
+    const cmd = (key: string) =>
+      new KeyboardEvent("keydown", { key, metaKey: true });
+    expect(app.keybindingRegistry.findCommand(cmd("g"), cmd("k"))).toBe(
+      "test.b",
+    );
+    expect(app.bridgedRules()).toContainEqual(["cmd+k cmd+g", "test.b"]);
+    expect(app.bridgedRules()).not.toContainEqual(["cmd+k cmd+g", "test.a"]);
+  });
+
+  // Cmd+K starts Monaco's chords too, so a new default app chord could quietly
+  // take one of Monaco's in editors, like Cmd+K Cmd+C for Add Line Comment
+  it("takes none of Monaco's default chords from editors", async () => {
+    const app = await bridgeFreshApp();
+    const { registerApplicationCommands } =
+      await import("@/commands/applicationCommands");
+    registerApplicationCommands(app.commandRegistry);
+    app.updateKeybindingsAtom();
+
+    const monacoChords = new Map(
+      (await monacoDefaultKeybindings()).map(({ keybinding, command }) => [
+        keybinding,
+        command,
+      ]),
+    );
+    // Taking one of Monaco's chords needs a row in the editor shortcut plan,
+    // and none has one yet
+    const approved: string[] = [];
+
+    expect(monacoChords.get("cmd+k cmd+c")).toBe(
+      "editor.action.addCommentLine",
+    );
+    expect(app.bridgedRules().length).toBeGreaterThan(0);
+    expect(
+      app
+        .bridgedRules()
+        .filter(([chord]) => monacoChords.has(chord))
+        .map(([chord, commandId]) => ({
+          chord,
+          app: commandId,
+          monaco: monacoChords.get(chord),
+        }))
+        .filter(({ chord }) => !approved.includes(chord)),
+    ).toEqual([]);
   });
 });

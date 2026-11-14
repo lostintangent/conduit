@@ -8,6 +8,7 @@
  */
 
 import type * as monaco from "monaco-editor";
+import { readFileSync } from "node:fs";
 
 (
   window as unknown as {
@@ -44,18 +45,32 @@ export function keybindingLabel(keybinding: number): string {
   )[0].getUserSettingsLabel();
 }
 
-/** The keybindings Monaco's own commands register by default on macOS */
+/**
+ * The keybindings Monaco's own commands register by default on macOS, with
+ * every editor feature the app's `import "monaco-editor"` loads
+ */
 export async function monacoDefaultKeybindings(): Promise<
   { command: string; keybinding: string; when?: string }[]
 > {
-  await Promise.all([
-    import(`${monacoPath}editor/contrib/find/browser/findController.js`),
-    import(`${monacoPath}editor/contrib/multicursor/browser/multicursor.js`),
-    import(`${monacoPath}editor/contrib/smartSelect/browser/smartSelect.js`),
-  ]);
-  const { KeybindingsRegistry } = await import(
-    `${monacoPath}platform/keybinding/common/keybindingsRegistry.js`
+  const editorMain = readFileSync(
+    new URL(`${monacoPath}editor/editor.main.js`, import.meta.url),
+    "utf8",
   );
+  await Promise.all(
+    [...editorMain.matchAll(/^import '\.\/(.+\.js)';$/gm)].map(
+      ([, path]) => import(`${monacoPath}editor/${path}`),
+    ),
+  );
+  // Labels need the modules the registry loaded with, which differ from this
+  // file's after vi.resetModules()
+  const [{ KeybindingsRegistry }, { USLayoutResolvedKeybinding }, { OS }] =
+    await Promise.all([
+      import(`${monacoPath}platform/keybinding/common/keybindingsRegistry.js`),
+      import(
+        `${monacoPath}platform/keybinding/common/usLayoutResolvedKeybinding.js`
+      ),
+      import(`${monacoPath}base/common/platform.js`),
+    ]);
   return KeybindingsRegistry.getDefaultKeybindings().flatMap(
     (item: {
       command: string | null;

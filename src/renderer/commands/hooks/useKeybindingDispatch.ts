@@ -131,7 +131,10 @@ export function useKeybindingDispatch(
       const chordIndex = pendingChord ? 1 : 0;
 
       // Find matching command
-      const commandId = keybindingRegistry.findCommand(event, chordIndex);
+      const commandId = keybindingRegistry.findCommand(
+        event,
+        pendingChord ?? undefined,
+      );
 
       if (commandId) {
         // Check if this is part of a chord sequence

@@ -4,18 +4,15 @@
  *
  * Cmd+K starts Monaco's own chords, so Monaco takes both parts and the app's
  * dispatcher never sees them. This binds each app chord in Monaco to a command
- * that runs the app command, the way the dispatcher would. It rebuilds when
- * keybindings change, so the keybinding registry stays the one source of
- * truth and user overrides follow. A chord the user binds wins over Monaco's
- * own in editors too, since they chose it.
+ * that runs the app command, the way the dispatcher would. The keybinding
+ * registry picks each chord's command for both, and the rules rebuild when
+ * keybindings change, so user overrides follow. A chord the user binds wins
+ * over Monaco's own in editors too, since they chose it.
  */
 
-import { getCommandRegistry } from "@/commands";
+import { getCommandRegistry, getKeybindingRegistry } from "@/commands";
 import { normalizeKey } from "@/commands/keybindings/parser";
-import type {
-  KeyChord,
-  ResolvedKeybinding,
-} from "@/commands/keybindings/types";
+import type { KeyChord } from "@/commands/keybindings/types";
 import { keybindingsAtom } from "@/store/atoms";
 import * as monaco from "monaco-editor";
 
@@ -85,32 +82,24 @@ export function bridgeAppChords(): void {
     );
   };
 
-  const toRules = (keybindings: Map<string, ResolvedKeybinding[]>) => {
-    // Like the registry, a chord bound twice goes to the higher weight
-    const winners = new Map<number, ResolvedKeybinding>();
-    for (const binding of [...keybindings.values()].flat()) {
-      if (binding.chords.length !== 2) continue;
-      const [first, second] = binding.chords.map(toMonacoChord);
-      if (first === undefined || second === undefined) continue;
-
-      const keybinding = monaco.KeyMod.chord(first, second);
-      const current = winners.get(keybinding);
-      if (!current || binding.weight > current.weight) {
-        winners.set(keybinding, binding);
-      }
-    }
-    return [...winners].map(([keybinding, { commandId }]) => ({
-      keybinding,
-      command: RUN_APP_COMMAND,
-      commandArgs: commandId,
-    }));
-  };
+  const toRules = () =>
+    getKeybindingRegistry()
+      .getChordBindings()
+      .flatMap(({ chords, commandId }) => {
+        const [first, second] = chords.map(toMonacoChord);
+        if (first === undefined || second === undefined) return [];
+        return {
+          keybinding: monaco.KeyMod.chord(first, second),
+          command: RUN_APP_COMMAND,
+          commandArgs: commandId,
+        };
+      });
 
   let rules: monaco.IDisposable | undefined;
-  const update = (keybindings: Map<string, ResolvedKeybinding[]>) => {
+  const update = () => {
     rules?.dispose();
-    rules = monaco.editor.addKeybindingRules(toRules(keybindings));
+    rules = monaco.editor.addKeybindingRules(toRules());
   };
-  update(keybindingsAtom.get());
+  update();
   keybindingsAtom.subscribe(update);
 }

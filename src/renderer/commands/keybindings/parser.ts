@@ -80,6 +80,34 @@ export function parseChord(chord: string): KeyChord {
   };
 }
 
+/** The chord a key event presses, leaving out any keys held with it */
+export function chordOf(event: KeyboardEvent): KeyChord {
+  return {
+    ctrl: event.ctrlKey,
+    shift: event.shiftKey,
+    alt: event.altKey,
+    meta: event.metaKey,
+    key: event.key,
+  };
+}
+
+/** Whether two chords press the same modifiers and keys */
+export function isSameChord(a: KeyChord, b: KeyChord): boolean {
+  const held = (chord: KeyChord) =>
+    (chord.requiredKeys ?? [])
+      .map((key) => key.toLowerCase())
+      .sort()
+      .join("+");
+  return (
+    a.ctrl === b.ctrl &&
+    a.shift === b.shift &&
+    a.alt === b.alt &&
+    a.meta === b.meta &&
+    normalizeKey(a.key) === normalizeKey(b.key) &&
+    held(a) === held(b)
+  );
+}
+
 /**
  * Check if a keyboard event matches a chord
  */

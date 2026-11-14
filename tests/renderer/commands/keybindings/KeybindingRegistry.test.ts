@@ -94,13 +94,14 @@ describe("KeybindingRegistry", () => {
         metaKey: true,
       });
 
-      const commandId = registry.findCommand(event, 0);
+      const commandId = registry.findCommand(event);
       expect(commandId).toBe("test.command");
     });
 
     it("should find command for second chord of multi-chord binding", () => {
       registry.register("test.command", { key: "Cmd+K Cmd+W" });
 
+      const start = new KeyboardEvent("keydown", { key: "k", metaKey: true });
       const event = new KeyboardEvent("keydown", {
         key: "w",
         ctrlKey: false,
@@ -109,9 +110,20 @@ describe("KeybindingRegistry", () => {
         metaKey: true,
       });
 
-      const commandId = registry.findCommand(event, 1);
+      const commandId = registry.findCommand(event, start);
       expect(commandId).toBe("test.command");
     });
+  });
+
+  it("runs a chord's second key only for chords that start with its first key", () => {
+    registry.register("workspace.save", { key: "Cmd+K Cmd+S" });
+    registry.register("user.command", { key: "Cmd+J Cmd+S" }, 1000);
+
+    const cmd = (key: string) =>
+      new KeyboardEvent("keydown", { key, metaKey: true });
+
+    expect(registry.findCommand(cmd("s"), cmd("k"))).toBe("workspace.save");
+    expect(registry.findCommand(cmd("s"), cmd("j"))).toBe("user.command");
   });
 
   describe("hasChordContinuation()", () => {
@@ -323,7 +335,7 @@ describe("KeybindingRegistry", () => {
       });
 
       expect(registry.hasChordContinuation(event1, 0)).toBe(true);
-      expect(registry.findCommand(event1, 0)).toBe("close.pane");
+      expect(registry.findCommand(event1)).toBe("close.pane");
 
       // Second chord
       const event2 = new KeyboardEvent("keydown", {
@@ -335,7 +347,7 @@ describe("KeybindingRegistry", () => {
       });
 
       expect(registry.hasChordContinuation(event2, 1)).toBe(false);
-      expect(registry.findCommand(event2, 1)).toBe("close.pane");
+      expect(registry.findCommand(event2, event1)).toBe("close.pane");
     });
   });
 });

@@ -1,5 +1,9 @@
-import type { KeybindingDescriptor, ResolvedKeybinding } from "./types";
-import { parseKeybinding, matchesEvent } from "./parser";
+import type {
+  KeybindingDescriptor,
+  KeyChord,
+  ResolvedKeybinding,
+} from "./types";
+import { chordOf, isSameChord, matchesEvent, parseKeybinding } from "./parser";
 
 /**
  * Registry for keyboard shortcuts
@@ -26,22 +30,65 @@ export class KeybindingRegistry {
   }
 
   /**
-   * Find matching command for a keyboard event
+   * Find the command for a key, or for the second part of a chord that
+   * `chordStart` began
    */
-  findCommand(event: KeyboardEvent, chordIndex = 0): string | undefined {
-    // Find all keybindings that match this event at the current chord index
-    const matches = this.keybindings.filter((kb) => {
-      if (kb.chords.length <= chordIndex) return false;
-      return matchesEvent(kb.chords[chordIndex], event);
-    });
+  findCommand(
+    event: KeyboardEvent,
+    chordStart?: KeyboardEvent,
+  ): string | undefined {
+    if (!chordStart) {
+      return this.resolve((kb) => matchesEvent(kb.chords[0], event))?.commandId;
+    }
 
-    if (matches.length === 0) return undefined;
+    const start = chordOf(chordStart);
+    return this.resolveChord(
+      (chord) => isSameChord(chord, start),
+      (chord) => matchesEvent(chord, event),
+    )?.commandId;
+  }
 
-    // Sort by weight (higher weight = higher priority)
-    matches.sort((a, b) => b.weight - a.weight);
+  /**
+   * The two-part keybindings that run, one for each key sequence, resolved as
+   * findCommand resolves them from the keyboard
+   */
+  getChordBindings(): ResolvedKeybinding[] {
+    const winners = new Set<ResolvedKeybinding>();
+    for (const { chords } of this.keybindings) {
+      if (chords.length !== 2) continue;
+      const winner = this.resolveChord(
+        (chord) => isSameChord(chord, chords[0]),
+        (chord) => isSameChord(chord, chords[1]),
+      );
+      if (winner) winners.add(winner);
+    }
+    return [...winners];
+  }
 
-    // Return highest priority match
-    return matches[0].commandId;
+  private resolveChord(
+    isStart: (chord: KeyChord) => boolean,
+    isEnd: (chord: KeyChord) => boolean,
+  ): ResolvedKeybinding | undefined {
+    return this.resolve(
+      (kb) =>
+        kb.chords.length > 1 && isStart(kb.chords[0]) && isEnd(kb.chords[1]),
+    );
+  }
+
+  /**
+   * Of the keybindings that match, the one that runs: the highest weight,
+   * then the first registered
+   */
+  private resolve(
+    matches: (kb: ResolvedKeybinding) => boolean,
+  ): ResolvedKeybinding | undefined {
+    let winner: ResolvedKeybinding | undefined;
+    for (const kb of this.keybindings) {
+      if (matches(kb) && (!winner || kb.weight > winner.weight)) {
+        winner = kb;
+      }
+    }
+    return winner;
   }
 
   /**
