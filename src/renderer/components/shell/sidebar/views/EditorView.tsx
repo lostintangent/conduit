@@ -13,12 +13,13 @@ import { EditorPaneAnchor } from "@/components/panes/editor";
 import {
   clearCwdEditorFile,
   closeSidebar,
-  getCwdEditorFile,
+  cwdMetadataAtom,
   setCwdEditorFile,
   sidebarPaneIds,
 } from "@/store/sidebarStore";
 import type { EditorTreeMode } from "@/types";
 import type { ChangesViewMode } from "@shared/types";
+import { useSelector } from "@tanstack/react-store";
 import { useCallback, useMemo } from "react";
 import { usePersistedState } from "../hooks/usePersistedState";
 import { useSidebarNavigation } from "../hooks/useSidebarNavigation";
@@ -59,11 +60,13 @@ export function EditorView({ cwd }: EditorViewProps) {
   // Stable pane ID based on CWD - ensures editor state is cached per directory
   const paneId = useMemo(() => sidebarPaneIds.editor(cwd), [cwd]);
 
-  // Current file - read from cache (survives view switches).
-  // Not useState because EditorPaneAnchor manages the open file internally;
-  // this just provides the initial file to restore after view switches.
-  // Re-renders are triggered by: navigation clear (atom update) or CWD change (prop).
-  const currentFile = getCwdEditorFile(cwd);
+  // Current file, cached per CWD so it survives view switches. The pane
+  // reports its own selections here, and navigation requests set it to open
+  // a file.
+  const currentFile = useSelector(
+    cwdMetadataAtom,
+    (metadata) => metadata.get(cwd)?.editorFile,
+  );
 
   // Consume navigation requests (tree mode and/or file)
   useSidebarNavigation((nav) => {

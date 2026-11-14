@@ -516,7 +516,6 @@ export function App() {
   // Get commands from registry (or empty array if command system not ready)
   const commandItems = useCommands(
     commandSystem?.commandRegistry,
-    commandSystem?.keybindingRegistry,
     commandSystem?.contextKeyService,
   );
 

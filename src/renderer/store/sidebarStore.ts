@@ -67,7 +67,7 @@ export const sidebarStateAtom = createAtom<SidebarState>({
 });
 
 /** Per-CWD metadata cache - survives view switches within a session */
-const cwdMetadataAtom = createAtom<Map<string, CwdMetadata>>(new Map());
+export const cwdMetadataAtom = createAtom<Map<string, CwdMetadata>>(new Map());
 
 /**
  * Global browser fallback URL - used when no CWD-specific URL exists.
@@ -87,10 +87,6 @@ export function closeSidebar(): void {
 }
 
 // --- CWD Metadata (Editor) ---
-
-export function getCwdEditorFile(cwd: string): string | undefined {
-  return cwdMetadataAtom.get().get(cwd)?.editorFile;
-}
 
 export function setCwdEditorFile(cwd: string, file: string): void {
   cwdMetadataAtom.set((current) => {

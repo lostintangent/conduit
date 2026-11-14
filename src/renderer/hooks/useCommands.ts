@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSelector } from "@tanstack/react-store";
 import type { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
-import type { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import type { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
+import type { ContextValues } from "@/commands/contextKeys/types";
 import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
 import { keybindingsAtom } from "@/store/atoms";
 import type { Command } from "@/types";
@@ -29,26 +29,23 @@ import type { Command } from "@/types";
  * - Memoized to avoid unnecessary recalculation
  *
  * @param commandRegistry - Command registry instance (can be undefined during initialization)
- * @param keybindingRegistry - Keybinding registry instance (can be undefined during initialization)
  * @param contextKeyService - Context key service instance (can be undefined during initialization)
  * @returns Array of commands with simplified interface for display and execution (empty if registries not ready)
  */
 export function useCommands(
   commandRegistry: CommandRegistry | undefined,
-  keybindingRegistry: KeybindingRegistry | undefined,
   contextKeyService: ContextKeyService | undefined,
 ): Command[] {
-  // Track context key changes via subscription
-  const [contextRevision, setContextRevision] = useState(0);
+  // Context values as of the last change. Until one fires, the memo below
+  // reads them from the service.
+  const [changedContext, setChangedContext] = useState<ContextValues>();
 
   useEffect(() => {
     if (!contextKeyService) return;
 
-    // Subscribe to context key changes
-    const unsubscribe = contextKeyService.onDidChangeContext(() => {
-      setContextRevision((prev) => prev + 1);
+    return contextKeyService.onDidChangeContext(() => {
+      setChangedContext(contextKeyService.getAll());
     });
-    return unsubscribe;
   }, [contextKeyService]);
 
   // Track keybinding changes via atom (already reactive)
@@ -56,12 +53,12 @@ export function useCommands(
 
   return useMemo(() => {
     // Return empty array if registries not ready
-    if (!commandRegistry || !keybindingRegistry || !contextKeyService) {
+    if (!commandRegistry || !contextKeyService) {
       return [];
     }
 
     const allCommands = commandRegistry.getAllCommands();
-    const contextValues = contextKeyService.getAll();
+    const contextValues = changedContext ?? contextKeyService.getAll();
 
     // Filter by when clause
     const availableCommands = allCommands.filter((cmd) => {
@@ -77,8 +74,7 @@ export function useCommands(
     // Convert CommandDescriptor → Command
     return filteredCommands.map((cmd) => {
       // Get keybinding for this command
-      const keybindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
-      const primaryKeybinding = keybindings[0]; // Use first binding
+      const primaryKeybinding = keybindingsMap.get(cmd.id)?.[0]; // Use first binding
 
       // Format keybinding for display
       const keybindingString = primaryKeybinding
@@ -97,11 +93,5 @@ export function useCommands(
         },
       };
     });
-  }, [
-    commandRegistry,
-    keybindingRegistry,
-    contextKeyService,
-    contextRevision,
-    keybindingsMap,
-  ]);
+  }, [commandRegistry, contextKeyService, changedContext, keybindingsMap]);
 }

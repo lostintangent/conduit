@@ -65,8 +65,8 @@ export function KeybindingsTab({
 
     const keybindingsByCommand = new Map<string, ResolvedKeybinding[]>();
     commands.forEach((cmd) => {
-      const bindings = keybindingRegistry.getKeybindingsForCommand(cmd.id);
-      if (bindings.length > 0) {
+      const bindings = globalKeybindings.get(cmd.id);
+      if (bindings?.length) {
         keybindingsByCommand.set(cmd.id, bindings);
       }
     });
@@ -106,7 +106,7 @@ export function KeybindingsTab({
         conflictingCommands,
       };
     });
-  }, [commandRegistry, keybindingRegistry, globalKeybindings]);
+  }, [commandRegistry, globalKeybindings]);
 
   const filteredRows = useMemo(() => {
     let filtered = rows;

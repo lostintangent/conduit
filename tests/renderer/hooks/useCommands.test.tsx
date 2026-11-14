@@ -5,8 +5,11 @@ import {
   When,
 } from "@/commands";
 import { ContextKey } from "@/commands/contextKeys/ContextKey";
+import { parseKeybinding } from "@/commands/keybindings/parser";
+import { updateKeybindingsAtom } from "@/commands/keybindings/updateKeybindingsAtom";
+import { formatKeybindingForDisplay } from "@/commands/keybindings/utils";
 import { useCommands } from "@/hooks/useCommands";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { commandContext } from "../commands/fixtures";
 
@@ -34,9 +37,10 @@ describe("useCommands", () => {
         keybinding: { key: "Cmd+T" },
         run: vi.fn(),
       });
+      updateKeybindingsAtom();
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(result.current).toHaveLength(1);
@@ -58,7 +62,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find((cmd) => cmd.id === "test.minimal");
@@ -89,7 +93,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(result.current.length).toBeGreaterThanOrEqual(3);
@@ -114,7 +118,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -135,7 +139,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -156,7 +160,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -179,7 +183,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -200,7 +204,7 @@ describe("useCommands", () => {
       });
 
       const { result, rerender } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       // Should not be visible initially
@@ -228,7 +232,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -244,7 +248,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -261,9 +265,10 @@ describe("useCommands", () => {
         keybinding: { key: "Cmd+T" },
         run: vi.fn(),
       });
+      updateKeybindingsAtom();
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find(
@@ -281,9 +286,10 @@ describe("useCommands", () => {
         keybinding: [{ key: "Cmd+K" }, { key: "Cmd+M" }],
         run: vi.fn(),
       });
+      updateKeybindingsAtom();
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find(
@@ -302,7 +308,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find(
@@ -319,9 +325,10 @@ describe("useCommands", () => {
         keybinding: { key: "Cmd+K Cmd+S" },
         run: vi.fn(),
       });
+      updateKeybindingsAtom();
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find((cmd) => cmd.id === "test.chord");
@@ -341,7 +348,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find(
@@ -363,7 +370,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find(
@@ -389,7 +396,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find((cmd) => cmd.id === "test.async");
@@ -408,7 +415,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const command = result.current.find((cmd) => cmd.id === "test.error");
@@ -420,7 +427,7 @@ describe("useCommands", () => {
   describe("memoization and reactivity", () => {
     it("should memoize results when dependencies unchanged", () => {
       const { result, rerender } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const firstResult = result.current;
@@ -443,7 +450,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       expect(
@@ -461,7 +468,31 @@ describe("useCommands", () => {
       });
     });
 
-    it("should recompute when context revision changes", () => {
+    it("should reflect keybinding changes", async () => {
+      commandRegistry.registerCommand({
+        id: "test.rebound",
+        title: "Rebound",
+        keybinding: { key: "Cmd+1" },
+        run: vi.fn(),
+      });
+      updateKeybindingsAtom();
+
+      const { result } = renderHook(() =>
+        useCommands(commandRegistry, contextKeyService),
+      );
+
+      await act(async () => {
+        keybindingRegistry.unregister("test.rebound");
+        keybindingRegistry.register("test.rebound", { key: "Cmd+2" });
+        updateKeybindingsAtom();
+      });
+
+      expect(
+        result.current.find((cmd) => cmd.id === "test.rebound")!.keybinding,
+      ).toBe(formatKeybindingForDisplay(parseKeybinding("Cmd+2")));
+    });
+
+    it("should recompute when context changes", () => {
       const testFlag = new ContextKey<boolean>("testFlag", false);
 
       commandRegistry.registerCommand({
@@ -472,7 +503,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const firstResult = result.current;
@@ -489,9 +520,7 @@ describe("useCommands", () => {
 
   describe("edge cases", () => {
     it("should handle undefined registries during initialization", () => {
-      const { result } = renderHook(() =>
-        useCommands(undefined, undefined, undefined),
-      );
+      const { result } = renderHook(() => useCommands(undefined, undefined));
 
       // Should return empty array when registries not ready
       expect(result.current).toEqual([]);
@@ -499,7 +528,7 @@ describe("useCommands", () => {
 
     it("should handle empty command registry", () => {
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       // Should return array (may have commands from other tests, but shouldn't crash)
@@ -522,7 +551,7 @@ describe("useCommands", () => {
       });
 
       const { result } = renderHook(() =>
-        useCommands(commandRegistry, keybindingRegistry, contextKeyService),
+        useCommands(commandRegistry, contextKeyService),
       );
 
       const cmd1 = result.current.find((cmd) => cmd.id === "test.conflict1");
