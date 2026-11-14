@@ -1279,8 +1279,6 @@ describe("EditorPane in a tab", () => {
             handleContextMenu={vi.fn()}
             handleResizeStart={vi.fn()}
             resizingNode={null}
-            handleBrowserUpdate={vi.fn()}
-            handleEditorUpdate={vi.fn()}
           />
           <GlobalEditorContainer />
         </TabContentPortalProvider>

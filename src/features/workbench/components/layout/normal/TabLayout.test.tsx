@@ -41,6 +41,7 @@ vi.mock("@features/terminal/components/TerminalPane", async () => {
 
 import { TabContentPortalProvider } from "@features/workbench/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@features/workbench/components/layout/normal/TabLayout";
+import { getLayoutPane } from "@features/workbench/components/layout/paneKinds";
 import { TabPreviewItem } from "@features/workbench/components/layout/overview/TabPreviewItem";
 import { createQueryClient } from "@/query";
 import {
@@ -50,6 +51,7 @@ import {
 } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import type { Tab } from "@features/workbench/model";
+import { PANE_SPLIT_TYPES } from "@shared/cli/types";
 import type { QueryClient } from "@tanstack/react-query";
 import { enableMapSet } from "immer";
 import {
@@ -87,8 +89,6 @@ function tabLayout(preview?: React.ReactNode) {
         handleContextMenu={vi.fn()}
         handleResizeStart={vi.fn()}
         resizingNode={null}
-        handleBrowserUpdate={vi.fn()}
-        handleEditorUpdate={vi.fn()}
       />
       {preview}
     </TabContentPortalProvider>
@@ -98,6 +98,10 @@ function tabLayout(preview?: React.ReactNode) {
 function renderTabLayout() {
   return render(tabLayout(), { queryClient });
 }
+
+it("finds a pane for every kind in its feature's panes.tsx", () => {
+  expect(PANE_SPLIT_TYPES.filter((type) => !getLayoutPane(type))).toEqual([]);
+});
 
 describe("TabLayout terminal links", () => {
   beforeEach(() => {

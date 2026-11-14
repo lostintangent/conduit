@@ -589,8 +589,6 @@ export function App() {
                 handleContextMenu={handleContextMenu}
                 handleResizeStart={handleResizeStart}
                 resizingNode={resizingNode}
-                handleBrowserUpdate={updatePaneProperty}
-                handleEditorUpdate={updatePaneProperty}
                 onOpenPaneActions={() => setSettingsTab("paneActions")}
               />
             </div>
