@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Use vi.hoisted to define mocks before imports
 const { MockGitSubscription, mockService, mockServiceInstance } = vi.hoisted(
   () => {
-    // Track API instances for verification
+    // Track instances for verification
     const instances = new Map<
       string,
       { cwd: string; released: boolean; refCount: number }

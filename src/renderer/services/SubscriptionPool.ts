@@ -1,6 +1,6 @@
 /**
- * Ref-counted pool that gives everything using the same cwd one API instance,
- * so there is one IPC subscription per cwd.
+ * Ref-counted pool that gives everything using the same cwd one subscription
+ * instance, so there is one IPC subscription per cwd.
  *
  * - An instance lasts as long as the pool, so a reference taken during render
  *   stays usable for however long its component is hidden.
@@ -18,8 +18,8 @@ import { useEffect } from "react";
 
 const GRACE_PERIOD_MS = 5000;
 
-/** An API whose subscription can stop and restart, keeping its listeners. */
-export interface SharedAPI {
+/** A subscription that can stop and restart, keeping its listeners. */
+export interface PooledSubscription {
   suspend(): void;
   resume(): void;
   /** Stop for good. */
@@ -27,12 +27,12 @@ export interface SharedAPI {
 }
 
 interface ManagedInstance<T> {
-  api: T;
+  subscription: T;
   refCount: number;
   suspendTimer?: ReturnType<typeof setTimeout>;
 }
 
-export class SharedAPIPool<T extends SharedAPI> {
+export class SubscriptionPool<T extends PooledSubscription> {
   private instances = new Map<string, ManagedInstance<T>>();
 
   constructor(
@@ -45,7 +45,7 @@ export class SharedAPIPool<T extends SharedAPI> {
    * after the grace period unless something acquires it.
    */
   get(cwd: string): T {
-    return this.managed(cwd).api;
+    return this.managed(cwd).subscription;
   }
 
   acquire(cwd: string): T {
@@ -53,9 +53,9 @@ export class SharedAPIPool<T extends SharedAPI> {
     clearTimeout(managed.suspendTimer);
     managed.suspendTimer = undefined;
     if (managed.refCount++ === 0) {
-      managed.api.resume();
+      managed.subscription.resume();
     }
-    return managed.api;
+    return managed.subscription;
   }
 
   release(cwd: string): void {
@@ -68,7 +68,7 @@ export class SharedAPIPool<T extends SharedAPI> {
     // An extra release would leave an orphaned grace timer that suspends the
     // instance after a later acquire.
     if (managed.refCount === 0) {
-      console.warn(`[SharedAPIPool] Released more than acquired: ${key}`);
+      console.warn(`[SubscriptionPool] Released more than acquired: ${key}`);
       return;
     }
 
@@ -91,7 +91,7 @@ export class SharedAPIPool<T extends SharedAPI> {
   disposeAll(): void {
     for (const managed of this.instances.values()) {
       clearTimeout(managed.suspendTimer);
-      managed.api.release();
+      managed.subscription.release();
     }
     this.instances.clear();
   }
@@ -100,7 +100,7 @@ export class SharedAPIPool<T extends SharedAPI> {
     const key = this.makeKey(cwd);
     let managed = this.instances.get(key);
     if (!managed) {
-      managed = { api: this.create(cwd), refCount: 0 };
+      managed = { subscription: this.create(cwd), refCount: 0 };
       this.instances.set(key, managed);
       this.suspendLater(managed);
     }
@@ -110,7 +110,7 @@ export class SharedAPIPool<T extends SharedAPI> {
   private suspendLater(managed: ManagedInstance<T>): void {
     managed.suspendTimer = setTimeout(() => {
       managed.suspendTimer = undefined;
-      managed.api.suspend();
+      managed.subscription.suspend();
     }, GRACE_PERIOD_MS);
   }
 
@@ -120,14 +120,14 @@ export class SharedAPIPool<T extends SharedAPI> {
 }
 
 /** Lazily-created singleton pool with a test reset hook. */
-export function createSharedAPIPool<T extends SharedAPI>(
+export function createSubscriptionPool<T extends PooledSubscription>(
   create: (cwd: string) => T,
   normalizeKey?: (path: string) => string,
 ) {
-  let instance: SharedAPIPool<T> | null = null;
+  let instance: SubscriptionPool<T> | null = null;
   return {
-    getInstance: (): SharedAPIPool<T> =>
-      (instance ??= new SharedAPIPool(create, normalizeKey)),
+    getInstance: (): SubscriptionPool<T> =>
+      (instance ??= new SubscriptionPool(create, normalizeKey)),
     resetInstance: (): void => {
       instance?.disposeAll();
       instance = null;
@@ -141,8 +141,8 @@ export function createSharedAPIPool<T extends SharedAPI>(
  * takes it back when it's shown again, which re-runs effects but not render.
  * The instance is the same either way.
  */
-export function useSharedAPI<T extends SharedAPI>(
-  pool: SharedAPIPool<T>,
+export function usePooledSubscription<T extends PooledSubscription>(
+  pool: SubscriptionPool<T>,
   cwd: string,
 ): T {
   const normalizedCwd = cwd.replace(/\/+$/, "");

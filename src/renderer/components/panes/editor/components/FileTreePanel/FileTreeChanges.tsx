@@ -75,7 +75,7 @@ export interface FileTreeChangesProps {
   paneId: string;
   /** Working directory */
   cwd: string;
-  /** Git API instance (shared from parent) */
+  /** Git subscription (shared from parent) */
   git: GitSubscription;
   /** Currently selected file (null if none) */
   selectedFile: FileNode | null;

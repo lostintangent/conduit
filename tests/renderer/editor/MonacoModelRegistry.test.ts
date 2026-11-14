@@ -19,7 +19,7 @@ const {
     release: vi.fn(),
   };
 
-  // Track API instances by cwd
+  // Track instances by cwd
   const instances = new Map<string, any>();
 
   // Mock FileSystemSubscription class

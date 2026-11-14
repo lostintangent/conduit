@@ -54,10 +54,10 @@ export interface FileTreePanelProps {
   /** Working directory (root of the tree) */
   cwd: string;
 
-  /** FileSystem API instance (shared from parent) */
+  /** File system subscription (shared from parent) */
   fs: FileSystemSubscription;
 
-  /** Git API instance (shared from parent) */
+  /** Git subscription (shared from parent) */
   git: GitSubscription;
 
   /** Currently selected file (null if none) */

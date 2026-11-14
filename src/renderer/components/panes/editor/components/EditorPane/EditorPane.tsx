@@ -81,7 +81,7 @@ export interface EditorPaneProps {
   /** Working directory for file operations */
   cwd: string;
 
-  /** Git API instance (shared from parent) */
+  /** Git subscription (shared from parent) */
   git: GitSubscription;
 
   /** Currently selected file (null for empty state) */

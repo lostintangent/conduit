@@ -51,7 +51,7 @@ import {
 } from "./useFileChangeTracking";
 
 export interface UseUnseenTrackingOptions {
-  /** Git API instance */
+  /** Git subscription */
   git: GitSubscription;
 
   /** Working directory (absolute path) */

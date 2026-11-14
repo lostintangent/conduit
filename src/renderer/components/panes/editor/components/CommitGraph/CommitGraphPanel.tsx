@@ -60,7 +60,7 @@ import type {
 // =============================================================================
 
 export interface CommitGraphPanelProps {
-  /** Git API instance for fetching data */
+  /** Git subscription for fetching data */
   git: GitSubscription;
 
   /**

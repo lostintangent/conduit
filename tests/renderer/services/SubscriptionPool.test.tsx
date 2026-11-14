@@ -1,9 +1,12 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { Activity, useEffect } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { SharedAPIPool, useSharedAPI } from "@/services/SharedAPIPool";
+import {
+  SubscriptionPool,
+  usePooledSubscription,
+} from "@/services/SubscriptionPool";
 
-class FakeAPI {
+class FakeSubscription {
   released = false;
   suspended = false;
 
@@ -34,19 +37,19 @@ afterEach(() => {
 
 it("resumes the same instance when shown again after a long hide", () => {
   vi.useFakeTimers();
-  const pool = new SharedAPIPool(() => new FakeAPI());
-  const seen = new Set<FakeAPI>();
+  const pool = new SubscriptionPool(() => new FakeSubscription());
+  const seen = new Set<FakeSubscription>();
   const errors: unknown[] = [];
   function Holder() {
-    const api = useSharedAPI(pool, "/project");
-    seen.add(api);
+    const subscription = usePooledSubscription(pool, "/project");
+    seen.add(subscription);
     useEffect(() => {
       try {
-        return api.listen();
+        return subscription.listen();
       } catch (error) {
         errors.push(error);
       }
-    }, [api]);
+    }, [subscription]);
     return null;
   }
   // Showing a stable element again re-runs its effects but not its render

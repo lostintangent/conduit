@@ -95,7 +95,7 @@ describe("FileSystemSubscriptionPool", () => {
   // ===========================================================================
 
   describe("acquire", () => {
-    it("should create a new API instance for a cwd", () => {
+    it("should create a new instance for a cwd", () => {
       const service = FileSystemSubscriptionPool.getInstance();
       const api = service.acquire("/test/project");
 

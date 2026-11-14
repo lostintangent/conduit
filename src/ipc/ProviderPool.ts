@@ -10,7 +10,7 @@
  *   after a 5s grace period. Re-acquiring within it cancels disposal and runs
  *   `onRevive`.
  *
- * @see SharedAPIPool - the renderer equivalent
+ * @see SubscriptionPool - the renderer equivalent
  */
 
 import * as path from "node:path";

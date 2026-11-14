@@ -61,7 +61,7 @@ export interface FileTreeNormalProps {
   /** Working directory (root of the tree) */
   cwd: string;
 
-  /** FileSystem API instance (shared from parent) */
+  /** File system subscription (shared from parent) */
   fs: FileSystemSubscription;
 
   /** Currently selected file (null if none) */

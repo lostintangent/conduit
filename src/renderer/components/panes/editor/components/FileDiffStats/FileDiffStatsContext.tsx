@@ -87,9 +87,9 @@ const FileDiffStatsContext = createContext<FileDiffStatsContextValue | null>(
 // =============================================================================
 
 export interface FileDiffStatsProviderProps {
-  /** Git API instance for fetching diff stats */
+  /** Git subscription for fetching diff stats */
   git: GitSubscription;
-  /** FileSystem API instance for subscribing to file content changes */
+  /** File system subscription for subscribing to file content changes */
   fs: FileSystemSubscription;
   /** Children to render */
   children: ReactNode;

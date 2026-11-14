@@ -64,7 +64,7 @@ export interface ReviewWorkingPaneSectionProps {
   /** Working directory */
   cwd: string;
 
-  /** Git API instance */
+  /** Git subscription */
   git: GitSubscription;
 
   /** Git ref for diff comparison */

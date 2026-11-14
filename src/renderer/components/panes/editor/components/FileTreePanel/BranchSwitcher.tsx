@@ -41,7 +41,7 @@ import { useBranches } from "./hooks/useBranches";
 import { useCreateBranch } from "./hooks/useCreateBranch";
 
 export interface BranchSwitcherProps {
-  /** Git API instance (shared from parent) */
+  /** Git subscription (shared from parent) */
   git: GitSubscription;
 
   /** Current branch name */

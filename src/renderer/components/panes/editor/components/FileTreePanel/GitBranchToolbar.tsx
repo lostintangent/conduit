@@ -75,7 +75,7 @@ export interface GitBranchToolbarProps {
   /** Base branch for comparison (null = compare to HEAD) */
   baseBranch: string | null;
 
-  /** Git API instance for branch switching */
+  /** Git subscription for branch switching */
   git?: GitSubscription;
 
   /** Whether to show only changed files */

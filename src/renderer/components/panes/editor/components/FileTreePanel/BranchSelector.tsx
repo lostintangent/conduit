@@ -37,7 +37,7 @@ import { formatRelativeTime } from "@/utils/time";
 import { useBranches, filterBranchesByQuery } from "./hooks/useBranches";
 
 export interface BranchSelectorProps {
-  /** Git API instance */
+  /** Git subscription */
   git: GitSubscription | null;
 
   /** Whether the dialog is open */

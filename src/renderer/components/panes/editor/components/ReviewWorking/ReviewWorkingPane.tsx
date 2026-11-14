@@ -52,7 +52,7 @@ export interface ReviewWorkingPaneProps {
   /** Working directory */
   cwd: string;
 
-  /** Git API instance (shared from parent) */
+  /** Git subscription (shared from parent) */
   git: GitSubscription;
 
   /** Git ref for original content comparison (default: 'HEAD') */

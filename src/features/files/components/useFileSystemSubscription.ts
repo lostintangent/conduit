@@ -1,7 +1,7 @@
 /**
  * React hook returning the FileSystemSubscription instance shared by every
  * component using the same cwd (see FileSystemSubscriptionPool), held while the
- * component is mounted and shown (see useSharedAPI).
+ * component is mounted and shown (see usePooledSubscription).
  *
  * @example
  * ```tsx
@@ -12,10 +12,10 @@
 
 import { FileSystemSubscription } from "../client/FileSystemSubscription";
 import { FileSystemSubscriptionPool } from "../client/FileSystemSubscriptionPool";
-import { useSharedAPI } from "@/services/SharedAPIPool";
+import { usePooledSubscription } from "@/services/SubscriptionPool";
 
 export function useFileSystemSubscription(cwd: string): FileSystemSubscription {
-  return useSharedAPI(FileSystemSubscriptionPool.getInstance(), cwd);
+  return usePooledSubscription(FileSystemSubscriptionPool.getInstance(), cwd);
 }
 
 export type {

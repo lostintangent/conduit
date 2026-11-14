@@ -112,7 +112,7 @@ interface WorkingContextProps {
   /** Working context - interactive with git actions */
   context: "working";
 
-  /** Git API instance (required for working context) */
+  /** Git subscription (required for working context) */
   git: GitSubscription;
 
   /** Git status for this file (required for working context) */
