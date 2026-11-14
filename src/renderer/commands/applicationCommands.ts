@@ -259,7 +259,7 @@ export function registerApplicationCommands(
     title: "Close Workspace",
     description: "Close the current workspace",
     category: "Workspace",
-    keybinding: { key: "Cmd+K Cmd+C" },
+    keybinding: { key: "Cmd+K F" },
     when: hasWorkspace.isTrue(),
     run: (context) => {
       if (context.workspaceName) {

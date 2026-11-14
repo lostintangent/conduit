@@ -9,10 +9,12 @@ import {
 } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import {
+  isChordPending,
   useKeybindingDispatch,
   type KeybindingDispatchOptions,
 } from "@/commands/hooks/useKeybindingDispatch";
 import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
+import { ContextKey } from "@/commands/contextKeys/ContextKey";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import type { Tab } from "@/types";
@@ -284,6 +286,28 @@ describe("useKeybindingDispatch", () => {
       // This confirms chord state was cleared
       expect(mockCommandRun).not.toHaveBeenCalled();
     });
+
+    it("ends a chord whose command is disabled, so the next key types normally", () => {
+      commandRegistry.registerCommand({
+        id: "test.chordCommand",
+        title: "Chord Command",
+        keybinding: { key: "Cmd+K F" },
+        when: new ContextKey("enabled", false).isTrue(),
+        run: mockCommandRun,
+      });
+
+      renderHook(() =>
+        useKeybindingDispatch(commandRegistry, keybindingRegistry),
+      );
+
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "k", metaKey: true }),
+      );
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "f" }));
+
+      expect(isChordPending()).toBe(false);
+      expect(mockCommandRun).not.toHaveBeenCalled();
+    });
   });
 
   describe("input element detection", () => {
@@ -386,6 +410,38 @@ describe("useKeybindingDispatch", () => {
       expect(mockCommandRun).not.toHaveBeenCalled();
 
       document.body.removeChild(input);
+    });
+
+    // A terminal lets the key through while isChordPending(), as in VS Code
+    it("completes a chord whose second part is a bare key typed in a textarea", async () => {
+      commandRegistry.registerCommand({
+        id: "test.chordCommand",
+        title: "Chord Command",
+        keybinding: { key: "Cmd+K F" },
+        run: mockCommandRun,
+      });
+
+      renderHook(() =>
+        useKeybindingDispatch(commandRegistry, keybindingRegistry),
+      );
+
+      const textarea = document.createElement("textarea");
+      document.body.appendChild(textarea);
+      const press = (init: KeyboardEventInit) =>
+        textarea.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, ...init }),
+        );
+
+      press({ key: "k", metaKey: true });
+      expect(isChordPending()).toBe(true);
+      press({ key: "f" });
+
+      await waitFor(() => {
+        expect(mockCommandRun).toHaveBeenCalledTimes(1);
+      });
+      expect(isChordPending()).toBe(false);
+
+      document.body.removeChild(textarea);
     });
 
     it("should skip processing for contentEditable elements", () => {

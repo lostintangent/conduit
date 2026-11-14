@@ -1,5 +1,6 @@
 import { ApplicationCommands } from "@/commands/applicationCommands";
 import { useCommand } from "@/commands/hooks/useCommand";
+import { isChordPending } from "@/commands/hooks/useKeybindingDispatch";
 import { clearPressedKeys } from "@/commands/keybindings/parser";
 import {
   Tooltip,
@@ -54,6 +55,13 @@ const registerTerminalKeyHandler = ({
   const keyHandler = (event: KeyboardEvent) => {
     if (event.type !== "keydown") {
       return true;
+    }
+
+    // While an app chord is pending, its next key goes to the app instead of
+    // the shell, as in VS Code. That's how Cmd+K F works from a terminal.
+    if (isChordPending()) {
+      event.preventDefault();
+      return false;
     }
 
     if (!terminal) {

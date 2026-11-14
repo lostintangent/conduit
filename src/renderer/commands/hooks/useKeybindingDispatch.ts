@@ -11,6 +11,13 @@ import {
   trackKeyUp,
 } from "../keybindings/parser";
 
+// The first part of a pending chord, like Cmd+K in Cmd+K Cmd+W. A terminal
+// checks it to let the second part through instead of typing it.
+let pendingChord: KeyboardEvent | null = null;
+
+/** Whether the dispatcher is waiting for the second part of a chord */
+export const isChordPending = () => pendingChord !== null;
+
 export interface KeybindingDispatchOptions {
   /** Current application mode (normal, focus, design, overview) */
   applicationMode: ApplicationMode;
@@ -38,8 +45,7 @@ export function useKeybindingDispatch(
   keybindingRegistry: KeybindingRegistry | null | undefined,
   options?: KeybindingDispatchOptions,
 ) {
-  // Use refs to avoid re-creating the listener on every chord state change
-  const currentChordRef = useRef<KeyboardEvent | null>(null);
+  // Use a ref to avoid re-creating the listener on every chord state change
   const chordTimeoutRef = useRef<number | null>(null);
 
   // Use ref for options to avoid stale closures while keeping stable event listeners
@@ -54,7 +60,7 @@ export function useKeybindingDispatch(
 
     // Define clearChordState inside useEffect to avoid stale closures
     const clearChordState = () => {
-      currentChordRef.current = null;
+      pendingChord = null;
       if (chordTimeoutRef.current) {
         clearTimeout(chordTimeoutRef.current);
         chordTimeoutRef.current = null;
@@ -105,8 +111,10 @@ export function useKeybindingDispatch(
       // --- End pre-command handlers ---
 
       // Fast path: Skip ALL processing for plain text in input elements
-      // This handles the 99% case (typing in terminal) in <1 microsecond
+      // This handles the 99% case (typing in terminal) in <1 microsecond.
+      // A pending chord still takes the key, as in Cmd+K F.
       if (
+        !pendingChord &&
         !event.metaKey &&
         !event.ctrlKey &&
         !event.altKey &&
@@ -118,9 +126,9 @@ export function useKeybindingDispatch(
       // A modifier on its own doesn't end a pending chord, so Cmd can be
       // released and pressed again between its parts, as in VS Code. The
       // second part's modifiers still have to match.
-      if (currentChordRef.current && isModifierKey(event.key)) return;
+      if (pendingChord && isModifierKey(event.key)) return;
 
-      const chordIndex = currentChordRef.current ? 1 : 0;
+      const chordIndex = pendingChord ? 1 : 0;
 
       // Find matching command
       const commandId = keybindingRegistry.findCommand(event, chordIndex);
@@ -135,7 +143,7 @@ export function useKeybindingDispatch(
         if (hasMore && chordIndex === 0) {
           // This is the first chord in a sequence, wait for next chord
           event.preventDefault();
-          currentChordRef.current = event;
+          pendingChord = event;
 
           // Clear pressed keys after first chord to prevent them from interfering
           // with the second chord matching
@@ -143,7 +151,7 @@ export function useKeybindingDispatch(
 
           // Set timeout to clear chord state
           const timeout = window.setTimeout(() => {
-            currentChordRef.current = null;
+            pendingChord = null;
           }, 1000);
           chordTimeoutRef.current = timeout;
         } else {
@@ -154,6 +162,9 @@ export function useKeybindingDispatch(
           if (!commandRegistry.isCommandEnabled(commandId)) {
             // Clear pressed keys to prevent stale keys from blocking future keybindings
             clearPressedKeys();
+            // A chord that ends in a disabled command is over, so the next key
+            // isn't held back as its second part
+            clearChordState();
             return;
           }
 
@@ -173,7 +184,7 @@ export function useKeybindingDispatch(
             );
           });
         }
-      } else if (currentChordRef.current) {
+      } else if (pendingChord) {
         // No match for second chord, clear state
         clearChordState();
       } else if (
