@@ -1,5 +1,5 @@
 import type { TerminalCreateOptions } from "@features/terminal/model";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
 
 /**
  * Options that can be passed to splitPane function

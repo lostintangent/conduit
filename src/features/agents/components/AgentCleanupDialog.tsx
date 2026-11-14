@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "../model";
 import { useEffect, useMemo, useState } from "react";
 
 type AgentCleanupDialogProps = {

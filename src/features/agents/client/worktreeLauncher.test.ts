@@ -4,7 +4,7 @@ vi.hoisted(() => {
   (window as any).conduit = { terminal: {} };
 });
 
-import { launchAgents } from "@/agents/worktreeLauncher";
+import { launchAgents } from "./worktreeLauncher";
 import { activeTabIdAtom, tabsAtom } from "@/store/atoms";
 import type { Tab } from "@/types";
 import { enableMapSet } from "immer";

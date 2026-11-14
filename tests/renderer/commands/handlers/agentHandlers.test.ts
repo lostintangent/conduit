@@ -1,6 +1,6 @@
 import * as notifications from "@/store/actions/notifications";
 import * as paneActions from "@/store/actions/pane";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing handlers

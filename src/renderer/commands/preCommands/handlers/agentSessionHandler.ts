@@ -1,4 +1,4 @@
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
 
 /**
  * Result of agent session creation

@@ -5,9 +5,8 @@ import type {
   AgentSessionFinalizeResult,
   AgentSessionInfo,
   AgentSessionSpawnRequest,
-  BackgroundCommandRequest,
-  Workspace,
-} from "@shared/types";
+} from "@features/agents/model";
+import type { BackgroundCommandRequest, Workspace } from "@shared/types";
 import type { FeatureApis } from "@shared/rpc";
 import { contextBridge, ipcRenderer } from "electron";
 import configureCliModule from "./modules/cli";

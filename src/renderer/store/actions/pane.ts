@@ -24,7 +24,7 @@ import type {
   AgentSessionCleanupResult,
   AgentSessionFinalizeResult,
   AgentSessionInfo,
-} from "@shared/types";
+} from "@features/agents/model";
 import type { TerminalCreateOptions } from "@features/terminal/model";
 import { generateId } from "@shared/utils";
 import { produce } from "immer";

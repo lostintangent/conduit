@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateAgentLayout } from "@/utils/agentLayout";
+import { generateAgentLayout } from "./agentLayout";
 
 describe("agentLayout", () => {
   describe("generateAgentLayout", () => {

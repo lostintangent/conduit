@@ -25,7 +25,7 @@ vi.mock("node:fs/promises", () => ({
 
 const execFile = mockExecFileImpl;
 const stat = mockStatImpl;
-import { findRepoRoot, runGit } from "../../../src/ipc/agent/git";
+import { findRepoRoot, runGit } from "./git";
 
 // These cover what the removed legacy git tests exercised incidentally:
 // repo-root discovery for agent worktrees and runGit's output and errors.

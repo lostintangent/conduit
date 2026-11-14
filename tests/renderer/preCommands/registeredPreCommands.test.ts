@@ -9,7 +9,7 @@ import {
 } from "@/commands/preCommands/registeredPreCommands";
 import type { TerminalConfig } from "@/commands/preCommands/types";
 import { queryClient } from "@/query";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedSettings } from "../queryRender";
 

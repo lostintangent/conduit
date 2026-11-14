@@ -1,4 +1,4 @@
-import { launchAgents } from "@/agents/worktreeLauncher";
+import { launchAgents } from "@features/agents/client/worktreeLauncher";
 import { useCliClient } from "@/cli/useCliClient";
 import { useCommandSystem } from "@/commands/hooks/useCommandSystem";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
@@ -17,8 +17,8 @@ import {
   updateTerminalThemes,
 } from "@features/terminal/client/xtermCache";
 import { NotificationCenter } from "@/components/shell/NotificationCenter";
-import { AgentCleanupDialog } from "@/components/shell/palette/AgentCleanupDialog";
-import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
+import { AgentCleanupDialog } from "@features/agents/components/AgentCleanupDialog";
+import { AgentLauncherDialog } from "@features/agents/components/AgentLauncherDialog";
 import { CommandPalette } from "@/components/shell/palette/CommandPalette";
 import { WorkspacePicker } from "@features/workspaces/components/WorkspacePicker";
 import { SettingsDialog } from "@features/settings/components/SettingsDialog";
@@ -73,7 +73,7 @@ import {
 } from "@/store/atoms";
 import { sidebarStateAtom } from "@/store/sidebarStore";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
 import { useAtom, useSelector } from "@tanstack/react-store";
 import { useEffect, useRef, useState } from "react";
 

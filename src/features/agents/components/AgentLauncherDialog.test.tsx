@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { AgentLauncherDialog } from "@/components/shell/palette/AgentLauncherDialog";
+import { AgentLauncherDialog } from "./AgentLauncherDialog";
 import type { AgentConfig, LaunchGroup } from "@features/settings/model";
 
 describe("AgentLauncherDialog", () => {

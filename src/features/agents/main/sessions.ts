@@ -10,7 +10,7 @@ import type {
   AgentSessionFinalizeResult,
   AgentSessionInfo,
   AgentSessionSpawnRequest,
-} from "../../shared/types";
+} from "../model";
 import {
   fileExists,
   findRepoRoot,

@@ -32,7 +32,8 @@ import {
 } from "@features/canvas/client/canvasStore";
 import type { LayoutNode, Pane, Tab, TerminalPane } from "@/types";
 import { walkLayout } from "@/utils/layout";
-import type { AgentSessionInfo, NewTabOptions } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
+import type { NewTabOptions } from "@shared/types";
 import { generateElementId } from "@features/canvas/model";
 import { generateId } from "@shared/utils";
 import path from "path-browserify";

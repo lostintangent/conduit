@@ -3,7 +3,7 @@
  */
 
 import { createAgentSessionHandler } from "@/commands/preCommands/handlers/agentSessionHandler";
-import type { AgentSessionInfo } from "@shared/types";
+import type { AgentSessionInfo } from "@features/agents/model";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("agentSessionHandler", () => {
