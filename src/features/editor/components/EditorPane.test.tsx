@@ -679,7 +679,7 @@ describe("EditorPane", () => {
   });
 
   describe("callback props", () => {
-    it("should call onFileChange with file content when file is selected", async () => {
+    it("should call onFileChange with the file when it is selected", async () => {
       const onFileChange = vi.fn();
       renderPane({}, { onFileChange });
 
@@ -689,7 +689,6 @@ describe("EditorPane", () => {
       await waitFor(() => {
         expect(onFileChange).toHaveBeenCalledWith({
           file: "/project/test.ts",
-          language: "typescript",
         });
       });
     });

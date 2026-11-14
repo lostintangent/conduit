@@ -9,6 +9,7 @@
  * The `effectiveCwd` prop is the CWD to use (either current or locked).
  */
 
+import type { FileChangeData } from "@features/editor/components/EditorPane";
 import { EditorPaneAnchor } from "@features/editor/components/EditorPaneAnchor";
 import {
   clearCwdEditorFile,
@@ -75,12 +76,8 @@ export function EditorView({ cwd }: EditorViewProps) {
   });
 
   // File change handler - tracks file per CWD
-  const handleFileChange = (fileData: {
-    file: string;
-    language: string;
-    content: string;
-  }) => {
-    setCwdEditorFile(cwd, fileData.file);
+  const handleFileChange = ({ file }: FileChangeData) => {
+    setCwdEditorFile(cwd, file);
   };
 
   // Clear file handler

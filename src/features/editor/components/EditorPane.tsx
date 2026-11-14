@@ -63,7 +63,6 @@ import {
   mapKeyToPath,
 } from "./utils/gitStatusHelpers";
 import { getRelativePath } from "./utils/pathUtils";
-import { detectLanguage } from "./utils/languageDetection";
 import { getFriendlyGitError } from "./utils/gitErrorMessages";
 import { selectNextAvailableFile } from "./utils/fileSelectionHelpers";
 
@@ -86,15 +85,11 @@ function isAtFilesystemRoot(path: string): boolean {
 }
 
 /**
- * Callback payload when file changes (selection or content).
+ * Callback payload when the selected file changes.
  */
 export interface FileChangeData {
   /** File path */
   file: string;
-  /** Detected language from file extension */
-  language: string;
-  /** File content (optional - not always loaded for performance) */
-  content?: string;
 }
 
 export interface EditorPaneProps {
@@ -103,7 +98,6 @@ export interface EditorPaneProps {
 
   /**
    * Callback fired when the selected file changes.
-   * Includes file path, detected language, and content.
    */
   onFileChange?: (fileData: FileChangeData) => void;
 
@@ -431,10 +425,7 @@ export function EditorPane({
     ownFilePathRef.current = selectedFilePath;
 
     if (selectedFilePath) {
-      onFileChange?.({
-        file: selectedFilePath,
-        language: detectLanguage(selectedFilePath),
-      });
+      onFileChange?.({ file: selectedFilePath });
     } else {
       onClearFile?.();
     }
@@ -642,10 +633,7 @@ export function EditorPane({
       file.type === "file" &&
       fileStatus?.status !== "deleted"
     ) {
-      onFileChange({
-        file: file.path,
-        language: detectLanguage(file.path),
-      });
+      onFileChange({ file: file.path });
     }
   };
 
