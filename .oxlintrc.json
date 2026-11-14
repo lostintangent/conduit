@@ -81,11 +81,7 @@
         "vitest/expect-expect": [
           "error",
           {
-            "assertFunctionNames": [
-              "expect",
-              "expectStartedAtPane*",
-              "**.waitFor"
-            ]
+            "assertFunctionNames": ["expect*", "**.waitFor"]
           }
         ]
       }

@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, type Terminal } from "./app";
+import { type Conduit, launch, type Terminal, until } from "./app";
 
 const page = `<!doctype html>
 <title>E2E Page</title>
@@ -14,6 +14,11 @@ const page = `<!doctype html>
 interface Element {
   handle: string;
   text: string;
+}
+
+interface Pane {
+  id: string;
+  url: string;
 }
 
 describe("browser automation from the CLI", () => {
@@ -31,7 +36,11 @@ describe("browser automation from the CLI", () => {
       server.listen(0, "127.0.0.1", resolve),
     );
     url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
-    app = await launch({ name: "browser" });
+    app = await launch({
+      name: "browser",
+      // Outlines the active pane, so a test can see which one it is
+      settings: { alwaysHighlightActivePane: true },
+    });
     terminal = await app.terminal();
   });
 
@@ -46,6 +55,36 @@ describe("browser automation from the CLI", () => {
     return JSON.parse(
       fs.readFileSync(path.join(app.home, "cli.json"), "utf8"),
     ) as T;
+  }
+
+  /** The active pane's address, or "terminal" when a terminal is active. */
+  function activePane(): Promise<string> {
+    return app.page.evaluate(() => {
+      const outline = document.querySelector('[class*="shadow-[inset"]');
+      const pane = outline?.parentElement;
+      if (pane?.querySelector(".xterm")) return "terminal";
+      const address = pane?.querySelector<HTMLInputElement>(
+        'input[placeholder="Enter URL..."]',
+      );
+      return address?.value ?? "none";
+    });
+  }
+
+  async function expectActivePane(expected: string) {
+    await until(async () => {
+      const active = await activePane();
+      if (active !== expected) throw new Error(`${active} is active`);
+      return true;
+    }, `${expected} to be the active pane`);
+  }
+
+  /** Clicks the middle of the nth webview's page, in the order they opened. */
+  async function clickPage(index: number) {
+    const box = await app.page.locator("webview").nth(index).boundingBox();
+    await app.page.mouse.click(
+      box!.x + box!.width / 2,
+      box!.y + box!.height / 2,
+    );
   }
 
   it("opens a browser pane and navigates it", async () => {
@@ -97,6 +136,45 @@ describe("browser automation from the CLI", () => {
       await app.page.keyboard.press("Escape");
     } finally {
       fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+
+  it("activates a browser pane when its page is clicked", async () => {
+    await terminal.locator.click();
+    await expectActivePane("terminal");
+
+    await clickPage(0);
+    await expectActivePane(url);
+  });
+
+  // Focus moving between two webviews fires no event in the window at all.
+  it("activates the pane of whichever page is clicked", async () => {
+    const second = `${url}second`;
+    await terminal.locator.click();
+    expect(await terminal.run("conduit split bottom -t browser")).toBe(0);
+    const panes = await conduit<Pane[]>("pane-list -t browser");
+    const pane = panes.find((candidate) => candidate.url !== url);
+    expect(
+      await terminal.run(`conduit browser-navigate -p ${pane!.id} ${second}`),
+    ).toBe(0);
+    await until(
+      () =>
+        app.page
+          .locator("webview")
+          .nth(1)
+          .evaluate((webview: Electron.WebviewTag) => webview.getTitle())
+          .then((title) => title === "E2E Page"),
+      "the second page to load",
+    );
+
+    // The new pane is active, so the first click moves away from it
+    for (const [index, expected] of [
+      [0, url],
+      [1, second],
+      [0, url],
+    ] as const) {
+      await clickPage(index);
+      await expectActivePane(expected);
     }
   });
 

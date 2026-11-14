@@ -9,6 +9,7 @@ import type {
   ContextMenuParams,
   DidNavigateEvent,
   DidNavigateInPageEvent,
+  IpcMessageEvent,
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
@@ -348,6 +349,12 @@ export function BrowserPane({
       }
     };
 
+    // The webview's focus event misses clicks inside its page, so the page
+    // reports them itself
+    const handleIpcMessage = ({ channel }: IpcMessageEvent) => {
+      if (channel === "browser:pointerdown") handleWebViewFocus();
+    };
+
     const handleConsoleMessage = (
       event: Event & {
         message?: string;
@@ -395,6 +402,7 @@ export function BrowserPane({
     webview.addEventListener("mouseleave", handleWebViewMouseLeave);
 
     webview.addEventListener("focus", handleWebViewFocus);
+    webview.addEventListener("ipc-message", handleIpcMessage);
 
     webview.addEventListener("console-message", handleConsoleMessage);
 
@@ -414,6 +422,7 @@ export function BrowserPane({
       webview.removeEventListener("mouseleave", handleWebViewMouseLeave);
 
       webview.removeEventListener("focus", handleWebViewFocus);
+      webview.removeEventListener("ipc-message", handleIpcMessage);
 
       webview.removeEventListener("console-message", handleConsoleMessage);
     };

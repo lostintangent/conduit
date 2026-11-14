@@ -26,3 +26,15 @@ ipcRenderer.on(
     }
   },
 );
+
+// Tell the pane when the user presses on its page, so it activates like a pane
+// clicked in the app. The <webview> element gets no event for it, and none when
+// focus moves from one webview to another. Untrusted events come from scripts,
+// like the automation API's clicks, and shouldn't move the user's focus.
+window.addEventListener(
+  "pointerdown",
+  (event) => {
+    if (event.isTrusted) ipcRenderer.sendToHost("browser:pointerdown");
+  },
+  { capture: true },
+);
