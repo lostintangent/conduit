@@ -1,437 +1,195 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   act,
-  screen,
   fireEvent,
+  screen,
   waitFor,
   within,
 } from "@testing-library/react";
+import type { QueryClient } from "@tanstack/react-query";
+import type { ComponentProps } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/query";
+import type { GitSubscription } from "@features/git/client/GitSubscription";
+import {
+  type GitFileStatus,
+  type GitFileStatusCode,
+  UNSTAGED_KEY_SUFFIX,
+} from "@features/git/model";
 import { render } from "../../../../../tests/renderer/queryRender";
+import { mockFiles } from "../../../../../tests/renderer/files";
+import { mockGitWrites } from "../../../../../tests/renderer/git";
 
-// ============================================================================
-// Mocks - MUST BE BEFORE COMPONENT IMPORT
-// ============================================================================
-
-// Mock window.conduit for context menu
-// @ts-ignore
-globalThis.window.conduit = {
-  workbench: { on: vi.fn(() => () => {}), showContextMenu: vi.fn() },
-};
-
-// Mock the command system
-vi.mock("@/commands", () => ({
-  getContextKeyService: () => ({
-    setGlobal: vi.fn(),
-    getAll: () => ({}),
-  }),
-  getCommandRegistry: () => ({
-    getCommand: () => null,
-    executeCommand: vi.fn(),
-  }),
-  getMenuRegistry: () => ({
-    getSortedMenuItems: () => [],
-  }),
-  getKeybindingRegistry: () => ({
-    getKeybindingsForCommand: () => [],
-  }),
-  When: {
-    and: () => ({ evaluate: () => true }),
-    never: () => ({ evaluate: () => false }),
+// The tree checks git is installed, and its context menu hook subscribes to
+// its commands on mount
+const isGitAvailable = vi.fn(async () => true);
+Object.assign(window, {
+  conduit: {
+    git: { isGitAvailable },
+    workbench: { on: vi.fn(() => () => {}), showContextMenu: vi.fn() },
   },
-}));
+});
 
-// Mock the fileTreeCommands
 vi.mock("@features/editor/client/fileTreeCommands", () => ({
   registerFileTreeChangesCallbacks: vi.fn(() => () => {}),
   activateFileTreeChangesCallbacks: vi.fn(),
   registerFileTreeCallbacks: vi.fn(() => () => {}),
   activateFileTreeCallbacks: vi.fn(),
-  FileTreeCommands: {
-    NEW_FILE: "fileTree.newFile",
-    NEW_FOLDER: "fileTree.newFolder",
-    RENAME: "fileTree.rename",
-    DELETE: "fileTree.delete",
-    COPY_PATH: "fileTree.copyPath",
-    COPY_RELATIVE_PATH: "fileTree.copyRelativePath",
-    REVEAL_IN_FINDER: "fileTree.revealInFinder",
-    STAGE: "fileTree.stage",
-    UNSTAGE: "fileTree.unstage",
-    REVERT: "fileTree.revert",
-  },
 }));
 
-// Mock notifications
-vi.mock("@features/workbench/client/actions/notifications", () => ({
-  enqueueNotification: vi.fn(),
-}));
-
-// Import component after mocks
-import { useEffect, useState } from "react";
-import { FileTreeChanges as FileTreeChangesView } from "./FileTreeChanges";
+import { FileTreeChanges } from "./FileTreeChanges";
 import { FileTreeNormal } from "./FileTreeNormal";
 import { registerFileTreeChangesCallbacks } from "@features/editor/client/fileTreeCommands";
-import { mockFiles } from "../../../../../tests/renderer/files";
-
-// Supplies gitStatus from the mocked git API the way EditorPane does
-function FileTreeChanges(props) {
-  const [gitStatus, setGitStatus] = useState(undefined);
-  useEffect(() => {
-    window.conduit.git
-      .getStatus(props.git.cwd)
-      .then((status) => setGitStatus(status.files));
-  }, [props.git]);
-  if (gitStatus === undefined) return null;
-  return <FileTreeChangesView {...props} gitStatus={gitStatus} />;
-}
-
-// ============================================================================
-// API Mocks
-// ============================================================================
 
 const TEST_CWD = "/project";
 
-// Mock git API (passed as prop), and the IPC calls git reads and writes make
-const mockGetStatus = vi.fn();
-const mockStage = vi.fn();
-const mockUnstage = vi.fn();
-const mockRevert = vi.fn();
-const mockIsGitAvailable = vi.fn();
+/** A git status keyed by path, each file modified unless given a status. */
+const status = (
+  ...files: Array<
+    readonly [path: string, staged: boolean, code?: GitFileStatusCode]
+  >
+) =>
+  new Map<string, GitFileStatus>(
+    files.map(([path, staged, code = "modified"]) => [
+      path,
+      { path, status: code, staged },
+    ]),
+  );
 
-const mockGitAPI = {
-  cwd: TEST_CWD,
-};
-// @ts-ignore
-globalThis.window.conduit.git = {
-  getStatus: mockGetStatus,
-  stage: mockStage,
-  unstage: mockUnstage,
-  revert: mockRevert,
-  isGitAvailable: mockIsGitAvailable,
-};
+const WITH_CHANGES = status(
+  ["src/index.ts", false],
+  ["src/utils.ts", true, "added"],
+  ["package.json", true],
+  ["README.md", false, "deleted"],
+);
+const UNSTAGED_ONLY = status(["file1.ts", false], ["file2.ts", false]);
+const STAGED_ONLY = status(["file1.ts", true], ["file2.ts", true, "added"]);
 
-// Mock EditorPaneRegistry for scroll persistence
-const mockRegistryInstance = {
-  getOrCreate: vi.fn(),
-  registerScrollContainer: vi.fn(),
-  unregisterScrollContainer: vi.fn(),
-  updateScrollPosition: vi.fn(),
-};
+const STAGED = "section-staged-changes";
+const CHANGES = "section-changes";
 
-vi.mock("@features/editor/client/EditorPaneRegistry", () => ({
-  EditorPaneRegistry: {
-    getInstance: vi.fn(() => mockRegistryInstance),
-  },
-}));
-
-// ============================================================================
-// Test Data
-// ============================================================================
-
-const TEST_PANE_ID = "test-pane";
-
-const MOCK_STATUS_WITH_CHANGES = {
-  branch: "main",
-  files: new Map([
-    [
-      "src/index.ts",
-      { status: "modified", staged: false, path: "src/index.ts" },
-    ],
-    ["src/utils.ts", { status: "added", staged: true, path: "src/utils.ts" }],
-    [
-      "package.json",
-      { status: "modified", staged: true, path: "package.json" },
-    ],
-    ["README.md", { status: "deleted", staged: false, path: "README.md" }],
-  ]),
-};
-
-const MOCK_STATUS_EMPTY = {
-  branch: "main",
-  files: new Map(),
-};
-
-const MOCK_STATUS_UNSTAGED_ONLY = {
-  branch: "main",
-  files: new Map([
-    ["file1.ts", { status: "modified", staged: false, path: "file1.ts" }],
-    ["file2.ts", { status: "modified", staged: false, path: "file2.ts" }],
-  ]),
-};
-
-const MOCK_STATUS_STAGED_ONLY = {
-  branch: "main",
-  files: new Map([
-    ["file1.ts", { status: "modified", staged: true, path: "file1.ts" }],
-    ["file2.ts", { status: "added", staged: true, path: "file2.ts" }],
-  ]),
-};
-
-// ============================================================================
-// Tests
-// ============================================================================
+type Props = ComponentProps<typeof FileTreeChanges>;
 
 describe("FileTreeChanges", () => {
-  const mockOnFileSelect = vi.fn();
+  const onFileSelect = vi.fn();
+  let git: ReturnType<typeof mockGitWrites>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default mock implementations
-    mockGetStatus.mockResolvedValue(MOCK_STATUS_WITH_CHANGES);
-    mockStage.mockResolvedValue(undefined);
-    mockUnstage.mockResolvedValue(undefined);
-    mockRevert.mockResolvedValue(undefined);
-    mockIsGitAvailable.mockResolvedValue(true);
+    git = mockGitWrites();
   });
 
-  // ===========================================================================
-  // Empty State
-  // ===========================================================================
+  const tree = (props: Partial<Props> = {}) => (
+    <FileTreeChanges
+      viewMode="flat"
+      paneId="test-pane"
+      cwd={TEST_CWD}
+      git={{ cwd: TEST_CWD } as GitSubscription}
+      selectedFile={null}
+      onFileSelect={onFileSelect}
+      gitStatus={WITH_CHANGES}
+      {...props}
+    />
+  );
+
+  /** Render the tree, and return a way to report a new status, as the watcher does. */
+  function renderTree(props: Partial<Props> = {}, queryClient?: QueryClient) {
+    const { rerender } = render(tree(props), { queryClient });
+    return (gitStatus: Props["gitStatus"]) =>
+      rerender(tree({ ...props, gitStatus }));
+  }
+
+  const section = (testId: string) => within(screen.getByTestId(testId));
+  /** A row, in the section with test id `inSection` when given. */
+  const row = (testId: string, inSection?: string) =>
+    (inSection ? section(inSection) : screen).getByTestId(testId);
+  /** One of a row's actions, like stage-button. */
+  const action = (testId: string, name: string, inSection?: string) =>
+    within(row(testId, inSection)).getByTestId(name);
 
   describe("empty state", () => {
-    it("should show empty message when no changes", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_EMPTY);
+    it("should show empty message when no changes", () => {
+      renderTree({ gitStatus: new Map() });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes-empty")).toBeDefined();
-      });
-
+      expect(screen.getByTestId("file-tree-changes-empty")).toBeDefined();
       expect(screen.getByText("No changes")).toBeDefined();
     });
 
     it("should say git isn't installed when it isn't", async () => {
-      mockIsGitAvailable.mockResolvedValue(false);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+      isGitAvailable.mockResolvedValueOnce(false);
+      renderTree();
 
       expect(await screen.findByText("Git is not installed")).toBeDefined();
-      expect(screen.queryByTestId("section-staged-changes")).toBeNull();
+      expect(screen.queryByTestId(STAGED)).toBeNull();
     });
   });
 
-  // ===========================================================================
-  // Section Display
-  // ===========================================================================
-
   describe("section display", () => {
-    it("should show Staged Changes section when there are staged files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+    it("should show Staged Changes section when there are staged files", () => {
+      renderTree();
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      expect(screen.getByTestId("section-staged-changes")).toBeDefined();
+      expect(screen.getByTestId(STAGED)).toBeDefined();
       expect(screen.getByText("Staged Changes")).toBeDefined();
     });
 
-    it("should show Changes section when there are unstaged files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+    it("should show Changes section when there are unstaged files", () => {
+      renderTree();
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      expect(screen.getByTestId("section-changes")).toBeDefined();
+      expect(screen.getByTestId(CHANGES)).toBeDefined();
       expect(screen.getByText("Changes")).toBeDefined();
     });
 
-    it("should not show Staged Changes section when all files unstaged", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_UNSTAGED_ONLY);
+    it("should not show Staged Changes section when all files unstaged", () => {
+      renderTree({ gitStatus: UNSTAGED_ONLY });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      expect(screen.queryByTestId("section-staged-changes")).toBeNull();
+      expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+      expect(screen.queryByTestId(STAGED)).toBeNull();
     });
 
-    it("should not show Changes section when all files staged", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_STAGED_ONLY);
+    it("should not show Changes section when all files staged", () => {
+      renderTree({ gitStatus: STAGED_ONLY });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      expect(screen.queryByTestId("section-changes")).toBeNull();
+      expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+      expect(screen.queryByTestId(CHANGES)).toBeNull();
     });
 
-    it("should display file count in section header", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+    it("should display file count in section header", () => {
+      renderTree();
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Both sections should show counts in their headers
-      // Staged section has 2 files, Changes section has 2 files
-      const countElements = screen.getAllByText("(2)");
-      expect(countElements.length).toBe(2); // Two sections with count (2)
+      // Two files staged, and two not
+      expect(screen.getAllByText("(2)")).toHaveLength(2);
     });
   });
 
-  // ===========================================================================
-  // Section Toggle
-  // ===========================================================================
-
   describe("section toggle", () => {
-    it("should collapse section when toggle is clicked", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Files should be visible initially (section is expanded by default)
+    it("should collapse section when toggle is clicked", () => {
+      renderTree();
       expect(screen.getByTestId("change-item-index.ts")).toBeDefined();
 
       fireEvent.click(
         screen.getByRole("button", { name: /^Changes/, expanded: true }),
       );
 
-      // Files should be hidden
-      await waitFor(() => {
-        expect(screen.queryByTestId("change-item-index.ts")).toBeNull();
-      });
+      expect(screen.queryByTestId("change-item-index.ts")).toBeNull();
       expect(
         screen.getByRole("button", { name: /^Changes/, expanded: false }),
       ).toBeDefined();
     });
 
-    it("should expand collapsed section when toggle is clicked", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+    it("should expand collapsed section when toggle is clicked", () => {
+      renderTree();
+      const toggle = () => fireEvent.click(row("section-toggle", CHANGES));
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Find the Changes section toggle - get all and find the one for Changes
-      const toggleButtons = screen.getAllByTestId("section-toggle");
-      // Changes section toggle is the second one (first is Staged Changes)
-      const changesToggle = toggleButtons[1];
-
-      // Collapse first
-      fireEvent.click(changesToggle);
-
-      await waitFor(() => {
-        expect(screen.queryByTestId("change-item-index.ts")).toBeNull();
-      });
-
-      // Re-query toggles as DOM may have changed
-      const toggleButtonsAfter = screen.getAllByTestId("section-toggle");
-      const changesToggleAfter = toggleButtonsAfter[1];
-
-      // Expand again
-      fireEvent.click(changesToggleAfter);
-
-      await waitFor(() => {
-        expect(screen.getByTestId("change-item-index.ts")).toBeDefined();
-      });
+      toggle();
+      expect(screen.queryByTestId("change-item-index.ts")).toBeNull();
+      toggle();
+      expect(screen.getByTestId("change-item-index.ts")).toBeDefined();
     });
 
-    it("should collapse a nested folder from its name button", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="nested"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      const changes = within(await screen.findByTestId("section-changes"));
+    it("should collapse a nested folder from its name button", () => {
+      renderTree({ viewMode: "nested" });
+      const changes = section(CHANGES);
       expect(changes.getByTestId("nested-file-index.ts")).toBeDefined();
+
       fireEvent.click(
         changes.getByRole("button", { name: "src", expanded: true }),
       );
@@ -443,87 +201,43 @@ describe("FileTreeChanges", () => {
     });
   });
 
-  // ===========================================================================
-  // File Selection
-  // ===========================================================================
-
   describe("file selection", () => {
-    it("should call onFileSelect with file and mapKey when clicking a file", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+    it("should call onFileSelect with file and mapKey when clicking a file", () => {
+      renderTree();
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
+      fireEvent.click(row("change-item-index.ts"));
 
-      fireEvent.click(screen.getByTestId("change-item-index.ts"));
-
-      expect(mockOnFileSelect).toHaveBeenCalledWith(
-        {
-          path: "/project/src/index.ts",
-          name: "index.ts",
-          type: "file",
-        },
-        "src/index.ts", // mapKey
+      expect(onFileSelect).toHaveBeenCalledWith(
+        { path: "/project/src/index.ts", name: "index.ts", type: "file" },
+        "src/index.ts",
       );
     });
 
-    it("should keep the row's actions out of its file button", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      const row = within(await screen.findByTestId("change-item-index.ts"));
-      const fileButton = row.getByRole("button", {
+    it("should keep the row's actions out of its file button", () => {
+      renderTree();
+      const item = within(row("change-item-index.ts"));
+      const fileButton = item.getByRole("button", {
         name: /^index\.ts/,
         description: "M",
       });
 
       // HTML doesn't allow a button inside a button, and assistive tech folds it into the name
       expect(
-        fileButton.contains(row.getByRole("button", { name: "Stage" })),
+        fileButton.contains(item.getByRole("button", { name: "Stage" })),
       ).toBe(false);
 
       fireEvent.click(fileButton);
-      expect(mockOnFileSelect).toHaveBeenCalledTimes(1);
+      expect(onFileSelect).toHaveBeenCalledTimes(1);
     });
 
-    it("should highlight selected file using selectedMapKey", async () => {
-      const selectedFile = {
-        path: "/project/src/index.ts",
-        name: "index.ts",
-        type: "file" as const,
-      };
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={selectedFile}
-          selectedMapKey="src/index.ts"
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+    it("should highlight selected file using selectedMapKey", () => {
+      renderTree({
+        selectedFile: {
+          path: "/project/src/index.ts",
+          name: "index.ts",
+          type: "file",
+        },
+        selectedMapKey: "src/index.ts",
       });
 
       expect(
@@ -532,303 +246,115 @@ describe("FileTreeChanges", () => {
     });
   });
 
-  // ===========================================================================
-  // Git Actions - Staging
-  // ===========================================================================
-
   describe("git actions - staging", () => {
     it("should call stage and mark the file seen when stage button is clicked", async () => {
       const markSeen = vi.fn();
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-          markSeen={markSeen}
-        />,
-      );
+      renderTree({ markSeen });
+
+      fireEvent.click(action("change-item-index.ts", "stage-button"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-      const stageButton = unstagedItem.querySelector(
-        '[data-testid="stage-button"]',
-      );
-
-      fireEvent.click(stageButton!);
-
-      // Wait for async state updates to complete
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["src/index.ts"]);
+        expect(git.stage).toHaveBeenCalledWith(TEST_CWD, ["src/index.ts"]);
       });
       expect(markSeen).toHaveBeenCalledWith("src/index.ts");
     });
 
     it("should not propagate click event to parent when stage button clicked", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+      renderTree();
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
+      fireEvent.click(action("change-item-index.ts", "stage-button"));
 
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-      const stageButton = unstagedItem.querySelector(
-        '[data-testid="stage-button"]',
-      );
-
-      fireEvent.click(stageButton!);
-
-      // Wait for async state updates to complete
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalled();
-      });
-
-      // onFileSelect should NOT be called - click was on action button
-      expect(mockOnFileSelect).not.toHaveBeenCalled();
+      await waitFor(() => expect(git.stage).toHaveBeenCalled());
+      // The click was on the row's action, not the row
+      expect(onFileSelect).not.toHaveBeenCalled();
     });
   });
-
-  // ===========================================================================
-  // Git Actions - Unstaging
-  // ===========================================================================
 
   describe("git actions - unstaging", () => {
     it("should call unstage and mark the file seen when unstage button is clicked", async () => {
       const markSeen = vi.fn();
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-          markSeen={markSeen}
-        />,
-      );
+      renderTree({ markSeen });
+
+      fireEvent.click(action("change-item-utils.ts", "unstage-button"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedItem = screen.getByTestId("change-item-utils.ts");
-      const unstageButton = stagedItem.querySelector(
-        '[data-testid="unstage-button"]',
-      );
-
-      fireEvent.click(unstageButton!);
-
-      // Wait for async state updates to complete
-      await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["src/utils.ts"]);
+        expect(git.unstage).toHaveBeenCalledWith(TEST_CWD, ["src/utils.ts"]);
       });
       expect(markSeen).toHaveBeenCalledWith("src/utils.ts");
     });
 
     it("should unstage only after an earlier stage finishes", async () => {
       let finishStage!: () => void;
-      mockStage.mockReturnValueOnce(
+      git.stage.mockReturnValueOnce(
         new Promise<void>((resolve) => (finishStage = resolve)),
       );
       const queryClient = createQueryClient();
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-        { queryClient },
-      );
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
+      renderTree({}, queryClient);
 
-      fireEvent.click(
-        within(screen.getByTestId("change-item-index.ts")).getByTestId(
-          "stage-button",
-        ),
-      );
-      await waitFor(() => expect(mockStage).toHaveBeenCalled());
-      fireEvent.click(
-        within(screen.getByTestId("change-item-utils.ts")).getByTestId(
-          "unstage-button",
-        ),
-      );
+      fireEvent.click(action("change-item-index.ts", "stage-button"));
+      await waitFor(() => expect(git.stage).toHaveBeenCalled());
+      fireEvent.click(action("change-item-utils.ts", "unstage-button"));
       await waitFor(() => expect(queryClient.isMutating()).toBe(2));
-      expect(mockUnstage).not.toHaveBeenCalled();
+      expect(git.unstage).not.toHaveBeenCalled();
 
       await act(async () => finishStage());
       await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["src/utils.ts"]);
+        expect(git.unstage).toHaveBeenCalledWith(TEST_CWD, ["src/utils.ts"]);
       });
     });
   });
-
-  // ===========================================================================
-  // Git Actions - Revert
-  // ===========================================================================
 
   describe("git actions - revert", () => {
     it("should call revert when revert button is clicked", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+      const markSeen = vi.fn();
+      renderTree({ markSeen });
+
+      fireEvent.click(action("change-item-index.ts", "revert-button"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+        expect(git.revert).toHaveBeenCalledWith(TEST_CWD, ["src/index.ts"]);
       });
-
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-      const revertButton = unstagedItem.querySelector(
-        '[data-testid="revert-button"]',
-      );
-
-      fireEvent.click(revertButton!);
-
-      await waitFor(() =>
-        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["src/index.ts"]),
-      );
+      expect(markSeen).toHaveBeenCalledWith("src/index.ts");
     });
 
-    it("should not show revert button for staged files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+    it("should not show revert button for staged files", () => {
+      renderTree();
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedItem = screen.getByTestId("change-item-utils.ts");
-      const revertButton = stagedItem.querySelector(
-        '[data-testid="revert-button"]',
-      );
-      expect(revertButton).toBeNull();
+      expect(
+        within(row("change-item-utils.ts")).queryByTestId("revert-button"),
+      ).toBeNull();
     });
 
     it("should show revert button for untracked files", async () => {
-      const MOCK_STATUS_WITH_UNTRACKED = {
-        branch: "main",
-        files: new Map([
-          [
-            "new-file.ts",
-            { status: "untracked", staged: false, path: "new-file.ts" },
-          ],
-        ]),
-      };
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_WITH_UNTRACKED);
+      renderTree({ gitStatus: status(["new-file.ts", false, "untracked"]) });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+      // Reverting an untracked file deletes it
+      fireEvent.click(action("change-item-new-file.ts", "revert-button"));
 
       await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+        expect(git.revert).toHaveBeenCalledWith(TEST_CWD, ["new-file.ts"]);
       });
-
-      const untrackedItem = screen.getByTestId("change-item-new-file.ts");
-      const revertButton = untrackedItem.querySelector(
-        '[data-testid="revert-button"]',
-      );
-      // Reverting an untracked file deletes it
-      fireEvent.click(revertButton!);
-      await waitFor(() =>
-        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["new-file.ts"]),
-      );
     });
   });
 
-  // ===========================================================================
-  // Focus After A Git Write
-  // ===========================================================================
-
   describe("focus after a git write", () => {
-    const status = (...files: Array<[string, boolean]>) =>
-      new Map(
-        files.map(([path, staged]) => [
-          path,
-          { path, status: "modified", staged },
-        ]),
-      );
-
-    // Renders the tree, and reports a status the way the watcher does
-    function renderTree(
-      gitStatus,
-      viewMode = "flat",
-      queryClient = createQueryClient(),
-    ) {
-      const tree = (nextStatus) => (
-        <FileTreeChangesView
-          viewMode={viewMode}
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-          gitStatus={nextStatus}
-        />
-      );
-      const { rerender } = render(tree(gitStatus), { queryClient });
-      return (nextStatus) => rerender(tree(nextStatus));
-    }
-
-    const STAGED = "section-staged-changes";
-    const CHANGES = "section-changes";
-    const row = (section: string, testId: string) =>
-      within(screen.getByTestId(section)).getByTestId(testId);
-    const button = (section: string, testId: string) =>
-      row(section, testId).querySelector("button");
+    const button = (inSection: string, testId: string) =>
+      row(testId, inSection).querySelector("button")!;
     // Enter on a focused button clicks it
-    const press = (section: string, testId: string, action: string) => {
-      const target = within(row(section, testId)).getByTestId(action);
+    const press = (inSection: string, testId: string, name: string) => {
+      const target = action(testId, name, inSection);
       target.focus();
       fireEvent.click(target);
     };
 
     it("follows a file staged, then unstaged, to its new row", async () => {
-      const report = renderTree(status(["a.ts", false], ["b.ts", false]));
+      const report = renderTree({
+        gitStatus: status(["a.ts", false], ["b.ts", false]),
+      });
 
       press(CHANGES, "change-item-a.ts", "stage-button");
       await waitFor(() =>
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+        expect(git.stage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
       );
       report(status(["a.ts", true], ["b.ts", false]));
       await waitFor(() => {
@@ -837,12 +363,12 @@ describe("FileTreeChanges", () => {
 
       // This time the watcher reports before the write resolves
       let finishUnstage!: () => void;
-      mockUnstage.mockReturnValueOnce(
+      git.unstage.mockReturnValueOnce(
         new Promise<void>((resolve) => (finishUnstage = resolve)),
       );
       press(STAGED, "change-item-a.ts", "unstage-button");
       await waitFor(() =>
-        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+        expect(git.unstage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
       );
       report(status(["a.ts", false], ["b.ts", false]));
       await act(async () => finishUnstage());
@@ -856,8 +382,7 @@ describe("FileTreeChanges", () => {
     it("follows a row however long the watcher takes to report it", async () => {
       const queryClient = createQueryClient();
       const report = renderTree(
-        status(["a.ts", false], ["b.ts", false]),
-        "flat",
+        { gitStatus: status(["a.ts", false], ["b.ts", false]) },
         queryClient,
       );
       const realNow = performance.now.bind(performance);
@@ -868,7 +393,7 @@ describe("FileTreeChanges", () => {
 
       press(CHANGES, "change-item-a.ts", "stage-button");
       await waitFor(() =>
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+        expect(git.stage).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
       );
       await waitFor(() => expect(queryClient.isMutating()).toBe(0));
       // A push holds the watcher's reports until it finishes
@@ -881,18 +406,18 @@ describe("FileTreeChanges", () => {
     });
 
     it("lands on the nearest row left when a file is reverted or its new section is collapsed", async () => {
-      const report = renderTree(
-        status(
+      const report = renderTree({
+        gitStatus: status(
           ["a.ts", false],
           ["b.ts", false],
           ["c.ts", false],
           ["s.ts", true],
         ),
-      );
+      });
 
       press(CHANGES, "change-item-a.ts", "revert-button");
       await waitFor(() =>
-        expect(mockRevert).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
+        expect(git.revert).toHaveBeenCalledWith(TEST_CWD, ["a.ts"]),
       );
       report(status(["b.ts", false], ["c.ts", false], ["s.ts", true]));
       await waitFor(() => {
@@ -901,12 +426,10 @@ describe("FileTreeChanges", () => {
         );
       });
 
-      fireEvent.click(
-        within(screen.getByTestId(STAGED)).getByTestId("section-toggle"),
-      );
+      fireEvent.click(row("section-toggle", STAGED));
       press(CHANGES, "change-item-c.ts", "stage-button");
       await waitFor(() =>
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["c.ts"]),
+        expect(git.stage).toHaveBeenCalledWith(TEST_CWD, ["c.ts"]),
       );
       report(status(["b.ts", false], ["c.ts", true], ["s.ts", true]));
       await waitFor(() => {
@@ -917,14 +440,14 @@ describe("FileTreeChanges", () => {
     });
 
     it("follows a folder staged in the nested view", async () => {
-      const report = renderTree(
-        status(["lib/a.ts", false], ["src/b.ts", false]),
-        "nested",
-      );
+      const report = renderTree({
+        gitStatus: status(["lib/a.ts", false], ["src/b.ts", false]),
+        viewMode: "nested",
+      });
 
       press(CHANGES, "folder-toggle-lib", "stage-button");
       await waitFor(() =>
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["lib/a.ts"]),
+        expect(git.stage).toHaveBeenCalledWith(TEST_CWD, ["lib/a.ts"]),
       );
       report(status(["lib/a.ts", true], ["src/b.ts", false]));
       await waitFor(() => {
@@ -935,27 +458,27 @@ describe("FileTreeChanges", () => {
     });
 
     it("lands on Staged Changes after Stage All", async () => {
-      const report = renderTree(status(["a.ts", false], ["b.ts", false]));
+      const report = renderTree({
+        gitStatus: status(["a.ts", false], ["b.ts", false]),
+      });
 
-      const stageAll = within(screen.getByTestId(CHANGES)).getByTestId(
-        "stage-all-button",
-      );
+      const stageAll = row("stage-all-button", CHANGES);
       stageAll.focus();
       fireEvent.click(stageAll);
-      await waitFor(() => expect(mockStage).toHaveBeenCalled());
+      await waitFor(() => expect(git.stage).toHaveBeenCalled());
       report(status(["a.ts", true], ["b.ts", true]));
       await waitFor(() => {
-        expect(document.activeElement).toBe(
-          within(screen.getByTestId(STAGED)).getByTestId("section-toggle"),
-        );
+        expect(document.activeElement).toBe(row("section-toggle", STAGED));
       });
     });
 
     it("leaves focus alone once it moves on", async () => {
-      const report = renderTree(status(["a.ts", false], ["b.ts", false]));
+      const report = renderTree({
+        gitStatus: status(["a.ts", false], ["b.ts", false]),
+      });
 
       press(CHANGES, "change-item-a.ts", "stage-button");
-      await waitFor(() => expect(mockStage).toHaveBeenCalled());
+      await waitFor(() => expect(git.stage).toHaveBeenCalled());
       const elsewhere = button(CHANGES, "change-item-b.ts");
       elsewhere.focus();
       report(status(["a.ts", true], ["b.ts", false]));
@@ -967,675 +490,201 @@ describe("FileTreeChanges", () => {
     });
   });
 
-  // ===========================================================================
-  // Git Status Badge
-  // ===========================================================================
-
   describe("git status badge", () => {
-    it("should show M badge for modified files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
+    it.each([
+      ["should show M badge for modified files", "change-item-index.ts", "M"],
+      ["should show A badge for added files", "change-item-utils.ts", "A"],
+      ["should show D badge for deleted files", "change-item-README.md", "D"],
+    ])("%s", (_title, testId, letter) => {
+      renderTree();
+
+      expect(within(row(testId)).getByTestId("git-badge").textContent).toBe(
+        letter,
       );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const modifiedItem = screen.getByTestId("change-item-index.ts");
-      expect(modifiedItem.textContent).toContain("M");
-    });
-
-    it("should show A badge for added files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const addedItem = screen.getByTestId("change-item-utils.ts");
-      expect(addedItem.textContent).toContain("A");
-    });
-
-    it("should show D badge for deleted files", async () => {
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const deletedItem = screen.getByTestId("change-item-README.md");
-      expect(within(deletedItem).getByTitle(/^Deleted/)).toBeDefined();
     });
   });
-
-  // ===========================================================================
-  // Error Handling
-  // ===========================================================================
 
   describe("error handling", () => {
-    it("should handle stage errors gracefully", async () => {
-      mockStage.mockRejectedValueOnce(new Error("Stage failed"));
+    it.each([
+      ["should handle stage errors gracefully", "stage", "index.ts"],
+      ["should handle unstage errors gracefully", "unstage", "utils.ts"],
+      ["should handle revert errors gracefully", "revert", "index.ts"],
+    ] as const)("%s", async (_title, write, name) => {
+      git[write].mockRejectedValueOnce(new Error(`${write} failed`));
+      renderTree();
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+      // A failed write shouldn't throw out of the click
+      fireEvent.click(action(`change-item-${name}`, `${write}-button`));
 
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-      const stageButton = unstagedItem.querySelector(
-        '[data-testid="stage-button"]',
-      );
-
-      // Should not throw
-      fireEvent.click(stageButton!);
-
-      // Wait for async error handling to complete
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalled();
-      });
-    });
-
-    it("should handle unstage errors gracefully", async () => {
-      mockUnstage.mockRejectedValueOnce(new Error("Unstage failed"));
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedItem = screen.getByTestId("change-item-utils.ts");
-      const unstageButton = stagedItem.querySelector(
-        '[data-testid="unstage-button"]',
-      );
-
-      // Should not throw
-      fireEvent.click(unstageButton!);
-
-      // Wait for async error handling to complete
-      await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalled();
-      });
-    });
-
-    it("should handle revert errors gracefully", async () => {
-      mockRevert.mockRejectedValueOnce(new Error("Revert failed"));
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const unstagedItem = screen.getByTestId("change-item-index.ts");
-      const revertButton = unstagedItem.querySelector(
-        '[data-testid="revert-button"]',
-      );
-
-      // Should not throw
-      fireEvent.click(revertButton!);
-
-      // Wait for async error handling to complete
-      await waitFor(() => {
-        expect(mockRevert).toHaveBeenCalled();
-      });
+      await waitFor(() => expect(git[write]).toHaveBeenCalled());
     });
   });
-
-  // ===========================================================================
-  // Alphabetical Sorting
-  // ===========================================================================
 
   describe("alphabetical sorting", () => {
-    it("should sort files alphabetically within sections", async () => {
-      mockGetStatus.mockResolvedValue({
-        branch: "main",
-        files: new Map([
-          [
-            "z-file.ts",
-            { status: "modified", staged: false, path: "z-file.ts" },
-          ],
-          [
-            "a-file.ts",
-            { status: "modified", staged: false, path: "a-file.ts" },
-          ],
-          [
-            "m-file.ts",
-            { status: "modified", staged: false, path: "m-file.ts" },
-          ],
-        ]),
+    it("should sort files alphabetically within sections", () => {
+      renderTree({
+        gitStatus: status(
+          ["z-file.ts", false],
+          ["a-file.ts", false],
+          ["m-file.ts", false],
+        ),
       });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const items = screen.getAllByTestId(/^change-item-/);
-      const names = items.map((item) => item.getAttribute("data-path"));
-
-      // Should be in alphabetical order
-      expect(names).toEqual(["a-file.ts", "m-file.ts", "z-file.ts"]);
+      const paths = screen
+        .getAllByTestId(/^change-item-/)
+        .map((item) => item.getAttribute("data-path"));
+      expect(paths).toEqual(["a-file.ts", "m-file.ts", "z-file.ts"]);
     });
   });
 
-  // ===========================================================================
-  // Multi-Select
-  // ===========================================================================
-
   describe("multi-select", () => {
-    const MOCK_STATUS_MULTI = {
-      branch: "main",
-      files: new Map([
-        ["file1.ts", { status: "modified", staged: false, path: "file1.ts" }],
-        ["file2.ts", { status: "modified", staged: false, path: "file2.ts" }],
-        ["file3.ts", { status: "modified", staged: false, path: "file3.ts" }],
-        ["file4.ts", { status: "added", staged: true, path: "file4.ts" }],
-        ["file5.ts", { status: "added", staged: true, path: "file5.ts" }],
-      ]),
-    };
-
-    it("should select single item on regular click", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_MULTI);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+    beforeEach(() => {
+      renderTree({
+        gitStatus: status(
+          ["file1.ts", false],
+          ["file2.ts", false],
+          ["file3.ts", false],
+          ["file4.ts", true, "added"],
+          ["file5.ts", true, "added"],
+        ),
       });
+    });
 
-      const item = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item);
+    it("should select single item on regular click", () => {
+      fireEvent.click(row("change-item-file1.ts"));
 
-      // onFileSelect should be called with file and mapKey
-      expect(mockOnFileSelect).toHaveBeenCalledWith(
+      expect(onFileSelect).toHaveBeenCalledWith(
         expect.objectContaining({ name: "file1.ts" }),
         "file1.ts",
       );
     });
 
-    it("should select range with shift-click", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_MULTI);
+    it("should select range with shift-click", () => {
+      fireEvent.click(row("change-item-file1.ts"));
+      fireEvent.click(row("change-item-file3.ts"), { shiftKey: true });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Click first item
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      // Shift-click third item
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { shiftKey: true });
-
-      // All three items should be highlighted
-      expect(item1.className).toContain("bg-accent");
-      expect(screen.getByTestId("change-item-file2.ts").className).toContain(
-        "bg-accent",
-      );
-      expect(item3.className).toContain("bg-accent");
+      for (const name of ["file1.ts", "file2.ts", "file3.ts"]) {
+        expect(row(`change-item-${name}`).className).toContain("bg-accent");
+      }
     });
 
-    it("should toggle selection with cmd-click", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_MULTI);
+    it("should toggle selection with cmd-click", () => {
+      // A plain click selects one file, and anchors the selection
+      fireEvent.click(row("change-item-file1.ts"));
+      fireEvent.click(row("change-item-file3.ts"), { metaKey: true });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
+      expect(row("change-item-file3.ts").className).toContain("bg-accent/25");
+      expect(row("change-item-file2.ts").className).not.toContain(
+        "bg-accent/25",
       );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // First click triggers single-select (not multi-select)
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      // Cmd-click third item to add to multi-selection
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { metaKey: true });
-
-      // Both items should be in multi-selection (bg-accent/25)
-      // Note: item1 was added to multi-select when cmd+click on item3 was performed
-      // because cmd-click uses handleMultiSelectClick which adds to selection
-      expect(item3.className).toContain("bg-accent/25");
-
-      // Item 2 should not be in multi-selection
-      expect(
-        screen.getByTestId("change-item-file2.ts").className,
-      ).not.toContain("bg-accent/25");
     });
   });
-
-  // ===========================================================================
-  // Bulk Actions
-  // ===========================================================================
 
   describe("bulk actions", () => {
-    const MOCK_STATUS_BULK = {
-      branch: "main",
-      files: new Map([
-        ["file1.ts", { status: "modified", staged: false, path: "file1.ts" }],
-        ["file2.ts", { status: "modified", staged: false, path: "file2.ts" }],
-        ["file3.ts", { status: "modified", staged: false, path: "file3.ts" }],
-      ]),
-    };
-
-    it("should stage all selected files when clicking stage on any selected file", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_BULK);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
+    it.each([
+      [
+        "should stage all selected files when clicking stage on any selected file",
+        "stage",
+        false,
+      ],
+      [
+        "should unstage all selected files when clicking unstage on any selected file",
+        "unstage",
+        true,
+      ],
+      [
+        "should revert all selected files when clicking revert on any selected file",
+        "revert",
+        false,
+      ],
+    ] as const)("%s", async (_title, write, staged) => {
+      const files = ["file1.ts", "file2.ts", "file3.ts"];
+      renderTree({
+        gitStatus: status(...files.map((path) => [path, staged] as const)),
       });
 
-      // Select range of files
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { shiftKey: true });
-
-      // Click stage button on any selected file
-      const stageButton = item1.querySelector('[data-testid="stage-button"]');
-      fireEvent.click(stageButton!);
-
-      // Should stage all selected files
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, [
-          "file1.ts",
-          "file2.ts",
-          "file3.ts",
-        ]);
-      });
-    });
-
-    it("should unstage all selected files when clicking unstage on any selected file", async () => {
-      mockGetStatus.mockResolvedValue({
-        branch: "main",
-        files: new Map([
-          ["file1.ts", { status: "added", staged: true, path: "file1.ts" }],
-          ["file2.ts", { status: "added", staged: true, path: "file2.ts" }],
-          ["file3.ts", { status: "added", staged: true, path: "file3.ts" }],
-        ]),
-      });
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
+      fireEvent.click(row("change-item-file1.ts"));
+      fireEvent.click(row("change-item-file3.ts"), { shiftKey: true });
+      fireEvent.click(action("change-item-file1.ts", `${write}-button`));
 
       await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Select range of files
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      const item3 = screen.getByTestId("change-item-file3.ts");
-      fireEvent.click(item3, { shiftKey: true });
-
-      // Click unstage button on any selected file
-      const unstageButton = item1.querySelector(
-        '[data-testid="unstage-button"]',
-      );
-      fireEvent.click(unstageButton!);
-
-      // Should unstage all selected files
-      await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, [
-          "file1.ts",
-          "file2.ts",
-          "file3.ts",
-        ]);
-      });
-    });
-
-    it("should revert all selected files when clicking revert on any selected file", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_BULK);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Select range of files using shift-click (to get both files in order)
-      const item1 = screen.getByTestId("change-item-file1.ts");
-      fireEvent.click(item1);
-
-      const item2 = screen.getByTestId("change-item-file2.ts");
-      fireEvent.click(item2, { shiftKey: true });
-
-      // Click revert button on first selected file
-      const revertButton = item1.querySelector('[data-testid="revert-button"]');
-      fireEvent.click(revertButton!);
-
-      // Should revert all selected files (order may vary, so use arrayContaining)
-      await waitFor(() => {
-        expect(mockRevert).toHaveBeenCalledWith(
-          TEST_CWD,
-          expect.arrayContaining(["file1.ts", "file2.ts"]),
-        );
+        expect(git[write]).toHaveBeenCalledWith(TEST_CWD, files);
       });
     });
   });
 
-  // ===========================================================================
-  // Partially Staged Files & MapKey Normalization
-  // ===========================================================================
-
   describe("partially staged files", () => {
-    /** Suffix for unstaged entries in partially staged files */
-    const UNSTAGED_KEY_SUFFIX = "\0unstaged";
+    // A file with staged and unstaged changes has an entry in each section
+    const PARTIAL = new Map([
+      ...status(["src/partial.ts", true], ["src/other.ts", false]),
+      [
+        `src/partial.ts${UNSTAGED_KEY_SUFFIX}`,
+        { status: "modified", staged: false, path: "src/partial.ts" },
+      ],
+    ]);
 
-    const MOCK_STATUS_PARTIAL = {
-      branch: "main",
-      files: new Map([
-        // Partially staged file - staged entry
-        [
-          "src/partial.ts",
-          { status: "modified", staged: true, path: "src/partial.ts" },
-        ],
-        // Partially staged file - unstaged entry (with suffix in mapKey)
-        [
-          `src/partial.ts${UNSTAGED_KEY_SUFFIX}`,
-          { status: "modified", staged: false, path: "src/partial.ts" },
-        ],
-        // Regular unstaged file
-        [
-          "src/other.ts",
-          { status: "modified", staged: false, path: "src/other.ts" },
-        ],
-      ]),
-    };
+    it("should display both staged and unstaged entries for partially staged files", () => {
+      renderTree({ gitStatus: PARTIAL });
 
-    it("should display both staged and unstaged entries for partially staged files", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_PARTIAL);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const staged = screen.getByTestId("section-staged-changes");
-      const changes = screen.getByTestId("section-changes");
-      expect(within(staged).getByText("partial.ts")).toBeDefined();
-      expect(within(changes).getByText("partial.ts")).toBeDefined();
-      expect(within(changes).getByText("other.ts")).toBeDefined();
-      expect(within(staged).queryByText("other.ts")).toBeNull();
+      expect(section(STAGED).getByText("partial.ts")).toBeDefined();
+      expect(section(CHANGES).getByText("partial.ts")).toBeDefined();
+      expect(section(CHANGES).getByText("other.ts")).toBeDefined();
+      expect(section(STAGED).queryByText("other.ts")).toBeNull();
     });
 
-    it("should normalize selectedMapKey with suffix to match file without suffix", async () => {
-      mockGetStatus.mockResolvedValue({
-        branch: "main",
-        files: new Map([
-          // Regular unstaged file (no suffix in mapKey)
-          [
-            "src/index.ts",
-            { status: "modified", staged: false, path: "src/index.ts" },
-          ],
-        ]),
+    it("should normalize selectedMapKey with suffix to match file without suffix", () => {
+      // The parent passes an unstaged entry's key, for a file with one entry
+      renderTree({
+        gitStatus: status(["src/index.ts", false]),
+        selectedMapKey: `src/index.ts${UNSTAGED_KEY_SUFFIX}`,
       });
 
-      // Parent passes selectedMapKey with suffix, but the file list has no suffix
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          selectedMapKey={`src/index.ts${UNSTAGED_KEY_SUFFIX}`}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // File should still be current because normalizedSelectedMapKey strips suffix
       expect(
         screen.getByRole("button", { current: true }).textContent,
       ).toContain("index.ts");
     });
 
     it("should use actual file path for git operations with partially staged files", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_PARTIAL);
+      renderTree({ gitStatus: PARTIAL });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
+      // The unstaged entry's key has a suffix, which git can't take
+      fireEvent.click(
+        action("change-item-partial.ts", "stage-button", CHANGES),
       );
 
       await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      // Find the unstaged "other.ts" file and click its stage button
-      const otherItem = screen.getByTestId("change-item-other.ts");
-      const stageButton = otherItem.querySelector(
-        '[data-testid="stage-button"]',
-      );
-
-      fireEvent.click(stageButton!);
-
-      // Git stage should be called with actual file path (not mapKey with suffix)
-      await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, ["src/other.ts"]);
+        expect(git.stage).toHaveBeenCalledWith(TEST_CWD, ["src/partial.ts"]);
       });
     });
   });
-
-  // ===========================================================================
-  // Stage All / Unstage All
-  // ===========================================================================
 
   describe("stage all / unstage all", () => {
-    it("should stage all unstaged files when stage all button is clicked", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_UNSTAGED_ONLY);
+    it.each([
+      [
+        "should stage all unstaged files when stage all button is clicked",
+        "stage",
+        UNSTAGED_ONLY,
+        CHANGES,
+      ],
+      [
+        "should unstage all staged files when unstage all button is clicked",
+        "unstage",
+        STAGED_ONLY,
+        STAGED,
+      ],
+    ] as const)("%s", async (_title, write, gitStatus, inSection) => {
+      renderTree({ gitStatus });
 
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const changesSection = screen.getByTestId("section-changes");
-      const stageAllButton = changesSection.querySelector(
-        '[data-testid="stage-all-button"]',
-      );
-
-      fireEvent.click(stageAllButton!);
+      fireEvent.click(row(`${write}-all-button`, inSection));
 
       await waitFor(() => {
-        expect(mockStage).toHaveBeenCalledWith(TEST_CWD, [
-          "file1.ts",
-          "file2.ts",
-        ]);
-      });
-    });
-
-    it("should unstage all staged files when unstage all button is clicked", async () => {
-      mockGetStatus.mockResolvedValue(MOCK_STATUS_STAGED_ONLY);
-
-      render(
-        <FileTreeChanges
-          viewMode="flat"
-          paneId={TEST_PANE_ID}
-          cwd={TEST_CWD}
-          git={mockGitAPI as any}
-          selectedFile={null}
-          onFileSelect={mockOnFileSelect}
-        />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("file-tree-changes")).toBeDefined();
-      });
-
-      const stagedSection = screen.getByTestId("section-staged-changes");
-      const unstageAllButton = stagedSection.querySelector(
-        '[data-testid="unstage-all-button"]',
-      );
-
-      fireEvent.click(unstageAllButton!);
-
-      await waitFor(() => {
-        expect(mockUnstage).toHaveBeenCalledWith(TEST_CWD, [
+        expect(git[write]).toHaveBeenCalledWith(TEST_CWD, [
           "file1.ts",
           "file2.ts",
         ]);
       });
     });
   });
-
-  // ===========================================================================
-  // Files Tree
-  // ===========================================================================
 
   describe("writes shown in the Files tree", () => {
     let files: ReturnType<typeof mockFiles>;
@@ -1647,28 +696,17 @@ describe("FileTreeChanges", () => {
           ? [{ name: "src", type: "directory" }]
           : [{ name: "index.ts", type: "file" }],
       );
-      mockGetStatus.mockResolvedValue({
-        branch: "main",
-        files: new Map([
-          [
-            "src/index.ts",
-            { status: "modified", staged: false, path: "src/index.ts" },
-          ],
-        ]),
-      });
     });
 
     /** The Changes tree beside a Files tree showing src, in one window. */
     async function renderBothTrees() {
       render(
         <>
-          <FileTreeChanges
-            paneId="changes"
-            cwd={TEST_CWD}
-            git={mockGitAPI as any}
-            selectedFile={null}
-            onFileSelect={mockOnFileSelect}
-          />
+          {tree({
+            paneId: "changes",
+            viewMode: "nested",
+            gitStatus: status(["src/index.ts", false]),
+          })}
           <FileTreeNormal
             paneId="files"
             cwd={TEST_CWD}
@@ -1678,12 +716,12 @@ describe("FileTreeChanges", () => {
               name: "index.ts",
               type: "file",
             }}
-            onFileSelect={mockOnFileSelect}
+            onFileSelect={onFileSelect}
           />
         </>,
       );
-      const changesTree = await screen.findByTestId("file-tree-changes");
-      const filesTree = screen.getByTestId("file-tree-normal");
+      const changesTree = screen.getByTestId("file-tree-changes");
+      const filesTree = await screen.findByTestId("file-tree-normal");
       await within(filesTree).findByTestId("tree-item-index.ts");
       const commands = vi.mocked(registerFileTreeChangesCallbacks).mock
         .calls[0][0];
