@@ -367,6 +367,15 @@ export function getTerminalSize(
   return { cols, rows };
 }
 
+/** The width of one column in a pane's terminal, in CSS pixels. */
+export function getTerminalCellWidth(paneId: string): number | undefined {
+  const terminal = xtermInstancesByPane.get(paneId)?.terminal;
+  // FitAddon reads the cell size from the same private dimensions.
+  const width: number | undefined = (terminal as any)?._core?._renderService
+    ?.dimensions?.css?.cell?.width;
+  return width || undefined;
+}
+
 export function attach(paneId: string, container: HTMLElement) {
   const instance = xtermInstancesByPane.get(paneId);
   if (!instance) return;

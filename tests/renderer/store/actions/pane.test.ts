@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { createTerminal, getTerminalSize } = vi.hoisted(() => {
-  const createTerminal = vi.fn();
-  (window as any).conduit = { terminal: { create: createTerminal } };
-  return { createTerminal, getTerminalSize: vi.fn() };
-});
+const { createTerminal, getTerminalCellWidth, getTerminalSize } = vi.hoisted(
+  () => {
+    const createTerminal = vi.fn();
+    (window as any).conduit = { terminal: { create: createTerminal } };
+    return {
+      createTerminal,
+      getTerminalCellWidth: vi.fn(),
+      getTerminalSize: vi.fn(),
+    };
+  },
+);
 
 vi.mock("@features/terminal/client/xtermCache", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@features/terminal/client/xtermCache")
   >()),
+  getTerminalCellWidth,
   getTerminalSize,
 }));
 
@@ -133,6 +140,9 @@ describe("splitPane", () => {
     createTerminal.mockResolvedValue({ sessionId: "new", title: "zsh" });
     getTerminalSize.mockReset();
     getTerminalSize.mockReturnValue({ cols: 127, rows: 45 });
+    // Menlo's advance at the default 13px font.
+    getTerminalCellWidth.mockReset();
+    getTerminalCellWidth.mockReturnValue(7.82);
   });
 
   it("starts a right split a little narrower than half the pane", async () => {
@@ -159,6 +169,21 @@ describe("splitPane", () => {
     });
   });
 
+  it("leaves more columns at small fonts, where the chrome spans more of them", async () => {
+    // Measured at 9px: a 184-column pane splits into two of 89.
+    setTab(leaf("a"), ["a"]);
+    getTerminalSize.mockReturnValue({ cols: 184, rows: 68 });
+    getTerminalCellWidth.mockReturnValue(5.42);
+
+    await splitPane("tab-1", "a", "row");
+
+    expect(createTerminal).toHaveBeenCalledWith({
+      cwd: "/home/user",
+      cols: 89,
+      rows: 68,
+    });
+  });
+
   it("scales by the new pane's weight when it joins the pane's own row", async () => {
     // "a" has 3/4 of the row, and the new pane will get 1/5 of it.
     setTab(
@@ -176,7 +201,7 @@ describe("splitPane", () => {
 
     expect(createTerminal).toHaveBeenCalledWith({
       cwd: "/home/user",
-      cols: 30,
+      cols: 29,
       rows: 45,
     });
   });

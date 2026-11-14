@@ -6,6 +6,7 @@ import {
 } from "@features/terminal/client/stateTracker";
 import {
   disposeSession,
+  getTerminalCellWidth,
   getTerminalSize,
 } from "@features/terminal/client/xtermCache";
 import { exitFocusMode, isFocusModeActive } from "@/store/actions/focusMode";
@@ -544,6 +545,10 @@ export function detachPane(
   return { pane: detachedPane, tabClosed };
 }
 
+// The width a terminal pane spends outside its columns: TerminalPane's 8px
+// left padding and xterm's 14px scrollbar.
+const TERMINAL_CHROME_WIDTH = 22;
+
 /**
  * Estimates the size of a pane split from `paneId`, scaling the source pane's
  * size by the new pane's share of it. This errs narrow, because a shell that
@@ -577,9 +582,14 @@ function getSplitTerminalSize(
       rows: Math.max(1, Math.floor(size.rows * share)),
     };
   }
-  // The new pane brings its own divider and scrollbar, about two columns.
+  // Scaling the columns scales the source pane's chrome too, but the new pane
+  // has all of its own, a 1px grid gap, and up to 1px that FitAddon rounds
+  // off its width. Taking that off in columns errs narrow at any font size.
+  const cellWidth = getTerminalCellWidth(paneId);
+  if (!cellWidth) return undefined;
+  const chromeCols = (TERMINAL_CHROME_WIDTH * (1 - share) + 2) / cellWidth;
   return {
-    cols: Math.max(1, Math.floor(size.cols * share) - 2),
+    cols: Math.max(1, Math.floor(size.cols * share - chromeCols)),
     rows: size.rows,
   };
 }
