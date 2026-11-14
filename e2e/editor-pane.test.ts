@@ -326,6 +326,24 @@ describe("editor pane", () => {
     await waitForFocusIn("tree", "the file left");
   });
 
+  it("keeps focus in a file when a commit elsewhere turns its diff into the editor", async () => {
+    await setWide(false);
+    await setTreeMode("files");
+    write("README.md", "# Readme\n\nMore.\n");
+    await fileTree()
+      .getByRole("treeitem", { name: /^README\.md.*M/ })
+      .click();
+    await waitForTextIn(diffEditor().locator(".editor.modified"), "More.");
+    await diffEditor().locator(".editor.modified").click();
+    await waitForFocusIn("editor", "clicking the diff");
+
+    commitAll("Change readme");
+    await waitForTextIn(editor(), "More.");
+    // The diff's editor went with it, and focus used to fall to the page.
+    await waitForFocusIn("editor", "the diff closed");
+    await editor().locator(":focus").waitFor();
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

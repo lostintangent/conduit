@@ -46,4 +46,14 @@ describe("useFocusFollowsSide", () => {
     second.hook.rerender({ content: null });
     expect(document.activeElement).toBe(second.treeTabStop);
   });
+
+  it("leaves focus on a control the editor side still shows when what it shows changes", () => {
+    const { hook, input } = renderPane();
+    const toggle = document.createElement("button");
+    input.closest(".monaco-editor")!.before(toggle);
+    toggle.focus();
+
+    hook.rerender({ content: "editor /repo/a.ts" });
+    expect(document.activeElement).toBe(toggle);
+  });
 });
