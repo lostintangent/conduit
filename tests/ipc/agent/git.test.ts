@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Create a callback-style mock function that promisify can work with
 const mockExecFileImpl = vi.hoisted(() => vi.fn());
 const mockStatImpl = vi.hoisted(() => vi.fn());
+const mockRealpathImpl = vi.hoisted(() => vi.fn());
 
 // Mock child_process module with a proper callback-style function
 vi.mock("node:child_process", () => ({
@@ -14,8 +15,10 @@ vi.mock("node:child_process", () => ({
 
 // Mock fs promises for findRepoRoot
 vi.mock("node:fs/promises", () => ({
+  realpath: mockRealpathImpl,
   stat: mockStatImpl,
   default: {
+    realpath: mockRealpathImpl,
     stat: mockStatImpl,
   },
 }));
@@ -29,6 +32,7 @@ import { findRepoRoot, runGit } from "../../../src/ipc/agent/git";
 describe("findRepoRoot", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRealpathImpl.mockImplementation(async (p: string) => p);
   });
 
   it("resolves the repo root from a subdirectory", async () => {
@@ -49,6 +53,22 @@ describe("findRepoRoot", () => {
     await expect(findRepoRoot("/test/repo/src/components")).resolves.toBe(
       "/test/repo",
     );
+  });
+
+  it("reports the root under the path the caller used", async () => {
+    // git prints realpaths, like /private/tmp/repo for a repo opened as /tmp/repo.
+    mockRealpathImpl.mockImplementation(async (p: string) =>
+      p.replace(/^\/tmp\//, "/private/tmp/"),
+    );
+    (execFile as any).mockImplementation(
+      (cmd: string, args: string[], opts: any, callback: any) => {
+        const stdout =
+          args[1] === "--git-common-dir" ? ".git\n" : "/private/tmp/repo\n";
+        callback(null, { stdout, stderr: "" });
+      },
+    );
+
+    await expect(findRepoRoot("/tmp/repo/src")).resolves.toBe("/tmp/repo");
   });
 
   it("returns null outside a git repository", async () => {

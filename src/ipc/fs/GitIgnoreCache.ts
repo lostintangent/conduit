@@ -19,6 +19,7 @@ import {
   isPathOutside,
   normalizePathForComparison,
   safeRelativePath,
+  toCallerPath,
 } from "./pathUtils";
 
 // ============================================================================
@@ -68,7 +69,8 @@ class GitIgnoreCacheImpl {
 
     // Find git root
     const resolved = path.resolve(dirPath);
-    const gitRoot = await this.findGitRoot(resolved);
+    const toplevel = await this.findGitRoot(resolved);
+    const gitRoot = toplevel && (await toCallerPath(toplevel, resolved));
     this.gitRootCache.set(cacheKey, gitRoot);
 
     // Also cache all parent directories up to git root

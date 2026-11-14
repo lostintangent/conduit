@@ -1,4 +1,7 @@
 import { EventEmitter } from "node:events";
+import * as fsp from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 // Create hoisted mock functions
@@ -148,6 +151,35 @@ describe("GitIgnoreCache", () => {
 
       expect(result).toBeNull();
       expect(mockSpawn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("symlinked folder", () => {
+    it("should report the git root under the path the caller used", async () => {
+      // git prints realpaths, like /private/tmp/x for a repo opened as /tmp/x.
+      const real = await fsp.realpath(
+        await fsp.mkdtemp(path.join(os.tmpdir(), "gitignore-real-")),
+      );
+      const link = `${real}-link`;
+      await fsp.mkdir(path.join(real, "src"));
+      await fsp.symlink(real, link);
+      try {
+        setupMockSpawnSuccess(`${real}\n`);
+        mockExistsSync.mockReturnValue(true);
+        mockReadFileSync.mockReturnValue("ignored.txt\n");
+
+        expect(await GitIgnoreCache.getGitRoot(path.join(link, "src"))).toBe(
+          link,
+        );
+        const ignored = await GitIgnoreCache.getIgnoredEntries(
+          link,
+          files("ignored.txt", "kept.txt"),
+        );
+        expect([...ignored]).toEqual(["ignored.txt"]);
+      } finally {
+        await fsp.rm(link);
+        await fsp.rm(real, { recursive: true });
+      }
     });
   });
 

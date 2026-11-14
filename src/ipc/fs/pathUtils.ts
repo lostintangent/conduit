@@ -4,6 +4,7 @@
  * Helpers for comparing paths on macOS's case-insensitive filesystem.
  */
 
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 // ============================================================================
@@ -100,4 +101,28 @@ export function safeRelativePath(from: string, to: string): string {
  */
 export function isPathOutside(relativePath: string): boolean {
   return relativePath.startsWith("..");
+}
+
+/**
+ * Git reports realpaths, so in a folder opened through a symlink (such as
+ * /tmp → /private/tmp) the roots it returns don't match the caller's paths.
+ * Return the nearest ancestor of `callerPath` (or `callerPath` itself) that
+ * resolves to `realPath`, or `realPath` when there isn't one.
+ */
+export async function toCallerPath(
+  realPath: string,
+  callerPath: string,
+): Promise<string> {
+  for (let dir = path.resolve(callerPath); ; dir = path.dirname(dir)) {
+    try {
+      if (pathEquals(await fs.realpath(dir), realPath)) {
+        return dir;
+      }
+    } catch {
+      // Missing or unreadable, so keep walking up.
+    }
+    if (path.dirname(dir) === dir) {
+      return realPath;
+    }
+  }
 }

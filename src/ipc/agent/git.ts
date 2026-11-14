@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { toCallerPath } from "../fs/pathUtils";
 
 const execFileAsync = promisify(execFile);
 
@@ -53,7 +54,7 @@ export async function findRepoRoot(startPath: string): Promise<string | null> {
           },
         },
       );
-      return toplevel.trim();
+      return toCallerPath(toplevel.trim(), startPath);
     }
 
     // Otherwise, gitCommonDir is an absolute or relative path to the main .git
@@ -63,7 +64,7 @@ export async function findRepoRoot(startPath: string): Promise<string | null> {
       : path.resolve(startPath, gitCommonDir);
 
     // The main repo root is the parent directory of .git
-    return path.dirname(absoluteGitDir);
+    return toCallerPath(path.dirname(absoluteGitDir), startPath);
   } catch {
     // Fall back to manual traversal if git command fails (e.g., not in a git repo)
     return findRepoRootManual(startPath);
