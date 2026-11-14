@@ -25,7 +25,7 @@
  * ```
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useRef } from "react";
 import type { GitV2API } from "@/api/GitV2API";
 import type { FileSystemV2API } from "@/api/FileSystemV2API";
 import type { FileNode, ViewMode } from "../types";
@@ -119,7 +119,31 @@ export function useAutoOpenFile({
     };
   }, [initialFilePath, selectedFile, fs, setSelectedFile]);
 
-  // Step 2: Auto-open most recently modified file if no valid selection
+  // Step 2: Auto-open most recently modified file if no valid selection.
+  // Finishing the open reads the latest callbacks and settings without making
+  // them effect deps, so a new identity (markSeen when git status first loads)
+  // can't cancel the one-time open while it's in flight.
+  const finishAutoOpen = useEffectEvent(
+    async (file: FileNode, relativePath: string) => {
+      setSelectedFile(file);
+      // Mark the auto-opened file as seen
+      markSeen?.(relativePath);
+
+      // Show diff view for modified files if user prefers
+      const status = await git.getStatus();
+      const fileStatus = status?.files.get(relativePath);
+      if (fileStatus?.status === "modified" && preferDiffForModified) {
+        setViewMode({
+          type: "diff",
+          filePath: file.path,
+          baseBranch: baseBranch ?? undefined,
+        });
+      } else {
+        setViewMode({ type: "editor" });
+      }
+    },
+  );
+
   useEffect(() => {
     if (autoOpenAttemptedRef.current) return;
     if (!initialFileValidatedRef.current) return; // Wait for validation
@@ -143,22 +167,7 @@ export function useAutoOpenFile({
 
         if (!file || !relativePath || cancelled) return;
 
-        setSelectedFile(file);
-        // Mark the auto-opened file as seen
-        markSeen?.(relativePath);
-
-        // Show diff view for modified files if user prefers
-        const status = await git.getStatus();
-        const fileStatus = status?.files.get(relativePath);
-        if (fileStatus?.status === "modified" && preferDiffForModified) {
-          setViewMode({
-            type: "diff",
-            filePath: file.path,
-            baseBranch: baseBranch ?? undefined,
-          });
-        } else {
-          setViewMode({ type: "editor" });
-        }
+        await finishAutoOpen(file, relativePath);
       } catch (error) {
         console.debug("[useAutoOpenFile] Auto-open failed:", error);
       }
@@ -168,14 +177,5 @@ export function useAutoOpenFile({
     return () => {
       cancelled = true;
     };
-  }, [
-    selectedFile,
-    cwd,
-    git,
-    baseBranch,
-    preferDiffForModified,
-    setViewMode,
-    setSelectedFile,
-    markSeen,
-  ]);
+  }, [selectedFile, cwd, git]);
 }

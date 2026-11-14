@@ -148,6 +148,116 @@ describe("useAutoOpenFile", () => {
       expect(selectNextAvailableFile).not.toHaveBeenCalled();
       expect(setSelectedFile).not.toHaveBeenCalled();
     });
+
+    // The editor swaps in its real markSeen once git status first loads,
+    // which usually happens while the lookup below is still in flight.
+    it("should still open the file when markSeen changes during the lookup", async () => {
+      const mockFile: FileNode = {
+        name: "index.ts",
+        path: "/project/src/index.ts",
+        type: "file",
+      };
+      const setSelectedFile = vi.fn();
+      const placeholderMarkSeen = vi.fn();
+      const loadedMarkSeen = vi.fn();
+      const fs = createMockFs();
+      const git = createMockGit();
+
+      let resolveLookup!: (result: {
+        file: FileNode;
+        relativePath: string;
+      }) => void;
+      vi.mocked(selectNextAvailableFile).mockReturnValue(
+        new Promise((resolve) => {
+          resolveLookup = resolve;
+        }),
+      );
+
+      const { rerender } = renderHook(
+        (markSeen: (path: string) => void) =>
+          useAutoOpenFile({
+            initialFilePath: undefined,
+            selectedFile: null,
+            setSelectedFile,
+            cwd: "/project",
+            fs: fs as any,
+            git: git as any,
+            baseBranch: null,
+            preferDiffForModified: false,
+            setViewMode: vi.fn(),
+            markSeen,
+          }),
+        { initialProps: placeholderMarkSeen },
+      );
+
+      await waitFor(() => {
+        expect(selectNextAvailableFile).toHaveBeenCalled();
+      });
+      rerender(loadedMarkSeen);
+      await act(async () => {
+        resolveLookup({ file: mockFile, relativePath: "src/index.ts" });
+      });
+
+      await waitFor(() => {
+        expect(setSelectedFile).toHaveBeenCalledWith(mockFile);
+      });
+      expect(loadedMarkSeen).toHaveBeenCalledWith("src/index.ts");
+      expect(placeholderMarkSeen).not.toHaveBeenCalled();
+    });
+
+    it("should not replace a file the user selects during the lookup", async () => {
+      const userFile: FileNode = {
+        name: "picked.ts",
+        path: "/project/picked.ts",
+        type: "file",
+      };
+      const setSelectedFile = vi.fn();
+      const fs = createMockFs();
+      const git = createMockGit();
+
+      let resolveLookup!: (result: {
+        file: FileNode;
+        relativePath: string;
+      }) => void;
+      vi.mocked(selectNextAvailableFile).mockReturnValue(
+        new Promise((resolve) => {
+          resolveLookup = resolve;
+        }),
+      );
+
+      const { rerender } = renderHook(
+        (selectedFile: FileNode | null) =>
+          useAutoOpenFile({
+            initialFilePath: undefined,
+            selectedFile,
+            setSelectedFile,
+            cwd: "/project",
+            fs: fs as any,
+            git: git as any,
+            baseBranch: null,
+            preferDiffForModified: false,
+            setViewMode: vi.fn(),
+          }),
+        { initialProps: null as FileNode | null },
+      );
+
+      await waitFor(() => {
+        expect(selectNextAvailableFile).toHaveBeenCalled();
+      });
+      rerender(userFile);
+      await act(async () => {
+        resolveLookup({
+          file: {
+            name: "index.ts",
+            path: "/project/src/index.ts",
+            type: "file",
+          },
+          relativePath: "src/index.ts",
+        });
+      });
+
+      expect(setSelectedFile).not.toHaveBeenCalled();
+    });
   });
 
   describe("when initial file is provided", () => {
