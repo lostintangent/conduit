@@ -12,7 +12,9 @@ import registerPaneCommands from "../../src/cli/commands/pane";
 import "../../src/cli/ipc";
 
 async function run(args: string[]) {
-  const program = new Command().exitOverride();
+  const program = new Command()
+    .exitOverride()
+    .configureOutput({ writeErr: () => {} });
   registerPaneCommands(program);
   registerBrowserCommands(program);
 
@@ -103,5 +105,25 @@ describe("browser automation commands", () => {
     const args = command.split(" ");
 
     expect(await run(args)).toEqual([args[0], expected]);
+  });
+});
+
+describe("integer options", () => {
+  it.each([
+    "browser-click h1 --clicks abc",
+    "browser-query button --timeout 5s",
+    "browser-scroll -y 1.5",
+  ])("rejects `%s` without sending it", async (command) => {
+    await expect(run(command.split(" "))).rejects.toThrow(
+      "is invalid. Expected an integer.",
+    );
+    expect(sendCliCommand).not.toHaveBeenCalled();
+  });
+
+  it("accepts negative integers", async () => {
+    expect(await run(["browser-scroll", "-y", "-200"])).toEqual([
+      "browser-scroll",
+      { y: -200 },
+    ]);
   });
 });

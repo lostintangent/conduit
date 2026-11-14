@@ -1,8 +1,13 @@
 import type { BrowserAutomationOption } from "@shared/cli/browser";
 import { BROWSER_AUTOMATION_COMMANDS } from "@shared/cli/browser";
-import { Command, Option } from "commander";
+import { Command, InvalidArgumentError, Option } from "commander";
 
-const parseInteger = (value: string) => parseInt(value, 10);
+function parseInteger(value: string) {
+  if (!/^-?\d+$/.test(value)) {
+    throw new InvalidArgumentError("Expected an integer.");
+  }
+  return Number(value);
+}
 
 function applyOption(cliCommand: Command, option: BrowserAutomationOption) {
   if (option.choices) {
