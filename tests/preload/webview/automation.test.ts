@@ -73,6 +73,43 @@ describe("browser automation", () => {
     });
   });
 
+  describe("query --timeout", () => {
+    it("waits for a match that appears before the timeout", async () => {
+      setTimeout(() => {
+        const button = document.createElement("button");
+        button.textContent = "Save";
+        document.body.append(button);
+      }, 50);
+
+      const results = await automation.query({
+        selector: "button",
+        text: "save",
+        timeout: 2000,
+      });
+
+      expect(results.map((result) => result.text)).toEqual(["Save"]);
+    });
+
+    it("returns no matches once the timeout passes", async () => {
+      const started = Date.now();
+
+      const results = await automation.query({
+        selector: "button",
+        timeout: 150,
+      });
+
+      expect(results).toEqual([]);
+      expect(Date.now() - started).toBeGreaterThanOrEqual(140);
+    });
+
+    it("returns immediately without a timeout", async () => {
+      const started = Date.now();
+
+      expect(await automation.query({ selector: "button" })).toEqual([]);
+      expect(Date.now() - started).toBeLessThan(50);
+    });
+  });
+
   describe("element text", () => {
     it.each([
       ["its trimmed label", "<button>\n  Save\n</button>", "Save"],

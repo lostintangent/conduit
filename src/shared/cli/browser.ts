@@ -210,7 +210,7 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
         },
         {
           flags: "--timeout <ms>",
-          description: "Timeout for query",
+          description: "Wait up to this long for a match before returning",
           parser: "int",
         },
         {

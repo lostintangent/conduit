@@ -116,16 +116,18 @@ export const automation = {
         .filter(Boolean) as BrowserElementDescriptor[];
     };
 
-    if (timeout) {
-      return Promise.race([
-        new Promise<BrowserElementDescriptor[]>((_, reject) =>
-          setTimeout(() => reject(new Error("ERR_TIMEOUT")), timeout),
-        ),
-        Promise.resolve(runQuery()),
-      ]);
+    // A timeout waits up to that long for a first match. Polling, unlike a
+    // MutationObserver, also sees input values that --text matches against.
+    const deadline = Date.now() + (timeout ?? 0);
+    let results = runQuery();
+    while (results.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.min(100, deadline - Date.now())),
+      );
+      results = runQuery();
     }
 
-    return runQuery();
+    return results;
   },
 
   click(payload: BrowserClickArgs) {

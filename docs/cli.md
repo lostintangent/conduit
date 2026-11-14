@@ -627,7 +627,7 @@ async function shutdown() {
   - `-t, --text <text>` - Filter by text content
   - `-r, --role <role>` - ARIA role to filter by
   - `-m, --max-results <count>` - Maximum number of results
-  - `--timeout <ms>` - Timeout for query
+  - `--timeout <ms>` - Wait up to this long for a match before returning
   - `--dump-tree` - Return accessibility tree snapshot
 - `browser-click <handle>` - Click an element
   - `-p, --pane <paneId>` - The ID of the pane
