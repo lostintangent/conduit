@@ -282,9 +282,8 @@ export function ReviewWorkingPane({
         err instanceof Error ? err.message : "Unknown error occurred";
       setError(`Failed to commit: ${errorMessage}`);
       console.error("Failed to commit:", err);
-    } finally {
-      setIsCommitting(false);
     }
+    setIsCommitting(false);
   }, [git, commitMessage, stagedFiles.length]);
 
   // ---------------------------------------------------------------------------

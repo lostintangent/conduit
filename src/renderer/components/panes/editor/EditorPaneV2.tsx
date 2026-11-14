@@ -979,9 +979,8 @@ export function EditorPaneV2({
         message: friendlyError.message,
         details: friendlyError.details,
       });
-    } finally {
-      setIsCommitting(false);
     }
+    setIsCommitting(false);
   }, [commitMessage, stagedCount, git]);
 
   /**
@@ -1001,9 +1000,8 @@ export function EditorPaneV2({
         message: friendlyError.message,
         details: friendlyError.details,
       });
-    } finally {
-      setIsPulling(false);
     }
+    setIsPulling(false);
   }, [git, isPulling, isPushing, isCommitting]);
 
   /**
@@ -1034,9 +1032,8 @@ export function EditorPaneV2({
         message: friendlyError.message,
         details: friendlyError.details,
       });
-    } finally {
-      setIsPushing(false);
     }
+    setIsPushing(false);
   }, [git, queryClient, hasUpstream, isPulling, isPushing, isCommitting]);
 
   /**

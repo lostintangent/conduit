@@ -374,10 +374,9 @@ export const FileTreeNormal = memo(
           }
         } catch (error) {
           console.error("Failed to load file tree:", error);
-        } finally {
-          if (!cancelled) {
-            setIsLoading(false);
-          }
+        }
+        if (!cancelled) {
+          setIsLoading(false);
         }
       }
 

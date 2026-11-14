@@ -126,9 +126,8 @@ export function BranchSwitcher({
         } else {
           setCheckoutError(`Failed to checkout: ${errorMessage}`);
         }
-      } finally {
-        setIsSwitching(false);
       }
+      setIsSwitching(false);
     },
     [git, currentBranch, onBranchSwitch],
   );
@@ -165,9 +164,8 @@ export function BranchSwitcher({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckoutError(`Failed to stash and checkout: ${errorMessage}`);
-    } finally {
-      setIsSwitching(false);
     }
+    setIsSwitching(false);
   }, [git, pendingBranch, onBranchSwitch]);
 
   /**
@@ -188,9 +186,8 @@ export function BranchSwitcher({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       setCheckoutError(`Failed to force checkout: ${errorMessage}`);
-    } finally {
-      setIsSwitching(false);
     }
+    setIsSwitching(false);
   }, [git, pendingBranch, onBranchSwitch]);
 
   /**

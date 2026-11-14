@@ -279,10 +279,9 @@ export function AgentLauncherDialog({
       onClose();
     } catch (error) {
       console.error("Failed to launch agents", error);
-    } finally {
-      setIsSubmitting(false);
-      setIsCelebrating(false);
     }
+    setIsSubmitting(false);
+    setIsCelebrating(false);
   };
 
   return (
