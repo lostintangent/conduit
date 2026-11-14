@@ -43,6 +43,7 @@
     "@typescript-eslint/explicit-function-return-type": "off",
     "@typescript-eslint/explicit-module-boundary-types": "off",
     "react-hooks/exhaustive-deps": "off",
+    "react/jsx-no-constructed-context-values": "off",
     "vitest/require-mock-type-parameters": "off"
   },
   "overrides": [
