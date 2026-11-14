@@ -1,7 +1,7 @@
 import type { Window as HappyDOMWindow } from "happy-dom";
 import path from "node:path";
 import { plugin } from "bun";
-import { afterAll } from "bun:test";
+import { afterAll, beforeEach } from "bun:test";
 
 // Monaco doesn't load in happy-dom, so tests get these mocks instead:
 // monaco-mock.ts for the package itself and monaco-esm-mock.ts for any subpath
@@ -25,6 +25,19 @@ plugin({
 (
   window as unknown as HappyDOMWindow
 ).happyDOM.settings.handleDisabledFileLoadingAsSuccess = true;
+
+// Mocks and module state leak between files that share a global, so each file
+// needs its own. `bun run test` gets that from --parallel, but plain `bun test`
+// runs every file in one global. Stop it before hundreds of tests fail for no
+// visible reason.
+const testFile = Bun.main;
+beforeEach(() => {
+  if (Bun.main === testFile) return;
+  console.error(
+    "\nThese tests need a fresh global for each file. Run `bun run test`, or `bun test --isolate`.\n",
+  );
+  process.exit(1);
+});
 
 // When each file gets a fresh global (--isolate or --parallel), Bun removes a
 // happy-dom window's globals before it awaits the window's async close. A 0ms
