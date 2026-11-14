@@ -300,10 +300,7 @@ export function asFilePath(path: string): FilePath {
  * you cannot edit a git commit or the staging area directly.
  */
 export type ContentSource =
-  | "head"
-  | "index"
-  | "workingDirectory"
-  | (string & NonNullable<unknown>);
+  "head" | "index" | "workingDirectory" | (string & NonNullable<unknown>);
 
 /**
  * Check if a content source refers to git content (not working directory).

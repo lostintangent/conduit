@@ -21,17 +21,15 @@ vi.mock(
     computeSwimlanes: vi.fn(
       (commits: HistoryCommit[], options?: { headCommitId?: string }) =>
         // Simple mock that returns nodes with basic swimlane data
-        commits.map(
-          (commit): CommitGraphNode => ({
-            commit,
-            laneIndex: 0,
-            inputSwimlanes: [],
-            outputSwimlanes: [],
-            isMerge: false,
-            isHead: options?.headCommitId === commit.id,
-            segmentType: null,
-          }),
-        ),
+        commits.map((commit): CommitGraphNode => ({
+          commit,
+          laneIndex: 0,
+          inputSwimlanes: [],
+          outputSwimlanes: [],
+          isMerge: false,
+          isHead: options?.headCommitId === commit.id,
+          segmentType: null,
+        })),
     ),
   }),
 );

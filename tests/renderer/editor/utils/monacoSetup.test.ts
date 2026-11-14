@@ -35,9 +35,8 @@ vi.mock("monaco-editor", () => ({ languages, json, typescript }));
 // configureMonaco only runs once per module instance, so each test loads a fresh one
 async function configureFreshMonaco() {
   vi.resetModules();
-  const { configureMonaco } = await import(
-    "../../../../src/renderer/components/panes/editor/utils/monacoSetup"
-  );
+  const { configureMonaco } =
+    await import("../../../../src/renderer/components/panes/editor/utils/monacoSetup");
   configureMonaco();
 }
 
@@ -50,22 +49,20 @@ describe("configureMonaco", () => {
     vi.useRealTimers();
   });
 
-  it.each([
-    "zig",
-    "toml",
-    "makefile",
-    "diff",
-  ])("registers %s with a Monarch tokenizer", async (id) => {
-    await configureFreshMonaco();
+  it.each(["zig", "toml", "makefile", "diff"])(
+    "registers %s with a Monarch tokenizer",
+    async (id) => {
+      await configureFreshMonaco();
 
-    expect(languages.register).toHaveBeenCalledWith(
-      expect.objectContaining({ id }),
-    );
-    expect(languages.setMonarchTokensProvider).toHaveBeenCalledWith(
-      id,
-      expect.objectContaining({ tokenizer: expect.any(Object) }),
-    );
-  });
+      expect(languages.register).toHaveBeenCalledWith(
+        expect.objectContaining({ id }),
+      );
+      expect(languages.setMonarchTokensProvider).toHaveBeenCalledWith(
+        id,
+        expect.objectContaining({ tokenizer: expect.any(Object) }),
+      );
+    },
+  );
 
   it("allows comments and trailing commas in .jsonc files", async () => {
     await configureFreshMonaco();
@@ -139,9 +136,8 @@ describe("configureMonaco", () => {
       // @ts-expect-error -- untyped ESM internals, imported by path to bypass the monaco-editor alias
       "../../../../node_modules/monaco-editor/esm/vs/editor/standalone/common/monarch/monarchCompile.js"
     );
-    const { MONARCH_LANGUAGES } = await import(
-      "../../../../src/renderer/components/panes/editor/utils/monarchLanguages"
-    );
+    const { MONARCH_LANGUAGES } =
+      await import("../../../../src/renderer/components/panes/editor/utils/monarchLanguages");
 
     for (const { id, tokenizer } of MONARCH_LANGUAGES) {
       expect(() => compile(id, structuredClone(tokenizer))).not.toThrow();

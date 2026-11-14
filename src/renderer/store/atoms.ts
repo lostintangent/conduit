@@ -64,11 +64,7 @@ export const previousTabsSnapshotAtom = atom<string>("");
 export const notificationsAtom = atom<Notification[]>([]);
 
 export type ApplicationMode =
-  | "normal"
-  | "design"
-  | "quick"
-  | "focus"
-  | "overview";
+  "normal" | "design" | "quick" | "focus" | "overview";
 
 export const applicationModeAtom = atom<ApplicationMode>("normal");
 
@@ -110,11 +106,7 @@ export const tabStateAtom = atomWithImmer<Map<string, TabState>>(new Map());
  * Used for agent activity indicators (thinking spinner, error state, etc.)
  */
 export type TabProgressState =
-  | "hidden"
-  | "default"
-  | "error"
-  | "indeterminate"
-  | "warning";
+  "hidden" | "default" | "error" | "indeterminate" | "warning";
 
 export const tabProgressAtom = atomWithImmer<
   Map<string, { state: TabProgressState; percent: number }>

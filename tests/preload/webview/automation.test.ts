@@ -108,21 +108,24 @@ describe("browser automation", () => {
         ["pointerdown 2/2", "mousedown 2/2", "pointerup 2/0", "mouseup 2/0"],
         "contextmenu 2/0",
       ],
-    ] as const)("sends pointer events and the %s button's click event", (button, presses, click) => {
-      const target = document.createElement("div");
-      document.body.append(target);
-      const events: string[] = [];
-      for (const type of ALL_CLICK_EVENTS) {
-        target.addEventListener(type, (event) => {
-          const { button, buttons } = event as MouseEvent;
-          events.push(`${type} ${button}/${buttons}`);
-        });
-      }
+    ] as const)(
+      "sends pointer events and the %s button's click event",
+      (button, presses, click) => {
+        const target = document.createElement("div");
+        document.body.append(target);
+        const events: string[] = [];
+        for (const type of ALL_CLICK_EVENTS) {
+          target.addEventListener(type, (event) => {
+            const { button, buttons } = event as MouseEvent;
+            events.push(`${type} ${button}/${buttons}`);
+          });
+        }
 
-      automation.click({ handle: handleFor(target), button, offset: {} });
+        automation.click({ handle: handleFor(target), button, offset: {} });
 
-      expect(events).toEqual([...presses, click]);
-    });
+        expect(events).toEqual([...presses, click]);
+      },
+    );
 
     it("opens a menu that toggles on pointerdown, like Radix's trigger", () => {
       const trigger = document.createElement("button");

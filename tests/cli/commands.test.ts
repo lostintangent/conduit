@@ -144,14 +144,13 @@ describe("terminal-wait", () => {
     ]);
   });
 
-  it.each([
-    "abc",
-    "-1",
-    "5ms",
-  ])("rejects `--timeout %s` without sending it", async (value) => {
-    await expect(run(["terminal-wait", "--timeout", value])).rejects.toThrow(
-      "is invalid. Expected a number of seconds.",
-    );
-    expect(sendCliCommand).not.toHaveBeenCalled();
-  });
+  it.each(["abc", "-1", "5ms"])(
+    "rejects `--timeout %s` without sending it",
+    async (value) => {
+      await expect(run(["terminal-wait", "--timeout", value])).rejects.toThrow(
+        "is invalid. Expected a number of seconds.",
+      );
+      expect(sendCliCommand).not.toHaveBeenCalled();
+    },
+  );
 });

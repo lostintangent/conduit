@@ -90,8 +90,8 @@ describe("watchKeybindingsFile", () => {
 
   it("should call callback when file changes", async () => {
     let fileChangedListener:
-      | ((payload: { subscriptionId: string; path: string }) => void)
-      | null = null;
+      ((payload: { subscriptionId: string; path: string }) => void) | null =
+      null;
 
     const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
     const mockOnFileContentChanged = vi.fn(
@@ -208,8 +208,8 @@ describe("watchKeybindingsFile", () => {
 
   it("should only trigger callback for matching subscriptionId", async () => {
     let fileChangedListener:
-      | ((payload: { subscriptionId: string; path: string }) => void)
-      | null = null;
+      ((payload: { subscriptionId: string; path: string }) => void) | null =
+      null;
 
     const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
     const mockOnFileContentChanged = vi.fn(

@@ -34,14 +34,19 @@ describe("useWorkspaces", () => {
   it.each<[WorkspaceState, boolean]>([
     [{ workspaces: [], lastWorkspace }, true],
     [{ workspaces: [] }, false],
-  ])("reports whether a last workspace exists (%#)", async (state, expected) => {
-    getState.mockResolvedValue(state);
+  ])(
+    "reports whether a last workspace exists (%#)",
+    async (state, expected) => {
+      getState.mockResolvedValue(state);
 
-    const { result } = renderHook(() => useWorkspaces(), {
-      wrapper: JotaiWrapper,
-    });
+      const { result } = renderHook(() => useWorkspaces(), {
+        wrapper: JotaiWrapper,
+      });
 
-    await waitFor(() => expect(getState).toHaveBeenCalled());
-    await waitFor(() => expect(result.current.hasLastWorkspace).toBe(expected));
-  });
+      await waitFor(() => expect(getState).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(result.current.hasLastWorkspace).toBe(expected),
+      );
+    },
+  );
 });

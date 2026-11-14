@@ -175,21 +175,13 @@ export interface ShapeElement extends BaseElement {
  * All canvas element types.
  */
 export type CanvasElement =
-  | StrokeElement
-  | TextElement
-  | ImageElement
-  | ShapeElement;
+  StrokeElement | TextElement | ImageElement | ShapeElement;
 
 /**
  * Available canvas tools.
  */
 export type CanvasTool =
-  | "select"
-  | "pen"
-  | "eraser"
-  | "text"
-  | "hand"
-  | "shape";
+  "select" | "pen" | "eraser" | "text" | "hand" | "shape";
 
 // =============================================================================
 // Helpers

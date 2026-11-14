@@ -28,8 +28,7 @@ function sendAutomationCommand<T extends BrowserAutomationAction>(
     ) => {
       if (event.channel !== "browser:response") return;
       const response = event.args?.[0] as
-        | BrowserAutomationResponse<T>
-        | undefined;
+        BrowserAutomationResponse<T> | undefined;
       if (!response || response.requestId !== requestId) return;
 
       webview.removeEventListener("ipc-message", handleMessage as any);

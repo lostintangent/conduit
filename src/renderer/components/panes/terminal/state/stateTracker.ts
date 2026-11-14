@@ -26,11 +26,7 @@ type SessionState = "idle" | "running";
  * Used to show agent activity indicators in tabs.
  */
 export type ProgressState =
-  | "hidden"
-  | "default"
-  | "error"
-  | "indeterminate"
-  | "warning";
+  "hidden" | "default" | "error" | "indeterminate" | "warning";
 
 type TrackedSession = {
   state: SessionState;

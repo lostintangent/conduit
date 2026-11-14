@@ -368,9 +368,8 @@ export function App() {
 
   const handleAgentSessionOpen = useCallback(
     async (session: AgentSessionInfo) => {
-      const { openTabFromExistingAgentSession } = await import(
-        "@/store/actions/tab"
-      );
+      const { openTabFromExistingAgentSession } =
+        await import("@/store/actions/tab");
       await openTabFromExistingAgentSession(session);
     },
     [],

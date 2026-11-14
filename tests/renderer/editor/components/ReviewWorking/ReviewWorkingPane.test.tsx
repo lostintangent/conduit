@@ -654,8 +654,7 @@ describe("ReviewWorkingPane", () => {
     it("should register callback with onStatusChanged", async () => {
       // Store the callback that gets passed to onStatusChanged
       let capturedCallback:
-        | ((event: { status: GitStatus }) => void)
-        | undefined;
+        ((event: { status: GitStatus }) => void) | undefined;
       mockOnStatusChanged.mockImplementation((callback) => {
         capturedCallback = callback;
         return () => {};

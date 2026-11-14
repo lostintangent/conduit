@@ -46,8 +46,5 @@ export {
   type SelectNextFileResult,
 } from "./fileSelectionHelpers";
 export { hasUnicodeBOM, isBinaryContent } from "./binaryDetection";
-export {
-  getFriendlyGitError,
-  type FriendlyGitError,
-} from "./gitErrorMessages";
+export { getFriendlyGitError, type FriendlyGitError } from "./gitErrorMessages";
 export { configureMonaco } from "./monacoSetup";

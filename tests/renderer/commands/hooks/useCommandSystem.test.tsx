@@ -419,8 +419,8 @@ describe("useCommandSystem", () => {
 
     it("should handle file changes and reload keybindings", async () => {
       let fileChangedListener:
-        | ((payload: { subscriptionId: string; path: string }) => void)
-        | null = null;
+        ((payload: { subscriptionId: string; path: string }) => void) | null =
+        null;
       const mockUnsubscribe = vi.fn();
       const mockSubscribe = vi.fn().mockResolvedValue("sub-1");
       const mockOnFileContentChanged = vi.fn(

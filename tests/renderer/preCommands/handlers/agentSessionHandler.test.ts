@@ -39,19 +39,19 @@ describe("agentSessionHandler", () => {
     });
   });
 
-  it.each([
-    null,
-    undefined,
-  ])("should fail when the API returns %s", async (session) => {
-    spawnAgentSession.mockResolvedValue(session);
+  it.each([null, undefined])(
+    "should fail when the API returns %s",
+    async (session) => {
+      spawnAgentSession.mockResolvedValue(session);
 
-    const result = await createAgentSessionHandler("/path/to/repo");
+      const result = await createAgentSessionHandler("/path/to/repo");
 
-    expect(result).toEqual({
-      success: false,
-      error: "Failed to spawn agent session: No session returned",
-    });
-  });
+      expect(result).toEqual({
+        success: false,
+        error: "Failed to spawn agent session: No session returned",
+      });
+    },
+  );
 
   it.each([
     "Unable to find a Git repository",

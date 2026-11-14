@@ -38,12 +38,10 @@ const {
 } = vi.hoisted(() => {
   const watcherCallbacks = {
     onCreated: null as
-      | ((event: { path: string; isDirectory: boolean }) => void)
-      | null,
+      ((event: { path: string; isDirectory: boolean }) => void) | null,
     onModified: null as ((event: { path: string }) => void) | null,
     onDeleted: null as
-      | ((event: { path: string; isDirectory: boolean }) => void)
-      | null,
+      ((event: { path: string; isDirectory: boolean }) => void) | null,
     onRenamed: null as
       | ((event: {
           oldPath: string;

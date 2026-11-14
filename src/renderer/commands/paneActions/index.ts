@@ -15,10 +15,7 @@ export {
 // React hooks
 export { usePaneActionsSystem } from "./hooks/usePaneActionsSystem";
 
-export {
-  usePaneActions,
-  useEnabledPaneActions,
-} from "./hooks/usePaneActions";
+export { usePaneActions, useEnabledPaneActions } from "./hooks/usePaneActions";
 
 // UI components
 export { PaneActionIcon, getAvailableIconIds } from "./ui/PaneActionIcon";

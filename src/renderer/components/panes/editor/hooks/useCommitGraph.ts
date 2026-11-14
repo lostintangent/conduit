@@ -130,8 +130,7 @@ export interface CommitGraphActions {
  * Return type for the useCommitGraph hook.
  */
 export interface UseCommitGraphResult
-  extends CommitGraphState,
-    CommitGraphActions {}
+  extends CommitGraphState, CommitGraphActions {}
 
 // =============================================================================
 // Constants

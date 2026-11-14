@@ -75,10 +75,7 @@ export interface CanvasConfig {
  * Union of all pane configurations
  */
 export type PaneConfig =
-  | TerminalConfig
-  | EditorConfig
-  | BrowserConfig
-  | CanvasConfig;
+  TerminalConfig | EditorConfig | BrowserConfig | CanvasConfig;
 
 /**
  * Action definition

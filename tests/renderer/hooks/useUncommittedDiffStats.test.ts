@@ -289,9 +289,8 @@ describe("useUncommittedDiffStats", () => {
 
   describe("integration with useGitDiffSubscription", () => {
     it("should pass correct dependencies to useGitDiffSubscription", async () => {
-      const { useGitDiffSubscription } = await import(
-        "../../../src/renderer/hooks/useGitDiffSubscription"
-      );
+      const { useGitDiffSubscription } =
+        await import("../../../src/renderer/hooks/useGitDiffSubscription");
 
       renderHook(() => useUncommittedDiffStats("/test/project"));
 

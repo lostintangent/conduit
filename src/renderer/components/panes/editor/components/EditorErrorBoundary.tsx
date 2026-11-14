@@ -106,13 +106,11 @@ export class EditorErrorBoundary extends Component<
    * Handle retry button click.
    */
   handleRetry = (): void => {
-    this.setState(
-      (state): EditorErrorBoundaryState => ({
-        hasError: false,
-        error: null,
-        retryAttempt: state.retryAttempt + 1,
-      }),
-    );
+    this.setState((state): EditorErrorBoundaryState => ({
+      hasError: false,
+      error: null,
+      retryAttempt: state.retryAttempt + 1,
+    }));
   };
 
   render(): ReactNode {
