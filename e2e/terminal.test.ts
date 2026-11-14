@@ -20,14 +20,14 @@ interface Watching {
 }
 type SubscriptionEvent = { subscriptionId: string };
 
-/** Every shell's output since a test started recording it. */
+/** Each message of shell output since a test started recording them. */
 interface Output {
   conduit: {
     terminal: {
       on(event: "data", listener: (event: { data: string }) => void): void;
     };
   };
-  output: string;
+  output?: string[];
 }
 
 describe("terminal and CLI", () => {
@@ -49,6 +49,15 @@ describe("terminal and CLI", () => {
       async () => (await locator.count()) === expected,
       `${expected} ${what}`,
     );
+  const recordOutput = () =>
+    app.page.evaluate(() => {
+      const scope = window as unknown as Output;
+      if (scope.output) return;
+      const output: string[] = (scope.output = []);
+      scope.conduit.terminal.on("data", ({ data }) => output.push(data));
+    });
+  const recorded = () =>
+    app.page.evaluate(() => (window as unknown as Output).output ?? []);
 
   it("runs its shell in the isolated home", async () => {
     expect(await terminal.run('echo "home is $HOME"')).toBe(0);
@@ -72,14 +81,7 @@ describe("terminal and CLI", () => {
   for (const where of ["shown", "hidden"]) {
     it(`sends the last line a paused shell prints before it exits, in a ${where} tab`, async () => {
       // The tab closes with its shell, so this listens to the shell's output.
-      await app.page.evaluate(() => {
-        const scope = window as unknown as Output;
-        if (scope.output !== undefined) return;
-        scope.output = "";
-        scope.conduit.terminal.on("data", ({ data }) => {
-          scope.output += data;
-        });
-      });
+      await recordOutput();
       await terminal.type(`conduit tab-new --title E2E-EXIT-${where}\n`);
       const tab = app.page.getByRole("tab", {
         name: new RegExp(`E2E-EXIT-${where}`),
@@ -101,12 +103,42 @@ describe("terminal and CLI", () => {
         while (Date.now() < end) continue;
       });
       await count(tab, 0, `E2E-EXIT-${where} tabs once its shell exits`);
-      const output = await app.page.evaluate(
-        () => (window as unknown as Output).output,
-      );
-      expect(output).toContain(`E2E-TAIL-${where}\r\n`);
+      expect((await recorded()).join("")).toContain(`E2E-TAIL-${where}\r\n`);
     });
   }
+
+  it("sends a hidden tab's output a few times a second", async () => {
+    await recordOutput();
+    await terminal.type("conduit tab-new --title E2E-HIDDEN\n");
+    const tab = app.page.getByRole("tab", { name: /E2E-HIDDEN/ });
+    await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
+    const shell = await app.terminal();
+
+    // Like an agent's status line, 40 ticks over about a second.
+    await shell.type(
+      "sleep 1; for i in {1..40}; do echo E2E-TICK-$i; sleep 0.025; done\n",
+    );
+    await app.page.getByRole("tab").first().click();
+    const ticks = await until(async () => {
+      const ticks = (await recorded()).filter((data) =>
+        /E2E-TICK-\d/.test(data),
+      );
+      return ticks.join("").includes("E2E-TICK-40\r\n") && ticks;
+    }, "the last tick");
+    expect(ticks.length).toBeLessThan(12);
+
+    // Shown again, each tick goes out as it's printed.
+    await tab.click();
+    await shell.waitForText(/^E2E-TICK-40$/m);
+    await shell.type(
+      "for i in {1..20}; do echo E2E-TOCK-$i; sleep 0.025; done\n",
+    );
+    await shell.waitForText(/^E2E-TOCK-20$/m);
+    const tocks = (await recorded()).filter((data) => /E2E-TOCK-\d/.test(data));
+    expect(tocks.length).toBeGreaterThan(15);
+    await shell.type("exit\n");
+    await count(tab, 0, "E2E-HIDDEN tabs once its shell exits");
+  });
 
   it("puts a conduit CLI on the PATH that controls this window", async () => {
     expect(await terminal.run("conduit --help | head -3")).toBe(0);

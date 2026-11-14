@@ -53,6 +53,12 @@ const EXIT_CHECK_MS = 50;
 
 const COALESCE_MS = 5;
 
+/**
+ * Output nobody can see waits longer, since each message costs both
+ * processes, but no longer than it takes to fill the high watermark.
+ */
+const HIDDEN_COALESCE_MS = 250;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
 
@@ -124,18 +130,27 @@ function setupTerminalListeners(terminal: TerminalInstance) {
   let pending = "";
   let coalescing: NodeJS.Timeout | undefined;
   const flush = () => {
+    clearTimeout(coalescing);
     if (!pending) {
       coalescing = undefined;
       return;
     }
     emitOutput(terminal, pending);
     pending = "";
-    coalescing = setTimeout(flush, COALESCE_MS);
+    coalescing = setTimeout(
+      flush,
+      terminal.isHidden ? HIDDEN_COALESCE_MS : COALESCE_MS,
+    );
   };
+  terminal.flushOutput = flush;
 
   pty.onData((data) => {
     if (!terminal.isRendererReady) {
       bufferOutput(terminal, data);
+    } else if (terminal.isHidden) {
+      pending += data;
+      coalescing ??= setTimeout(flush, HIDDEN_COALESCE_MS);
+      if (pending.length >= HIGH_WATERMARK) flush();
     } else if (coalescing) {
       pending += data;
     } else {
@@ -182,6 +197,14 @@ export function acknowledgeTerminalOutput(terminalId: string, chars: number) {
   if (terminal.exitCheck && terminal.unacknowledged < LOW_WATERMARK) {
     resume(terminal);
   }
+}
+
+/** Whether any pane shows a shell, which decides how long its output waits. */
+export function setTerminalVisible(terminalId: string, visible: boolean) {
+  const terminal = getTerminal(terminalId);
+  if (!terminal) return;
+  terminal.isHidden = !visible;
+  if (visible) terminal.flushOutput?.();
 }
 
 function pause(terminal: TerminalInstance) {

@@ -128,6 +128,37 @@ function acknowledge(sessionId: string, chars: number) {
   api.terminal.ack(sessionId, total);
 }
 
+// Main sends output less often for a session that no pane shows, like one in
+// a hidden tab, whose panes have no layout and so leave the screen.
+const panesOffScreen = new Set<string>();
+const hiddenSessions = new Set<string>();
+const paneByElement = new WeakMap<Element, string>();
+let onScreen: IntersectionObserver | undefined;
+
+function observeVisibility(paneId: string, element: Element) {
+  paneByElement.set(element, paneId);
+  onScreen ??= new IntersectionObserver((entries) => {
+    for (const { target, isIntersecting } of entries) {
+      const paneId = paneByElement.get(target);
+      if (!paneId) continue;
+      if (isIntersecting) panesOffScreen.delete(paneId);
+      else panesOffScreen.add(paneId);
+    }
+    reportVisibility();
+  });
+  onScreen.observe(element);
+}
+
+function reportVisibility() {
+  for (const [sessionId, panes] of panesBySession) {
+    const hidden = [...panes].every((paneId) => panesOffScreen.has(paneId));
+    if (hidden === hiddenSessions.has(sessionId)) continue;
+    if (hidden) hiddenSessions.add(sessionId);
+    else hiddenSessions.delete(sessionId);
+    api.terminal.setVisible(sessionId, !hidden);
+  }
+}
+
 /**
  * Copy the terminal buffer from an existing pane to a new terminal instance.
  * This is used when cloning terminals to preserve the current state.
@@ -344,6 +375,7 @@ export function getOrCreate(
 
           sessionDataHandlers.delete(sessionId);
           unacknowledged.delete(sessionId);
+          hiddenSessions.delete(sessionId);
 
           stateTracker.untrackSession(sessionId);
         }
@@ -393,6 +425,9 @@ export function attach(paneId: string, container: HTMLElement) {
     container.appendChild(element);
   } else {
     instance.terminal.open(container);
+    if (instance.terminal.element) {
+      observeVisibility(paneId, instance.terminal.element);
+    }
   }
 }
 
@@ -426,8 +461,11 @@ function disposePaneInstance(paneId: string) {
   const instance = xtermInstancesByPane.get(paneId);
   if (!instance) return;
 
+  if (instance.terminal.element) onScreen?.unobserve(instance.terminal.element);
   instance.dispose();
   xtermInstancesByPane.delete(paneId);
+  panesOffScreen.delete(paneId);
+  reportVisibility();
 }
 
 /**

@@ -8,6 +8,7 @@ const api = vi.hoisted(() => {
       input: vi.fn(),
       ready: vi.fn(),
       resize: vi.fn(),
+      setVisible: vi.fn(),
     },
     openExternal: vi.fn(),
   };
@@ -15,8 +16,38 @@ const api = vi.hoisted(() => {
   return api;
 });
 
+/** Stands in for the browser reporting a pane's terminal on or off screen. */
+const screen = vi.hoisted(() => {
+  const observers = new Set<FakeIntersectionObserver>();
+  class FakeIntersectionObserver {
+    targets = new Set<Element>();
+    constructor(public callback: (entries: unknown[]) => void) {
+      observers.add(this);
+    }
+    observe(target: Element) {
+      this.targets.add(target);
+    }
+    unobserve(target: Element) {
+      this.targets.delete(target);
+    }
+    disconnect() {
+      observers.delete(this);
+    }
+  }
+  Object.assign(window, { IntersectionObserver: FakeIntersectionObserver });
+  return {
+    show(target: Element, isIntersecting: boolean) {
+      for (const observer of observers) {
+        if (observer.targets.has(target)) {
+          observer.callback([{ target, isIntersecting }]);
+        }
+      }
+    },
+  };
+});
+
 import type { UserSettings } from "@features/settings/model";
-import { disposeSession, getOrCreate } from "./xtermCache";
+import { attach, disposeSession, getOrCreate } from "./xtermCache";
 
 const settings = {
   terminalFontFamily: "Menlo",
@@ -77,5 +108,48 @@ describe("a terminal's output in the renderer", () => {
 
     output("closed", "x".repeat(5_000));
     expect(api.terminal.ack).toHaveBeenCalledExactlyOnceWith("closed", 5_000);
+  });
+});
+
+describe("a terminal's visibility", () => {
+  /** Creates a pane's terminal and puts it on the page. */
+  function open(sessionId: string, paneId: string) {
+    const { terminal } = getOrCreate(sessionId, paneId, settings);
+    attach(paneId, document.body.appendChild(document.createElement("div")));
+    if (!terminal.element) throw new Error(`${paneId} didn't open`);
+    return terminal.element;
+  }
+
+  afterEach(() => {
+    disposeSession("session");
+    api.terminal.setVisible.mockClear();
+  });
+
+  it("is reported to main when no pane shows a session, and when one does again", () => {
+    const pane = open("session", "pane");
+
+    screen.show(pane, false);
+    screen.show(pane, false);
+    expect(api.terminal.setVisible).toHaveBeenCalledExactlyOnceWith(
+      "session",
+      false,
+    );
+
+    screen.show(pane, true);
+    expect(api.terminal.setVisible).toHaveBeenLastCalledWith("session", true);
+  });
+
+  it("stays visible while any pane of a cloned session shows", () => {
+    const pane = open("session", "pane");
+    open("session", "clone");
+
+    screen.show(pane, false);
+    expect(api.terminal.setVisible).not.toHaveBeenCalled();
+
+    disposeSession("clone");
+    expect(api.terminal.setVisible).toHaveBeenCalledExactlyOnceWith(
+      "session",
+      false,
+    );
   });
 });

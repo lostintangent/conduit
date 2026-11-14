@@ -18,6 +18,7 @@ import {
   killTerminal,
   markTerminalReady,
   resizeTerminal,
+  setTerminalVisible,
   writeTerminal,
 } from "./actions";
 
@@ -294,6 +295,40 @@ describe("a terminal's output", () => {
     expect(pty.resume).not.toHaveBeenCalled();
     acknowledgeTerminalOutput(id, 1_000);
     expect(pty.resume).toHaveBeenCalled();
+  });
+
+  it("holds a hidden shell's output for 250 ms, and sends it once the shell shows", async () => {
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+    setTerminalVisible(id, false);
+
+    output("a");
+    output("b");
+    vi.advanceTimersByTime(249);
+    expect(sent()).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(sent()).toEqual(["ab"]);
+
+    output("c");
+    vi.advanceTimersByTime(100);
+    setTerminalVisible(id, true);
+    expect(sent()).toEqual(["ab", "c"]);
+
+    vi.advanceTimersByTime(5);
+    output("d");
+    expect(sent()).toEqual(["ab", "c", "d"]);
+  });
+
+  it("sends a hidden shell's output early once it holds 100,000 characters", async () => {
+    const { id } = await createTerminal();
+    markTerminalReady(id);
+    setTerminalVisible(id, false);
+
+    const chunk = "x".repeat(1_000);
+    for (let i = 0; i < 99; i++) output(chunk);
+    expect(sent()).toEqual([]);
+    output(chunk);
+    expect(sent()).toEqual(["x".repeat(100_000)]);
   });
 
   // node-pty closes a pty 200 ms after its shell exits, read or not.

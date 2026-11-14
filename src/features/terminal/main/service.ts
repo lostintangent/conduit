@@ -8,6 +8,7 @@ import {
   killTerminal,
   markTerminalReady,
   resizeTerminal,
+  setTerminalVisible,
   writeTerminal,
 } from "./store/actions";
 
@@ -24,6 +25,9 @@ const service = {
 
   /** The renderer has parsed this much output, which can resume a paused shell. */
   ack: acknowledgeTerminalOutput,
+
+  /** Output for a shell no pane shows is sent less often. */
+  setVisible: setTerminalVisible,
 
   resize: resizeTerminal,
 

@@ -12,6 +12,10 @@ export type TerminalInstance = {
   exitCheck?: NodeJS.Timeout;
   /** The shell exited, so the rest of its output is read without pausing. */
   hasExited?: boolean;
+  /** No pane shows this shell, so its output waits longer. */
+  isHidden?: boolean;
+  /** Sends the output that's waiting now. */
+  flushOutput?: () => void;
   cwd: string;
 
   // A restored command, typed at the shell's first prompt
