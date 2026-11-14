@@ -210,38 +210,68 @@ describe("terminal and CLI", () => {
     git(repo, "commit", "-qm", "init");
     fs.appendFileSync(path.join(repo, "a.txt"), "b\n");
 
-    const stats = () =>
-      app.page
-        .getByRole("tabpanel")
-        .filter({ visible: true })
-        .getByRole("button", { name: /\+1/ });
-    const selected = (title: string) =>
-      app.page
-        .getByRole("tab", { name: new RegExp(title), selected: true })
-        .waitFor();
+    const tab = (title: string) =>
+      app.page.getByRole("tab", { name: new RegExp(title), selected: true });
     const shortcut = async (title: string) => {
       const names = await tabs().allTextContents();
       return `Meta+${names.findIndex((name) => name.includes(title)) + 1}`;
     };
+    const stats = () =>
+      app.page
+        .getByRole("tabpanel")
+        .filter({ visible: true })
+        .getByRole("button", { name: /\+\d/ });
 
-    await (await app.terminal()).type("conduit tab-new --title E2E-STATS-A\n");
-    await selected("E2E-STATS-A");
-    const first = await app.terminal();
-    expect(await first.run(`cd ${repo}`)).toBe(0);
-    await stats().waitFor();
-    await first.type("conduit tab-new --title E2E-STATS-B\n");
-    await selected("E2E-STATS-B");
+    await (await app.terminal()).type("conduit tab-new --title E2E-AWAY\n");
+    await tab("E2E-AWAY").waitFor();
+    await (await app.terminal()).type("conduit tab-new --title E2E-STATS\n");
+    await tab("E2E-STATS").waitFor();
+    expect(await (await app.terminal()).run(`cd ${repo}`)).toBe(0);
     await stats().waitFor();
 
-    // Neither tab holds the repo's watchers once both have been hidden, and
-    // the pool releases them 5s later.
-    await app.page.keyboard.press(await shortcut("E2E-STATS-A"));
-    await selected("E2E-STATS-A");
-    const showB = await shortcut("E2E-STATS-B");
-    await new Promise((resolve) => setTimeout(resolve, 6_500));
-    await app.page.keyboard.press(showB);
+    const ours = await app.page.evaluate(async (cwd) => {
+      const scope = window as unknown as {
+        conduit: Watching;
+        notified: string[];
+      };
+      scope.notified = [];
+      scope.conduit.git.on("statusChanged", ({ subscriptionId }) =>
+        scope.notified.push(subscriptionId),
+      );
+      return scope.conduit.git.subscribe(cwd);
+    }, repo);
+    // Main tells a repo's subscriptions of a change oldest first, so once ours
+    // hears of one, every other subscription to the repo has too.
+    let changes = 0;
+    const othersNotified = async () => {
+      await app.page.evaluate(() => {
+        (window as unknown as { notified: string[] }).notified = [];
+      });
+      fs.writeFileSync(path.join(repo, `change-${++changes}.txt`), "");
+      return until(async () => {
+        const ids = await app.page.evaluate(
+          () => (window as unknown as { notified: string[] }).notified,
+        );
+        return ids.includes(ours!) && ids.filter((id) => id !== ours);
+      }, "our subscription to see a change");
+    };
     await until(
-      async () => app.pageErrors.length > 0 || (await stats().isVisible()),
+      async () => (await othersNotified()).length > 0,
+      "the tab's subscription to see a change",
+    );
+
+    await app.page.keyboard.press(await shortcut("E2E-AWAY"));
+    await tab("E2E-AWAY").waitFor();
+    await until(
+      async () => (await othersNotified()).length === 0,
+      "the hidden tab's subscription to be released",
+    );
+
+    await app.page.keyboard.press(await shortcut("E2E-STATS"));
+    await until(
+      async () =>
+        app.pageErrors.length > 0 ||
+        ((await tab("E2E-STATS").isVisible()) && (await stats().isVisible())),
       "the shown tab's git stats, or a page error",
     );
     expect(app.pageErrors).toEqual([]);
