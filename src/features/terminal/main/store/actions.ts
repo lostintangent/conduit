@@ -331,8 +331,10 @@ export async function killTerminal(terminalId: string) {
 
   removeTerminal(terminalId);
 
+  // Closing the pty hangs up its shell, like closing a terminal window, and
+  // fails its writes, so a paused shell doesn't wait on a pane that's gone.
   try {
-    terminal.pty.kill();
+    terminal.pty.destroy();
   } catch (error) {
     console.error("Failed to terminate PTY session", error);
   }

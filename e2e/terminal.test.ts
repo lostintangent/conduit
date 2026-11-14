@@ -37,6 +37,11 @@ interface Output {
   onScreen?: boolean;
 }
 
+/** The part of the window's API that closes a pane's shell. */
+interface Closing {
+  conduit: { terminal: { close(sessionId: string): Promise<void> } };
+}
+
 describe("terminal and CLI", () => {
   let app: Conduit;
   let terminal: Terminal;
@@ -117,6 +122,33 @@ describe("terminal and CLI", () => {
       expect((await recorded()).join("")).toContain(`E2E-TAIL-${where}\r\n`);
     });
   }
+
+  it("ends a paused shell when its pane closes", async () => {
+    await terminal.type("conduit tab-new --title E2E-CLOSE-PAUSED\n");
+    const tab = app.page.getByRole("tab", { name: /E2E-CLOSE-PAUSED/ });
+    await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
+    const shell = await app.terminal();
+    const ids = path.join(app.home, "paused-shell");
+    await shell.type(
+      `echo $CONDUIT_SESSION_ID $$ > ${ids}; sleep 1; yes 0123456789\n`,
+    );
+    const [sessionId, pid] = await until(
+      async () => fs.readFileSync(ids, "utf8").trim().split(" "),
+      "the shell's session and pid",
+    );
+    // A busy page parses nothing, so its shell pauses, and the pane closes
+    // before the page catches up.
+    await app.page.evaluate(async (sessionId) => {
+      const end = Date.now() + 3_000;
+      while (Date.now() < end) continue;
+      await (window as unknown as Closing).conduit.terminal.close(sessionId);
+    }, sessionId);
+    await until(
+      () => !isRunning(Number(pid)),
+      "the paused shell to end",
+      5_000,
+    );
+  });
 
   it("holds a hidden tab's output for a moment, and not a shown tab's", async () => {
     await recordOutput();

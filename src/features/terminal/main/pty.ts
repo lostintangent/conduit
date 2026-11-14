@@ -145,5 +145,7 @@ declare module "node-pty" {
   interface IPty {
     /** The shell's side of the pty, like /dev/ttys004. */
     readonly ptsName: string;
+    /** Closes the pty, then hangs up its shell. */
+    destroy(): void;
   }
 }
