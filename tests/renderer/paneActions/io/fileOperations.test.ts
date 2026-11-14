@@ -10,7 +10,7 @@ import {
   writePaneActionsFile,
 } from "@/commands/paneActions/io/fileOperations";
 import { ValidationError } from "@/commands/paneActions/io/validation";
-import { mkdir, readFile, rm, writeFile } from "fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -20,9 +20,7 @@ describe("fileOperations", () => {
   let testFilePath: string;
 
   beforeEach(async () => {
-    // Create temporary directory for tests
-    testDir = join(tmpdir(), `pane-actions-test-${Date.now()}`);
-    await mkdir(testDir, { recursive: true });
+    testDir = await mkdtemp(join(tmpdir(), "pane-actions-test-"));
     testFilePath = join(testDir, "paneactions.json");
 
     // Mock window.conduit API with v2 file system API

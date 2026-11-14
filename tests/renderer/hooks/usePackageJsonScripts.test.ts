@@ -1,16 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock window.conduit BEFORE importing the hook - must be at module level
 const mockReadFile = vi.fn();
-(global as any).window = {
-  conduit: {
-    fs: {
-      readFile: mockReadFile,
-    },
+(window as any).conduit = {
+  fs: {
+    readFile: mockReadFile,
   },
 };
 
@@ -24,10 +22,7 @@ describe("usePackageJsonScripts", () => {
   it("should return null when no cwd provided", async () => {
     const { result } = renderHook(() => usePackageJsonScripts(undefined));
 
-    // Wait a bit for the effect to run
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.scripts).toBeUndefined();
     expect(result.current.packageJsonPath).toBeUndefined();
   });
@@ -56,10 +51,7 @@ describe("usePackageJsonScripts", () => {
       usePackageJsonScripts("/path/to/project"),
     );
 
-    // Wait for async operation
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.scripts).toEqual(mockPackageJson.scripts);
     expect(result.current.packageJsonPath).toBe(
       "/path/to/project/package.json",
@@ -87,9 +79,7 @@ describe("usePackageJsonScripts", () => {
       usePackageJsonScripts("/path/to/project/subdir"),
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.scripts).toEqual(mockPackageJson.scripts);
   });
 
@@ -101,9 +91,7 @@ describe("usePackageJsonScripts", () => {
       usePackageJsonScripts("/path/to/project"),
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.scripts).toBeUndefined();
     expect(result.current.packageJsonPath).toBeUndefined();
   });
@@ -122,9 +110,7 @@ describe("usePackageJsonScripts", () => {
       usePackageJsonScripts("/path/to/project"),
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.scripts).toBeUndefined();
   });
 
@@ -137,9 +123,7 @@ describe("usePackageJsonScripts", () => {
       usePackageJsonScripts("/path/to/project"),
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.scripts).toBeUndefined();
   });
 });
