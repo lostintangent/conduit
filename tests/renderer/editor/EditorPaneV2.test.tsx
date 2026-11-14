@@ -4,6 +4,7 @@ import { createQueryClient } from "@/query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { registerEditorHandlers } from "../../../src/renderer/commands/handlers";
 import { EditorPaneV2 } from "../../../src/renderer/components/panes/editor/EditorPaneV2";
 import { render as renderWithQuery } from "../queryRender";
 
@@ -16,6 +17,10 @@ function render(ui, options) {
 }
 const reportStatus = (status) =>
   act(async () => applyGitStatus(queryClient, mockGit.cwd, status));
+
+// Runs an editor command (like Cmd+B) as the command system does
+const runEditorCommand = (name) =>
+  act(() => registerEditorHandlers.mock.calls.at(-1)[1][name]());
 
 // ============================================================================
 // Mocks
@@ -134,9 +139,19 @@ vi.mock(
       onReviewChanges,
       onViewCommit,
       onCommitFileSelect,
+      onToggleCollapse,
+      showCollapseButton,
     }) => (
       <div data-testid="mock-file-tree-panel">
         <span data-testid="tree-cwd">{cwd}</span>
+        {showCollapseButton && (
+          <button
+            data-testid="collapse-toggle-button"
+            onClick={onToggleCollapse}
+          >
+            Collapse
+          </button>
+        )}
         <button data-testid="review-changes-button" onClick={onReviewChanges}>
           Review
         </button>
@@ -568,6 +583,69 @@ describe("EditorPaneV2", () => {
       expect(treeContainer.classList.contains("hidden")).toBe(false);
       expect(editorContainer.classList.contains("hidden")).toBe(true);
     });
+    it("should show the tree in split mode when the open file goes away while it's collapsed", async () => {
+      const modified = { path: "test.ts", status: "modified", staged: false };
+      const dirty = { files: new Map([["test.ts", modified]]), branch: "main" };
+      const clean = { files: new Map(), branch: "main" };
+      mockGit.getStatus.mockResolvedValue(dirty);
+
+      render(<EditorPaneV2 pane={{ ...TEST_PANE, treeMode: "changes" }} />);
+      await reportStatus(dirty);
+      const treeContainer = screen.getByTestId("tree-container");
+
+      fireEvent.click(screen.getByTestId("select-changes-file-button"));
+      await waitFor(() => {
+        expect(screen.getByTestId("editor-file-path").textContent).toBe(
+          "/project/test.ts",
+        );
+      });
+      fireEvent.click(screen.getByTestId("collapse-toggle-button"));
+      expect(treeContainer.classList.contains("hidden")).toBe(true);
+
+      mockGit.getStatus.mockResolvedValue(clean);
+      await reportStatus(clean);
+
+      await waitFor(() => {
+        expect(treeContainer.classList.contains("hidden")).toBe(false);
+      });
+    });
+
+    it("should keep the tree in split mode while there's no file to show instead", async () => {
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      const treeContainer = screen.getByTestId("tree-container");
+
+      expect(screen.queryByTestId("collapse-toggle-button")).toBeNull();
+      await runEditorCommand("toggleSidebar");
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+
+      // Opening a file doesn't collapse a tree that the toggle above left
+      fireEvent.click(screen.getByTestId("select-file-button"));
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+    });
+
+    it("should toggle and reveal the tree in single mode", async () => {
+      mockLayout.mockReturnValue("single");
+
+      render(<EditorPaneV2 pane={TEST_PANE} />);
+      const treeContainer = screen.getByTestId("tree-container");
+      const editorContainer = screen.getByTestId("editor-container");
+      fireEvent.click(screen.getByTestId("select-file-button"));
+      await waitFor(() => {
+        expect(treeContainer.classList.contains("hidden")).toBe(true);
+      });
+
+      await runEditorCommand("toggleSidebar");
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(editorContainer.classList.contains("hidden")).toBe(true);
+
+      await runEditorCommand("toggleSidebar");
+      expect(treeContainer.classList.contains("hidden")).toBe(true);
+      expect(editorContainer.classList.contains("hidden")).toBe(false);
+
+      await runEditorCommand("revealActiveFile");
+      expect(treeContainer.classList.contains("hidden")).toBe(false);
+      expect(editorContainer.classList.contains("hidden")).toBe(true);
+    });
   });
 
   // ===========================================================================
@@ -677,6 +755,39 @@ describe("EditorPaneV2", () => {
 
       expect(document.activeElement).toBe(document.body);
     });
+  });
+
+  describe("focus in a split layout", () => {
+    it.each([
+      ["the collapse button", "collapse-toggle-button"],
+      ["Cmd+B", null],
+    ])(
+      "moves focus into the editor when %s collapses the tree it was in",
+      async (_, button) => {
+        render(<EditorPaneV2 pane={TEST_PANE} />);
+        const treeButton = screen.getByTestId("select-file-button");
+        treeButton.focus();
+        fireEvent.click(treeButton);
+        await waitFor(() => {
+          expect(screen.getByTestId("editor-input")).toBeDefined();
+        });
+        expect(document.activeElement).toBe(treeButton);
+
+        if (button) {
+          const collapse = screen.getByTestId(button);
+          collapse.focus();
+          fireEvent.click(collapse);
+        } else {
+          await runEditorCommand("toggleSidebar");
+        }
+
+        await waitFor(() => {
+          expect(document.activeElement).toBe(
+            screen.getByTestId("editor-input"),
+          );
+        });
+      },
+    );
   });
 
   // ===========================================================================

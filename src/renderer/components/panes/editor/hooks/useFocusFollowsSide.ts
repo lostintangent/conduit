@@ -7,14 +7,17 @@ export type PaneSide = "tree" | "editor";
 const SETTLE_MS = 1000;
 
 /**
- * A single layout shows the tree or the editor, not both. When it flips,
- * focus on the side that hid would fall to the body, so it moves to the side
- * that's showing: back to where it last was in the tree, or into the editor's
- * text once the file has loaded. The side itself holds focus until then, or
- * when it has nothing else to focus (e.g. a Markdown preview).
+ * A single layout shows the tree or the editor, not both, and a split layout
+ * can collapse its tree. When a side hides, focus on it would fall to the
+ * body, so it moves to the side that's showing: back to where it last was in
+ * the tree, or into the editor's text once the file has loaded. The side
+ * itself holds focus until then, or when it has nothing else to focus (e.g. a
+ * Markdown preview).
  *
  * Focus that wasn't on the side that hid is left alone, like in a terminal
  * where a commit clears the open file.
+ *
+ * @param side The only side showing, or null while both are
  */
 export function useFocusFollowsSide(
   side: PaneSide | null,
@@ -47,9 +50,10 @@ export function useFocusFollowsSide(
   }, [treeRef, editorRef]);
 
   useEffect(() => {
-    const hiddenSide = shownSide.current;
+    const previousSide = shownSide.current;
     shownSide.current = side;
-    if (!side || !hiddenSide || side === hiddenSide) return;
+    if (!side || side === previousSide) return;
+    const hiddenSide = side === "tree" ? "editor" : "tree";
     if (lastFocus.current.side !== hiddenSide) return;
 
     const hidden = (side === "tree" ? editorRef : treeRef).current;

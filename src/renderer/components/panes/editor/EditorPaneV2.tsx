@@ -365,6 +365,30 @@ export function EditorPaneV2({
   // Responsive layout detection
   const layout = useResponsiveLayout(containerRef);
 
+  // Reviews and commits fill the editor side without a file. Anything else
+  // without one is the empty state, which has no way back to the tree, so the
+  // tree shows instead, even when the pane is set to show only its editor side
+  // (a single layout's editor view, or a split layout's collapsed tree).
+  // hideFileTree overrides all of this to force editor-only mode.
+  const isEditorSideEmpty =
+    !selectedFile &&
+    viewMode.type !== "changesReview" &&
+    viewMode.type !== "commitReview" &&
+    viewMode.type !== "commitFileDiff";
+  const isEditorOnly =
+    layout === "single" ? panelView === "editor" : isTreeCollapsed;
+  const showTree = !hideFileTree && (!isEditorOnly || isEditorSideEmpty);
+  const showEditor = hideFileTree || layout === "split" || !showTree;
+
+  /** Shows or hides the tree, the way the pane's layout does */
+  const setTreeShown = useCallback(
+    (shown: boolean) => {
+      if (layout === "single") setPanelView(shown ? "tree" : "editor");
+      else setIsTreeCollapsed(!shown);
+    },
+    [layout],
+  );
+
   // ---------------------------------------------------------------------------
   // Prop → State Sync
   // ---------------------------------------------------------------------------
@@ -1050,12 +1074,12 @@ export function EditorPaneV2({
   }, []);
 
   /**
-   * Toggle tree panel collapsed state.
-   * Only effective in split layout mode.
+   * Toggle the tree. It stays while the editor side has nothing to show
+   * instead.
    */
   const handleToggleTree = useCallback(() => {
-    setIsTreeCollapsed((prev) => !prev);
-  }, []);
+    if (!isEditorSideEmpty) setTreeShown(!showTree);
+  }, [isEditorSideEmpty, setTreeShown, showTree]);
 
   /**
    * Handle toggling between diff and edit modes for git-modified files.
@@ -1404,15 +1428,13 @@ export function EditorPaneV2({
    */
   const handleRevealActiveFile = useCallback(() => {
     // Ensure tree is visible first
-    if (isTreeCollapsed) {
-      setIsTreeCollapsed(false);
-    }
+    setTreeShown(true);
 
     // Call the imperative method on the file tree
     requestAnimationFrame(() => {
       fileTreeRef.current?.revealActiveFile();
     });
-  }, [isTreeCollapsed]);
+  }, [setTreeShown]);
 
   // ---------------------------------------------------------------------------
   // Command Registration
@@ -1457,33 +1479,8 @@ export function EditorPaneV2({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedFile, onSave]);
 
-  // Reviews and commits fill the editor side without a file. Anything else
-  // without one is the empty state, which has no way back to the tree, so a
-  // single layout shows the tree instead, whatever cleared the file.
-  const isEditorSideEmpty =
-    !selectedFile &&
-    viewMode.type !== "changesReview" &&
-    viewMode.type !== "commitReview" &&
-    viewMode.type !== "commitFileDiff";
-
-  // Determine visibility for each panel
-  // In single layout: show based on panelView toggle
-  // In split layout: tree can be collapsed via keyboard shortcut
-  // hideFileTree prop overrides all other logic to force editor-only mode
-  const showSingleEditor = panelView === "editor" && !isEditorSideEmpty;
-  const showTree = hideFileTree
-    ? false
-    : layout === "single"
-      ? !showSingleEditor
-      : !isTreeCollapsed;
-  const showEditor = hideFileTree || layout === "split" || showSingleEditor;
-
   useFocusFollowsSide(
-    layout === "single" && !hideFileTree
-      ? showTree
-        ? "tree"
-        : "editor"
-      : null,
+    showTree && showEditor ? null : showTree ? "tree" : "editor",
     treePanelRef,
     editorPanelRef,
   );
@@ -1549,7 +1546,7 @@ export function EditorPaneV2({
             canNavigateUp={canNavigateUp}
             onNavigateUp={handleNavigateUp}
             onToggleCollapse={handleToggleTree}
-            showCollapseButton={layout === "split"}
+            showCollapseButton={layout === "split" && !isEditorSideEmpty}
             onDirectoryChange={handleDirectoryChange}
             // Changes View Mode Props
             changesViewMode={changesViewMode}
