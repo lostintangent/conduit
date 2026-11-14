@@ -26,10 +26,7 @@ import * as nodePath from "node:path";
 import { EventEmitter } from "../../shared/EventEmitter";
 import { DirectoryCache } from "./DirectoryCache";
 import { GitIgnoreCache } from "./GitIgnoreCache";
-import {
-  ParcelFileWatcher,
-  type ParcelFileWatcherOptions,
-} from "./ParcelFileWatcher";
+import { ParcelFileWatcher } from "./ParcelFileWatcher";
 import {
   ALWAYS_HIDDEN,
   type DeleteOptions,
@@ -172,13 +169,12 @@ export class DiskFileSystemProvider implements FileSystemProvider {
    * Create a new disk filesystem provider.
    *
    * @param cwd - The working directory to scope this provider to
-   * @param watcherOptions - Optional configuration for the file watcher
    */
-  constructor(cwd: string, watcherOptions?: ParcelFileWatcherOptions) {
+  constructor(cwd: string) {
     this.cwd = nodePath.resolve(cwd);
 
     // Initialize watcher and wire up events
-    this.watcher = new ParcelFileWatcher(this.cwd, watcherOptions);
+    this.watcher = new ParcelFileWatcher(this.cwd);
     this.setupWatcherEvents();
 
     // Eagerly initialize git root so watcher filtering works immediately
