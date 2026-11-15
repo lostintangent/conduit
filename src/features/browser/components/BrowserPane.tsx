@@ -1,4 +1,5 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
+import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import { getWebview } from "@features/browser/client/webview";
 import { activatePane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
@@ -18,7 +19,10 @@ import { useSelector } from "@tanstack/react-store";
 import { Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { shareAppKeys } from "./appKeys";
-import { BrowserToolbar } from "./toolbar/BrowserToolbar";
+import {
+  BrowserToolbar,
+  type BrowserToolbarHandle,
+} from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
 
 const { browser } = window.conduit;
@@ -114,6 +118,10 @@ export function BrowserPane({
 
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
+
+  const toolbarRef = useRef<BrowserToolbarHandle | null>(null);
+  // Cmd+L shows a hidden toolbar until focus leaves it
+  const [isToolbarRevealed, setIsToolbarRevealed] = useState(false);
 
   const [consoleErrors, setConsoleErrors] = useState<ConsoleMessage[]>([]);
   const [isDomReady, setIsDomReady] = useState<boolean>(false);
@@ -299,6 +307,26 @@ export function BrowserPane({
     if (document.activeElement === webviewRef.current) return;
     paneRef.current?.focus({ preventScroll: true });
   });
+
+  // A dev tools pane has no toolbar, so Cmd+L opens a page from it instead
+  useEffect(() => {
+    if (devToolsFor) return;
+    return registerBrowserPaneHandlers(paneId, {
+      focusAddressBar: () => {
+        if (toolbarRef.current) toolbarRef.current.focusAddressBar();
+        else setIsToolbarRevealed(true);
+      },
+    });
+  }, [paneId, devToolsFor]);
+
+  useEffect(() => {
+    if (isToolbarRevealed) toolbarRef.current?.focusAddressBar();
+  }, [isToolbarRevealed]);
+
+  const dismissRevealedToolbar = () => {
+    webviewRef.current?.focus();
+    setIsToolbarRevealed(false);
+  };
 
   // Once we have a new or existing webview, we need to hook
   // up the event listeners to it (e.g. navigation, title change, etc)
@@ -531,8 +559,9 @@ export function BrowserPane({
       tabIndex={-1}
       className="relative flex flex-col flex-1 w-full h-full min-w-0 min-h-0 bg-background outline-none"
     >
-      {!(chromeless || devToolsFor) && (
+      {!devToolsFor && (!chromeless || isToolbarRevealed) && (
         <BrowserToolbar
+          ref={toolbarRef}
           currentPage={{ url: currentUrl, title: pageTitle }}
           isLoading={isLoading}
           canGoBack={canGoBack}
@@ -542,14 +571,20 @@ export function BrowserPane({
           onRemoveConsoleError={(index) =>
             setConsoleErrors((prev) => prev.filter((_, i) => i !== index))
           }
-          onNavigate={(url) => webviewRef.current?.loadURL(url)}
+          onNavigate={(url) => {
+            webviewRef.current?.loadURL(url);
+            if (isToolbarRevealed) dismissRevealedToolbar();
+          }}
           onGoBack={() => webviewRef.current?.goBack()}
           onGoForward={() => webviewRef.current?.goForward()}
           onRefresh={() => webviewRef.current?.reload()}
           onStop={() => webviewRef.current?.stop()}
           isDevToolsOpen={isDevToolsOpen}
           onToggleDevTools={onToggleDevTools}
-          onHideToolbar={onHideToolbar}
+          onHideToolbar={() => {
+            setIsToolbarRevealed(false);
+            onHideToolbar();
+          }}
           onCaptureScreenshot={async () => {
             const webContentsId = webviewRef.current?.getWebContentsId();
             if (webContentsId === undefined) return;
@@ -557,6 +592,10 @@ export function BrowserPane({
           }}
           tabId={tabId}
           isInPreview={isInPreview}
+          onDismiss={isToolbarRevealed ? dismissRevealedToolbar : undefined}
+          onFocusLeave={
+            isToolbarRevealed ? () => setIsToolbarRevealed(false) : undefined
+          }
         />
       )}
 

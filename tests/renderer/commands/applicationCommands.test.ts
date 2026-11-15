@@ -17,6 +17,7 @@ import type { CommandDescriptor } from "@/commands/core/types";
 import { useKeybindingDispatch } from "@/commands/hooks/useKeybindingDispatch";
 import { KeybindingRegistry } from "@/commands/keybindings/KeybindingRegistry";
 import * as agentHandlers from "@features/agents/client/agentHandlers";
+import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import * as terminalHandlers from "@features/terminal/client/terminalHandlers";
 import * as focusModeActions from "@features/workbench/client/actions/focusMode";
 import { navigatePane } from "@features/workbench/client/actions/paneNavigation";
@@ -642,6 +643,26 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(mockContext.setIsUrlDialogOpen).toHaveBeenCalledWith(true);
+      });
+
+      it("should go to the address bar of an active browser pane", () => {
+        const command = registeredCommands.get(
+          ApplicationCommands.PANE_OPEN_WEB_PAGE,
+        )!;
+        const mockContext = commandContext({
+          activePaneId: "browser-pane",
+          setIsUrlDialogOpen: vi.fn(),
+        });
+        const focusAddressBar = vi.fn();
+        const unregister = registerBrowserPaneHandlers("browser-pane", {
+          focusAddressBar,
+        });
+
+        command.run(mockContext);
+        unregister();
+
+        expect(focusAddressBar).toHaveBeenCalled();
+        expect(mockContext.setIsUrlDialogOpen).not.toHaveBeenCalled();
       });
     });
   });

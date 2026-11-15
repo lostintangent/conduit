@@ -12,6 +12,7 @@ import {
   type PaneDescriptor,
 } from "@features/workbench/components/layout/quick/QuickPaneDialog";
 import { GlobalEditorContainer } from "@features/editor/components/GlobalEditorContainer";
+import { normalizeUrl } from "@features/browser/client/url";
 import {
   disposeSession,
   updateTerminalThemes,
@@ -427,7 +428,7 @@ export function App() {
       return;
     }
 
-    openBrowserPane(activeTab.id, activeTab.activePaneId, url);
+    openBrowserPane(activeTab.id, activeTab.activePaneId, normalizeUrl(url));
     setIsUrlDialogOpen(false);
   };
 
@@ -741,9 +742,11 @@ export function App() {
       <InputDialog
         isOpen={isUrlDialogOpen}
         onClose={() => setIsUrlDialogOpen(false)}
-        onSave={(url) => handleOpenWebPage(url.trim())}
-        title="Open URL"
-        placeholder="Enter URL to open..."
+        onSave={handleOpenWebPage}
+        title="Open Web Page"
+        placeholder="Enter a URL or search"
+        submitLabel="Open"
+        required
         initialValue=""
       />
 

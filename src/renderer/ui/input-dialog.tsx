@@ -14,6 +14,9 @@ type InputDialogProps = {
   onSave: (value: string) => void;
   title: string;
   placeholder: string;
+  submitLabel?: string;
+  /** Keeps the dialog from submitting until there's something in it */
+  required?: boolean;
 };
 
 export function InputDialog({
@@ -23,8 +26,11 @@ export function InputDialog({
   onSave,
   title,
   placeholder,
+  submitLabel = "Save",
+  required = false,
 }: InputDialogProps) {
   const [value, setValue] = useState(initialValue);
+  const isEmpty = required && value.trim().length === 0;
 
   useEffect(() => {
     if (isOpen) setValue(initialValue);
@@ -43,7 +49,7 @@ export function InputDialog({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            onSave(value);
+            if (!isEmpty) onSave(value);
           }}
         >
           <input
@@ -56,9 +62,10 @@ export function InputDialog({
           <DialogFooter className="mt-4">
             <button
               type="submit"
-              className="magic border-transparent rounded-lg py-1.5 px-3.5 text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105"
+              disabled={isEmpty}
+              className="magic border-transparent rounded-lg py-1.5 px-3.5 text-[0.9rem] cursor-pointer transition-[filter] duration-150 hover:brightness-105 disabled:pointer-events-none disabled:opacity-50"
             >
-              Save
+              {submitLabel}
             </button>
           </DialogFooter>
         </form>

@@ -14,6 +14,7 @@ import {
   openBrowserPane,
   updatePaneProperty,
 } from "@features/workbench/client/actions/pane";
+import { getBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import { getWebview } from "@features/browser/client/webview";
 import { ApplicationCommands } from "@shared/commands";
 
@@ -25,12 +26,16 @@ export default [
   {
     id: ApplicationCommands.PANE_OPEN_WEB_PAGE,
     title: "Open Web Page",
-    description: "Open a web page in a split view",
+    description:
+      "Go to the browser pane's address bar, or open a web page in a split view",
     category: "Pane",
     keybinding: { key: "Cmd+L" },
     when: hasActivePane.isTrue(),
     run: (context) => {
-      context.setIsUrlDialogOpen?.(true);
+      const browserPane =
+        context.activePaneId && getBrowserPaneHandlers(context.activePaneId);
+      if (browserPane) browserPane.focusAddressBar();
+      else context.setIsUrlDialogOpen?.(true);
     },
   },
 

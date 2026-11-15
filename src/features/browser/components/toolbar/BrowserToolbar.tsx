@@ -10,7 +10,13 @@ import { normalizeUrl } from "@features/browser/client/url";
 import type { BrowserPage } from "@features/settings/model";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { BrowserMenu } from "./BrowserMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
 import { StarredPagesMenu } from "./StarredPagesMenu";
@@ -34,6 +40,15 @@ type BrowserToolbarProps = {
   onCaptureScreenshot: () => Promise<void>;
   tabId?: string;
   isInPreview?: boolean;
+  /** Takes Escape once there's no dropdown left for it to close */
+  onDismiss?: () => void;
+  /** Called when focus leaves the toolbar and its menus */
+  onFocusLeave?: () => void;
+  ref?: Ref<BrowserToolbarHandle>;
+};
+
+export type BrowserToolbarHandle = {
+  focusAddressBar: () => void;
 };
 
 export function BrowserToolbar({
@@ -55,6 +70,9 @@ export function BrowserToolbar({
   onCaptureScreenshot,
   tabId,
   isInPreview = false,
+  onDismiss,
+  onFocusLeave,
+  ref,
 }: BrowserToolbarProps) {
   const urlHistory = useSettings((s) => s.urlHistory);
   const { mutate: addUrlToHistory } = useMutation(
@@ -68,6 +86,26 @@ export function BrowserToolbar({
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  const focusAddressBar = () => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  };
+  useImperativeHandle(ref, () => ({ focusAddressBar }), []);
+
+  // Focus moving into a menu's portal still bubbles through React to the
+  // toolbar, so a blur only counts if no focus inside follows it
+  const focusLeaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const handleToolbarBlur = () => {
+    if (!onFocusLeave) return;
+    focusLeaveTimerRef.current = setTimeout(() => {
+      // When the window loses focus, the toolbar keeps it
+      if (!toolbarRef.current?.contains(document.activeElement)) {
+        onFocusLeave();
+      }
+    });
+  };
 
   // Filter history based on input text. Show all of it when the input is
   // empty or "about:blank".
@@ -133,6 +171,8 @@ export function BrowserToolbar({
     if (e.key === "Escape") {
       if (showHistory) {
         closeDropdowns();
+      } else if (onDismiss) {
+        onDismiss();
       } else {
         // Clear the input if history isn't showing
         setInputUrl("");
@@ -217,8 +257,7 @@ export function BrowserToolbar({
     if (didAutoFocusRef.current || isInPreview) return;
     didAutoFocusRef.current = true;
     if (currentPage.url === "about:blank" || currentPage.url === "") {
-      inputRef.current?.focus();
-      inputRef.current?.select();
+      focusAddressBar();
 
       if (urlHistory.length > 0) {
         setShowHistory(true);
@@ -239,7 +278,12 @@ export function BrowserToolbar({
   }, [currentPage.url]);
 
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5 bg-elevated border-b">
+    <div
+      ref={toolbarRef}
+      className="flex items-center gap-1 px-2 py-1.5 bg-elevated border-b"
+      onBlur={handleToolbarBlur}
+      onFocus={() => clearTimeout(focusLeaveTimerRef.current)}
+    >
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

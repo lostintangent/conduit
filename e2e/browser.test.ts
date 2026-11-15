@@ -101,6 +101,50 @@ describe("browser automation from the CLI", () => {
       );
   }
 
+  /** The focused address bar's address, once all of it is selected. */
+  function selectedAddress(): Promise<string | null> {
+    return app.page.evaluate(() => {
+      const input = document.activeElement as HTMLInputElement | null;
+      if (input?.placeholder !== "Enter URL...") return null;
+      const all =
+        input.selectionStart === 0 && input.selectionEnd === input.value.length;
+      return all ? input.value : null;
+    });
+  }
+
+  /** How many address bars show the given address. */
+  function addressBars(address: string): Promise<number> {
+    return app.page
+      .getByPlaceholder("Enter URL...")
+      .evaluateAll(
+        (inputs, address) =>
+          inputs.filter(
+            (input) => (input as HTMLInputElement).value === address,
+          ).length,
+        address,
+      );
+  }
+
+  async function focusPage(index: number) {
+    await clickPage(index);
+    await until(
+      () => inPage(index, "document.hasFocus()"),
+      "the page to take focus",
+    );
+  }
+
+  async function runCommand(title: string) {
+    await app.page.keyboard.press("Meta+Shift+p");
+    const palette = app.page.getByTestId("command-palette");
+    await palette.getByRole("textbox").fill(`>${title}`);
+    await palette
+      .locator('[data-index="0"]')
+      .filter({ hasText: title })
+      .waitFor();
+    await app.page.keyboard.press("Enter");
+    await palette.waitFor({ state: "hidden" });
+  }
+
   /** The nth tab, once it's the selected one. */
   function selectedTab(index: number) {
     return app.page
@@ -359,6 +403,86 @@ describe("browser automation from the CLI", () => {
       expect(await inPage(0, `typed.join("")`)).toBe("Ada");
     });
   }
+
+  it("selects the page's address with Cmd+L", async () => {
+    await focusPage(0);
+    await app.page.keyboard.press("Meta+l");
+    expect(await until(selectedAddress, "the address to be selected")).toBe(
+      url,
+    );
+    await focusPage(0);
+  });
+
+  it("shows a hidden toolbar while Cmd+L has its address bar focused", async () => {
+    await focusPage(0);
+    await runCommand("Toggle Browser Toolbar");
+    await until(async () => (await addressBars(url)) === 0, "it to hide");
+
+    // Escape gives the page its focus back
+    await focusPage(0);
+    await app.page.keyboard.press("Meta+l");
+    expect(await until(selectedAddress, "the address to be selected")).toBe(
+      url,
+    );
+    await app.page.keyboard.press("Escape");
+    await until(async () => (await addressBars(url)) === 0, "it to hide");
+    await until(
+      () => inPage(0, "document.hasFocus()"),
+      "the page to take focus",
+    );
+
+    await app.page.keyboard.press("Meta+l");
+    await until(selectedAddress, "the address to be selected");
+    await focusPage(0);
+    await until(async () => (await addressBars(url)) === 0, "it to hide");
+
+    await app.page.keyboard.press("Meta+l");
+    await until(selectedAddress, "the address to be selected");
+    requested.length = 0;
+    await app.page.keyboard.type(`${url}typed`);
+    await app.page.keyboard.press("Enter");
+    await until(() => requested.includes("/typed"), "the page to load");
+    await until(
+      async () => (await addressBars(`${url}typed`)) === 0,
+      "it to hide",
+    );
+    await until(
+      () => inPage(0, "document.hasFocus()"),
+      "the page to take focus",
+    );
+
+    const panes = await conduit<Pane[]>("pane-list -t browser");
+    const pane = panes.find((candidate) => candidate.url === `${url}typed`);
+    expect(
+      await terminal.run(`conduit browser-navigate -p ${pane!.id} ${url}`),
+    ).toBe(0);
+    await runCommand("Toggle Browser Toolbar");
+    await until(async () => (await addressBars(url)) === 1, "it to show");
+  });
+
+  it("opens a web page from a terminal with Cmd+L", async () => {
+    await terminal.locator.click();
+    await expectActivePane("terminal");
+    await app.page.keyboard.press("Meta+l");
+    const dialog = app.page.getByRole("dialog", { name: "Open Web Page" });
+    const open = dialog.getByRole("button", { name: "Open", exact: true });
+    await open.waitFor();
+    expect(await open.isDisabled()).toBe(true);
+
+    // Without a scheme, a local address opens over http
+    const address = url.replace("127.0.0.1", "localhost");
+    await dialog
+      .getByPlaceholder("Enter a URL or search")
+      .fill(`${address.slice("http://".length)}dialog`);
+    expect(await open.isDisabled()).toBe(false);
+    await app.page.keyboard.press("Enter");
+    await dialog.waitFor({ state: "hidden" });
+    await expectActivePane(`${address}dialog`);
+
+    const panes = await conduit<Pane[]>("pane-list -t browser");
+    const pane = panes.find((candidate) => candidate.url.endsWith("/dialog"));
+    expect(await terminal.run(`conduit pane-close -p ${pane!.id}`)).toBe(0);
+  });
 
   it("leaves a page its editing keys and the keys the app isn't using", async () => {
     await clickPage(0);
