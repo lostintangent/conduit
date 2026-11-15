@@ -2,6 +2,8 @@ import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import {
   getWebview,
+  loadFailures,
+  loadPage,
   takePageFocus,
   takePageRestore,
 } from "@features/browser/client/webview";
@@ -14,6 +16,7 @@ import {
 } from "@features/browser/client/previewScaling";
 import type {
   ContextMenuParams,
+  DidFailLoadEvent,
   DidNavigateEvent,
   DidNavigateInPageEvent,
   IpcMessageEvent,
@@ -24,6 +27,7 @@ import { useSelector } from "@tanstack/react-store";
 import { Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { shareAppKeys } from "./appKeys";
+import { ErrorPage } from "./ErrorPage";
 import {
   BrowserToolbar,
   type BrowserToolbarHandle,
@@ -129,12 +133,18 @@ export function BrowserPane({
   // Without anywhere to open a new tab, the page loads it in place
   const openPage = useEffectEvent((url: string, background: boolean) => {
     if (onOpenPage) onOpenPage(url, background);
-    else webviewRef.current?.loadURL(url);
+    else if (webviewRef.current) loadPage(webviewRef.current, url);
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
   const [pageTitle, setPageTitle] = useState<string>("");
+  // A page that didn't load still says why when its pane comes back to it
+  const [loadFailure, setLoadFailure] = useState(() => {
+    const webview = getWebview(paneId);
+    const failure = webview && loadFailures.get(webview);
+    return failure && failure.url === webview.getURL() ? failure : undefined;
+  });
 
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
@@ -343,6 +353,25 @@ export function BrowserPane({
     }
   });
 
+  // The pane says why its page didn't load in the page's place
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!webview || !loadFailure) return;
+
+    webview.style.visibility = "hidden";
+    return () => {
+      webview.style.visibility = "";
+      // Focus that left with the message goes to the page in its place
+      if (
+        webviewRef.current === webview &&
+        document.activeElement === document.body
+      ) {
+        webview.focus();
+        focusedOutside(webview);
+      }
+    };
+  }, [loadFailure, isInPreview, tabId, focusedOutside]);
+
   // A dev tools pane has no toolbar, so Cmd+L opens a page from it instead
   useEffect(() => {
     if (devToolsFor) return;
@@ -403,8 +432,31 @@ export function BrowserPane({
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
 
+      loadFailures.delete(webview);
+      setLoadFailure(undefined);
       setConsoleErrors([]);
       onUrlChangeRef.current(url);
+    };
+
+    // A stopped load leaves the page as it was, and a frame in the page that
+    // didn't load leaves the page to say so
+    const handleDidFailLoad = ({
+      errorCode,
+      errorDescription,
+      validatedURL,
+      isMainFrame,
+    }: DidFailLoadEvent) => {
+      if (!isMainFrame || errorCode === -3) return;
+
+      const failure = {
+        code: errorCode,
+        name: errorDescription,
+        url: validatedURL,
+      };
+      loadFailures.set(webview, failure);
+      setLoadFailure(failure);
+      setCurrentUrl(validatedURL);
+      onUrlChangeRef.current(validatedURL);
     };
 
     // A frame in the page moving within itself leaves the page where it was
@@ -520,6 +572,7 @@ export function BrowserPane({
 
     webview.addEventListener("did-navigate", handleDidNavigate);
     webview.addEventListener("did-navigate-in-page", handleDidNavigateInPage);
+    webview.addEventListener("did-fail-load", handleDidFailLoad);
 
     webview.addEventListener("page-title-updated", notifyTitleChange);
     webview.addEventListener("context-menu", handleWebViewContextMenu);
@@ -549,6 +602,7 @@ export function BrowserPane({
         "did-navigate-in-page",
         handleDidNavigateInPage,
       );
+      webview.removeEventListener("did-fail-load", handleDidFailLoad);
 
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
@@ -605,7 +659,7 @@ export function BrowserPane({
             setConsoleErrors((prev) => prev.filter((_, i) => i !== index))
           }
           onNavigate={(url) => {
-            webviewRef.current?.loadURL(url);
+            if (webviewRef.current) loadPage(webviewRef.current, url);
             if (isToolbarRevealed) dismissRevealedToolbar();
           }}
           onGoBack={() => webviewRef.current?.goBack()}
@@ -639,7 +693,13 @@ export function BrowserPane({
           className="absolute inset-0 pointer-events-none"
           aria-hidden
         />
-        {isLoading && (
+        {loadFailure && (
+          <ErrorPage
+            failure={loadFailure}
+            onTryAgain={() => webviewRef.current?.reload()}
+          />
+        )}
+        {isLoading && !loadFailure && (
           <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/20">
             <Loader2 className="h-8 w-8 text-white/80 animate-spin" />
           </div>

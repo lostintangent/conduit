@@ -11,21 +11,31 @@ describe("the browser's address bar", () => {
   let app: Conduit;
   let terminal: Terminal;
 
-  beforeAll(async () => {
-    server = http.createServer((request, response) => {
-      response.writeHead(200, { "content-type": "text/html" });
-      if (request.url === "/framed") {
-        response.end(
-          `<!doctype html><title>Framed</title><iframe src="/frame"></iframe>`,
-        );
-      } else {
-        // A frame that moves within itself, as embedded players do
-        response.end(`<!doctype html><script>location.hash = "moved"</script>`);
-      }
-    });
+  const servePage: http.RequestListener = (request, response) => {
+    response.writeHead(200, { "content-type": "text/html" });
+    if (request.url === "/framed") {
+      response.end(
+        `<!doctype html><title>Framed</title><iframe src="/frame"></iframe>`,
+      );
+    } else if (request.url === "/frame") {
+      // A frame that moves within itself, as embedded players do
+      response.end(`<!doctype html><script>location.hash = "moved"</script>`);
+    } else {
+      response.end(`<!doctype html><title>Page</title>`);
+    }
+  };
+
+  /** Starts a server for the pages, on the port if it's given. */
+  async function startServer(port = 0) {
+    const started = http.createServer(servePage);
     await new Promise<void>((resolve) =>
-      server.listen(0, "127.0.0.1", resolve),
+      started.listen(port, "127.0.0.1", resolve),
     );
+    return started;
+  }
+
+  beforeAll(async () => {
+    server = await startServer();
     origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     app = await launch({ name: "browser-address" });
     terminal = await app.terminal();
@@ -80,6 +90,99 @@ describe("the browser's address bar", () => {
     expect(await conduit("pane-list -t browser")).toEqual([
       expect.objectContaining({ url: `${origin}/framed` }),
     ]);
+  });
+
+  const back = () => app.page.getByRole("button", { name: "Back" });
+  const headline = () => app.page.getByRole("heading");
+
+  it("says why a page didn't load in its place, and keeps the address", async () => {
+    await waitForPageEvent("did-fail-load", async () => {
+      await address().click();
+      await address().fill("conduit-e2e.invalid");
+      await address().press("Enter");
+    });
+
+    await expect(headline().textContent()).resolves.toBe(
+      "Can't Find the Server",
+    );
+    await app.page
+      .getByText("Conduit can't find conduit-e2e.invalid.")
+      .waitFor();
+    await app.page.getByText("ERR_NAME_NOT_RESOLVED").waitFor();
+    expect(await address().inputValue()).toBe("https://conduit-e2e.invalid/");
+    expect(await back().isEnabled()).toBe(true);
+  });
+
+  it("goes back from a page that didn't load", async () => {
+    await waitForPageEvent("did-navigate", () => back().click());
+
+    await headline().waitFor({ state: "detached" });
+    expect(await address().inputValue()).toBe(`${origin}/framed`);
+  });
+
+  /** A port that nothing answers on, until a test starts a server there */
+  async function deadPort() {
+    const dead = await startServer();
+    const { port } = dead.address() as AddressInfo;
+    await new Promise((resolve) => dead.close(resolve));
+    return port;
+  }
+
+  it("tries a page again once something answers at its address, and gives it the keys back", async () => {
+    // Like a dev server that hasn't started yet
+    const port = await deadPort();
+    await waitForPageEvent("did-fail-load", async () => {
+      await address().click();
+      await address().fill(`127.0.0.1:${port}/page`);
+      await address().press("Enter");
+    });
+    await expect(headline().textContent()).resolves.toBe(
+      "Can't Connect to the Server",
+    );
+    await app.page
+      .getByText(`Conduit can't connect to 127.0.0.1:${port}.`)
+      .waitFor();
+
+    const revived = await startServer(port);
+    try {
+      await waitForPageEvent("did-navigate", () =>
+        app.page.getByRole("button", { name: "Try Again" }).click(),
+      );
+
+      await headline().waitFor({ state: "detached" });
+      expect(
+        await webview().evaluate(
+          (webview: HTMLElement) => getComputedStyle(webview).visibility,
+        ),
+      ).toBe("visible");
+      const hasKeys = (tag: string) => async () =>
+        (await app.page.evaluate(() => document.activeElement?.tagName)) ===
+        tag;
+      expect(await hasKeys("WEBVIEW")()).toBe(true);
+      // And keeps them as the user moves away from its pane and back
+      await app.page.keyboard.press("Meta+Alt+ArrowLeft");
+      await until(hasKeys("TEXTAREA"), "the terminal to have the keys");
+      await app.page.keyboard.press("Meta+Alt+ArrowRight");
+      await until(hasKeys("WEBVIEW"), "the page to have the keys again");
+      expect(await conduit("pane-list -t browser")).toEqual([
+        expect.objectContaining({ url: `http://127.0.0.1:${port}/page` }),
+      ]);
+    } finally {
+      revived.close();
+    }
+  });
+
+  it("says why a page the CLI opened didn't load", async () => {
+    const port = await deadPort();
+    await waitForPageEvent("did-fail-load", async () => {
+      expect(
+        await terminal.run(`conduit browser-navigate 127.0.0.1:${port}`),
+      ).toBe(0);
+    });
+
+    await app.page
+      .getByText(`Conduit can't connect to 127.0.0.1:${port}.`)
+      .waitFor();
   });
 
   it("had no uncaught errors or failed loads", () => {

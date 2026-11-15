@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { requestNewPage } = vi.hoisted(() => {
@@ -72,7 +72,8 @@ describe("BrowserPane", () => {
       getURL: () => "https://example.com",
       getWebContentsId: () => 7,
       isLoading: () => false,
-      loadURL: vi.fn(),
+      loadURL: vi.fn(async () => {}),
+      reload: vi.fn(),
     });
     document.body.append(webview);
     // On screen, so a preview keeps following its position every frame
@@ -247,5 +248,111 @@ describe("BrowserPane", () => {
     });
 
     expect((webview as any).loadURL).toHaveBeenCalledWith("https://docs.com");
+  });
+
+  /** Has the page fail to load, the way Chromium reports it */
+  const failLoad = (
+    errorCode: number,
+    errorDescription = "ERR_NAME_NOT_RESOLVED",
+    isMainFrame = true,
+  ) =>
+    act(() => {
+      webview.dispatchEvent(
+        Object.assign(new Event("did-fail-load"), {
+          errorCode,
+          errorDescription,
+          validatedURL: "https://nowhere.example/docs",
+          isMainFrame,
+        }),
+      );
+    });
+
+  it("says why its page didn't load in its place, and keeps the address", () => {
+    render(browserPane(false, true));
+
+    failLoad(-105);
+
+    screen.getByRole("heading", { name: "Can't Find the Server" });
+    screen.getByText(
+      (_, element) =>
+        element?.textContent === "Conduit can't find nowhere.example.",
+    );
+    screen.getByText("ERR_NAME_NOT_RESOLVED");
+    expect(webview.style.visibility).toBe("hidden");
+    expect(
+      screen.getByPlaceholderText("Search or enter address"),
+    ).toHaveProperty("value", "nowhere.example/docs");
+  });
+
+  it("names the failure", () => {
+    render(browserPane(false, true));
+    const headline = (errorCode: number) => {
+      failLoad(errorCode);
+      return screen.getByRole("heading").textContent;
+    };
+
+    expect(headline(-102)).toBe("Can't Connect to the Server");
+    expect(headline(-109)).toBe("Can't Connect to the Server");
+    expect(headline(-106)).toBe("You're Not Connected to the Internet");
+    expect(headline(-118)).toBe("The Server Took Too Long to Respond");
+    expect(headline(-310)).toBe("Can't Open This Page");
+  });
+
+  it("leaves out a load that was stopped, and a frame in the page that didn't load", () => {
+    render(browserPane(false, true));
+
+    failLoad(-3, "ERR_ABORTED");
+    failLoad(-105, "ERR_NAME_NOT_RESOLVED", false);
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(webview.style.visibility).toBe("");
+  });
+
+  it("tries the page again without dimming the message, and shows the page once it loads", () => {
+    render(browserPane(false, true));
+    failLoad(-102, "ERR_CONNECTION_REFUSED");
+
+    fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
+    act(() => {
+      webview.dispatchEvent(new Event("did-start-loading"));
+    });
+
+    expect((webview as any).reload).toHaveBeenCalled();
+    expect(document.querySelector(".animate-spin")).toBeNull();
+
+    act(() => {
+      webview.dispatchEvent(
+        Object.assign(new Event("did-navigate"), {
+          url: "https://nowhere.example/docs",
+        }),
+      );
+    });
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(webview.style.visibility).toBe("");
+  });
+
+  it("still says why its page didn't load when its tab shows again", () => {
+    const { unmount } = render(browserPane(false, true));
+    failLoad(-105);
+    unmount();
+    Object.assign(webview, { getURL: () => "https://nowhere.example/docs" });
+
+    render(browserPane(false, true));
+
+    screen.getByRole("heading", { name: "Can't Find the Server" });
+    expect(webview.style.visibility).toBe("hidden");
+  });
+
+  it("shows its page when the page moved on while its tab was hidden", () => {
+    const { unmount } = render(browserPane(false, true));
+    failLoad(-105);
+    unmount();
+    Object.assign(webview, { getURL: () => "https://example.com/" });
+
+    render(browserPane(false, true));
+
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(webview.style.visibility).toBe("");
   });
 });

@@ -1,5 +1,5 @@
 import { normalizeUrl } from "@features/browser/client/url";
-import { getWebview } from "@features/browser/client/webview";
+import { getWebview, loadPage } from "@features/browser/client/webview";
 import {
   BROWSER_AUTOMATION_COMMANDS,
   type BrowserAutomationAction,
@@ -122,7 +122,7 @@ export default {
 
   "browser-navigate": (args, context) => {
     const webview = resolveBrowserPane(context, args?.paneId);
-    webview.loadURL(normalizeUrl(args.url));
+    loadPage(webview, normalizeUrl(args.url));
   },
 
   "browser-back": (args, context) => {
