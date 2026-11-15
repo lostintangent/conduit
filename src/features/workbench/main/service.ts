@@ -1,5 +1,5 @@
 import type { ContextMenuOptions } from "@shared/commands";
-import { type BrowserWindow, clipboard, dialog, shell } from "electron";
+import { type BrowserWindow, clipboard, dialog, screen, shell } from "electron";
 import { setTimeout as delay } from "node:timers/promises";
 import { reloadedAfterCrashLoop } from "../../../main/crashRecovery";
 import { emitter, getAppWindow } from "../../../main/events";
@@ -47,6 +47,19 @@ const service = {
 };
 
 let pageOpened: (() => void) | undefined;
+
+/**
+ * The window's size, made to fit the screen's work area. macOS only shrinks a
+ * window that's too big as it shows it, and `showWhenOpened` keeps it hidden
+ * until its first shells have started at their panes' sizes.
+ */
+export function fitScreen(width: number, height: number) {
+  const workArea = screen.getPrimaryDisplay().workAreaSize;
+  return {
+    width: Math.min(width, workArea.width),
+    height: Math.min(height, workArea.height),
+  };
+}
 
 /**
  * Shows the window once its page has painted the tabs it opens with, so it

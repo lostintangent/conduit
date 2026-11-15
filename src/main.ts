@@ -9,6 +9,7 @@ import {
 } from "./main/index";
 import { reloadAfterCrashes } from "./main/crashRecovery";
 import {
+  fitScreen,
   pageSavedBeforeClose,
   showWhenOpened,
 } from "@features/workbench/main/service";
@@ -55,8 +56,7 @@ hydrateEnvFromLoginShell();
 
 async function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1024,
-    height: 768,
+    ...fitScreen(1024, 768),
     // hiddenInset keeps the traffic lights inside the custom titlebar area
     titleBarStyle: "hiddenInset",
     webPreferences: {

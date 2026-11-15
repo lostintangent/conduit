@@ -3,7 +3,13 @@ import type { BrowserWindow } from "electron";
 import { describe, expect, it, vi } from "vitest";
 
 const emit = vi.fn();
-vi.mock("electron", () => ({ clipboard: {}, dialog: {}, shell: {} }));
+const workAreaSize = { width: 1920, height: 1055 };
+vi.mock("electron", () => ({
+  clipboard: {},
+  dialog: {},
+  shell: {},
+  screen: { getPrimaryDisplay: () => ({ workAreaSize }) },
+}));
 vi.mock("../../../main/events", () => ({
   emitter: () => emit,
   getAppWindow: () => undefined,
@@ -12,6 +18,7 @@ vi.mock("../../../main/events", () => ({
 const {
   default: service,
   pageSavedBeforeClose,
+  fitScreen,
   showWhenOpened,
 } = await import("./service");
 
@@ -24,6 +31,19 @@ function hiddenWindow() {
 
 /** Lets the promises already resolved run their callbacks. */
 const settle = () => new Promise(setImmediate);
+
+describe("sizing the window", () => {
+  it("keeps its size on a screen it fits", () => {
+    expect(fitScreen(1024, 768)).toEqual({ width: 1024, height: 768 });
+  });
+
+  // macOS only shrinks a window too big for the screen when it shows it, by
+  // when the hidden window's first shell has started at the bigger size.
+  it("fits it in the screen's work area", () => {
+    Object.assign(workAreaSize, { width: 1024, height: 675 });
+    expect(fitScreen(1024, 768)).toEqual({ width: 1024, height: 675 });
+  });
+});
 
 describe("showing the window", () => {
   it("waits for the page to paint the tabs it opens with", async () => {
