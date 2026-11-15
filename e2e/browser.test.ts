@@ -110,6 +110,36 @@ describe("browser automation from the CLI", () => {
       );
   }
 
+  /**
+   * Presses Cmd and the key, which navigate the nth page, and lets go once
+   * the new page has arrived. A navigation gives the page a new frame, and the
+   * old one never acknowledges a key let go as it's replaced, so a whole press
+   * would wait for that forever.
+   */
+  async function navigateWith(index: number, key: string) {
+    const webview = app.page.locator("webview").nth(index);
+    await webview.evaluate((webview: Electron.WebviewTag) => {
+      webview.dataset.navigated = "false";
+      const navigated = () => {
+        webview.dataset.navigated = "true";
+        webview.removeEventListener("did-navigate", navigated);
+      };
+      webview.addEventListener("did-navigate", navigated);
+    });
+    await app.page.keyboard.down("Meta");
+    await app.page.keyboard.down(key);
+    await until(
+      () =>
+        webview.evaluate(
+          (webview: Electron.WebviewTag) =>
+            webview.dataset.navigated === "true",
+        ),
+      "the page to navigate",
+    );
+    await app.page.keyboard.up(key);
+    await app.page.keyboard.up("Meta");
+  }
+
   /** The focused address bar's address, once all of it is selected. */
   function selectedAddress(): Promise<string | null> {
     return app.page.evaluate(() => {
@@ -561,14 +591,14 @@ describe("browser automation from the CLI", () => {
     await expectActivePane(`${url}forward`);
     await pageFocused();
 
-    await app.page.keyboard.press("Meta+BracketLeft");
+    await navigateWith(0, "BracketLeft");
     await expectActivePane(`${url}back`);
     await pageFocused();
-    await app.page.keyboard.press("Meta+BracketRight");
+    await navigateWith(0, "BracketRight");
     await expectActivePane(`${url}forward`);
     await pageFocused();
     requested.length = 0;
-    await app.page.keyboard.press("Meta+r");
+    await navigateWith(0, "r");
     await until(() => requested.includes("/forward"), "the page to reload");
 
     expect(
@@ -594,7 +624,7 @@ describe("browser automation from the CLI", () => {
     );
 
     requested.length = 0;
-    await app.page.keyboard.press("Meta+r");
+    await navigateWith(0, "r");
     await until(() => requested.includes("/stalled"), "the page to reload");
 
     for (const response of stalled.splice(0)) response.end();
