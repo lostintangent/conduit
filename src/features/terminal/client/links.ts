@@ -5,11 +5,12 @@ import type { Terminal } from "@xterm/xterm";
 export type LinkHandler = (url: string, newPane: boolean) => void;
 
 /**
- * A terminal's web links, which open on Cmd-click, or in a new pane on
- * Cmd-Shift-click. As in iTerm, they only look clickable while Cmd is down, and
- * a plain click on one just clicks the terminal.
+ * Handles a terminal's links, both the web addresses in its text and the
+ * hyperlinks programs print (OSC 8). They open on Cmd-click, or in a new pane
+ * on Cmd-Shift-click. As in iTerm, they only look clickable while Cmd is down,
+ * and a plain click on one just clicks the terminal.
  */
-export function createLinksAddon(terminal: Terminal, follow: LinkHandler) {
+export function handleLinks(terminal: Terminal, follow: LinkHandler) {
   const showPointer = (event: MouseEvent | KeyboardEvent) => {
     // A terminal that closes while its link is hovered never leaves it
     if (!terminal.element?.isConnected) return stopShowing();
@@ -29,12 +30,14 @@ export function createLinksAddon(terminal: Terminal, follow: LinkHandler) {
     terminal.element?.removeEventListener("mousemove", showPointer);
   };
 
-  return new WebLinksAddon(
-    (event, url) => {
-      if (event.metaKey) follow(url, event.shiftKey);
-    },
-    { hover: startShowing, leave: stopShowing },
-  );
+  const activate = (event: MouseEvent, url: string) => {
+    if (event.metaKey) follow(url, event.shiftKey);
+  };
+  const looks = { hover: startShowing, leave: stopShowing };
+
+  terminal.loadAddon(new WebLinksAddon(activate, looks));
+  // Like web addresses, hyperlinks only open http and https
+  terminal.options.linkHandler = { activate, ...looks };
 }
 
 /**

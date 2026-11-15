@@ -226,7 +226,7 @@
 @custom-variant light (&:is([data-theme="light"] *));
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* A terminal's web links only look clickable while Cmd is down (links.ts) */
+/* A terminal's links only look clickable while Cmd is down (links.ts) */
 .xterm.xterm-link-needs-cmd .xterm-cursor-pointer {
   cursor: inherit;
 }

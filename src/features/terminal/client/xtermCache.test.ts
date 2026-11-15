@@ -216,6 +216,31 @@ describe("a terminal's links", () => {
     ]);
   });
 
+  it("include the hyperlinks programs print, which open and look clickable the same way", () => {
+    const { terminal, setLinkHandler } = getOrCreate(
+      "links",
+      "links",
+      settings,
+    );
+    const follow = vi.fn();
+    setLinkHandler(follow);
+    attach("links", document.body.appendChild(document.createElement("div")));
+    const hyperlinks = terminal.options.linkHandler!;
+    const range = { start: { x: 1, y: 1 }, end: { x: 5, y: 1 } };
+
+    // Without a handler, xterm asks with confirm() and then opens a window
+    hyperlinks.activate(new MouseEvent("mouseup"), url, range);
+    hyperlinks.activate(
+      new MouseEvent("mouseup", { metaKey: true }),
+      url,
+      range,
+    );
+    hyperlinks.hover!(new MouseEvent("mousemove"), url, range);
+
+    expect(follow.mock.calls).toEqual([[url, false]]);
+    expect(terminal.element!.classList).toContain("xterm-link-needs-cmd");
+  });
+
   it("open in the default browser on Cmd-click without a handler", () => {
     getOrCreate("links", "links", settings);
 

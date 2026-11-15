@@ -6,7 +6,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
-import { createLinksAddon, claimLinkClicks, type LinkHandler } from "./links";
+import { claimLinkClicks, handleLinks, type LinkHandler } from "./links";
 import * as stateTracker from "./stateTracker";
 import { broadcastTerminalInput } from "./synchronizeInput";
 
@@ -226,7 +226,7 @@ export function getOrCreate(
       current: null,
     };
 
-    const webLinksAddon = createLinksAddon(terminal, (url, newPane) => {
+    handleLinks(terminal, (url, newPane) => {
       const handler = linkHandlerRef.current;
       if (handler) {
         handler(url, newPane);
@@ -237,7 +237,6 @@ export function getOrCreate(
 
     terminal.loadAddon(fit);
     terminal.loadAddon(search);
-    terminal.loadAddon(webLinksAddon);
     terminal.loadAddon(serializer);
     terminal.loadAddon(unicode11);
 

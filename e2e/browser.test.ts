@@ -2,7 +2,16 @@ import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { Dialog } from "playwright-core";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { type Conduit, launch, type Terminal, until } from "./app";
 
 const page = `<!doctype html>
@@ -713,26 +722,47 @@ describe("browser automation from the CLI", () => {
     // The test before may have left a page with the keys
     beforeEach(() => terminal.locator.click());
 
-    /** Prints a link to the page at `path`, and where its text shows */
-    async function printLink(path: string) {
+    afterEach(async () => {
+      await terminal.locator.click();
+      const panes = await conduit<Pane[]>("pane-list -t browser");
+      for (const pane of panes.filter(({ url }) => url.includes("/link-"))) {
+        await terminal.run(`conduit pane-close -p ${pane.id}`);
+      }
+    });
+
+    /**
+     * Prints a link to the page at `path`, or a hyperlink to it showing `label`
+     * (OSC 8), and where its text shows
+     */
+    async function printLink(path: string, label?: string) {
       const link = `${url}${path}`;
-      expect(await terminal.run(`echo ${link}`)).toBe(0);
+      const command = label
+        ? `printf '\\e]8;;%s\\e\\\\%s\\e]8;;\\e\\\\\\n' ${link} ${label}`
+        : `echo ${link}`;
+      expect(await terminal.run(command)).toBe(0);
       const rows = terminal.locator.locator(".xterm-rows > div");
       const row = await rows.evaluateAll(
-        (divs, link) =>
-          divs.map((div) => div.textContent.trimEnd()).lastIndexOf(link),
-        link,
+        (divs, text) =>
+          divs.map((div) => div.textContent.trimEnd()).lastIndexOf(text),
+        label ?? link,
       );
       const box = (await rows.nth(row).boundingBox())!;
       // A few characters into the link, which starts its row
       return { link, x: box.x + 20, y: box.y + box.height / 2 };
     }
 
-    /** The pointer the terminal shows where it is */
+    /**
+     * The pointer the terminal shows over the link xterm sees under it, which
+     * it forgets for a moment whenever it looks for one again
+     */
     const pointer = () =>
       terminal.locator
         .locator(".xterm-screen")
-        .evaluate((screen) => getComputedStyle(screen).cursor);
+        .evaluate((screen) =>
+          screen.classList.contains("xterm-cursor-pointer")
+            ? getComputedStyle(screen).cursor
+            : "no link",
+        );
 
     /** Moves the pointer onto the link, which xterm notices as it moves */
     async function hover({ x, y }: { x: number; y: number }) {
@@ -843,10 +873,32 @@ describe("browser automation from the CLI", () => {
       });
       await expectLoadedBeside(link.link);
       expect(await pages()).toBe(before + 1);
+    });
 
-      const panes = await conduit<Pane[]>("pane-list -t browser");
-      for (const pane of panes.filter(({ url }) => url.includes("/link-"))) {
-        expect(await terminal.run(`conduit pane-close -p ${pane.id}`)).toBe(0);
+    it("include the hyperlinks programs print, which open the same way, without asking first", async () => {
+      const dialogs: string[] = [];
+      const dismiss = (dialog: Dialog) => {
+        dialogs.push(dialog.message());
+        void dialog.dismiss();
+      };
+      app.page.on("dialog", dismiss);
+      try {
+        const before = await pages();
+        const hyperlink = await printLink("link-d", "hyperlink");
+        await hover(hyperlink);
+        await holding(["Meta"], looksClickable);
+        await until(
+          async () => (await pointer()) === "text",
+          "the hyperlink to look like text again",
+        );
+
+        await app.page.mouse.click(hyperlink.x, hyperlink.y);
+        await clickLink(hyperlink, ["Meta"]);
+        await expectLoadedBeside(hyperlink.link);
+        expect(await pages()).toBe(before + 1);
+        expect(dialogs).toEqual([]);
+      } finally {
+        app.page.off("dialog", dismiss);
       }
     });
   });
