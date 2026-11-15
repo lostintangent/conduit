@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { spawnTerminalProcess } = vi.hoisted(() => ({
@@ -60,7 +63,7 @@ describe("a terminal that waits for its size", () => {
     "starts its shell at the first fit's size at $fontSize pt",
     async ({ cols, rows }) => {
       const { id } = await createTerminal({
-        cwd: "/work",
+        cwd: os.tmpdir(),
         command: "npm run dev",
         waitForSize: true,
       });
@@ -72,7 +75,7 @@ describe("a terminal that waits for its size", () => {
       expect(spawnTerminalProcess).toHaveBeenCalledTimes(1);
       expect(spawnTerminalProcess).toHaveBeenCalledWith(
         id,
-        "/work",
+        os.tmpdir(),
         cols,
         rows,
       );
@@ -134,6 +137,84 @@ describe("a new terminal", () => {
     } finally {
       process.env.HOME = home;
     }
+  });
+});
+
+// Like a restored pane whose worktree was deleted. Its shell would exit at
+// once and its pane would close without saying why.
+describe("a terminal whose folder can't be used", () => {
+  let pty: ReturnType<typeof fakePty>;
+  let home: string | undefined;
+  let file: string;
+
+  beforeEach(async () => {
+    pty = fakePty();
+    spawnTerminalProcess.mockReset();
+    spawnTerminalProcess.mockReturnValue(pty);
+    vi.mocked(emit).mockReset();
+    home = process.env.HOME;
+    process.env.HOME = "/Users/me";
+    file = path.join(
+      await fs.mkdtemp(path.join(os.tmpdir(), "conduit-cwd-")),
+      "notes.txt",
+    );
+    await fs.writeFile(file, "");
+  });
+
+  afterEach(async () => {
+    process.env.HOME = home;
+    getAllTerminals().clear();
+    await fs.rm(path.dirname(file), { recursive: true, force: true });
+  });
+
+  it.each([
+    {
+      kind: "is gone",
+      folder: () => "/no/such/worktree",
+      why: "no longer exists",
+    },
+    { kind: "is a file", folder: () => file, why: "isn't a folder" },
+  ])(
+    "starts at home and says why when its folder $kind",
+    async ({ folder, why }) => {
+      const { id, cwd } = await createTerminal({
+        cwd: folder(),
+        cols: 80,
+        rows: 24,
+      });
+
+      expect(cwd).toBe("/Users/me");
+      expect(spawnTerminalProcess).toHaveBeenCalledWith(
+        id,
+        "/Users/me",
+        80,
+        24,
+      );
+
+      pty.onData.mock.calls[0][0](PROMPT);
+      resizeTerminal(id, 80, 24);
+      expect(emit).toHaveBeenCalledWith("data", {
+        sessionId: id,
+        data: `\x1b[2m${folder()} ${why}, so this shell started in your home folder.\x1b[0m\r\n${PROMPT}`,
+      });
+    },
+  );
+
+  it("says why once its pane fits when it waits for its size", async () => {
+    const { id, cwd } = await createTerminal({
+      cwd: "/no/such/worktree",
+      waitForSize: true,
+    });
+    expect(cwd).toBe("/Users/me");
+
+    resizeTerminal(id, 80, 24);
+    expect(spawnTerminalProcess).toHaveBeenCalledWith(id, "/Users/me", 80, 24);
+    expect(emit).toHaveBeenCalledWith("data", {
+      sessionId: id,
+      data: expect.stringContaining(
+        "/no/such/worktree no longer exists, so this shell started in your home folder.",
+      ),
+    });
   });
 });
 

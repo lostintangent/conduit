@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
 import path from "node:path";
 
 import { getTerminal, removeTerminal, storeTerminal } from ".";
@@ -9,6 +10,7 @@ import type { TerminalInstance } from "../types";
 
 type UnsizedTerminal = {
   cwd: string;
+  notice?: string;
   command?: string;
   input: string[];
 };
@@ -68,28 +70,60 @@ const ACTIVITY_MS = 500;
 
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
-
-  const cwd =
-    options?.cwd ||
-    path.resolve(process.env.HOME ?? process.env.USERPROFILE ?? process.cwd());
+  const { cwd, notice } = await startingFolder(options?.cwd);
 
   if (options?.waitForSize && !(options.cols && options.rows)) {
     unsizedTerminals.set(id, {
       cwd,
+      notice,
       command: options.command,
       input: [],
     });
     return { id, cwd, title: path.basename(resolveShell()) };
   }
 
-  const terminal = spawnTerminal(id, cwd, options);
+  const terminal = spawnTerminal(id, cwd, { ...options, notice });
   return { id, cwd, title: terminal.pty.process };
+}
+
+/**
+ * A restored pane's folder may be gone, like a deleted worktree. Its shell
+ * would exit at once and its pane would close, so it starts at home instead
+ * and its pane says why.
+ */
+async function startingFolder(cwd: string | undefined) {
+  const home = path.resolve(
+    process.env.HOME ?? process.env.USERPROFILE ?? process.cwd(),
+  );
+  if (!cwd) return { cwd: home };
+
+  const problem = await folderProblem(cwd);
+  if (!problem) return { cwd };
+  return {
+    cwd: home,
+    notice: `\x1b[2m${cwd} ${problem}, so this shell started in your home folder.\x1b[0m\r\n`,
+  };
+}
+
+async function folderProblem(cwd: string) {
+  try {
+    if (!(await fs.stat(cwd)).isDirectory()) return "isn't a folder";
+    await fs.access(cwd, fs.constants.X_OK);
+    return undefined;
+  } catch (error) {
+    const { code } = error as NodeJS.ErrnoException;
+    return code === "ENOENT" || code === "ENOTDIR"
+      ? "no longer exists"
+      : "can't be opened";
+  }
 }
 
 function spawnTerminal(
   id: string,
   cwd: string,
-  options?: Pick<TerminalCreateOptions, "command" | "cols" | "rows">,
+  options?: Pick<TerminalCreateOptions, "command" | "cols" | "rows"> & {
+    notice?: string;
+  },
 ) {
   const pty = spawnTerminalProcess(id, cwd, options?.cols, options?.rows);
 
@@ -109,7 +143,7 @@ function spawnTerminal(
     id,
     pty,
     isRendererReady: false,
-    bufferedOutput: "",
+    bufferedOutput: options?.notice ?? "",
     unacknowledged: 0,
     pendingCommand,
     cwd,
@@ -307,6 +341,7 @@ export function resizeTerminal(terminalId: string, cols: number, rows: number) {
       rows,
     });
     terminal.isRendererReady = true;
+    if (unsized.notice) emitOutput(terminal, unsized.notice);
     if (unsized.input.length > 0) terminal.pty.write(unsized.input.join(""));
     return;
   }

@@ -73,6 +73,19 @@ const collapsed = {
   ],
 };
 
+/** Like a workspace whose worktree was deleted. */
+const gone = {
+  name: "E2E Gone",
+  lastModified: 0,
+  activeTabId: "Gone",
+  tabs: [
+    {
+      ...terminalTab("Gone"),
+      panes: [{ id: "Gone-pane", type: "terminal", cwd: "/conduit-e2e/gone" }],
+    },
+  ],
+};
+
 describe("workspaces", () => {
   let app: Conduit;
 
@@ -84,7 +97,7 @@ describe("workspaces", () => {
         "one/.keep": "",
         "two/.keep": "",
         ".conduit/workspaces.json": JSON.stringify({
-          workspaces: [agents, collapsed],
+          workspaces: [agents, collapsed, gone],
         }),
       },
       // Large enough that a shell started at the default 80 columns would be
@@ -269,6 +282,16 @@ describe("workspaces", () => {
     );
     expect(shimmered).toBe(false);
     expect(await split.locator(".bg-blue-400").count()).toBe(0);
+  });
+
+  it("opens a pane whose folder is gone at home, and says why", async () => {
+    await choose("E2E Gone");
+    await expectTerminalFocused("opening the workspace");
+    // The rest of the line wraps at this font size.
+    const terminal = await app.terminal();
+    await terminal.waitForText("/conduit-e2e/gone no longer exists");
+    expect(await pwd()).toBe(app.home);
+    expect(await tabs().count()).toBe(1);
   });
 
   it("had no uncaught errors or failed loads", () => {
