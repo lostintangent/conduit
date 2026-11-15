@@ -20,6 +20,9 @@ describe("the browser's address bar", () => {
     } else if (request.url === "/frame") {
       // A frame that moves within itself, as embedded players do
       response.end(`<!doctype html><script>location.hash = "moved"</script>`);
+    } else if (request.url === "/field") {
+      // Like a search page, which focuses its field for the user
+      response.end(`<!doctype html><title>Field</title><input autofocus>`);
     } else {
       response.end(`<!doctype html><title>Page</title>`);
     }
@@ -109,7 +112,7 @@ describe("the browser's address bar", () => {
       .getByText("Conduit can't find conduit-e2e.invalid.")
       .waitFor();
     await app.page.getByText("ERR_NAME_NOT_RESOLVED").waitFor();
-    expect(await address().inputValue()).toBe("https://conduit-e2e.invalid/");
+    expect(await address().inputValue()).toBe("conduit-e2e.invalid/");
     expect(await back().isEnabled()).toBe(true);
   });
 
@@ -183,6 +186,58 @@ describe("the browser's address bar", () => {
     await app.page
       .getByText(`Conduit can't connect to 127.0.0.1:${port}.`)
       .waitFor();
+  });
+
+  const typedInPage = () =>
+    webview().evaluate((webview: Electron.WebviewTag) =>
+      webview.executeJavaScript("document.querySelector('input')?.value"),
+    );
+  const appFocus = () =>
+    app.page.evaluate(() => document.activeElement?.tagName);
+
+  it("gives the keys to the page it goes to on Enter, from a page that didn't load or another site's page", async () => {
+    // Each on another site than the last, so another process has the page
+    for (const [place, typed] of [
+      [origin.replace("127.0.0.1", "localhost"), "hello"],
+      [origin, "again"],
+    ]) {
+      await waitForPageEvent("did-navigate", async () => {
+        await address().click();
+        await address().fill(`${place.slice("http://".length)}/field`);
+        await address().press("Enter");
+      });
+
+      await app.page.keyboard.type(typed);
+      await until(
+        async () => (await typedInPage()) === typed,
+        "the keys to reach the page",
+      );
+      expect(await appFocus()).toBe("WEBVIEW");
+      expect(await address().inputValue()).toBe(`${place}/field`);
+    }
+  });
+
+  it("puts the page's address back on the first Escape, and gives the page the keys on the second", async () => {
+    await address().click();
+    await address().fill("foo");
+
+    await app.page.keyboard.press("Escape");
+    expect(
+      await address().evaluate((field: HTMLInputElement) => [
+        field === document.activeElement,
+        field.value,
+        field.selectionStart,
+        field.selectionEnd,
+      ]),
+    ).toEqual([true, `${origin}/field`, 0, `${origin}/field`.length]);
+
+    await app.page.keyboard.press("Escape");
+    await app.page.keyboard.type("!");
+    await until(
+      async () => (await typedInPage()) === "again!",
+      "the keys to reach the page",
+    );
+    expect(await address().inputValue()).toBe(`${origin}/field`);
   });
 
   it("had no uncaught errors or failed loads", () => {

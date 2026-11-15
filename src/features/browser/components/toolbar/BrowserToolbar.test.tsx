@@ -43,6 +43,7 @@ function toolbar(props: Partial<ComponentProps<typeof BrowserToolbar>>) {
       onToggleDevTools={() => {}}
       onHideToolbar={() => {}}
       onCaptureScreenshot={() => Promise.resolve()}
+      onDismiss={() => {}}
       {...props}
     />
   );
@@ -129,6 +130,48 @@ describe("BrowserToolbar shown for its address bar", () => {
     fireEvent.keyDown(urlInput(), { key: "Escape" });
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(urlInput()).toHaveProperty("value", page.url);
+  });
+});
+
+describe("BrowserToolbar's address field", () => {
+  const page = { url: "https://example.com/", title: "Example" };
+
+  /** A toolbar whose field has an address typed in */
+  function typedIn(address: string) {
+    const ref = createRef<BrowserToolbarHandle>();
+    const onNavigate = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <TooltipProvider>
+        {toolbar({ currentPage: page, onNavigate, onDismiss, ref })}
+      </TooltipProvider>,
+    );
+    act(() => ref.current!.focusAddressBar());
+    fireEvent.change(urlInput(), { target: { value: address } });
+    return { onNavigate, onDismiss };
+  }
+  const submit = () => fireEvent.submit(urlInput().form!);
+
+  it("goes to the address on Enter, and leaves the field for the page", () => {
+    const { onNavigate, onDismiss } = typedIn("example.org");
+    submit();
+    expect(onNavigate).toHaveBeenCalledExactlyOnceWith("https://example.org");
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("puts the page's address back on the first Escape, and leaves for the page on the second", () => {
+    const { onDismiss } = typedIn("foo");
+    fireEvent.keyDown(urlInput(), { key: "Escape" });
+    expect(document.activeElement).toBe(urlInput());
+    expect(urlInput()).toMatchObject({
+      value: page.url,
+      selectionStart: 0,
+      selectionEnd: page.url.length,
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(urlInput(), { key: "Escape" });
+    expect(onDismiss).toHaveBeenCalledOnce();
   });
 });
 

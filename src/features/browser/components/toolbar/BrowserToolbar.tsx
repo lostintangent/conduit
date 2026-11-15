@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { BrowserMenu } from "./BrowserMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
 import { StarButton } from "./StarButton";
@@ -78,8 +79,11 @@ type BrowserToolbarProps = {
   onCaptureScreenshot: () => Promise<void>;
   tabId?: string;
   isInPreview?: boolean;
-  /** Takes Escape once there's no dropdown left for it to close */
-  onDismiss?: () => void;
+  /**
+   * Leaves the address bar for the page, once it goes to an address or on an
+   * Escape with nothing left to put back
+   */
+  onDismiss: () => void;
   /** Called when focus leaves the toolbar and its menus */
   onFocusLeave?: () => void;
   ref?: Ref<BrowserToolbarHandle>;
@@ -174,24 +178,15 @@ export function BrowserToolbar({
   };
 
   const navigateTo = (url: string) => {
-    setInputUrl(url);
-    onNavigate(url);
     closeDropdowns();
+    onNavigate(url);
+    onDismiss();
   };
 
   const handleUrlSubmit = () => {
     const selected = showSuggestions ? suggestions[selectedIndex] : undefined;
-    if (selected) {
-      navigateTo(selected.url);
-      return;
-    }
-
-    const targetUrl = normalizeUrl(inputUrl);
-    if (targetUrl.length === 0) return;
-
-    closeDropdowns();
-
-    onNavigate(targetUrl);
+    const url = selected ? selected.url : normalizeUrl(inputUrl);
+    if (url.length > 0) navigateTo(url);
   };
 
   const handleUrlInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,14 +209,17 @@ export function BrowserToolbar({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
+      // Typing opens the suggestions, so while they're open, the page's
+      // address goes back in, selected to type over, as Safari does
       if (showSuggestions) {
-        closeDropdowns();
-      } else if (onDismiss) {
-        onDismiss();
+        const field = e.currentTarget;
+        flushSync(() => {
+          closeDropdowns();
+          setInputUrl(editableAddress(currentPage.url));
+        });
+        field.select();
       } else {
-        // Clear the input, which suggests every page
-        setInputUrl("");
-        setShowSuggestions(true);
+        onDismiss();
       }
       return;
     }

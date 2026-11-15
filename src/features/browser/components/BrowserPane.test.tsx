@@ -466,6 +466,82 @@ describe("BrowserPane", () => {
     expect(document.activeElement).toBe(webview);
   });
 
+  it("gives its page the keys from the address bar, on Enter and on a second Escape", async () => {
+    webview.tabIndex = 0;
+    // Like Electron, which fires no focus event when the app focuses a page
+    const appFocus = (event: FocusEvent) => {
+      if (event.target === webview) event.stopImmediatePropagation();
+    };
+    window.addEventListener("focus", appFocus, true);
+    onTestFinished(() => window.removeEventListener("focus", appFocus, true));
+    const { rerender } = render(browserPane(false, true));
+    const field = screen.getByPlaceholderText<HTMLInputElement>(
+      "Search or enter address",
+    );
+
+    act(() => field.focus());
+    fireEvent.change(field, { target: { value: "example.org" } });
+    fireEvent.submit(field.form!);
+    expect((webview as any).loadURL).toHaveBeenCalledWith(
+      "https://example.org",
+    );
+    expect(document.activeElement).toBe(webview);
+    // And keeps them on return
+    rerender(browserPane(false, false));
+    document.body.focus();
+    rerender(browserPane(false, true));
+    await nextFrames(1);
+    expect(document.activeElement).toBe(webview);
+
+    act(() => field.focus());
+    fireEvent.change(field, { target: { value: "foo" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(document.activeElement).toBe(field);
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(document.activeElement).toBe(webview);
+  });
+
+  // The page it's leaving is still the current one until then
+  it("shows the address it went to until that page is there, or it stops loading without one", () => {
+    render(browserPane(false, true));
+    const field = screen.getByPlaceholderText<HTMLInputElement>(
+      "Search or enter address",
+    );
+    const goTo = (address: string) => {
+      act(() => field.focus());
+      fireEvent.change(field, { target: { value: address } });
+      fireEvent.submit(field.form!);
+      act(() => {
+        webview.dispatchEvent(new Event("did-start-loading"));
+      });
+    };
+    const stopLoading = () =>
+      act(() => {
+        webview.dispatchEvent(new Event("did-stop-loading"));
+      });
+
+    goTo("example.org");
+    expect(field.value).toBe("example.org");
+    act(() => getBrowserPaneHandlers("browser-1")!.focusAddressBar());
+    expect(field.value).toBe("https://example.org");
+    act(() => {
+      webview.dispatchEvent(
+        Object.assign(new Event("did-navigate"), {
+          url: "https://example.org/",
+        }),
+      );
+    });
+    expect(field.value).toBe("https://example.org/");
+
+    stopLoading();
+
+    // Like a download
+    goTo("example.org/file.zip");
+    expect(field.value).toBe("example.org/file.zip");
+    stopLoading();
+    expect(field.value).toBe("example.org/");
+  });
+
   it("hides find while its tab is in a preview", () => {
     Object.assign(webview, {
       findInPage: vi.fn(() => 1),

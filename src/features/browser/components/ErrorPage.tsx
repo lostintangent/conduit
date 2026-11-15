@@ -1,6 +1,6 @@
 import { Button } from "@/ui/button";
 import type { LoadFailure } from "@features/browser/client/webview";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 /** The page's host, or its whole address when it has none, like a file */
 function placeOf(url: string) {
@@ -46,14 +46,21 @@ function describe({ code, url }: LoadFailure): [string, ReactNode] {
 export function ErrorPage({
   failure,
   onTryAgain,
+  ref,
 }: {
   failure: LoadFailure;
   onTryAgain: () => void;
+  /** Takes the keys in the page's place */
+  ref?: Ref<HTMLDivElement>;
 }) {
   const [headline, message] = describe(failure);
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center bg-background px-6 text-center">
+    <div
+      ref={ref}
+      tabIndex={-1}
+      className="absolute inset-0 flex flex-col items-center bg-background px-6 text-center outline-none"
+    >
       {/* Puts the message a little above the middle, where the eye expects it */}
       <div className="flex-2" />
       <div className="flex max-w-90 flex-col items-center">

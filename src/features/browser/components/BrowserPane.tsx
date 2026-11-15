@@ -144,6 +144,10 @@ export function BrowserPane({
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
+  // The address the user went to shows until its page is there, since the
+  // page it's leaving stays current until then, or until it stops loading
+  // without one, like a download
+  const [goingTo, setGoingTo] = useState<string>();
   const [pageTitle, setPageTitle] = useState<string>("");
   // A page that didn't load still says why when its pane comes back to it
   const [loadFailure, setLoadFailure] = useState(() => {
@@ -397,9 +401,17 @@ export function BrowserPane({
     if (isToolbarRevealed) toolbarRef.current?.focusAddressBar();
   }, [isToolbarRevealed]);
 
-  const dismissRevealedToolbar = () => {
-    webviewRef.current?.focus();
-    setIsToolbarRevealed(false);
+  // The page takes the keys, or the message in its place while it didn't
+  // load, which hands them to the page once it does
+  const errorPageRef = useRef<HTMLDivElement>(null);
+  const focusPage = () => {
+    const webview = webviewRef.current;
+    if (loadFailure) {
+      errorPageRef.current?.focus();
+    } else if (webview) {
+      webview.focus();
+      focusedOutside(webview);
+    }
   };
 
   // Once we have a new or existing webview, we need to hook
@@ -424,6 +436,7 @@ export function BrowserPane({
 
     const handleStopLoading = () => {
       setIsLoading(false);
+      setGoingTo(undefined);
 
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
@@ -435,6 +448,7 @@ export function BrowserPane({
       url,
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
       setCurrentUrl(url);
+      setGoingTo(undefined);
       const updatedTitle =
         typeof webview.getTitle === "function" ? webview.getTitle() : "";
       setPageTitle(typeof updatedTitle === "string" ? updatedTitle.trim() : "");
@@ -673,7 +687,7 @@ export function BrowserPane({
       {!devToolsFor && (!chromeless || isToolbarRevealed) && (
         <BrowserToolbar
           ref={toolbarRef}
-          currentPage={{ url: currentUrl, title: pageTitle }}
+          currentPage={{ url: goingTo ?? currentUrl, title: pageTitle }}
           isLoading={isLoading}
           canGoBack={canGoBack}
           canGoForward={canGoForward}
@@ -683,8 +697,9 @@ export function BrowserPane({
             setConsoleErrors((prev) => prev.filter((_, i) => i !== index))
           }
           onNavigate={(url) => {
-            if (webviewRef.current) loadPage(webviewRef.current, url);
-            if (isToolbarRevealed) dismissRevealedToolbar();
+            if (!webviewRef.current) return;
+            loadPage(webviewRef.current, url);
+            setGoingTo(url);
           }}
           onGoBack={() => webviewRef.current?.goBack()}
           onGoForward={() => webviewRef.current?.goForward()}
@@ -703,7 +718,7 @@ export function BrowserPane({
           }}
           tabId={tabId}
           isInPreview={isInPreview}
-          onDismiss={isToolbarRevealed ? dismissRevealedToolbar : undefined}
+          onDismiss={focusPage}
           onFocusLeave={
             isToolbarRevealed ? () => setIsToolbarRevealed(false) : undefined
           }
@@ -725,16 +740,12 @@ export function BrowserPane({
             follow={!tabId}
             hidden={isInPreview}
             onFocus={focusedOutside}
-            onFocusPage={() => {
-              const webview = webviewRef.current;
-              if (!webview) return;
-              webview.focus();
-              focusedOutside(webview);
-            }}
+            onFocusPage={focusPage}
           />
         )}
         {loadFailure && (
           <ErrorPage
+            ref={errorPageRef}
             failure={loadFailure}
             onTryAgain={() => webviewRef.current?.reload()}
           />
