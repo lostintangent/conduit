@@ -28,12 +28,20 @@ describe("browser automation from the CLI", () => {
   let terminal: Terminal;
   /** The paths the page has requested, e.g. to tell a test it's ready. */
   const requested: string[] = [];
+  /** Responses to /stalled, which stay open until a test ends them. */
+  const stalled: http.ServerResponse[] = [];
 
   beforeAll(async () => {
     server = http.createServer((request, response) => {
       requested.push(request.url!);
       response.writeHead(200, { "content-type": "text/html" });
-      response.end(page);
+      if (request.url === "/stalled") {
+        // Its page never finishes loading
+        response.write(page);
+        stalled.push(response);
+      } else {
+        response.end(page);
+      }
     });
     await new Promise<void>((resolve) =>
       server.listen(0, "127.0.0.1", resolve),
@@ -48,6 +56,7 @@ describe("browser automation from the CLI", () => {
   });
 
   afterAll(async () => {
+    for (const response of stalled) response.end();
     await app?.close();
     server?.close();
   });
@@ -545,21 +554,50 @@ describe("browser automation from the CLI", () => {
         ),
       ).toBe(0);
     }
+    // Waits for each page to load, and the next test presses a key sooner
+    const pageFocused = () =>
+      until(() => inPage(0, "document.hasFocus()"), "the page to take focus");
     await clickPage(0);
     await expectActivePane(`${url}forward`);
-    await until(
-      () => inPage(0, "document.hasFocus()"),
-      "the page to take focus",
-    );
+    await pageFocused();
 
     await app.page.keyboard.press("Meta+BracketLeft");
     await expectActivePane(`${url}back`);
+    await pageFocused();
     await app.page.keyboard.press("Meta+BracketRight");
     await expectActivePane(`${url}forward`);
+    await pageFocused();
     requested.length = 0;
     await app.page.keyboard.press("Meta+r");
     await until(() => requested.includes("/forward"), "the page to reload");
 
+    expect(
+      await terminal.run(`conduit browser-navigate -p ${pane!.id} ${url}`),
+    ).toBe(0);
+  });
+
+  // A page gets the app's keys as it starts, so a page that hangs can be
+  // reloaded
+  it("reloads a page that hasn't finished loading", async () => {
+    const panes = await conduit<Pane[]>("pane-list -t browser");
+    const pane = panes.find((candidate) => candidate.url === url);
+    // As a link on the page would, so nothing waits on the load that the
+    // reload cuts short
+    await inPage(0, "location.assign('/stalled')");
+    await clickPage(0);
+    await expectActivePane(`${url}stalled`);
+    // The page can't run scripts to say it has focus until it has loaded
+    await until(
+      () =>
+        app.page.evaluate(() => document.activeElement?.tagName === "WEBVIEW"),
+      "the page to take focus",
+    );
+
+    requested.length = 0;
+    await app.page.keyboard.press("Meta+r");
+    await until(() => requested.includes("/stalled"), "the page to reload");
+
+    for (const response of stalled.splice(0)) response.end();
     expect(
       await terminal.run(`conduit browser-navigate -p ${pane!.id} ${url}`),
     ).toBe(0);

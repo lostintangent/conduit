@@ -92,7 +92,7 @@ export function shareAppKeys(webview: WebviewTag): () => void {
       webview.send("browser:app-keys", keys).catch(() => {});
       sent = json;
     } catch {
-      // Not attached yet. Its page gets them once it's ready.
+      // Not attached yet. Its page asks for them as it starts.
     }
   };
 
@@ -107,16 +107,15 @@ export function shareAppKeys(webview: WebviewTag): () => void {
     });
   };
 
-  // Each page the webview loads starts out without them
-  const handleDomReady = () => {
-    sent = undefined;
-    send();
-  };
   const handleIpcMessage = ({ channel, args }: IpcMessageEvent) => {
+    // Each page the webview loads asks for them as it starts
+    if (channel === "browser:get-app-keys") {
+      sent = undefined;
+      send();
+    }
     if (channel === "browser:app-key") runHandedKey(args[0] as HandedKey);
   };
 
-  webview.addEventListener("dom-ready", handleDomReady);
   webview.addEventListener("ipc-message", handleIpcMessage);
   const stopWatchingContext =
     getContextKeyService().onDidChangeContext(scheduleSend);
@@ -124,7 +123,6 @@ export function shareAppKeys(webview: WebviewTag): () => void {
   send();
 
   return () => {
-    webview.removeEventListener("dom-ready", handleDomReady);
     webview.removeEventListener("ipc-message", handleIpcMessage);
     stopWatchingContext();
     keybindings.unsubscribe();

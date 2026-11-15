@@ -154,7 +154,7 @@ describe("app keys", () => {
         (keys as { chord: { key: string } }[]).map(({ chord }) => chord.key),
       );
 
-    it("sends a page new keys when their commands turn on, and every new page", async () => {
+    it("sends a page new keys when their commands turn on, and every page that asks", async () => {
       command("editor.toggleSidebar", "Cmd+B", paneType.equals("editor"));
       share();
       expect(sentKeys().at(-1)).not.toContain("b");
@@ -167,7 +167,12 @@ describe("app keys", () => {
       await Promise.resolve();
       expect(sentKeys()).toHaveLength(2);
 
-      webview.dispatchEvent(new Event("dom-ready"));
+      webview.dispatchEvent(
+        Object.assign(new Event("ipc-message"), {
+          channel: "browser:get-app-keys",
+          args: [],
+        }),
+      );
       expect(sentKeys()).toHaveLength(3);
     });
 

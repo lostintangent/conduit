@@ -43,6 +43,9 @@ export function handAppKeys(): void {
   ipcRenderer.on("browser:app-keys", (_, keys: AppKey[]) => {
     appKeys = keys;
   });
+  // A page starts out without them, and asks as it starts so that it has them
+  // while it loads
+  ipcRenderer.sendToHost("browser:get-app-keys");
 
   window.addEventListener(
     "keydown",
