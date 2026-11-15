@@ -203,6 +203,26 @@ describe("a page's new tabs and popups", () => {
       async () => (await app.page.locator("webview").count()) === 1,
       "the pane to close",
     );
+    await painted();
+  }
+
+  /**
+   * Waits for the first page to paint at its pane's size. Until it does, as
+   * when it first loads or grows back after a pane closes, a click lands on
+   * Conduit's webview element instead of the page.
+   */
+  async function painted() {
+    const { width } = (await app.page
+      .locator("webview")
+      .first()
+      .boundingBox())!;
+    await until(
+      () => inPage(`Math.abs(innerWidth - ${width}) <= 1`),
+      "the page to take its pane's size",
+    );
+    await inPage(
+      "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))",
+    );
   }
 
   it("opens a page of links", async () => {
@@ -211,11 +231,7 @@ describe("a page's new tabs and popups", () => {
       0,
     );
     await until(() => inPage("document.title === 'Links'"), "the links page");
-    // Until the page first paints, a click lands on Conduit's webview element
-    // instead of the page, so wait two frames before the tests below click.
-    await inPage(
-      "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))",
-    );
+    await painted();
   });
 
   it("opens a link meant for a new tab in an active pane next to the page", async () => {
