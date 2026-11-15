@@ -1,6 +1,6 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
-import { getWebview } from "@features/browser/client/webview";
+import { getWebview, takePageFocus } from "@features/browser/client/webview";
 import { activatePane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
 import {
@@ -300,12 +300,23 @@ export function BrowserPane({
     };
   }, [webviewAnchorRef, isInPreview, tabId]);
 
-  // Focus goes back to the page if it had focus last, see handleWebViewFocus,
-  // and to the pane otherwise. The webview lives on document.body, outside
-  // this pane's DOM.
+  // A page the user just opened can only take the keys once it attaches,
+  // see handleDidAttach
+  const isPageFocusPendingRef = useRef(false);
+
+  // Focus goes to a page the user just opened, back to the page if it had
+  // focus last, see handleWebViewFocus, and to the pane otherwise. The
+  // webview lives on document.body, outside this pane's DOM.
   const focusedOutside = useFocusWhenActive(isActive, paneRef, () => {
-    if (document.activeElement === webviewRef.current) return;
+    const webview = webviewRef.current;
+    if (document.activeElement === webview) return;
+    // A page that has the keys, like the one that opened this page, only
+    // lets go of them when the window takes focus back first
     paneRef.current?.focus({ preventScroll: true });
+    if (webview && takePageFocus(paneId)) {
+      if (getWebContentsId(webview) !== undefined) webview.focus();
+      else isPageFocusPendingRef.current = true;
+    }
   });
 
   // A dev tools pane has no toolbar, so Cmd+L opens a page from it instead
@@ -468,6 +479,19 @@ export function BrowserPane({
 
     const handleDomReady = () => setIsDomReady(true);
 
+    // A page the user just opened takes the keys once it can, unless the
+    // user moved focus since
+    const handleDidAttach = () => {
+      if (
+        isPageFocusPendingRef.current &&
+        document.activeElement === paneRef.current
+      ) {
+        webview.focus();
+      }
+      isPageFocusPendingRef.current = false;
+    };
+
+    webview.addEventListener("did-attach", handleDidAttach);
     webview.addEventListener("dom-ready", handleDomReady);
     webview.addEventListener("did-start-loading", handleStartLoading);
     webview.addEventListener("did-stop-loading", handleStopLoading);
@@ -494,6 +518,7 @@ export function BrowserPane({
       stopSharingAppKeys();
       stopOpeningPages();
 
+      webview.removeEventListener("did-attach", handleDidAttach);
       webview.removeEventListener("dom-ready", handleDomReady);
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);

@@ -1,3 +1,4 @@
+import { focusPageOnOpen } from "@features/browser/client/webview";
 import { deleteCanvasState } from "@features/canvas/client/canvasStore";
 import { disposeEditorPane } from "@features/editor/components/EditorPaneAnchor";
 import { disposeSession } from "@features/terminal/client/xtermCache";
@@ -833,6 +834,8 @@ export function openBrowserPane(
     ...(devTools && { devToolsFor: paneId }),
   };
 
+  // A blank page's toolbar focuses its address bar instead
+  if (url && url !== "about:blank") focusPageOnOpen(newPaneId);
   insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
 }
 

@@ -20,6 +20,7 @@ const { requestNewPage } = vi.hoisted(() => {
 });
 
 import { BrowserPane } from "@features/browser/components/BrowserPane";
+import { focusPageOnOpen } from "@features/browser/client/webview";
 import { TooltipProvider } from "@/ui/tooltip";
 import { render } from "../../../../tests/renderer/queryRender";
 
@@ -118,6 +119,39 @@ describe("BrowserPane", () => {
     document.body.focus();
     rerender(browserPane(false, true));
     await nextFrames(1);
+
+    expect(document.activeElement).toBe(webview);
+  });
+
+  it("gives the keyboard to a page the user just opened, and only then", async () => {
+    webview.tabIndex = 0;
+    focusPageOnOpen("browser-1");
+    const { unmount } = render(browserPane(false, true));
+    await nextFrames(1);
+    expect(document.activeElement).toBe(webview);
+
+    // Like when its tab is shown again after the app restarts
+    unmount();
+    render(browserPane(false, true));
+    await nextFrames(1);
+    expect(document.activeElement).not.toBe(webview);
+  });
+
+  it("holds the keyboard for a page the user just opened until it attaches", async () => {
+    webview.tabIndex = 0;
+    Object.assign(webview, {
+      getWebContentsId: () => {
+        throw new Error("Not attached");
+      },
+    });
+    focusPageOnOpen("browser-1");
+    render(browserPane(false, true));
+    await nextFrames(1);
+    expect(document.activeElement).toBe(
+      screen.getByPlaceholderText(/Enter URL/).closest("[tabindex='-1']"),
+    );
+
+    webview.dispatchEvent(new Event("did-attach"));
 
     expect(document.activeElement).toBe(webview);
   });

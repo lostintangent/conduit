@@ -5,9 +5,16 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type Conduit, launch, type Terminal, until } from "./app";
 
+// Records the keys a page gets, to tell which page has the keyboard
+const recordKeys = `<script>
+  window.keys = "";
+  addEventListener("keydown", (event) => (keys += event.key));
+</script>`;
+
 const pages: Record<string, string> = {
   "/links": `<!doctype html>
 <title>Links</title>
+${recordKeys}
 <a id="blank" href="/blank" target="_blank">Blank</a>
 <a id="background" href="/background">Background</a>
 <button id="open" onclick="window.open('/opened')">Open</button>
@@ -60,7 +67,9 @@ describe("a page's new tabs and popups", () => {
           "set-cookie": "signed-in=yes; Path=/",
         }),
       });
-      response.end(pages[request.url!] ?? `<title>${request.url}</title>`);
+      response.end(
+        pages[request.url!] ?? `<title>${request.url}</title>${recordKeys}`,
+      );
     });
     await new Promise<void>((resolve) =>
       server.listen(0, "127.0.0.1", resolve),
@@ -134,38 +143,48 @@ describe("a page's new tabs and popups", () => {
   }
 
   /**
-   * Waits for a pane with the page next to the one that opened it, which
-   * keeps the keys when the page opened in the background. Then closes it.
+   * Waits for a pane with the page next to the one that opened it. The new
+   * page gets the keys, or the page that opened it keeps them when it opened
+   * in the background. Then closes it.
    */
   async function expectPane(url: string, { background = false } = {}) {
     const webviews = app.page.locator("webview");
-    await until(async () => (await webviews.count()) === 2, "a second page");
-    const active = background ? `${origin}/links` : url;
-    await until(
-      async () => (await activePane()) === active,
-      `${active} to be the active pane`,
-    );
-    // An active pane settles focus for up to half a second. Checked before
-    // the CLI runs, which types in the terminal.
-    await app.page.waitForTimeout(600);
-    expect(
-      await app.page.evaluate(
-        () => document.activeElement === document.querySelector("webview"),
-      ),
-    ).toBe(background);
-    const [source, opened] = await webviews.evaluateAll((elements) =>
-      elements.map((element) => element.getBoundingClientRect().x),
-    );
-    expect(opened).toBeGreaterThan(source);
-
-    const pane = (await browserPanes()).find(
-      (candidate) => candidate.url === url,
-    );
-    expect(await terminal.run(`conduit pane-close -p ${pane!.id}`)).toBe(0);
-    await until(
-      async () => (await webviews.count()) === 1,
-      "the pane to close",
-    );
+    try {
+      await until(async () => (await webviews.count()) === 2, "a second page");
+      const active = background ? `${origin}/links` : url;
+      await until(
+        async () => (await activePane()) === active,
+        `${active} to be the active pane`,
+      );
+      // An active pane settles focus for up to half a second. Checked before
+      // the CLI runs, which types in the terminal.
+      await app.page.waitForTimeout(600);
+      await inPage("keys = ''");
+      await app.page.keyboard.press("x");
+      expect(
+        await webviews.evaluateAll((elements) =>
+          Promise.all(
+            elements.map((element) =>
+              (element as Electron.WebviewTag).executeJavaScript("keys"),
+            ),
+          ),
+        ),
+      ).toEqual(background ? ["x", ""] : ["", "x"]);
+      const [source, opened] = await webviews.evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().x),
+      );
+      expect(opened).toBeGreaterThan(source);
+    } finally {
+      // Even when it fails, so the tests after it start from the one page
+      const pane = (await browserPanes()).find(
+        (candidate) => candidate.url === url,
+      );
+      if (pane) await terminal.run(`conduit pane-close -p ${pane.id}`);
+      await until(
+        async () => (await webviews.count()) === 1,
+        "the pane to close",
+      );
+    }
   }
 
   it("opens a page of links", async () => {
