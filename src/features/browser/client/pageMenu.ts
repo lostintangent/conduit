@@ -32,9 +32,13 @@ type PageMenuTarget = {
     | "paste"
     | "selectAll"
     | "getWebContentsId"
+    | "getBoundingClientRect"
+    | "getZoomFactor"
   >;
   /** Opens a page in a new pane */
   openPage: (url: string) => void;
+  /** Opens the page's DevTools pane, unless it's open already */
+  openDevTools: () => void;
   /** Shows the pane's toolbar, given only while it's hidden */
   showToolbar?: () => void;
 };
@@ -68,7 +72,7 @@ function quoted(text: string) {
  */
 export function pageMenu(
   params: PageMenuParams,
-  { webview, openPage, showToolbar }: PageMenuTarget,
+  { webview, openPage, openDevTools, showToolbar }: PageMenuTarget,
 ): ContextMenuAction[] {
   const actions: ContextMenuAction[] = [];
   const copyToClipboard = (text: string) =>
@@ -195,6 +199,25 @@ export function pageMenu(
       run: showToolbar,
     });
   }
+
+  actions.push({
+    group: "6_inspect",
+    title: "Inspect Element",
+    run: async () => {
+      // A webview's right-click reports where it was in the window, which is
+      // also where Electron expects the point to inspect. Main also wants it
+      // in the page's own pixels.
+      const box = webview.getBoundingClientRect();
+      const zoom = webview.getZoomFactor();
+      await window.conduit.browser.inspectElement(
+        webview.getWebContentsId(),
+        params.x,
+        params.y,
+        { x: (params.x - box.left) / zoom, y: (params.y - box.top) / zoom },
+      );
+      openDevTools();
+    },
+  });
 
   return actions;
 }

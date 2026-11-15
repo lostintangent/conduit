@@ -1,4 +1,4 @@
-import { ClipboardItem, clipboard } from "electron";
+import { ClipboardItem, clipboard, type WebContents } from "electron";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,6 +6,41 @@ import path from "node:path";
 import type { BrowserPage } from "../model";
 import { capturePage, getWebContents } from "./capture";
 import { library } from "./library";
+
+/** The DevTools a pane has loaded for each page, by the page's id */
+const paneDevTools = new Map<number, WebContents>();
+/** Where to inspect each page once a pane has loaded its DevTools */
+const pendingInspections = new Map<number, { x: number; y: number }>();
+
+/** Runs a script in a world of our own in the page, so its scripts can't see or upset ours */
+const inOwnWorld = (page: WebContents, code: string): Promise<unknown> =>
+  page.executeJavaScriptInIsolatedWorld(1001, [{ code }]).catch(() => {});
+
+/**
+ * Inspects the element a point was over before a DevTools pane reshaped the
+ * page, wherever it is now, scrolling it back into view if the pane covered it.
+ */
+async function inspectAgain(page: WebContents, x: number, y: number) {
+  const [movedX, movedY] = ((await inOwnWorld(
+    page,
+    `(() => {
+      const { element, x, y, left, top } = globalThis.inspected ?? {};
+      if (!element?.isConnected) return;
+      let box = element.getBoundingClientRect();
+      if (document.elementFromPoint(x + box.left - left, y + box.top - top) !== element) {
+        element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+        box = element.getBoundingClientRect();
+      }
+      return [box.left - left, box.top - top];
+    })()`,
+  )) ?? [0, 0]) as [number, number];
+
+  const zoom = page.getZoomFactor();
+  page.inspectElement(
+    Math.round(x + movedX * zoom),
+    Math.round(y + movedY * zoom),
+  );
+}
 
 const service = {
   getLibrary: () => library.get(),
@@ -37,6 +72,37 @@ const service = {
     getWebContents(webContentsId).copyImageAt(x, y);
   },
 
+  /**
+   * Selects the element at a point, in the window's coordinates, in the page's
+   * DevTools pane, or once the pane that's opening has loaded them. Until then,
+   * the page can drop it, or without a pane Electron would open DevTools in a
+   * window of its own. A pane opening below reshapes the page, so this first
+   * notes what's at the point in the page, and resolves once it's safe to open.
+   */
+  async inspectElement(
+    webContentsId: number,
+    x: number,
+    y: number,
+    inPage: { x: number; y: number },
+  ) {
+    const page = getWebContents(webContentsId);
+    if (paneDevTools.has(webContentsId)) {
+      page.inspectElement(x, y);
+      return;
+    }
+
+    const [pageX, pageY] = [Number(inPage.x), Number(inPage.y)];
+    await inOwnWorld(
+      page,
+      `(() => {
+        const element = document.elementFromPoint(${pageX}, ${pageY});
+        const { left, top } = element?.getBoundingClientRect() ?? {};
+        globalThis.inspected = element && { element, x: ${pageX}, y: ${pageY}, left, top };
+      })()`,
+    );
+    pendingInspections.set(webContentsId, { x, y });
+  },
+
   /** Opens the page's DevTools inside the pane's own DevTools webview. */
   showDevTools(sourceWebContentsId: number, devToolsWebContentsId: number) {
     const sourceContents = getWebContents(sourceWebContentsId);
@@ -44,6 +110,20 @@ const service = {
 
     sourceContents.setDevToolsWebContents(devToolsContents);
     sourceContents.openDevTools();
+
+    devToolsContents.once("did-finish-load", () => {
+      paneDevTools.set(sourceWebContentsId, devToolsContents);
+      const inspection = pendingInspections.get(sourceWebContentsId);
+      if (inspection) {
+        pendingInspections.delete(sourceWebContentsId);
+        void inspectAgain(sourceContents, inspection.x, inspection.y);
+      }
+    });
+    devToolsContents.once("destroyed", () => {
+      if (paneDevTools.get(sourceWebContentsId) === devToolsContents) {
+        paneDevTools.delete(sourceWebContentsId);
+      }
+    });
 
     // DevTools first loads without its connection to the page, and a reload
     // in the same frame picks it up.

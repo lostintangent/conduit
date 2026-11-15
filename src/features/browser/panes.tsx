@@ -24,6 +24,11 @@ export default function BrowserLayoutPane({
   const devToolsPane = Object.values(tab.panes).find(
     (p) => p.type === "browser" && p.devToolsFor === pane.id,
   );
+  const openDevTools = () => {
+    if (!devToolsPane) {
+      openBrowserPane(tab.id, pane.id, "about:blank", "column", false, true);
+    }
+  };
 
   return (
     <div
@@ -49,6 +54,7 @@ export default function BrowserLayoutPane({
               ? pageMenu(params, {
                   webview,
                   openPage: (url) => openBrowserPane(tab.id, pane.id, url),
+                  openDevTools,
                   showToolbar: pane.chromeless
                     ? () =>
                         updatePaneProperty(tab.id, pane.id, {
@@ -76,14 +82,7 @@ export default function BrowserLayoutPane({
           if (devToolsPane) {
             closePane(tab.id, devToolsPane.id);
           } else {
-            openBrowserPane(
-              tab.id,
-              pane.id,
-              "about:blank",
-              "column",
-              false,
-              true,
-            );
+            openDevTools();
           }
         }}
         onHideToolbar={() =>

@@ -7,9 +7,10 @@ import { searchUrl } from "./url";
 
 const writeClipboard = vi.fn();
 const copyImageAt = vi.fn();
+const inspectElement = vi.fn();
 window.conduit = {
   workbench: { writeClipboard },
-  browser: { copyImageAt },
+  browser: { copyImageAt, inspectElement },
 } as never;
 
 const webview = {
@@ -23,8 +24,11 @@ const webview = {
   paste: vi.fn(),
   selectAll: vi.fn(),
   getWebContentsId: () => 7,
+  getBoundingClientRect: () => ({ left: 0, top: 4 }) as DOMRect,
+  getZoomFactor: () => 2,
 };
 const openPage = vi.fn();
+const openDevTools = vi.fn();
 
 const noEdits = {
   canUndo: false,
@@ -53,7 +57,7 @@ const at = (params: Partial<PageMenuParams> = {}): PageMenuParams => ({
 
 /** The menu's items as "group: title [key] (disabled)" */
 function menu(params: PageMenuParams, showToolbar?: () => void) {
-  return pageMenu(params, { webview, openPage, showToolbar }).map(
+  return pageMenu(params, { webview, openPage, openDevTools, showToolbar }).map(
     ({ group, title, keybinding, enabled }) =>
       [
         `${group.replace(/^\d+_/, "")}: ${title}`,
@@ -66,7 +70,7 @@ function menu(params: PageMenuParams, showToolbar?: () => void) {
 }
 
 function run(params: PageMenuParams, title: string) {
-  pageMenu(params, { webview, openPage })
+  pageMenu(params, { webview, openPage, openDevTools })
     .find((action) => action.title === title)!
     .run();
 }
@@ -100,6 +104,7 @@ describe("pageMenu", () => {
       "navigation: Back [Cmd+[] (disabled)",
       "navigation: Forward [Cmd+]]",
       "navigation: Reload [Cmd+R]",
+      "inspect: Inspect Element",
     ]);
 
     run(at(), "Forward");
@@ -110,10 +115,31 @@ describe("pageMenu", () => {
 
   it("shows the toolbar only while it's hidden", () => {
     const showToolbar = vi.fn();
-    expect(menu(at(), showToolbar).at(-1)).toBe("navigation: Show Toolbar");
+    expect(menu(at(), showToolbar).at(-2)).toBe("navigation: Show Toolbar");
 
-    pageMenu(at(), { webview, openPage, showToolbar }).at(-1)!.run();
+    pageMenu(at(), { webview, openPage, openDevTools, showToolbar })
+      .at(-2)!
+      .run();
     expect(showToolbar).toHaveBeenCalledOnce();
+  });
+
+  it("inspects the element under the pointer in the page's DevTools pane", async () => {
+    let noted!: () => void;
+    inspectElement.mockReturnValueOnce(
+      new Promise<void>((resolve) => (noted = resolve)),
+    );
+    run(at(), "Inspect Element");
+
+    // Where that is in the window, and in the page at its zoom
+    expect(inspectElement).toHaveBeenCalledExactlyOnceWith(7, 10, 20, {
+      x: 5,
+      y: 8,
+    });
+    // Main notes what's under the pointer before a DevTools pane reshapes the
+    // page
+    expect(openDevTools).not.toHaveBeenCalled();
+    noted();
+    await vi.waitFor(() => expect(openDevTools).toHaveBeenCalledOnce());
   });
 
   it("opens a link in a new pane and copies it", () => {
@@ -173,6 +199,7 @@ describe("pageMenu", () => {
       "navigation: Back [Cmd+[] (disabled)",
       "navigation: Forward [Cmd+]]",
       "navigation: Reload [Cmd+R]",
+      "inspect: Inspect Element",
     ]);
   });
 
