@@ -25,7 +25,7 @@ This document provides a comprehensive overview of how Conduit workspaces are st
 
 Conduit workspaces represent the complete state of a user's tab layout, including terminal sessions, browser panes, and editor configurations. The workspace system supports:
 
-1. **Autosave** - The open workspace, named or not, saves 2 seconds after its tabs change, before another workspace replaces it, and as the window closes
+1. **Autosave** - The open workspace, named or not, saves 2 seconds after its tabs or sidebar page change, before another workspace replaces it, and as the window closes
 2. **Launch restore** - Conduit reopens the workspace that was open when it quit, and shows its window once those tabs have painted, or 2 seconds after its first paint at most. If a terminal can't start, or the page crashed again within a minute of reloading, the window starts over with a new tab outside any named workspace. The unnamed tabs it couldn't reopen move into the list as "Recovered <date, time>", so the new tab can't save over them
 3. **Named workspaces** - User-saved workspace configurations for quick access
 4. **Import/Export** - YAML-based workspace templates for sharing and version control
@@ -44,7 +44,7 @@ The workspace system uses three distinct representations optimized for different
                     ┌─────────────────┐
                     │  Renderer Tab[] │
                     └────────┬────────┘
-                             │ serializeTabs (index.ts)
+                             │ serializeTabs (main/service.ts)
                              ▼
 ┌──────────────┐    ┌─────────────────┐    ┌──────────────────┐
 │   Template   │◄──►│    Workspace    │◄──►│   JSON Storage   │
@@ -62,7 +62,7 @@ The workspace system uses three distinct representations optimized for different
 ### Flow Descriptions
 
 - **Renderer → Workspace**: When saving, the renderer's `Tab[]` is serialized to `Workspace` format, capturing terminal commands from live sessions and pages' back/forward history. The sidebar's page saves alongside, as just its URL and whether the sidebar shows it
-- **Workspace → JSON**: The serialized workspace is persisted to `workspaces.json` in the user data directory
+- **Workspace → JSON**: The serialized workspace is persisted to `~/.conduit/workspaces.json`
 - **Workspace ↔ Template**: Bidirectional conversion for import/export functionality
 
 ## Workspace Formats
@@ -81,7 +81,7 @@ type Tab = TabMetadata & {
   activePaneId: string;
 };
 
-type Pane = TerminalPane | BrowserPane | EditorPane;
+type Pane = TerminalPane | BrowserPane | EditorPane | CanvasPane;
 ```
 
 **Key characteristics:**
@@ -100,8 +100,7 @@ type Pane = TerminalPane | BrowserPane | EditorPane;
   sessionId: "sess-xyz789",      // Runtime PTY session
   cwd: "/Users/dev/project",
   title: "zsh",           // Current process name
-  command: null,                 // Captured on save
-  vmId: "vm-123"                 // Cloud VM ID (connection details managed by backend)
+  command: null                  // Captured on save
 }
 ```
 
@@ -393,14 +392,15 @@ tabs:
 
 The shared type system provides common definitions used across all three formats:
 
-| Type                                              | Location                     | Used By                  |
-| ------------------------------------------------- | ---------------------------- | ------------------------ |
-| `PaneType`                                        | `@shared/types/panes`        | All formats              |
-| `TerminalPane`, `BrowserPane`, `EditorPane`       | `@shared/types/panes`        | Workspace, Template base |
-| `LayoutNode`, `LayoutPaneNode`, `LayoutSplitNode` | `@features/workbench/model`  | Workspace, Renderer      |
-| `SplitDirection`                                  | `@features/workbench/model`  | All formats              |
-| `TabMetadata`                                     | `@shared/types/panes`        | All formats              |
-| `Workspace`, `WorkspaceTab`                       | `@features/workspaces/model` | Persistence              |
+| Type                                                      | Location                     | Used By                  |
+| --------------------------------------------------------- | ---------------------------- | ------------------------ |
+| `PaneType`                                                | `@shared/types/panes`        | All formats              |
+| `TerminalPane`, `BrowserPane`, `EditorPane`, `CanvasPane` | `@shared/types/panes`        | Workspace, Template base |
+| `LayoutNode`, `LayoutPaneNode`, `LayoutSplitNode`         | `@features/workbench/model`  | Workspace, Renderer      |
+| `SplitDirection`                                          | `@features/workbench/model`  | All formats              |
+| `TabMetadata`                                             | `@shared/types/panes`        | All formats              |
+| `Workspace`, `WorkspaceTab`                               | `@features/workspaces/model` | Persistence              |
+| `SidebarPage`                                             | `@features/browser/model`    | Persistence              |
 
 ### Pane Type Extensions
 
@@ -414,13 +414,14 @@ type TerminalPane = {
   cwd?: string | null;
   command?: string | null;
   cloneOf?: string;
+  cols?: number; // The PTY's size when it saved
+  rows?: number;
 };
 
 // Renderer (runtime)
 type TerminalPane = SharedTerminalPane & {
   sessionId: string; // PTY session reference
   title: string; // Current process name
-  vmId?: string; // Cloud VM ID (connection details managed by backend)
   // Agent session metadata...
 };
 ```
@@ -492,9 +493,18 @@ src/features/workspaces/
 │       ├── import.ts     # Template to workspace
 │       ├── export.ts     # Workspace to template
 │       └── utils.ts      # Shared conversion helpers
-├── client/actions.ts     # Open, close and restore workspaces
-├── client/autosave.ts    # Saves the open workspace as its tabs change
+├── client/
+│   ├── actions.ts        # Open, close and restore workspaces
+│   ├── autosave.ts       # Saves the open workspace as its tabs change
+│   ├── queries.ts        # The workspaces query, and the mutations that change it
+│   └── workspaceHandlers.ts # Save and Close Workspace commands
+├── commands.ts           # Save, Rename, Duplicate and Close Workspace, with their keybindings
 └── components/           # WorkspaceMenu, WorkspacePicker, useWorkspaces
+
+src/features/browser/
+├── main/serialize.ts     # serializeBrowserPane, a page's back/forward history
+├── main/restore.ts       # Gives a reopening page its history back
+└── client/sidebar.ts     # The sidebar's page, and openSidebarPage
 
 src/shared/types/panes.ts        # PaneType, Pane types, TabMetadata
 
