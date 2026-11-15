@@ -294,6 +294,8 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   const child: ChildProcess = spawn(
     executable,
     [
+      // Also sets navigator.webdriver in every page, so Google and other
+      // bot-checking sites answer with a CAPTCHA. Check those by hand.
       "--remote-debugging-port=0",
       `--user-data-dir=${userData}`,
       "--use-mock-keychain",
