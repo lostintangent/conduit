@@ -26,7 +26,7 @@ This document provides a comprehensive overview of how Conduit workspaces are st
 Conduit workspaces represent the complete state of a user's tab layout, including terminal sessions, browser panes, and editor configurations. The workspace system supports:
 
 1. **Autosave** - The open workspace, named or not, saves 2 seconds after its tabs change, before another workspace replaces it, and as the window closes
-2. **Launch restore** - Conduit reopens the workspace that was open when it quit, and shows its window once those tabs have painted, or 2 seconds after its first paint at most. If a terminal can't start, or the page crashed again within a minute of reloading, the window opens a new tab outside any named workspace, so that tab can't save over one
+2. **Launch restore** - Conduit reopens the workspace that was open when it quit, and shows its window once those tabs have painted, or 2 seconds after its first paint at most. If a terminal can't start, or the page crashed again within a minute of reloading, the window starts over with a new tab outside any named workspace. The unnamed tabs it couldn't reopen move into the list as "Recovered <date, time>", so the new tab can't save over them
 3. **Named workspaces** - User-saved workspace configurations for quick access
 4. **Import/Export** - YAML-based workspace templates for sharing and version control
 
@@ -497,6 +497,7 @@ The renderer calls these as `window.conduit.workspaces.<method>()`.
 | `saveWorkspace`       | Save the tabs into the open workspace, named or not       |
 | `saveWorkspaceAs`     | Save the tabs under a name and make it the open workspace |
 | `setCurrentWorkspace` | Make a named workspace the open one, or `null` for none   |
+| `recoverLastSession`  | Start over, keeping the unnamed tabs as "Recovered …"     |
 | `deleteWorkspace`     | Delete a named workspace other than the open one          |
 | `renameWorkspace`     | Rename existing workspace                                 |
 | `importFromFile`      | Import from YAML file, numbering the name if it's taken   |

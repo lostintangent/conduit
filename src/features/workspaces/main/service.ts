@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "yaml";
 import type { Tab } from "@features/workbench/model";
-import type { Workspace, WorkspaceState } from "../model";
+import { timestampedName, type Workspace, type WorkspaceState } from "../model";
 import { captureTerminalCommand } from "@features/terminal/main/command";
 import { getAllTerminals } from "@features/terminal/main/store";
 import type { TerminalInstance } from "@features/terminal/main/types";
@@ -23,6 +23,7 @@ const service = {
   saveWorkspace: inOrder(saveWorkspace),
   saveWorkspaceAs: inOrder(saveWorkspaceAs),
   setCurrentWorkspace: inOrder(setCurrentWorkspace),
+  recoverLastSession: inOrder(recoverLastSession),
   deleteWorkspace: inOrder(deleteWorkspace),
   renameWorkspace: inOrder(renameWorkspace),
   importFromFile: importWorkspace,
@@ -247,6 +248,26 @@ async function setCurrentWorkspace(
     throw new Error(`Workspace "${name}" not found`);
   }
   return saveWorkspaceState();
+}
+
+/**
+ * Starts the window over without its last session, which couldn't reopen.
+ * The anonymous workspace's tabs move into the list as "Recovered <date,
+ * time>", so the window's new tab can't autosave over them, and a named
+ * workspace that was open stays in it. Resolves to the name that keeps the
+ * last session, if it had tabs.
+ */
+async function recoverLastSession(): Promise<string | undefined> {
+  const { current, untitled } = workspaceState;
+  let recovered: string | undefined;
+  if (untitled?.tabs.length) {
+    recovered = unusedName(timestampedName("Recovered"));
+    putWorkspace({ ...untitled, name: recovered });
+  }
+  delete workspaceState.untitled;
+  delete workspaceState.current;
+  await saveWorkspaceState();
+  return current ?? recovered;
 }
 
 async function deleteWorkspace(name: string): Promise<WorkspaceState> {

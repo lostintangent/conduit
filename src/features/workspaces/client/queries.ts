@@ -91,6 +91,19 @@ export const workspaceMutations = {
         window.conduit.workspaces.deleteWorkspace(name),
     }),
 
+  /**
+   * Starts over without the last session, which couldn't reopen, and
+   * resolves to the workspace that keeps its tabs.
+   */
+  recoverLastSession: () =>
+    mutationOptions({
+      mutationKey: [...workspaceKeys.all, "recoverLastSession"],
+      meta: { errorMessage: "Couldn't keep your last session" },
+      mutationFn: () => window.conduit.workspaces.recoverLastSession(),
+      onSettled: (_name, _error, _variables, _onMutateResult, { client }) =>
+        client.invalidateQueries({ queryKey: workspaceKeys.all }),
+    }),
+
   /** Asks for a workspace file and adds it, under a new name if it's taken. */
   import: () =>
     mutationOptions({

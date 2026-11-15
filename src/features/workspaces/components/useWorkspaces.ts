@@ -7,6 +7,7 @@ import {
   workspacesQuery,
 } from "@features/workspaces/client/queries";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { timestampedName } from "../model";
 import { useCallback, useEffect, useState } from "react";
 
 /** The name of the open workspace, or null while it's the anonymous one. */
@@ -40,16 +41,7 @@ export function useWorkspaces() {
   const saveWorkspace = useCallback(
     (customName: string, onSaved?: () => void) => {
       let name = customName.trim();
-      if (name.length === 0) {
-        const now = new Date();
-        name = `Layout ${now.toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })}`;
-      }
+      if (name.length === 0) name = timestampedName("Layout");
 
       // A failed save has already said so, and leaves the dialog open
       void saveWorkspaceAs(name).then(

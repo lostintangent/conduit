@@ -7,6 +7,7 @@ const { workspaceApi, terminalApi, workbenchApi } = vi.hoisted(() => {
     saveWorkspace: vi.fn<() => Promise<WorkspaceState>>(),
     setCurrentWorkspace:
       vi.fn<(name: string | null) => Promise<WorkspaceState>>(),
+    recoverLastSession: vi.fn<() => Promise<string | undefined>>(),
   };
   const terminalApi = {
     create: vi.fn(async () => ({
@@ -210,14 +211,17 @@ describe("restoreAtLaunch", () => {
     });
   });
 
-  it("closes the shells it started, and opens a new tab outside the workspace, when one can't start", async () => {
+  it("closes the shells it started, and says where it kept the tabs, when one can't start", async () => {
     terminalApi.create
       .mockResolvedValueOnce({ sessionId: "started", title: "zsh", cwd: "/" })
       .mockRejectedValueOnce(new Error("posix_spawnp failed"));
     vi.spyOn(console, "error").mockImplementationOnce(() => {});
+    workspaceApi.recoverLastSession.mockResolvedValueOnce(
+      "Recovered Nov 15, 1:25 PM",
+    );
     seed({
-      workspaces: [{ ...work, tabs: [shellTab("one"), shellTab("two")] }],
-      current: "Work",
+      workspaces: [work],
+      untitled: { lastModified: 0, tabs: [shellTab("one"), shellTab("two")] },
     });
 
     await restoreAtLaunch();
@@ -225,18 +229,19 @@ describe("restoreAtLaunch", () => {
     expect(terminalApi.close).toHaveBeenCalledWith("started");
     expect(tabsAtom.get()).toHaveLength(1);
     expect(tabIds()).not.toContain("one");
-    // Or the new tab would save over the workspace.
-    expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith(null);
+    // Or the new tab would save over them.
+    expect(workspaceApi.recoverLastSession).toHaveBeenCalledOnce();
     expect(notificationsAtom.get()).toMatchObject([
       {
         kind: "error",
         message: "Couldn't reopen your last session",
-        details: "posix_spawnp failed",
+        details:
+          "Your tabs are saved as “Recovered Nov 15, 1:25 PM”. posix_spawnp failed",
       },
     ]);
   });
 
-  it("opens a new tab outside the workspace after the page crashed again soon after reloading", async () => {
+  it("keeps the last session aside and opens a new tab after the page crashed again soon after reloading", async () => {
     workbenchApi.reloadedAfterCrashLoop.mockResolvedValueOnce(true);
     seed({ workspaces: [work], untitled, current: "Work" });
 
@@ -244,6 +249,8 @@ describe("restoreAtLaunch", () => {
 
     expect(tabsAtom.get()).toHaveLength(1);
     expect(tabIds()).not.toContain("work");
-    expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith(null);
+    expect(workspaceApi.recoverLastSession).toHaveBeenCalledOnce();
+    // The crash dialog already said why
+    expect(notificationsAtom.get()).toEqual([]);
   });
 });

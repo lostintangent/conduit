@@ -32,6 +32,17 @@ export type WorkspaceState = {
   current?: string;
 };
 
+/** Names a workspace after when it was saved, like "Layout Nov 15, 1:25 PM". */
+export function timestampedName(prefix: string) {
+  return `${prefix} ${new Date().toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })}`;
+}
+
 declare module "@shared/rpc" {
   interface Events {
     /** The name of the workspace picked from File > Open Workspace. */

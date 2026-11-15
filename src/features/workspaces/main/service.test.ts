@@ -336,6 +336,34 @@ describe("the open workspace", () => {
     });
     expect(refreshApplicationMenu).toHaveBeenCalledTimes(2);
   });
+
+  it("keeps a last session that couldn't reopen in the list, where the window's new tab can't save over it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 10, 15, 13, 25));
+    const work = { name: "Work", lastModified: 0, tabs: [] };
+    await seed({ workspaces: [work], untitled: { tabs: [tab("mine")] } });
+
+    const recovered = await service.recoverLastSession();
+    expect(recovered).toMatch(/^Recovered Nov 15\b.*\b1:25\sPM$/);
+    let state = service.getState();
+    expect(state).toMatchObject({
+      workspaces: [{ name: recovered, tabs: [{ id: "mine" }] }, work],
+    });
+    expect(state.untitled).toBeUndefined();
+    expect(onDisk()).toEqual(state);
+    expect(refreshApplicationMenu).toHaveBeenCalledOnce();
+
+    // A named workspace stays where it is, and the unnamed tabs it replaced
+    // are kept too
+    await seed({ ...state, untitled: { tabs: [tab("old")] }, current: "Work" });
+    await expect(service.recoverLastSession()).resolves.toBe("Work");
+    state = service.getState();
+    expect(state.current).toBeUndefined();
+    expect(names(state)).toEqual([`${recovered} 2`, recovered, "Work"]);
+
+    await expect(service.recoverLastSession()).resolves.toBeUndefined();
+    vi.useRealTimers();
+  });
 });
 
 describe("loadWorkspaceState", () => {

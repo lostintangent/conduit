@@ -404,6 +404,51 @@ describe("workspaces", () => {
     expect(await pwd()).toBe(path.join(app.home, "one"));
   });
 
+  it("keeps the window's tabs in the picker when they can't reopen, rather than saving over them", async () => {
+    await choose("Close Workspace");
+    await expectTerminalFocused("closing the workspace");
+    await app.quit();
+    // Hand-edited to a size its shell can't start at.
+    const file = path.join(app.home, ".conduit/workspaces.json");
+    const unrestorable = saved();
+    unrestorable.untitled.tabs[0].panes[0].cols = "wide";
+    fs.writeFileSync(file, JSON.stringify(unrestorable));
+    await relaunch("workspace-unrestorable");
+
+    const toast = app.page.locator(".pointer-events-auto", {
+      has: app.page.getByText("Couldn't reopen your last session", {
+        exact: true,
+      }),
+    });
+    await until(() => toast.isVisible(), "the toast about the last session");
+    const recovered = (await toast.textContent())!.match(
+      /Your tabs are saved as “(Recovered [^”]+)”/,
+    )?.[1];
+    expect(recovered).toBeDefined();
+    await app.page.getByRole("tab", { selected: true }).waitFor();
+    expect(await tabs().count()).toBe(1);
+    expect(await title()).toBe("Conduit");
+
+    // The new tab saves as the window's tabs, beside the recovered ones.
+    await app.quit();
+    const kept = saved();
+    expect(kept.current).toBeUndefined();
+    expect(kept.untitled.tabs).toHaveLength(1);
+    expect(
+      kept.workspaces.find(({ name }: { name: string }) => name === recovered),
+    ).toMatchObject({ tabs: unrestorable.untitled.tabs });
+    await relaunch("workspace-recovered");
+
+    await app.page.getByRole("tab", { selected: true }).waitFor();
+    expect(await tabs().count()).toBe(1);
+    await app.page.keyboard.press("Meta+K");
+    await app.page.keyboard.press("Meta+O");
+    const picker = app.page.getByRole("dialog", { name: "Open Workspace" });
+    await picker.getByRole("option").filter({ hasText: recovered! }).waitFor();
+    await app.page.keyboard.press("Escape");
+    await picker.waitFor({ state: "detached" });
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

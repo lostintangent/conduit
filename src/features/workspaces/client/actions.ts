@@ -16,8 +16,8 @@ type WorkspaceTerminalPane = WorkspacePane & SharedTerminalPane;
 /**
  * Reopens what was open when Conduit last quit: the named workspace, or else
  * the window's unnamed tabs. When that can't open, or the page keeps crashing,
- * the window starts outside any named workspace, so its new tab can't save
- * over one.
+ * the window starts over with a new tab, and the last session stays in the
+ * list where that tab can't save over it.
  */
 export async function restoreAtLaunch() {
   try {
@@ -27,26 +27,33 @@ export async function restoreAtLaunch() {
       state.untitled;
     if (last?.tabs.length) {
       if (await api.workbench.reloadedAfterCrashLoop()) {
-        await leaveNamedWorkspace();
+        await recoverLastSession();
       } else {
         await restoreTabs(last);
       }
     }
   } catch (error) {
     console.error("[Workspaces] Couldn't reopen the last session:", error);
+    const keptIn = await recoverLastSession();
     enqueueNotification({
       kind: "error",
       message: "Couldn't reopen your last session",
-      details: (error as Error).message,
+      details: [
+        keptIn && `Your tabs are saved as “${keptIn}”.`,
+        (error as Error).message,
+      ]
+        .filter(Boolean)
+        .join(" "),
     });
-    await leaveNamedWorkspace();
   }
   if (tabsAtom.get().length === 0) await openTab();
 }
 
-async function leaveNamedWorkspace() {
+function recoverLastSession() {
   // Its own error toast is enough.
-  await runMutation(workspaceMutations.setCurrent(), null).catch(() => {});
+  return runMutation(workspaceMutations.recoverLastSession(), undefined).catch(
+    () => undefined,
+  );
 }
 
 /**

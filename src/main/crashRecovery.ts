@@ -7,7 +7,8 @@ let reloadedAfterLoop = false;
 
 /**
  * Whether the page last reloaded after crashing again within a minute, so it
- * starts with a new tab in case its last session is what crashes it.
+ * starts with a new tab and keeps its last session aside, in case that's what
+ * crashes it.
  */
 export const reloadedAfterCrashLoop = () => reloadedAfterLoop;
 
@@ -40,7 +41,7 @@ export function reloadAfterCrashes(window: BrowserWindow) {
           type: "error",
           message: "Conduit's window keeps crashing",
           detail:
-            "It crashed again less than a minute after reloading. Reload opens a new tab in place of your last session, in case that's what crashes it.",
+            "It crashed again less than a minute after reloading. Reload opens a new tab, and keeps your last session in File > Open Workspace, in case it's what crashes it.",
           buttons: ["Reload", "Quit"],
         });
         if (response === 1) {
