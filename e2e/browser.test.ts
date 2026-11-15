@@ -243,6 +243,42 @@ describe("browser automation from the CLI", () => {
     await selectedTab(0).waitFor();
   });
 
+  // A background tab parks its pages off screen rather than closing them, and
+  // Chromium hides and throttles a page only once none of it is on screen.
+  // Playwright's focus emulation keeps every page visible to Chromium, so this
+  // checks the parking rather than the page's visibilityState.
+  it("moves a background tab's pages fully off screen, and brings the same pages back", async () => {
+    const pagesOnScreen = () =>
+      app.page.locator("webview").evaluateAll((webviews) =>
+        webviews.map((webview) => {
+          const box = webview.getBoundingClientRect();
+          return (
+            box.right > 0 &&
+            box.bottom > 0 &&
+            box.left < innerWidth &&
+            box.top < innerHeight
+          );
+        }),
+      );
+    expect(await pagesOnScreen()).toEqual([true, true]);
+    await inPage(0, "window.kept = true");
+
+    await app.page.keyboard.press("Meta+2");
+    await selectedTab(1).waitFor();
+    await until(
+      async () => (await pagesOnScreen()).every((shown) => !shown),
+      "the background tab's pages to leave the screen",
+    );
+
+    await app.page.keyboard.press("Meta+1");
+    await selectedTab(0).waitFor();
+    await until(
+      async () => (await pagesOnScreen()).every(Boolean),
+      "the pages to come back on screen",
+    );
+    expect(await inPage(0, "window.kept")).toBe(true);
+  });
+
   // The browser routes a click by where the window last drew the page, so a
   // click that lands as the page's tab shows goes to the window instead
   for (const focused of ["address bar", "page"]) {
