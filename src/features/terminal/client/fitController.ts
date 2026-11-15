@@ -5,7 +5,7 @@ import type { getOrCreate } from "./xtermCache";
  * Creates a FitController that automatically fits and resizes the terminal
  * within the given container element. It observes size changes and updates
  * the terminal dimensions accordingly, while also providing a temporary
- * overlay to show the current dimensions.
+ * overlay to show the new dimensions after a resize.
  */
 export function createFitController({
   entry,
@@ -69,7 +69,8 @@ export function createFitController({
     }
     if (terminalSizeChanged) {
       lastTerminalSize = { cols, rows };
-      showDimensionsOverlay(cols, rows);
+      // Not for the size a terminal first fits to, like on launch
+      if (hasFit) showDimensionsOverlay(cols, rows);
     }
     hasFit = true;
   }

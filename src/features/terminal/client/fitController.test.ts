@@ -37,13 +37,14 @@ describe("createFitController", () => {
     const container = document.createElement("div");
     Object.defineProperty(container, "clientWidth", { value: 500 });
     Object.defineProperty(container, "clientHeight", { value: 300 });
+    const setDimensions = vi.fn();
     const controller = createFitController({
       entry: entry as any,
       container,
-      setDimensions: vi.fn(),
+      setDimensions,
     });
     const fit = () => frames.splice(0).forEach((frame) => frame(0));
-    return { entry, controller, fit };
+    return { entry, controller, fit, setDimensions };
   }
 
   // A shell can start at a measured size, so the PTY needs the fitted size
@@ -57,6 +58,20 @@ describe("createFitController", () => {
     observed();
     fit();
     expect(entry.resize).toHaveBeenCalledTimes(1);
+    controller.dispose();
+  });
+
+  it("shows the size when the terminal resizes, not when it first fits", () => {
+    const fitTo = { cols: 127, rows: 45 };
+    const { controller, fit, setDimensions } = setup(fitTo);
+
+    fit();
+    expect(setDimensions).not.toHaveBeenCalled();
+
+    Object.assign(fitTo, { cols: 100 });
+    observed();
+    fit();
+    expect(setDimensions).toHaveBeenCalledWith({ width: 100, height: 45 });
     controller.dispose();
   });
 });
