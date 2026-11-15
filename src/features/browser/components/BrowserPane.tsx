@@ -1,6 +1,11 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
-import { getWebview, takePageFocus } from "@features/browser/client/webview";
+import {
+  getWebview,
+  takePageFocus,
+  takePageRestore,
+} from "@features/browser/client/webview";
+import { restoreAddress } from "@features/browser/model";
 import { activatePane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
 import {
@@ -48,6 +53,8 @@ type BrowserPaneProps = {
 
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
+  /** Reports the page's web contents, which main saves its history from. */
+  onAttach?: (webContentsId: number) => void;
   /** Opens a link the page meant for a new tab. Without it, the page loads it. */
   onOpenPage?: (url: string, background: boolean) => void;
 
@@ -87,6 +94,7 @@ export function BrowserPane({
   tabId,
   onTitleChange,
   onUrlChange,
+  onAttach,
   onOpenPage,
   onContextMenu,
   onHover,
@@ -114,6 +122,10 @@ export function BrowserPane({
   const onTitleChangeRef = useRef(onTitleChange);
   onTitleChangeRef.current = onTitleChange;
   const showContextMenu = useEffectEvent(onContextMenu);
+  const reportAttach = useEffectEvent((webview: WebviewTag) => {
+    const webContentsId = getWebContentsId(webview);
+    if (webContentsId !== undefined) onAttach?.(webContentsId);
+  });
   // Without anywhere to open a new tab, the page loads it in place
   const openPage = useEffectEvent((url: string, background: boolean) => {
     if (onOpenPage) onOpenPage(url, background);
@@ -145,7 +157,8 @@ export function BrowserPane({
       webview = document.createElement("webview") as WebviewTag;
       // Main decides what each popup becomes, see the browser's startup
       webview.setAttribute("allowpopups", "");
-      webview.src = url;
+      // A page that reopens with its workspace gets its history back instead
+      webview.src = takePageRestore(paneId) ? restoreAddress(paneId, url) : url;
       webview.id = paneId;
       webview.style.position = "absolute";
       webview.style.overflow = "hidden";
@@ -484,6 +497,7 @@ export function BrowserPane({
     // user moved focus since
     const handleDidAttach = () => {
       attachedWebviews.add(webview);
+      reportAttach(webview);
       if (
         isPageFocusPendingRef.current &&
         document.activeElement === paneRef.current

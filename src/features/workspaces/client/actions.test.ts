@@ -8,6 +8,7 @@ const { workspaceApi, terminalApi, workbenchApi } = vi.hoisted(() => {
     setCurrentWorkspace:
       vi.fn<(name: string | null) => Promise<WorkspaceState>>(),
     recoverLastSession: vi.fn<() => Promise<string | undefined>>(),
+    stagePages: vi.fn(async (_name: string | null): Promise<string[]> => []),
   };
   const terminalApi = {
     create: vi.fn(async () => ({
@@ -27,6 +28,7 @@ const { workspaceApi, terminalApi, workbenchApi } = vi.hoisted(() => {
 });
 
 import { closeWorkspace, openWorkspace, restoreAtLaunch } from "./actions";
+import { takePageRestore } from "@features/browser/client/webview";
 import { workspacesQuery } from "./queries";
 import { queryClient } from "@/query";
 import {
@@ -96,6 +98,32 @@ describe("openWorkspace", () => {
     expect(tabsAtom.get().map((tab) => tab.id)).toEqual(["tab-1"]);
     expect(activeTabAtom.get()).toBeNull();
     expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith("Docs");
+  });
+
+  it("reopens its pages with the history main set aside for them", async () => {
+    const docs = {
+      name: "Docs",
+      lastModified: 0,
+      tabs: [
+        {
+          id: "tab-1",
+          panes: [
+            { id: "a", type: "browser", url: "https://a.com" },
+            { id: "b", type: "browser", url: "https://b.com" },
+          ],
+          layout: { id: "node-a", type: "pane", paneId: "a" },
+          activePaneId: "a",
+        },
+      ],
+    };
+    seed({ workspaces: [docs] as unknown as Workspace[] });
+    workspaceApi.stagePages.mockResolvedValueOnce(["a"]);
+
+    await openWorkspace("Docs");
+
+    expect(workspaceApi.stagePages).toHaveBeenCalledWith("Docs");
+    expect(takePageRestore("a")).toBe(true);
+    expect(takePageRestore("b")).toBe(false);
   });
 
   it("starts each restored terminal at the size it was saved at", async () => {
@@ -168,6 +196,7 @@ describe("closeWorkspace", () => {
     await closeWorkspace();
 
     expect(tabsAtom.get().map((tab) => tab.id)).toEqual(["mine"]);
+    expect(workspaceApi.stagePages).toHaveBeenCalledWith(null);
     expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith(null);
   });
 });
@@ -188,6 +217,7 @@ describe("restoreAtLaunch", () => {
 
     expect(tabIds()).toEqual(["work"]);
     expect(activeTabIdAtom.get()).toBe("work");
+    expect(workspaceApi.stagePages).toHaveBeenCalledWith("Work");
     expect(workspaceApi.setCurrentWorkspace).not.toHaveBeenCalled();
     expect(workspaceApi.saveWorkspace).not.toHaveBeenCalled();
   });
@@ -198,6 +228,7 @@ describe("restoreAtLaunch", () => {
     await restoreAtLaunch();
 
     expect(tabIds()).toEqual(["mine"]);
+    expect(workspaceApi.stagePages).toHaveBeenCalledWith(null);
   });
 
   it("opens a new tab when there's nothing to reopen", async () => {

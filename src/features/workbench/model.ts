@@ -50,9 +50,11 @@ export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
     title?: string;
   };
 
-export type BrowserPane = Omit<SharedBrowserPane, "url"> & {
+export type BrowserPane = Omit<SharedBrowserPane, "url" | "navigation"> & {
   url: string;
   title?: string;
+  /** The page's web contents, once it attaches, which main saves its history from */
+  webContentsId?: number;
 };
 
 export type EditorPane = Omit<SharedEditorPane, "cwd"> &

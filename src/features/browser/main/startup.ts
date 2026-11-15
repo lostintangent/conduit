@@ -12,6 +12,7 @@ import { settings } from "@features/settings/main/settings";
 import { emitter, getAppWindow } from "../../../main/events";
 import type { Download } from "../model";
 import { library, moveFromSettings } from "./library";
+import { restorePages } from "./restore";
 
 const emit = emitter("browser");
 
@@ -234,13 +235,12 @@ export default async function startBrowserSession() {
   saveDownloads(browserSession);
   saveCookiesSoon(browserSession);
 
+  const appWindow = getAppWindow()?.webContents;
   // A page's popups take its session, so they browse in this one too
-  getAppWindow()?.webContents.on(
-    "will-attach-webview",
-    (_event, webPreferences) => {
-      webPreferences.partition = PARTITION;
-    },
-  );
+  appWindow?.on("will-attach-webview", (_event, webPreferences) => {
+    webPreferences.partition = PARTITION;
+  });
+  if (appWindow) restorePages(appWindow);
 
   // Startups run once Conduit's window exists, so every web contents created
   // from here on is a page or one of its popups

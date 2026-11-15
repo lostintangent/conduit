@@ -448,6 +448,28 @@ export type Download = {
   progress?: number;
 };
 
+const RESTORE_ADDRESS = "about:blank#conduit-restore?";
+
+/**
+ * Where the webview of a page that reopens with its workspace starts. Main
+ * gives the page its history back instead, by its pane, or loads its address
+ * when it has none.
+ */
+export function restoreAddress(paneId: string, url: string) {
+  return RESTORE_ADDRESS + new URLSearchParams({ pane: paneId, url });
+}
+
+/** The pane and address a reopening page's start address names. */
+export function parseRestoreAddress(
+  src: string | undefined,
+): { paneId: string; url: string } | undefined {
+  if (!src?.startsWith(RESTORE_ADDRESS)) return;
+  const params = new URLSearchParams(src.slice(RESTORE_ADDRESS.length));
+  const paneId = params.get("pane");
+  const url = params.get("url");
+  return paneId && url !== null ? { paneId, url } : undefined;
+}
+
 declare module "@shared/rpc" {
   interface Events {
     browser: {

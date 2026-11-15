@@ -4,6 +4,7 @@ import type { TerminalPane as SharedTerminalPane } from "@shared/types/panes";
 import type { Workspace } from "../model";
 import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { closeTab, openTab } from "@features/workbench/client/actions/tab";
+import { restorePagesOnOpen } from "@features/browser/client/webview";
 import { queryClient, runMutation } from "@/query";
 import { switching } from "./autosave";
 import { workspaceMutations, workspacesQuery } from "./queries";
@@ -96,11 +97,14 @@ export function saveWorkspaceAs(name: string) {
 }
 
 /**
- * Replaces the window's tabs with a workspace's, starting its terminals. A
- * workspace without tabs gets a new one. If a terminal can't start, the ones
- * that did are closed and the window's tabs stay as they were.
+ * Replaces the window's tabs with a workspace's, starting its terminals, and
+ * its pages with their back/forward history. A workspace without a name is
+ * the anonymous one, and one without tabs gets a new one. If a terminal can't
+ * start, the ones that did are closed and the window's tabs stay as they were.
  */
-async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
+async function restoreTabs(
+  workspace: Pick<Workspace, "tabs" | "activeTabId"> & { name?: string },
+) {
   // Shared across all tabs to support cross-tab terminal cloning
   const terminalSessions = new Map<
     string,
@@ -108,8 +112,10 @@ async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
   >();
 
   let workspaceTabs: Tab[];
+  let pages: string[];
   try {
     workspaceTabs = await startTabs(workspace.tabs, terminalSessions);
+    pages = await api.workspaces.stagePages(workspace.name ?? null);
   } catch (error) {
     await Promise.allSettled(
       Array.from(terminalSessions.values(), ({ sessionId }) =>
@@ -121,6 +127,7 @@ async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
 
   closeAllTabs();
 
+  restorePagesOnOpen(pages);
   tabsAtom.set(workspaceTabs);
   // Workspace files can be edited by hand, so a field may be missing.
   activeTabIdAtom.set(workspace.activeTabId ?? null);

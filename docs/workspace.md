@@ -61,7 +61,7 @@ The workspace system uses three distinct representations optimized for different
 
 ### Flow Descriptions
 
-- **Renderer → Workspace**: When saving, the renderer's `Tab[]` is serialized to `Workspace` format, capturing terminal commands from live sessions
+- **Renderer → Workspace**: When saving, the renderer's `Tab[]` is serialized to `Workspace` format, capturing terminal commands from live sessions and pages' back/forward history
 - **Workspace → JSON**: The serialized workspace is persisted to `workspaces.json` in the user data directory
 - **Workspace ↔ Template**: Bidirectional conversion for import/export functionality
 
@@ -88,7 +88,7 @@ type Pane = TerminalPane | BrowserPane | EditorPane;
 
 - Panes stored as `Record<string, Pane>` for fast access by ID
 - Layout tree references panes by `paneId`
-- Includes runtime-only fields like `sessionId` and `title`
+- Includes runtime-only fields like `sessionId`, `webContentsId` and `title`
 - Terminal panes track agent session metadata
 
 **Example renderer terminal pane:**
@@ -456,11 +456,15 @@ const yaml = YAML.stringify(template);
 Converts renderer state to workspace format for persistence:
 
 1. **Convert pane storage** - Transform `Record<string, Pane>` to `Pane[]`
-2. **Serialize each pane in its feature** - `serializeTerminalPane` (`terminal/main/serialize.ts`) captures the command a terminal is running and its PTY's `cols` and `rows`, and drops `sessionId` and `title`, which only last while it runs. A clone saves only which pane it shows. Other panes save as they are, so a browser pane keeps its `title` to label its tab until the page loads.
+2. **Serialize each pane in its feature** - `serializeTerminalPane` (`terminal/main/serialize.ts`) captures the command a terminal is running and its PTY's `cols` and `rows`, and drops `sessionId` and `title`, which only last while it runs. A clone saves only which pane it shows. `serializeBrowserPane` (`browser/main/serialize.ts`) saves the page's back/forward history as `navigation`, up to 6 pages on each side of the one showing, with each page's scroll position and form values, and drops `webContentsId`. A page that hasn't attached since it reopened keeps the history the open workspace saved it with. A browser pane keeps its `title` to label its tab until the page loads. Other panes save as they are.
 
 ```typescript
 const serializedTabs = await serializeTabs(tabs);
 ```
+
+### Workspace → Renderer (pages' history)
+
+Only main has a page's `navigation`. `getState` and every change's reply leave it out, since it can be large and only main restores it. As the renderer reopens a workspace, `stagePages` hands its pages' history to the browser and resolves to their panes' ids. Their webviews start at an address that names the pane, which main drops as the webview attaches, and the page gets its history back with `navigationHistory.restore()` (`browser/main/restore.ts`). A page without saved history loads its `url` as before.
 
 ## File Structure
 
@@ -497,6 +501,7 @@ The renderer calls these as `window.conduit.workspaces.<method>()`.
 | `saveWorkspaceAs`     | Save the tabs under a name and make it the open workspace |
 | `setCurrentWorkspace` | Make a named workspace the open one, or `null` for none   |
 | `recoverLastSession`  | Start over, keeping the unnamed tabs as "Recovered …"     |
+| `stagePages`          | Hand a reopening workspace's pages their history          |
 | `deleteWorkspace`     | Delete a named workspace other than the open one          |
 | `renameWorkspace`     | Rename existing workspace                                 |
 | `importFromFile`      | Import from YAML file, numbering the name if it's taken   |

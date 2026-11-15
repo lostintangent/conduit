@@ -69,6 +69,11 @@ export default function BrowserLayoutPane({
         onTitleChange={(title) =>
           updatePaneProperty(tab.id, pane.id, { title })
         }
+        onAttach={(webContentsId) => {
+          if (webContentsId !== pane.webContentsId) {
+            updatePaneProperty(tab.id, pane.id, { webContentsId });
+          }
+        }}
         onOpenPage={(url, background) => {
           openBrowserPane(tab.id, pane.id, url);
           if (background) activatePane(tab.id, pane.id);

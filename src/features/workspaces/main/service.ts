@@ -3,7 +3,15 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "yaml";
 import type { Tab } from "@features/workbench/model";
-import { timestampedName, type Workspace, type WorkspaceState } from "../model";
+import type { BrowserNavigation } from "@shared/types/panes";
+import {
+  timestampedName,
+  type UntitledWorkspace,
+  type Workspace,
+  type WorkspaceState,
+} from "../model";
+import { restoreOnAttach } from "@features/browser/main/restore";
+import { serializeBrowserPane } from "@features/browser/main/serialize";
 import { serializeTerminalPane } from "@features/terminal/main/serialize";
 import { writeJsonFile } from "../../../main/atomicWrite";
 import { refreshApplicationMenu } from "../../../main/ui/applicationMenu";
@@ -17,11 +25,12 @@ const WORKSPACE_FILE_FILTER = {
 };
 
 const service = {
-  getState: () => workspaceState,
+  getState: () => forWindow(workspaceState),
   saveWorkspace: inOrder(saveWorkspace),
   saveWorkspaceAs: inOrder(saveWorkspaceAs),
   setCurrentWorkspace: inOrder(setCurrentWorkspace),
   recoverLastSession: inOrder(recoverLastSession),
+  stagePages: inOrder(stagePages),
   deleteWorkspace: inOrder(deleteWorkspace),
   renameWorkspace: inOrder(renameWorkspace),
   importFromFile: importWorkspace,
@@ -131,18 +140,58 @@ async function saveWorkspaceState(): Promise<WorkspaceState> {
     listedNames = names;
     await refreshApplicationMenu();
   }
-  return workspaceState;
+  return forWindow(workspaceState);
 }
 
-/** Each pane as its feature saves it, without what only lasts while it runs. */
+/**
+ * The state as the window has it, without its pages' back/forward history,
+ * which only main restores, and which can be large. Workspace files can be
+ * edited by hand, so it doesn't count on their shape.
+ */
+function forWindow(state: WorkspaceState): WorkspaceState {
+  return JSON.parse(
+    JSON.stringify(state, (key, value) =>
+      key === "navigation" ? undefined : value,
+    ),
+  );
+}
+
+/** A workspace's pages' back/forward history, by pane */
+function savedNavigation(workspace: UntitledWorkspace | undefined) {
+  const pages = new Map<string, BrowserNavigation>();
+  for (const tab of workspace?.tabs ?? []) {
+    for (const pane of tab.panes ?? []) {
+      if (pane.type === "browser" && pane.navigation) {
+        pages.set(pane.id, pane.navigation);
+      }
+    }
+  }
+  return pages;
+}
+
+function currentWorkspace(): UntitledWorkspace | undefined {
+  const { current, untitled } = workspaceState;
+  return current ? findWorkspace(workspaceState, current) : untitled;
+}
+
+/**
+ * Each pane as its feature saves it, without what only lasts while it runs.
+ * A page that hasn't attached since it reopened keeps the history the open
+ * workspace saved it with.
+ */
 function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
+  const saved = savedNavigation(currentWorkspace());
   return Promise.all(
     tabs.map(async (tab) => ({
       ...tab,
       panes: await Promise.all(
-        Object.values(tab.panes).map((pane) =>
-          pane.type === "terminal" ? serializeTerminalPane(pane) : pane,
-        ),
+        Object.values(tab.panes).map((pane) => {
+          if (pane.type === "terminal") return serializeTerminalPane(pane);
+          if (pane.type === "browser") {
+            return serializeBrowserPane(pane, saved.get(pane.id));
+          }
+          return pane;
+        }),
       ),
     })),
   );
@@ -236,6 +285,21 @@ async function recoverLastSession(): Promise<string | undefined> {
   delete workspaceState.current;
   await saveWorkspaceState();
   return current ?? recovered;
+}
+
+/**
+ * Has the browser give a workspace's pages their back/forward history back as
+ * they reopen, and resolves to those pages' panes. The anonymous workspace is
+ * `null`.
+ */
+async function stagePages(name: string | null): Promise<string[]> {
+  const pages = savedNavigation(
+    name === null
+      ? workspaceState.untitled
+      : findWorkspace(workspaceState, name),
+  );
+  restoreOnAttach(pages);
+  return [...pages.keys()];
 }
 
 async function deleteWorkspace(name: string): Promise<WorkspaceState> {

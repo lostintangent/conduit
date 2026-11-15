@@ -30,6 +30,11 @@ vi.mock("electron", () => ({
   dialog: {
     showOpenDialog: (options: OpenDialogOptions) => showOpenDialog(options),
   },
+  webContents: { fromId: () => undefined },
+}));
+const restoreOnAttach = vi.fn();
+vi.mock("@features/browser/main/restore", () => ({
+  restoreOnAttach: (pages: unknown) => restoreOnAttach(pages),
 }));
 const refreshApplicationMenu = vi.fn(async () => {});
 vi.mock("../../../main/ui/applicationMenu", () => ({
@@ -385,6 +390,45 @@ describe("the open workspace", () => {
       ],
     });
     expect(refreshApplicationMenu).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps its pages' history from the window, and gives it back to them as they reopen", async () => {
+    const history = (url: string) => ({
+      index: 0,
+      entries: [{ url, title: url, pageState: "scrolled" }],
+    });
+    const savedTab = (paneId: string, url: string) => ({
+      id: "t",
+      panes: [{ id: paneId, type: "browser", url, navigation: history(url) }],
+      layout: { id: "node", type: "pane", paneId },
+      activePaneId: paneId,
+    });
+    await seed({
+      workspaces: [{ name: "Docs", tabs: [savedTab("p", "https://p.com/")] }],
+      untitled: { tabs: [savedTab("u", "https://u.com/")] },
+      current: "Docs",
+    });
+    expect(JSON.stringify(service.getState())).not.toContain("navigation");
+
+    await expect(service.stagePages("Docs")).resolves.toEqual(["p"]);
+    expect(restoreOnAttach).toHaveBeenLastCalledWith(
+      new Map([["p", history("https://p.com/")]]),
+    );
+    await expect(service.stagePages(null)).resolves.toEqual(["u"]);
+
+    // Its page hasn't attached since it reopened
+    const reopened = {
+      id: "t",
+      panes: { p: { id: "p", type: "browser", url: "https://p.com/" } },
+      layout: { id: "node", type: "pane", paneId: "p" },
+      activePaneId: "p",
+    } as unknown as Tab;
+    const state = await service.saveWorkspaceAs("Copy", [reopened], "t");
+    expect(JSON.stringify(state)).not.toContain("navigation");
+    expect(onDisk().workspaces[0]).toMatchObject({
+      name: "Copy",
+      tabs: [{ panes: [{ id: "p", navigation: history("https://p.com/") }] }],
+    });
   });
 
   it("keeps a last session that couldn't reopen in the list, where the window's new tab can't save over it", async () => {

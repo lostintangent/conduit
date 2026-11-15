@@ -20,3 +20,19 @@ export const focusPageOnOpen = (paneId: string) => {
 
 /** Whether the pane's page should take the keyboard, which it does once */
 export const takePageFocus = (paneId: string) => pagesToFocus.delete(paneId);
+
+/** Panes whose page reopens with its history, which main has set aside */
+let pagesToRestore = new Set<string>();
+
+/**
+ * Has these panes' pages get their history back as their webviews attach, in
+ * place of the panes marked before, which a workspace that opened since
+ * replaced.
+ */
+export const restorePagesOnOpen = (paneIds: string[]) => {
+  pagesToRestore = new Set(paneIds);
+};
+
+/** Whether the pane's page reopens with its history, which it does once */
+export const takePageRestore = (paneId: string) =>
+  pagesToRestore.delete(paneId);

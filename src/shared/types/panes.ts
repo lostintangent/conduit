@@ -21,6 +21,17 @@ export type BrowserPane = {
   url?: string;
   devToolsFor?: string;
   chromeless?: boolean;
+  // Only main has it, since only main restores it
+  navigation?: BrowserNavigation;
+};
+
+/**
+ * A page's back/forward history, as Electron's `navigationHistory` has it.
+ * Each entry's `pageState` holds its scroll position and form values.
+ */
+export type BrowserNavigation = {
+  index: number;
+  entries: { url: string; title: string; pageState?: string }[];
 };
 
 export type EditorTreeMode = "all" | "changes";
