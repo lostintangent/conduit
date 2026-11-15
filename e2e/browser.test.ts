@@ -411,6 +411,36 @@ describe("browser automation from the CLI", () => {
     await shortcuts.waitFor({ state: "hidden" });
   });
 
+  it("goes back, forward and reloads with the page focused", async () => {
+    const panes = await conduit<Pane[]>("pane-list -t browser");
+    const pane = panes.find((candidate) => candidate.url === url);
+    for (const path of ["back", "forward"]) {
+      expect(
+        await terminal.run(
+          `conduit browser-navigate -p ${pane!.id} ${url}${path}`,
+        ),
+      ).toBe(0);
+    }
+    await clickPage(0);
+    await expectActivePane(`${url}forward`);
+    await until(
+      () => inPage(0, "document.hasFocus()"),
+      "the page to take focus",
+    );
+
+    await app.page.keyboard.press("Meta+BracketLeft");
+    await expectActivePane(`${url}back`);
+    await app.page.keyboard.press("Meta+BracketRight");
+    await expectActivePane(`${url}forward`);
+    requested.length = 0;
+    await app.page.keyboard.press("Meta+r");
+    await until(() => requested.includes("/forward"), "the page to reload");
+
+    expect(
+      await terminal.run(`conduit browser-navigate -p ${pane!.id} ${url}`),
+    ).toBe(0);
+  });
+
   // An address has no spaces to wrap at
   it("keeps a long address's tooltip inside the window", async () => {
     const panes = await conduit<Pane[]>("pane-list -t browser");

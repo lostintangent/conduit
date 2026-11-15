@@ -1,4 +1,5 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
+import { getWebview } from "@features/browser/client/webview";
 import { activatePane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
 import {
@@ -123,7 +124,7 @@ export function BrowserPane({
   useEffect(() => {
     if (!webviewAnchorRef.current) return;
 
-    let webview = document.getElementById(paneId) as WebviewTag | null;
+    let webview = getWebview(paneId);
     if (!webview) {
       // Create a new webview
       webview = document.createElement("webview") as WebviewTag;
@@ -307,9 +308,7 @@ export function BrowserPane({
 
     if (devToolsFor) {
       setTimeout(() => {
-        const sourceWebview = document.getElementById(
-          devToolsFor,
-        ) as WebviewTag | null;
+        const sourceWebview = getWebview(devToolsFor);
         if (!sourceWebview) return;
 
         const sourceWebContentsId = sourceWebview.getWebContentsId();

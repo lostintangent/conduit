@@ -1,4 +1,5 @@
 import { normalizeUrl } from "@features/browser/client/url";
+import { getWebview } from "@features/browser/client/webview";
 import {
   BROWSER_AUTOMATION_COMMANDS,
   type BrowserAutomationAction,
@@ -45,7 +46,7 @@ function resolveBrowserPane(
 
   const resolvedPaneId = paneId ?? findBrowserPane();
 
-  const webview = document.getElementById(resolvedPaneId) as WebviewTag | null;
+  const webview = getWebview(resolvedPaneId);
 
   if (!webview) {
     throw new Error(`Browser pane ${resolvedPaneId} not found.`);

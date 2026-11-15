@@ -1,5 +1,6 @@
 /**
- * Browser commands: opening web pages and toggling a browser pane's toolbar
+ * Browser commands: opening web pages, moving through a page's history and
+ * toggling a browser pane's toolbar
  */
 
 import {
@@ -7,13 +8,17 @@ import {
   hasActivePane,
   paneActionsEnabled,
 } from "@/commands/contextKeys/appContextKeys";
-import type { CommandDescriptor } from "@/commands/core/types";
+import type { CommandContext, CommandDescriptor } from "@/commands/core/types";
 import { MenuId } from "@/commands/menus/types";
 import {
   openBrowserPane,
   updatePaneProperty,
 } from "@features/workbench/client/actions/pane";
+import { getWebview } from "@features/browser/client/webview";
 import { ApplicationCommands } from "@shared/commands";
+
+const activePage = ({ activePaneId }: CommandContext) =>
+  activePaneId ? getWebview(activePaneId) : null;
 
 export default [
   // Pane: Open Web Page
@@ -147,5 +152,35 @@ export default [
         chromeless: !pane.chromeless,
       });
     },
+  },
+
+  {
+    id: ApplicationCommands.BROWSER_RELOAD,
+    title: "Reload Page",
+    description: "Reload the page in the active browser pane",
+    category: "Browser",
+    keybinding: { key: "Cmd+R" },
+    when: activePaneType.equals("browser"),
+    run: (context) => activePage(context)?.reload(),
+  },
+
+  {
+    id: ApplicationCommands.BROWSER_GO_BACK,
+    title: "Go Back",
+    description: "Go back to the previous page in the active browser pane",
+    category: "Browser",
+    keybinding: { key: "Cmd+[" },
+    when: activePaneType.equals("browser"),
+    run: (context) => activePage(context)?.goBack(),
+  },
+
+  {
+    id: ApplicationCommands.BROWSER_GO_FORWARD,
+    title: "Go Forward",
+    description: "Go forward to the next page in the active browser pane",
+    category: "Browser",
+    keybinding: { key: "Cmd+]" },
+    when: activePaneType.equals("browser"),
+    run: (context) => activePage(context)?.goForward(),
   },
 ] satisfies CommandDescriptor[];
