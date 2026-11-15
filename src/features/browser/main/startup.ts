@@ -35,6 +35,10 @@ const ACTIVATING_INPUT = new Set(["mouseDown", "mouseUp", "rawKeyDown"]);
 // What a sign-in popup gets when it doesn't ask for a size
 const POPUP_SIZE = { width: 500, height: 640 };
 
+// Chromium saves cookies to disk every 30 seconds, so a crash could sign the
+// user out of a site they just signed into. Conduit saves them sooner.
+const COOKIE_SAVE_DELAY_MS = 1000;
+
 /**
  * Pages open links meant for a new tab in a pane next to theirs, and sized
  * popups, like "Sign in with…", in a window of their own.
@@ -178,6 +182,17 @@ function saveDownloads(browserSession: Session) {
   });
 }
 
+/** Saves cookies a moment after they change, once for a burst of changes. */
+function saveCookiesSoon(browserSession: Session) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  browserSession.cookies.on("changed", () => {
+    timer ??= setTimeout(() => {
+      timer = undefined;
+      void browserSession.cookies.flushStore();
+    }, COOKIE_SAVE_DELAY_MS);
+  });
+}
+
 /**
  * Where to save a file with this name in the folder, numbering it like
  * "report 2.csv" when the name is taken.
@@ -199,6 +214,7 @@ export default function startBrowserSession() {
   const browserSession = session.fromPartition(PARTITION);
   limitPermissions(browserSession);
   saveDownloads(browserSession);
+  saveCookiesSoon(browserSession);
 
   // A page's popups take its session, so they browse in this one too
   getAppWindow()?.webContents.on(

@@ -45,6 +45,8 @@ export interface LaunchOptions {
   files?: Record<string, string>;
   /** Written to ~/.conduit/settings.json before launch. */
   settings?: Record<string, unknown>;
+  /** The home of a launch that crashed, to start the app in again. */
+  home?: string;
 }
 
 type Truthy<T> = Exclude<T, false | 0 | "" | null | undefined>;
@@ -209,6 +211,11 @@ export interface Conduit {
   /** Requests from the window that failed since launch, like a missing asset. */
   failedRequests: string[];
   close(): Promise<void>;
+  /**
+   * Stops the app the way a crash would, so it saves nothing on its way out,
+   * and keeps its home for `launch({ home })`.
+   */
+  crash(): Promise<void>;
 }
 
 /**
@@ -238,7 +245,8 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
 
   // Under /tmp so the CLI's socket path stays short, and resolved because
   // macOS reports /tmp paths as /private/tmp.
-  const home = fs.realpathSync(fs.mkdtempSync("/tmp/conduit-e2e-"));
+  const home =
+    options.home ?? fs.realpathSync(fs.mkdtempSync("/tmp/conduit-e2e-"));
   if (home === fs.realpathSync(os.homedir())) {
     throw new Error("Refusing to launch Conduit with your own home");
   }
@@ -264,6 +272,8 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   }
 
   const userData = path.join(home, "ud");
+  // A crashed launch leaves its port behind.
+  fs.rmSync(path.join(userData, "DevToolsActivePort"), { force: true });
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     HOME: home,
@@ -292,8 +302,31 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   let page: Page | undefined;
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
+  let crashed = false;
+
+  /** Waits for every process with the home to exit, and kills any that don't. */
+  async function waitForExit() {
+    const exited = await until(
+      () => processesUsing(home).length === 0,
+      "the app's processes to exit",
+      5_000,
+    ).catch(() => false);
+    if (!exited) {
+      const leftovers = processesUsing(home);
+      for (const pid of leftovers) process.kill(pid, "SIGKILL");
+      throw new Error(`Processes outlived the app: ${leftovers.join(", ")}`);
+    }
+  }
+
+  async function crash() {
+    crashed = true;
+    await browser?.close().catch(() => {});
+    process.kill(-child.pid!, "SIGKILL");
+    await waitForExit();
+  }
 
   async function close() {
+    if (crashed) return;
     if (artifactsDir && page) {
       fs.mkdirSync(artifactsDir, { recursive: true });
       await page
@@ -322,16 +355,7 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       "app exit",
       5_000,
     ).catch(() => signalGroup("SIGKILL"));
-    const exited = await until(
-      () => processesUsing(home).length === 0,
-      "the app's processes to exit",
-      5_000,
-    ).catch(() => false);
-    if (!exited) {
-      const leftovers = processesUsing(home);
-      for (const pid of leftovers) process.kill(pid, "SIGKILL");
-      throw new Error(`Processes outlived the app: ${leftovers.join(", ")}`);
-    }
+    await waitForExit();
     if (!process.env.CONDUIT_E2E_KEEP)
       fs.rmSync(home, { recursive: true, force: true });
   }
@@ -421,6 +445,7 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       pageErrors,
       failedRequests,
       close,
+      crash,
     };
   } catch (error) {
     await close().catch(() => {});
