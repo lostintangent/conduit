@@ -2,7 +2,7 @@ import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { type Conduit, launch, type Terminal, until } from "./app";
 
 const page = `<!doctype html>
@@ -707,6 +707,148 @@ describe("browser automation from the CLI", () => {
       async () => (await app.page.locator("webview").count()) === pages,
       "the dev tools to close",
     );
+  });
+
+  describe("a terminal's links", () => {
+    // The test before may have left a page with the keys
+    beforeEach(() => terminal.locator.click());
+
+    /** Prints a link to the page at `path`, and where its text shows */
+    async function printLink(path: string) {
+      const link = `${url}${path}`;
+      expect(await terminal.run(`echo ${link}`)).toBe(0);
+      const rows = terminal.locator.locator(".xterm-rows > div");
+      const row = await rows.evaluateAll(
+        (divs, link) =>
+          divs.map((div) => div.textContent.trimEnd()).lastIndexOf(link),
+        link,
+      );
+      const box = (await rows.nth(row).boundingBox())!;
+      // A few characters into the link, which starts its row
+      return { link, x: box.x + 20, y: box.y + box.height / 2 };
+    }
+
+    /** The pointer the terminal shows where it is */
+    const pointer = () =>
+      terminal.locator
+        .locator(".xterm-screen")
+        .evaluate((screen) => getComputedStyle(screen).cursor);
+
+    /** Moves the pointer onto the link, which xterm notices as it moves */
+    async function hover({ x, y }: { x: number; y: number }) {
+      await app.page.mouse.move(x - 5, y);
+      await app.page.mouse.move(x, y);
+    }
+
+    async function holding(keys: string[], action: () => Promise<unknown>) {
+      for (const key of keys) await app.page.keyboard.down(key);
+      try {
+        await action();
+      } finally {
+        for (const key of [...keys].reverse()) await app.page.keyboard.up(key);
+      }
+    }
+
+    const looksClickable = () =>
+      until(
+        async () => (await pointer()) === "pointer",
+        "the link to look clickable",
+      );
+
+    /** Clicks the link holding `keys`, once it looks clickable */
+    async function clickLink(link: { x: number; y: number }, keys: string[]) {
+      await hover(link);
+      await holding(keys, async () => {
+        await looksClickable();
+        await app.page.mouse.click(link.x, link.y);
+      });
+    }
+
+    const pages = () => app.page.locator("webview").count();
+
+    /** Waits for the newest page to load `link`, and the terminal kept the keys */
+    async function expectLoadedBeside(link: string) {
+      await until(
+        async () =>
+          (await inPage(
+            (await pages()) - 1,
+            "document.readyState === 'complete' && location.href",
+          )) === link,
+        `${link} to load`,
+      );
+      await expectActivePane("terminal");
+      expect(await terminal.focused()).toBe(true);
+    }
+
+    it("look clickable only while Cmd is down, and open on Cmd-click beside the terminal, in the same pane each time", async () => {
+      const before = await pages();
+      const first = await printLink("link-a");
+      await hover(first);
+      await holding(["Meta"], looksClickable);
+      await until(
+        async () => (await pointer()) === "text",
+        "the link to look like text again",
+      );
+      await holding(["Meta"], looksClickable);
+
+      // A plain click just clicks the terminal
+      await app.page.mouse.click(first.x, first.y);
+      await clickLink(first, ["Meta"]);
+      await expectLoadedBeside(first.link);
+      expect(await pages()).toBe(before + 1);
+
+      const second = await printLink("link-b");
+      await clickLink(second, ["Meta"]);
+      await expectLoadedBeside(second.link);
+      await until(
+        async () => (await addressBars(first.link)) === 0,
+        "the first link's pane to move on to the second",
+      );
+      expect(await pages()).toBe(before + 1);
+    });
+
+    it("open in a new pane on Cmd-Shift-click, without extending the terminal's selection", async () => {
+      const before = await pages();
+      const link = await printLink("link-c");
+      // Selects the marker the command printed after it, on the row below
+      const rowHeight = await terminal.locator
+        .locator(".xterm-rows > div")
+        .first()
+        .evaluate((row) => row.getBoundingClientRect().height);
+      await app.page.mouse.dblclick(link.x, link.y + rowHeight);
+      // The widths of the rows it shows, once xterm draws it on the next frame
+      const selection = () =>
+        terminal.locator.locator(".xterm-selection").evaluate(async (layer) => {
+          await new Promise((drawn) =>
+            requestAnimationFrame(() => requestAnimationFrame(drawn)),
+          );
+          return [...layer.children].flatMap((part) => {
+            const { width, height } = part.getBoundingClientRect();
+            return height ? [Math.round(width)] : [];
+          });
+        });
+      const selected = await until(async () => {
+        const parts = await selection();
+        return parts.length === 1 && parts;
+      }, "the marker to be selected");
+
+      await hover(link);
+      await holding(["Meta", "Shift"], async () => {
+        await looksClickable();
+        await app.page.mouse.down();
+        // Shift-click extends a selection as the button goes down, and a link
+        // opens as it comes up, before its pane narrows the terminal
+        expect(await selection()).toEqual(selected);
+        await app.page.mouse.up();
+      });
+      await expectLoadedBeside(link.link);
+      expect(await pages()).toBe(before + 1);
+
+      const panes = await conduit<Pane[]>("pane-list -t browser");
+      for (const pane of panes.filter(({ url }) => url.includes("/link-"))) {
+        expect(await terminal.run(`conduit pane-close -p ${pane.id}`)).toBe(0);
+      }
+    });
   });
 
   it("had no uncaught errors or failed loads", () => {

@@ -13,6 +13,8 @@ export type TerminalPane = {
   // The PTY's size when the workspace was saved
   cols?: number;
   rows?: number;
+  // The browser pane its last link opened in, where its next link loads
+  linkPane?: string;
 };
 
 export type BrowserPane = {

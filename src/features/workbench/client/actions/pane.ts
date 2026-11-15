@@ -837,6 +837,7 @@ export function openBrowserPane(
   // A blank page's toolbar focuses its address bar instead
   if (url && url !== "about:blank") focusPageOnOpen(newPaneId);
   insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
+  return newPaneId;
 }
 
 type OpenEditorPaneOptions = {

@@ -7,7 +7,8 @@ const openExternal = vi.hoisted(() => {
   return openExternal;
 });
 
-let terminalProps: { onLinkClick: (url: string) => void } | undefined;
+let terminalProps:
+  { onLinkClick: (url: string, newPane?: boolean) => void } | undefined;
 // Panes whose terminal throws while it renders
 const crashingPanes = new Set<string>();
 // The tab of each terminal pane that mounted, recorded when its state is
@@ -21,7 +22,7 @@ vi.mock("@features/terminal/components/TerminalPane", async () => {
     TerminalPane: (props: {
       tabId: string;
       pane: { id: string };
-      onLinkClick: (url: string) => void;
+      onLinkClick: (url: string, newPane?: boolean) => void;
     }) => {
       if (crashingPanes.has(props.pane.id)) {
         throw new Error("Terminal broke");
@@ -39,6 +40,11 @@ vi.mock("@features/terminal/components/TerminalPane", async () => {
   };
 });
 
+// A browser pane's page is put up by the tests that need one
+vi.mock("@features/browser/components/BrowserPane", () => ({
+  BrowserPane: () => null,
+}));
+
 import { TabContentPortalProvider } from "@features/workbench/components/layout/normal/TabContentPortalContext";
 import { TabLayout } from "@features/workbench/components/layout/normal/TabLayout";
 import { getLayoutPane } from "@features/workbench/components/layout/paneKinds";
@@ -51,7 +57,12 @@ import {
 } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import { sidebarBrowserUrlAtom } from "@features/browser/client/sidebar";
-import type { Pane, SplitDirection, Tab } from "@features/workbench/model";
+import type {
+  Pane,
+  SplitDirection,
+  Tab,
+  TerminalPane,
+} from "@features/workbench/model";
 import { TooltipProvider } from "@/ui/tooltip";
 import { PANE_SPLIT_TYPES } from "@shared/cli/types";
 import type { QueryClient } from "@tanstack/react-query";
@@ -125,6 +136,34 @@ describe("TabLayout terminal links", () => {
     expect(tabsAtom.get()[0].panes).toEqual(tab.panes);
   });
 
+  it("activates the terminal whose link was followed, as a click in it would", () => {
+    seedSettings(queryClient, { terminalLinkTarget: "default" });
+    tabsAtom.set([
+      {
+        ...tab,
+        panes: {
+          ...tab.panes,
+          page: { id: "page", type: "browser", url: "https://page.com" },
+        },
+        layout: {
+          id: "split",
+          type: "split",
+          direction: "row",
+          children: [
+            tab.layout,
+            { id: "node-page", type: "pane", paneId: "page" },
+          ],
+        },
+        activePaneId: "page",
+      },
+    ]);
+    renderTabLayout();
+
+    act(() => terminalProps!.onLinkClick("https://example.com"));
+
+    expect(tabsAtom.get()[0].activePaneId).toBe("term");
+  });
+
   it("follows a link target change made while the terminal is open", async () => {
     seedSettings(queryClient, { terminalLinkTarget: "default" });
     renderTabLayout();
@@ -160,6 +199,101 @@ describe("TabLayout terminal links", () => {
 
     expect(webview.src).toBe("https://example.com");
     webview.remove();
+  });
+
+  describe("in a browser pane", () => {
+    const browserPanes = () =>
+      Object.values(tabsAtom.get()[0].panes).filter(
+        (pane) => pane.type === "browser",
+      );
+    const linkPane = () =>
+      (tabsAtom.get()[0].panes.term as TerminalPane).linkPane;
+    /** Puts up the webview a browser pane would have for its page */
+    const showPage = (paneId: string) => {
+      const webview = Object.assign(document.createElement("div"), {
+        id: paneId,
+        src: "https://before.com",
+      });
+      document.body.append(webview);
+      return webview;
+    };
+    afterEach(() => {
+      for (const pane of browserPanes())
+        document.getElementById(pane.id)?.remove();
+    });
+
+    it("opens one next to the terminal, which keeps the keys", () => {
+      seedSettings(queryClient, { terminalLinkTarget: "pane" });
+      renderTabLayout();
+
+      act(() => terminalProps!.onLinkClick("https://example.com", false));
+
+      expect(browserPanes()).toEqual([
+        expect.objectContaining({ url: "https://example.com" }),
+      ]);
+      expect(tabsAtom.get()[0].activePaneId).toBe("term");
+      expect(linkPane()).toBe(browserPanes()[0].id);
+    });
+
+    it("loads later links in the pane the terminal last opened", () => {
+      seedSettings(queryClient, { terminalLinkTarget: "pane" });
+      renderTabLayout();
+      act(() => terminalProps!.onLinkClick("https://example.com", false));
+      const webview = showPage(linkPane()!);
+
+      act(() => terminalProps!.onLinkClick("https://example.com/two", false));
+
+      expect(browserPanes()).toHaveLength(1);
+      expect(webview.src).toBe("https://example.com/two");
+    });
+
+    it("opens a new one on Cmd-Shift-click, whatever the link target", () => {
+      seedSettings(queryClient, { terminalLinkTarget: "default" });
+      renderTabLayout();
+
+      act(() => terminalProps!.onLinkClick("https://example.com", true));
+      showPage(linkPane()!);
+      act(() => terminalProps!.onLinkClick("https://example.com/two", true));
+
+      expect(browserPanes()).toEqual([
+        expect.objectContaining({ url: "https://example.com" }),
+        expect.objectContaining({ url: "https://example.com/two" }),
+      ]);
+      expect(openExternal).not.toHaveBeenCalled();
+      expect(tabsAtom.get()[0].activePaneId).toBe("term");
+    });
+
+    it("loads later links in the one Cmd-Shift-click opened", () => {
+      seedSettings(queryClient, { terminalLinkTarget: "pane" });
+      renderTabLayout();
+      act(() => terminalProps!.onLinkClick("https://example.com", false));
+      const first = showPage(linkPane()!);
+      act(() => terminalProps!.onLinkClick("https://example.com/two", true));
+      const second = showPage(linkPane()!);
+
+      act(() => terminalProps!.onLinkClick("https://example.com/three", false));
+
+      expect(browserPanes()).toHaveLength(2);
+      expect(first.src).toBe("https://before.com");
+      expect(second.src).toBe("https://example.com/three");
+    });
+
+    it("opens a new one once the pane it opened has closed", () => {
+      seedSettings(queryClient, { terminalLinkTarget: "pane" });
+      const term = { ...(tab.panes.term as TerminalPane), linkPane: "gone" };
+      tabsAtom.set([{ ...tab, panes: { term } }]);
+      // Its webview is still up, as it is while a closed pane is cleaned up
+      const stale = showPage("gone");
+      renderTabLayout();
+
+      act(() => terminalProps!.onLinkClick("https://example.com", false));
+
+      expect(stale.src).toBe("https://before.com");
+      expect(browserPanes()).toEqual([
+        expect.objectContaining({ url: "https://example.com" }),
+      ]);
+      stale.remove();
+    });
   });
 });
 

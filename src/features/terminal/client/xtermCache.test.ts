@@ -45,6 +45,27 @@ const screen = vi.hoisted(() => {
   };
 });
 
+/** What the latest terminal gave its web links addon */
+const webLinks = vi.hoisted(() => ({
+  click: (_event: MouseEvent, _url: string) => {},
+  options: {} as {
+    hover?: (event: MouseEvent, url: string) => void;
+    leave?: (event: MouseEvent, url: string) => void;
+  },
+}));
+vi.mock("@xterm/addon-web-links", () => ({
+  WebLinksAddon: class {
+    constructor(
+      click: typeof webLinks.click,
+      options: typeof webLinks.options = {},
+    ) {
+      Object.assign(webLinks, { click, options });
+    }
+    activate() {}
+    dispose() {}
+  },
+}));
+
 import type { UserSettings } from "@features/settings/model";
 import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
 import type { Tab } from "@features/workbench/model";
@@ -159,6 +180,127 @@ describe("a terminal's visibility", () => {
     expect(api.terminal.setVisible).toHaveBeenCalledExactlyOnceWith(
       "session",
       false,
+    );
+  });
+});
+
+describe("a terminal's links", () => {
+  const url = "https://example.com";
+  const click = (modifiers: MouseEventInit = {}) =>
+    webLinks.click(new MouseEvent("mouseup", modifiers), url);
+
+  beforeEach(() => {
+    vi.spyOn(OffscreenCanvas.prototype, "getContext").mockReturnValue({
+      measureText: (text: string) => ({ width: text.length * 8 }),
+    } as unknown as OffscreenCanvasRenderingContext2D);
+  });
+
+  afterEach(() => {
+    disposeSession("links");
+    api.workbench.openExternal.mockClear();
+    vi.restoreAllMocks();
+  });
+
+  it("open on Cmd-click, and in a new pane on Cmd-Shift-click", () => {
+    const follow = vi.fn();
+    getOrCreate("links", "links", settings).setLinkHandler(follow);
+
+    click();
+    click({ shiftKey: true });
+    click({ metaKey: true });
+    click({ metaKey: true, shiftKey: true });
+
+    expect(follow.mock.calls).toEqual([
+      [url, false],
+      [url, true],
+    ]);
+  });
+
+  it("open in the default browser on Cmd-click without a handler", () => {
+    getOrCreate("links", "links", settings);
+
+    click();
+    click({ metaKey: true });
+
+    expect(api.workbench.openExternal).toHaveBeenCalledExactlyOnceWith(url);
+  });
+
+  it("look clickable only while Cmd is down", () => {
+    const { terminal } = getOrCreate("links", "links", settings);
+    attach("links", document.body.appendChild(document.createElement("div")));
+    const needsCmd = () =>
+      terminal.element!.classList.contains("xterm-link-needs-cmd");
+    const press = (type: "keydown" | "keyup", metaKey: boolean) =>
+      window.dispatchEvent(new KeyboardEvent(type, { key: "Meta", metaKey }));
+    // Cmd pressed while a page has the keys only shows as the pointer moves
+    const move = (metaKey: boolean) =>
+      terminal.element!.dispatchEvent(new MouseEvent("mousemove", { metaKey }));
+
+    webLinks.options.hover!(new MouseEvent("mousemove"), url);
+    expect(needsCmd()).toBe(true);
+    press("keydown", true);
+    expect(needsCmd()).toBe(false);
+    press("keyup", false);
+    expect(needsCmd()).toBe(true);
+    move(true);
+    expect(needsCmd()).toBe(false);
+    move(false);
+    expect(needsCmd()).toBe(true);
+
+    webLinks.options.leave!(new MouseEvent("mousemove"), url);
+    expect(needsCmd()).toBe(false);
+    press("keyup", false);
+    move(false);
+    expect(needsCmd()).toBe(false);
+
+    webLinks.options.hover!(
+      new MouseEvent("mousemove", { metaKey: true }),
+      url,
+    );
+    expect(needsCmd()).toBe(false);
+  });
+
+  it("keep a Cmd-click on one from their pane, which takes it as entering focus mode", () => {
+    const pane = document.body.appendChild(document.createElement("div"));
+    const { terminal } = getOrCreate("links", "links", settings);
+    attach("links", pane);
+    const xtermScreen = terminal.element!.querySelector(".xterm-screen")!;
+    const reachesPane = vi.fn();
+    pane.addEventListener("mousedown", reachesPane);
+    const mousedown = (modifiers: MouseEventInit = {}) =>
+      xtermScreen.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true, ...modifiers }),
+      );
+
+    mousedown({ metaKey: true });
+    // As xterm marks its screen while a link is hovered
+    xtermScreen.classList.add("xterm-cursor-pointer");
+    mousedown();
+    mousedown({ metaKey: true });
+    mousedown({ metaKey: true, shiftKey: true });
+
+    expect(reachesPane).toHaveBeenCalledTimes(2);
+    pane.remove();
+  });
+
+  it("stop watching for Cmd once their terminal closes while one is hovered", () => {
+    getOrCreate("links", "links", settings);
+    attach("links", document.body.appendChild(document.createElement("div")));
+    webLinks.options.hover!(new MouseEvent("mousemove"), url);
+    const stopListening = vi.spyOn(window, "removeEventListener");
+
+    disposeSession("links");
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Meta" }));
+
+    expect(stopListening).toHaveBeenCalledWith(
+      "keydown",
+      expect.any(Function),
+      true,
+    );
+    expect(stopListening).toHaveBeenCalledWith(
+      "keyup",
+      expect.any(Function),
+      true,
     );
   });
 });

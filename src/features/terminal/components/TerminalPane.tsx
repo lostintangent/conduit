@@ -17,13 +17,14 @@ import type { TerminalPane as TerminalPaneType } from "@features/workbench/model
 import { constructPrompt } from "@features/terminal/client/prompt";
 import { useSelector } from "@tanstack/react-store";
 import { Keyboard } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useEffectEvent, useRef, useState } from "react";
 import { AgentPanel } from "./shell/AgentPanel";
 import { RepoScriptsMenu } from "./shell/RepoScriptsMenu";
 import { ComputeTargetIndicator } from "./shell/sandbox/ComputeTargetIndicator";
 import { SearchWidget, type SearchWidgetHandle } from "./shell/SearchWidget";
 import { TerminalGitStats } from "./shell/TerminalGitStats";
 import { createFitController } from "../client/fitController";
+import type { LinkHandler } from "../client/links";
 import {
   attach,
   getOrCreate,
@@ -144,7 +145,7 @@ type TerminalPaneProps = {
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onActivate?: (event?: React.MouseEvent<HTMLDivElement>) => void;
   // Without a handler, links open in the default browser.
-  onLinkClick?: (url: string) => void;
+  onLinkClick?: LinkHandler;
   showDimensions?: boolean;
   hideIndividualSandboxIndicator?: boolean;
   isTabSynchronized?: boolean;
@@ -222,6 +223,11 @@ export const TerminalPane = ({
       : "";
     searchWidgetRef.current?.show(entry, selection);
   };
+
+  // The terminal is set up once, and the handler changes with the pane's tab
+  const followLink = useEffectEvent((url: string, newPane: boolean) =>
+    onLinkClick?.(url, newPane),
+  );
 
   const handleTogglePromptMode = () => {
     setPromptMode((prev) => ({
@@ -442,7 +448,9 @@ export const TerminalPane = ({
       togglePromptMode: handleTogglePromptMode,
     });
 
-    terminalRef.current?.setLinkHandler(onLinkClick ?? null);
+    terminalRef.current?.setLinkHandler(
+      onLinkClick ? (url, newPane) => followLink(url, newPane) : null,
+    );
 
     return () => {
       detachKeyHandler?.();

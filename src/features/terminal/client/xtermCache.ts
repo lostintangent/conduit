@@ -5,8 +5,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
-import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
+import { createLinksAddon, claimLinkClicks, type LinkHandler } from "./links";
 import * as stateTracker from "./stateTracker";
 import { broadcastTerminalInput } from "./synchronizeInput";
 
@@ -73,7 +73,7 @@ export type xtermInstance = {
   search: SearchAddon;
   serializer: SerializeAddon;
 
-  setLinkHandler: (handler: ((url: string) => void) | null) => void;
+  setLinkHandler: (handler: LinkHandler | null) => void;
   resize: (cols: number, rows: number) => void;
   dispose: () => void;
 };
@@ -222,17 +222,17 @@ export function getOrCreate(
     const serializer = new SerializeAddon();
     const unicode11 = new Unicode11Addon();
 
-    const linkHandlerRef: { current: ((url: string) => void) | null } = {
+    const linkHandlerRef: { current: LinkHandler | null } = {
       current: null,
     };
 
-    const webLinksAddon = new WebLinksAddon((_event, uri) => {
+    const webLinksAddon = createLinksAddon(terminal, (url, newPane) => {
       const handler = linkHandlerRef.current;
       if (handler) {
-        handler(uri);
+        handler(url, newPane);
         return;
       }
-      api.workbench.openExternal(uri);
+      api.workbench.openExternal(url);
     });
 
     terminal.loadAddon(fit);
@@ -380,6 +380,7 @@ export function attach(paneId: string, container: HTMLElement) {
     container.appendChild(element);
   } else {
     instance.terminal.open(container);
+    if (!element) claimLinkClicks(instance.terminal);
     if (instance.terminal.element) {
       observeVisibility(paneId, instance.terminal.element);
     }

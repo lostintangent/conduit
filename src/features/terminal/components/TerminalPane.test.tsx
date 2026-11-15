@@ -22,6 +22,7 @@ const promptStream = vi.hoisted(() => {
 });
 
 let keyHandler: (event: KeyboardEvent) => boolean;
+let linkHandler: ((url: string, newPane: boolean) => void) | null;
 const search = vi.hoisted(() => ({
   findNext: vi.fn(),
   clearActiveDecoration: () => {},
@@ -42,7 +43,9 @@ vi.mock("../client/xtermCache", () => {
     getOrCreate: () => ({
       terminal,
       search,
-      setLinkHandler: () => {},
+      setLinkHandler: (handler: typeof linkHandler) => {
+        linkHandler = handler;
+      },
     }),
     serializeSession: () => "",
     showRuler: () => {},
@@ -167,5 +170,36 @@ describe("TerminalPane search", () => {
     });
 
     expect(search.findNext).toHaveBeenCalledWith("needle", expect.anything());
+  });
+});
+
+describe("TerminalPane links", () => {
+  it("follows a link with the pane's latest link handler", () => {
+    seedSettings(queryClient, {});
+    const pane = (onLinkClick: (url: string, newPane: boolean) => void) => (
+      <TooltipProvider>
+        <TerminalPane
+          pane={{
+            id: "pane-4",
+            type: "terminal",
+            sessionId: "session-4",
+            cwd: "/repo",
+            title: "zsh",
+          }}
+          isActive
+          tabId="tab-1"
+          onLinkClick={onLinkClick}
+        />
+      </TooltipProvider>
+    );
+    const first = vi.fn();
+    const latest = vi.fn();
+
+    const { rerender } = render(pane(first), { queryClient });
+    rerender(pane(latest));
+    linkHandler!("https://example.com", true);
+
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledWith("https://example.com", true);
   });
 });

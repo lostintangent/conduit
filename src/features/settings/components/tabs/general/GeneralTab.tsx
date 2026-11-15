@@ -339,10 +339,10 @@ export function GeneralTab() {
           </div>
           <p className="text-xs text-tinted-foreground/50 mt-2">
             {userSettings.terminalLinkTarget === "sidebar"
-              ? "Opens clicked links in the sidebar browser view"
+              ? "⌘-click opens links in the sidebar browser"
               : userSettings.terminalLinkTarget === "default"
-                ? "Opens clicked links in your OS default browser"
-                : "Opens clicked links in a browser pane within the current tab"}
+                ? "⌘-click opens links in your default browser"
+                : "⌘-click opens links in a browser pane next to the terminal"}
           </p>
         </div>
       </SettingSection>
