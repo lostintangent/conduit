@@ -19,6 +19,8 @@ const { saveWorkspace } = vi.hoisted(() => {
 });
 
 import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import { sidebarBrowserUrlAtom } from "@features/browser/client/sidebar";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import { AUTOSAVE_DELAY_MS, flush, startAutosave, switching } from "./autosave";
 
 function tab(id: string, title = "zsh"): Tab {
@@ -73,7 +75,11 @@ describe("autosave", () => {
     waitOutDelay();
 
     await waitFor(() => expect(saveWorkspace).toHaveBeenCalledTimes(1));
-    expect(saveWorkspace).toHaveBeenCalledWith([tab("one"), tab("two")], "two");
+    expect(saveWorkspace).toHaveBeenCalledWith(
+      [tab("one"), tab("two")],
+      "two",
+      undefined,
+    );
   });
 
   it("doesn't save when only a terminal's title changed", () => {
@@ -107,6 +113,7 @@ describe("autosave", () => {
     expect(saveWorkspace).toHaveBeenLastCalledWith(
       [tab("one"), tab("three")],
       "two",
+      undefined,
     );
   });
 
@@ -115,13 +122,46 @@ describe("autosave", () => {
     tabsAtom.set([tab("four")]);
 
     await switching(async () => {
-      expect(saveWorkspace).toHaveBeenCalledWith([tab("four")], "two");
+      expect(saveWorkspace).toHaveBeenCalledWith(
+        [tab("four")],
+        "two",
+        undefined,
+      );
       tabsAtom.set([tab("five")]);
       activeTabIdAtom.set("five");
     });
 
     vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
     expect(saveWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves the sidebar's page as it moves on, and as the sidebar opens on it", async () => {
+    vi.useFakeTimers();
+    sidebarBrowserUrlAtom.set("https://a.com/");
+    waitOutDelay();
+    await waitFor(() => expect(saveWorkspace).toHaveBeenCalledTimes(1));
+    expect(saveWorkspace).toHaveBeenLastCalledWith(expect.anything(), "five", {
+      url: "https://a.com/",
+      isOpen: false,
+    });
+
+    vi.useFakeTimers();
+    sidebarStateAtom.set({ isOpen: true, view: "browser" });
+    waitOutDelay();
+    await waitFor(() => expect(saveWorkspace).toHaveBeenCalledTimes(2));
+    expect(saveWorkspace).toHaveBeenLastCalledWith(expect.anything(), "five", {
+      url: "https://a.com/",
+      isOpen: true,
+    });
+
+    vi.useFakeTimers();
+    sidebarStateAtom.set({
+      isOpen: true,
+      view: "browser",
+      navigation: { cwd: "/repo" },
+    });
+    vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    expect(saveWorkspace).toHaveBeenCalledTimes(2);
   });
 
   it("doesn't switch when the tabs it would leave couldn't save", async () => {

@@ -99,6 +99,7 @@ describe("workspaceHandlers", () => {
       expect(mockWorkspaceApi.saveWorkspace).toHaveBeenCalledWith(
         mockTabs,
         activeTabId,
+        undefined,
       );
       expect(queryClient.getQueryData(workspacesQuery.queryKey)).toEqual(saved);
       expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();

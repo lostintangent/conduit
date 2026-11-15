@@ -3,6 +3,7 @@ import {
   mutationOptions,
   queryOptions,
 } from "@tanstack/react-query";
+import { sidebarPage } from "@features/browser/client/sidebar";
 import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
 import type { WorkspaceState } from "../model";
 
@@ -46,18 +47,25 @@ const activeTabId = () => activeTabIdAtom.get() ?? undefined;
 
 export const workspaceMutations = {
   /**
-   * Saves the window's tabs into the open workspace. It reads them when the
-   * save runs, and main picks the workspace, so a save can't land in the
-   * one just switched away from.
+   * Saves the window's tabs and sidebar page into the open workspace. It
+   * reads them when the save runs, and main picks the workspace, so a save
+   * can't land in the one just switched away from.
    */
   save: () =>
     mutationOptions({
       ...write("save", "Couldn't save the workspace"),
       mutationFn: () =>
-        window.conduit.workspaces.saveWorkspace(tabsAtom.get(), activeTabId()),
+        window.conduit.workspaces.saveWorkspace(
+          tabsAtom.get(),
+          activeTabId(),
+          sidebarPage(),
+        ),
     }),
 
-  /** Saves the window's tabs under a name, and opens that workspace. */
+  /**
+   * Saves the window's tabs and sidebar page under a name, and opens that
+   * workspace.
+   */
   saveAs: () =>
     mutationOptions({
       ...write("saveAs", "Couldn't save the workspace"),
@@ -66,6 +74,7 @@ export const workspaceMutations = {
           name,
           tabsAtom.get(),
           activeTabId(),
+          sidebarPage(),
         ),
     }),
 

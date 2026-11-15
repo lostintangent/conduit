@@ -470,6 +470,13 @@ export function parseRestoreAddress(
   return paneId && url !== null ? { paneId, url } : undefined;
 }
 
+/** The sidebar browser's page, which saves with the workspace. */
+export type SidebarPage = {
+  url: string;
+  /** Whether the sidebar shows it */
+  isOpen: boolean;
+};
+
 declare module "@shared/rpc" {
   interface Events {
     browser: {

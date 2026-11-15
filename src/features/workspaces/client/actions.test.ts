@@ -29,6 +29,8 @@ const { workspaceApi, terminalApi, workbenchApi } = vi.hoisted(() => {
 
 import { closeWorkspace, openWorkspace, restoreAtLaunch } from "./actions";
 import { takePageRestore } from "@features/browser/client/webview";
+import { sidebarBrowserUrlAtom } from "@features/browser/client/sidebar";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import { workspacesQuery } from "./queries";
 import { queryClient } from "@/query";
 import {
@@ -124,6 +126,27 @@ describe("openWorkspace", () => {
     expect(workspaceApi.stagePages).toHaveBeenCalledWith("Docs");
     expect(takePageRestore("a")).toBe(true);
     expect(takePageRestore("b")).toBe(false);
+  });
+
+  it("shows the sidebar page it was saved with, and keeps the window's when it can't open", async () => {
+    sidebarBrowserUrlAtom.set("https://mine.com/");
+    const docs = (tabs: unknown[]) => ({
+      name: "Docs",
+      lastModified: 0,
+      tabs,
+      sidebarPage: { url: "https://docs.com/", isOpen: true },
+    });
+    seed({ workspaces: [docs([shellTab("shell")])] as Workspace[] });
+    terminalApi.create.mockRejectedValueOnce(new Error("no PTYs left"));
+
+    await expect(openWorkspace("Docs")).rejects.toThrow("no PTYs left");
+    expect(sidebarBrowserUrlAtom.get()).toBe("https://mine.com/");
+
+    seed({ workspaces: [docs([editorTab("docs")])] as Workspace[] });
+    await openWorkspace("Docs");
+
+    expect(sidebarBrowserUrlAtom.get()).toBe("https://docs.com/");
+    expect(sidebarStateAtom.get()).toEqual({ isOpen: true, view: "browser" });
   });
 
   it("starts each restored terminal at the size it was saved at", async () => {

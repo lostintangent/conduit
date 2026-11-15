@@ -61,7 +61,7 @@ The workspace system uses three distinct representations optimized for different
 
 ### Flow Descriptions
 
-- **Renderer → Workspace**: When saving, the renderer's `Tab[]` is serialized to `Workspace` format, capturing terminal commands from live sessions and pages' back/forward history
+- **Renderer → Workspace**: When saving, the renderer's `Tab[]` is serialized to `Workspace` format, capturing terminal commands from live sessions and pages' back/forward history. The sidebar's page saves alongside, as just its URL and whether the sidebar shows it
 - **Workspace → JSON**: The serialized workspace is persisted to `workspaces.json` in the user data directory
 - **Workspace ↔ Template**: Bidirectional conversion for import/export functionality
 
@@ -117,6 +117,12 @@ type Workspace = {
   lastModified: number;
   tabs: WorkspaceTab[];
   activeTabId: string;
+  sidebarPage?: SidebarPage; // The sidebar browser's page, from browser/model.ts
+};
+
+type SidebarPage = {
+  url: string;
+  isOpen: boolean; // Whether the sidebar shows it
 };
 
 type WorkspaceTab = TabMetadata & {
@@ -139,6 +145,7 @@ type WorkspaceState = {
 - Includes `lastModified` timestamp for sorting
 - Stored in `~/.conduit/workspaces.json`
 - Terminal commands captured from live sessions during save
+- The sidebar's page saves without its back/forward history, and isn't part of a template
 
 **Example workspace structure:**
 
@@ -466,6 +473,10 @@ const serializedTabs = await serializeTabs(tabs);
 
 Only main has a page's `navigation`. `getState` and every change's reply leave it out, since it can be large and only main restores it. As the renderer reopens a workspace, `stagePages` hands its pages' history to the browser and resolves to their panes' ids. Their webviews start at an address that names the pane, which main drops as the webview attaches, and the page gets its history back with `navigationHistory.restore()` (`browser/main/restore.ts`). A page without saved history loads its `url` as before.
 
+### Workspace → Renderer (the sidebar's page)
+
+The sidebar has one browser for the whole app, and its webview outlives the sidebar. As a workspace reopens, `openSidebarPage` (`browser/client/sidebar.ts`) loads the workspace's page in that webview, or `about:blank` for a workspace without one, and clears its back/forward history once the page is there, so pages from the last workspace aren't in it. The sidebar opens on its browser when the workspace had it open, and closes when it showed the browser and the workspace didn't. Its editor and canvas stay as they are. Before the sidebar has shown its browser there's no webview, and it makes one at the workspace's page when it first does.
+
 ## File Structure
 
 ### Source Files
@@ -497,7 +508,7 @@ The renderer calls these as `window.conduit.workspaces.<method>()`.
 | Method                | Description                                               |
 | --------------------- | --------------------------------------------------------- |
 | `getState`            | Get current workspace state                               |
-| `saveWorkspace`       | Save the tabs into the open workspace, named or not       |
+| `saveWorkspace`       | Save the tabs and sidebar page into the open workspace    |
 | `saveWorkspaceAs`     | Save the tabs under a name and make it the open workspace |
 | `setCurrentWorkspace` | Make a named workspace the open one, or `null` for none   |
 | `recoverLastSession`  | Start over, keeping the unnamed tabs as "Recovered …"     |

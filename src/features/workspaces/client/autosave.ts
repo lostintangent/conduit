@@ -1,4 +1,9 @@
+import {
+  sidebarBrowserUrlAtom,
+  sidebarPage,
+} from "@features/browser/client/sidebar";
 import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import type { Pane } from "@features/workbench/model";
 import { runMutation } from "@/query";
 import { workspaceMutations } from "./queries";
@@ -14,8 +19,8 @@ let saved = "";
 let switches: Promise<unknown> = Promise.resolve();
 
 /**
- * Saves the window's tabs into the open workspace a moment after they
- * change. It starts once the tabs it's given are what launch opened, so
+ * Saves the window's tabs and sidebar page into the open workspace a moment
+ * after they change. It starts once the tabs it's given are what launch opened, so
  * those don't save over the workspace they came from.
  */
 export function startAutosave() {
@@ -24,6 +29,8 @@ export function startAutosave() {
   saved = snapshot();
   tabsAtom.subscribe(schedule);
   activeTabIdAtom.subscribe(schedule);
+  sidebarBrowserUrlAtom.subscribe(schedule);
+  sidebarStateAtom.subscribe(schedule);
 }
 
 /**
@@ -90,6 +97,7 @@ async function save(): Promise<boolean> {
  */
 function snapshot(): string {
   return JSON.stringify({
+    sidebarPage: sidebarPage(),
     activeTabId: activeTabIdAtom.get(),
     tabs: tabsAtom.get().map((tab) => ({
       ...tab,

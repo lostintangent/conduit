@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import yaml from "yaml";
 import type { Tab } from "@features/workbench/model";
+import type { SidebarPage } from "@features/browser/model";
 import type { BrowserNavigation } from "@shared/types/panes";
 import {
   timestampedName,
@@ -214,15 +215,17 @@ function unusedName(name: string): string {
   return unused;
 }
 
-/** Saves the window's tabs into the open workspace. */
+/** Saves the window's tabs and sidebar page into the open workspace. */
 async function saveWorkspace(
   tabs: Tab[],
   activeTabId: string | undefined,
+  sidebarPage?: SidebarPage,
 ): Promise<WorkspaceState> {
   const saved = {
     lastModified: Date.now(),
     tabs: await serializeTabs(tabs),
     activeTabId,
+    sidebarPage,
   };
   const { current } = workspaceState;
   if (current) {
@@ -234,19 +237,22 @@ async function saveWorkspace(
 }
 
 /**
- * Saves the window's tabs under a name, which becomes the open workspace.
- * The anonymous workspace's tabs move into it, so it starts over.
+ * Saves the window's tabs and sidebar page under a name, which becomes the
+ * open workspace. The anonymous workspace's tabs move into it, so it starts
+ * over.
  */
 async function saveWorkspaceAs(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,
+  sidebarPage?: SidebarPage,
 ): Promise<WorkspaceState> {
   putWorkspace({
     name,
     lastModified: Date.now(),
     tabs: await serializeTabs(tabs),
     activeTabId,
+    sidebarPage,
   });
   if (!workspaceState.current) delete workspaceState.untitled;
   workspaceState.current = name;

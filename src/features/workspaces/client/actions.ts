@@ -4,6 +4,7 @@ import type { TerminalPane as SharedTerminalPane } from "@shared/types/panes";
 import type { Workspace } from "../model";
 import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { closeTab, openTab } from "@features/workbench/client/actions/tab";
+import { openSidebarPage } from "@features/browser/client/sidebar";
 import { restorePagesOnOpen } from "@features/browser/client/webview";
 import { queryClient, runMutation } from "@/query";
 import { switching } from "./autosave";
@@ -97,13 +98,15 @@ export function saveWorkspaceAs(name: string) {
 }
 
 /**
- * Replaces the window's tabs with a workspace's, starting its terminals, and
- * its pages with their back/forward history. A workspace without a name is
+ * Replaces the window's tabs and sidebar page with a workspace's, starting
+ * its terminals, and its pages with their back/forward history. A workspace without a name is
  * the anonymous one, and one without tabs gets a new one. If a terminal can't
  * start, the ones that did are closed and the window's tabs stay as they were.
  */
 async function restoreTabs(
-  workspace: Pick<Workspace, "tabs" | "activeTabId"> & { name?: string },
+  workspace: Pick<Workspace, "tabs" | "activeTabId" | "sidebarPage"> & {
+    name?: string;
+  },
 ) {
   // Shared across all tabs to support cross-tab terminal cloning
   const terminalSessions = new Map<
@@ -131,6 +134,7 @@ async function restoreTabs(
   tabsAtom.set(workspaceTabs);
   // Workspace files can be edited by hand, so a field may be missing.
   activeTabIdAtom.set(workspace.activeTabId ?? null);
+  openSidebarPage(workspace.sidebarPage);
   if (workspaceTabs.length === 0) await openTab();
 }
 

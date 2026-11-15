@@ -1,3 +1,4 @@
+import type { SidebarPage } from "@features/browser/model";
 import type { LayoutNode } from "@features/workbench/model";
 import type { Pane, TabMetadata } from "@shared/types/panes";
 
@@ -16,6 +17,7 @@ export type Workspace = {
   lastModified: number;
   tabs: WorkspaceTab[];
   activeTabId?: string;
+  sidebarPage?: SidebarPage;
 };
 
 /** The workspace you have before saving one under a name. It's never listed. */

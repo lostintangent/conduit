@@ -1,7 +1,7 @@
 /**
  * The sidebar's browser. It shows one page for the whole app, which stays put
- * as you switch folders and lasts the session. Terminal links set to open in
- * the sidebar load there through `showInSidebarBrowser`.
+ * as you switch folders and saves with the workspace. Terminal links set to
+ * open in the sidebar load there through `showInSidebarBrowser`.
  */
 
 import { BrowserPane } from "@features/browser/components/BrowserPane";

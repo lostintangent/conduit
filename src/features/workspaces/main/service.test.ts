@@ -431,6 +431,19 @@ describe("the open workspace", () => {
     });
   });
 
+  it("saves the sidebar's page with it, and keeps it under a new name", async () => {
+    const page = { url: "https://docs.com/", isOpen: true };
+    let state = await service.saveWorkspace([tab("one")], "one", page);
+    expect(state.untitled?.sidebarPage).toEqual(page);
+
+    state = await service.saveWorkspaceAs("Docs", [tab("one")], "one", page);
+    expect(state.workspaces[0]?.sidebarPage).toEqual(page);
+    expect(onDisk().workspaces[0]?.sidebarPage).toEqual(page);
+
+    state = await service.saveWorkspace([tab("one")], "one", undefined);
+    expect(state.workspaces[0]).not.toHaveProperty("sidebarPage");
+  });
+
   it("keeps a last session that couldn't reopen in the list, where the window's new tab can't save over it", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 10, 15, 13, 25));
