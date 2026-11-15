@@ -33,11 +33,12 @@ describe("contextMenu", () => {
     mockSend = vi.fn();
     mockWindow = {
       isDestroyed: vi.fn().mockReturnValue(false),
+      getParentWindow: () => null,
       webContents: {
         send: mockSend,
       },
     };
-    // Context menu commands go to every window
+    // Context menu commands go to Conduit's window
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
   });
 

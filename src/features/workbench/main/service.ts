@@ -1,9 +1,14 @@
 import type { ContextMenuOptions } from "@shared/commands";
-import { BrowserWindow, clipboard, dialog, shell } from "electron";
+import { clipboard, dialog, shell } from "electron";
+import { getAppWindow } from "../../../main/events";
 import { showContextMenu } from "../../../main/ui/contextMenu";
 
 /** Conduit has one window, which context menus and dialogs attach to. */
-const getWindow = () => BrowserWindow.getAllWindows()[0];
+function getWindow() {
+  const window = getAppWindow();
+  if (!window) throw new Error("Conduit's window is closed");
+  return window;
+}
 
 const service = {
   /** A click comes back as the `contextMenuCommand` event. */

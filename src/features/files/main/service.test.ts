@@ -45,7 +45,11 @@ const { send, providers, FakeProvider } = vi.hoisted(() => {
 });
 
 vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [{ webContents: { send } }] },
+  BrowserWindow: {
+    getAllWindows: () => [
+      { webContents: { send }, getParentWindow: () => null },
+    ],
+  },
 }));
 vi.mock("./DiskFileSystemProvider", async (importOriginal) => ({
   ...(await importOriginal<object>()),

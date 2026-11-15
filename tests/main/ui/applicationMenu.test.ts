@@ -7,7 +7,11 @@ const workspace = vi.hoisted(() => ({ name: "conduit", tabs: [] }));
 vi.mock("electron", () => ({
   app: { name: "Conduit" },
   autoUpdater: {},
-  BrowserWindow: { getAllWindows: () => [{ webContents: { send } }] },
+  BrowserWindow: {
+    getAllWindows: () => [
+      { webContents: { send }, getParentWindow: () => null },
+    ],
+  },
   Menu: {
     buildFromTemplate: (template: unknown) => template,
     setApplicationMenu: vi.fn(),

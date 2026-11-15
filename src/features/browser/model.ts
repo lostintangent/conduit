@@ -420,3 +420,17 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
       }),
     },
   ];
+
+declare module "@shared/rpc" {
+  interface Events {
+    browser: {
+      /** A page opened a link in a new tab, which goes in a pane next to it. */
+      newPageRequested: {
+        webContentsId: number;
+        url: string;
+        /** Whether the page stays focused, as after a Cmd-click */
+        background: boolean;
+      };
+    };
+  }
+}

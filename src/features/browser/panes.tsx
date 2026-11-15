@@ -1,5 +1,6 @@
 import { BrowserPane } from "@features/browser/components/BrowserPane";
 import {
+  activatePane,
   closePane,
   openBrowserPane,
   updatePaneProperty,
@@ -47,6 +48,10 @@ export default function BrowserLayoutPane({
         onTitleChange={(title) =>
           updatePaneProperty(tab.id, pane.id, { title })
         }
+        onOpenPage={(url, background) => {
+          openBrowserPane(tab.id, pane.id, url);
+          if (background) activatePane(tab.id, pane.id);
+        }}
         isInPreview={isInPreview}
         onHover={onHover}
         devToolsFor={pane.devToolsFor}

@@ -1,8 +1,22 @@
 import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.hoisted(() => {
-  (window as any).conduit = { ...(window as any).conduit, browser: {} };
+const { requestNewPage } = vi.hoisted(() => {
+  const listeners = new Set<(payload: unknown) => void>();
+  (window as any).conduit = {
+    ...(window as any).conduit,
+    browser: {
+      on: (_event: string, listener: (payload: unknown) => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    },
+  };
+  return {
+    requestNewPage: (payload: object) => {
+      for (const listener of listeners) listener(payload);
+    },
+  };
 });
 
 import { BrowserPane } from "@features/browser/components/BrowserPane";
@@ -15,11 +29,16 @@ const nextFrames = async (count: number) => {
   }
 };
 
-function browserPane(isInPreview: boolean, isActive = false) {
+function browserPane(
+  isInPreview: boolean,
+  isActive = false,
+  onOpenPage?: (url: string, background: boolean) => void,
+) {
   return (
     <TooltipProvider>
       <BrowserPane
         isActive={isActive}
+        onOpenPage={onOpenPage}
         url="https://example.com"
         paneId="browser-1"
         tabId="tab-1"
@@ -48,7 +67,9 @@ describe("BrowserPane", () => {
       canGoForward: () => false,
       getTitle: () => "",
       getURL: () => "https://example.com",
+      getWebContentsId: () => 7,
       isLoading: () => false,
+      loadURL: vi.fn(),
     });
     document.body.append(webview);
     // On screen, so a preview keeps following its position every frame
@@ -99,5 +120,35 @@ describe("BrowserPane", () => {
     await nextFrames(1);
 
     expect(document.activeElement).toBe(webview);
+  });
+
+  it("opens the links its own page meant for a new tab", () => {
+    const onOpenPage = vi.fn();
+    render(browserPane(false, true, onOpenPage));
+
+    requestNewPage({
+      webContentsId: 8,
+      url: "https://other.com",
+      background: false,
+    });
+    requestNewPage({
+      webContentsId: 7,
+      url: "https://docs.com",
+      background: true,
+    });
+
+    expect(onOpenPage.mock.calls).toEqual([["https://docs.com", true]]);
+  });
+
+  it("loads a link meant for a new tab itself when it has nowhere to open it", () => {
+    render(browserPane(false, true));
+
+    requestNewPage({
+      webContentsId: 7,
+      url: "https://docs.com",
+      background: false,
+    });
+
+    expect((webview as any).loadURL).toHaveBeenCalledWith("https://docs.com");
   });
 });

@@ -15,7 +15,7 @@ import type {
 } from "electron";
 import { useSelector } from "@tanstack/react-store";
 import { Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { shareAppKeys } from "./appKeys";
 import { BrowserToolbar } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
@@ -42,6 +42,8 @@ type BrowserPaneProps = {
 
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
+  /** Opens a link the page meant for a new tab. Without it, the page loads it. */
+  onOpenPage?: (url: string, background: boolean) => void;
 
   // TODO: See if we can remove the X/Y coordinates and let Electron handle it internally
   onContextMenu: (coords: { clientX: number; clientY: number }) => void;
@@ -58,12 +60,22 @@ type BrowserPaneProps = {
   onHideToolbar: () => void;
 };
 
+/** The page's web contents, which a webview only has once its page attaches */
+function getWebContentsId(webview: WebviewTag): number | undefined {
+  try {
+    return webview.getWebContentsId();
+  } catch {
+    return undefined;
+  }
+}
+
 export function BrowserPane({
   url,
   paneId,
   tabId,
   onTitleChange,
   onUrlChange,
+  onOpenPage,
   onContextMenu,
   onHover,
   disableInteraction = false,
@@ -89,6 +101,11 @@ export function BrowserPane({
   onUrlChangeRef.current = onUrlChange;
   const onTitleChangeRef = useRef(onTitleChange);
   onTitleChangeRef.current = onTitleChange;
+  // Without anywhere to open a new tab, the page loads it in place
+  const openPage = useEffectEvent((url: string, background: boolean) => {
+    if (onOpenPage) onOpenPage(url, background);
+    else webviewRef.current?.loadURL(url);
+  });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [currentUrl, setCurrentUrl] = useState<string>(url);
@@ -110,6 +127,8 @@ export function BrowserPane({
     if (!webview) {
       // Create a new webview
       webview = document.createElement("webview") as WebviewTag;
+      // Main decides what each popup becomes, see the browser's startup
+      webview.setAttribute("allowpopups", "");
       webview.src = url;
       webview.id = paneId;
       webview.style.position = "absolute";
@@ -368,6 +387,16 @@ export function BrowserPane({
       if (channel === "browser:pointerdown") handleWebViewFocus();
     };
 
+    // Main knows the page only by its web contents
+    const stopOpeningPages = browser.on(
+      "newPageRequested",
+      ({ webContentsId, url, background }) => {
+        if (webContentsId === getWebContentsId(webview)) {
+          openPage(url, background);
+        }
+      },
+    );
+
     // A click that lands before the window draws the page where it now is,
     // like as its tab shows, comes to the window instead. The window would
     // keep the keys, even taking them from the page, so the page takes focus
@@ -436,6 +465,7 @@ export function BrowserPane({
 
     return () => {
       stopSharingAppKeys();
+      stopOpeningPages();
 
       webview.removeEventListener("dom-ready", handleDomReady);
       webview.removeEventListener("did-start-loading", handleStartLoading);
