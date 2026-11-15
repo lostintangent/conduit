@@ -78,16 +78,20 @@ describe("the browser's history and favorites", () => {
     );
   }
 
-  /** The addresses the address bar suggests once it's emptied. */
+  /**
+   * The addresses the address bar suggests once it's emptied. It leaves the
+   * field, so the next look starts from the page's address again.
+   */
   async function suggestions(): Promise<string[]> {
     const address = app.page.getByPlaceholder("Enter URL...");
     await address.click();
     await address.fill("");
+    // A list that's closing stays in the page until it has faded out
     const items = app.page.locator(
-      "[data-radix-popper-content-wrapper] button:not([aria-label])",
+      "[data-radix-popper-content-wrapper] > [data-state=open] button:not([aria-label])",
     );
     const urls = await items.allTextContents();
-    await app.page.keyboard.press("Escape");
+    await address.blur();
     return urls;
   }
 
@@ -107,10 +111,13 @@ describe("the browser's history and favorites", () => {
 
   /** Waits for the address bar to suggest these addresses, in this order. */
   async function expectSuggestions(urls: string[]) {
-    const matches = async () =>
-      JSON.stringify(await suggestions()) === JSON.stringify(urls);
+    let shown: string[] = [];
+    const matches = async () => {
+      shown = await suggestions();
+      return JSON.stringify(shown) === JSON.stringify(urls);
+    };
     await until(matches, "the address bar's suggestions").catch(() => {});
-    expect(await suggestions()).toEqual(urls);
+    expect(shown).toEqual(urls);
   }
 
   it("records the pages the user visits", async () => {
