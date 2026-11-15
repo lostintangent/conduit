@@ -110,7 +110,7 @@ describe("BrowserPane", () => {
   it("focuses its page on return after the page was clicked", async () => {
     webview.tabIndex = 0;
     const { rerender } = render(browserPane(false, true));
-    screen.getByPlaceholderText(/Enter URL/).focus();
+    screen.getByPlaceholderText("Search or enter address").focus();
     webview.dispatchEvent(
       Object.assign(new Event("ipc-message"), {
         channel: "browser:pointerdown",
@@ -148,7 +148,9 @@ describe("BrowserPane", () => {
     render(browserPane(false, true));
     await nextFrames(1);
     expect(document.activeElement).toBe(
-      screen.getByPlaceholderText(/Enter URL/).closest("[tabindex='-1']"),
+      screen
+        .getByPlaceholderText("Search or enter address")
+        .closest("[tabindex='-1']"),
     );
 
     webview.dispatchEvent(new Event("did-attach"));
@@ -230,10 +232,9 @@ describe("BrowserPane", () => {
   it("shows its page's own address when it returns to an existing page", () => {
     render(browserPane(false, true, undefined, "https://stale.com"));
 
-    expect(screen.getByPlaceholderText(/Enter URL/)).toHaveProperty(
-      "value",
-      "https://example.com",
-    );
+    expect(
+      screen.getByPlaceholderText("Search or enter address"),
+    ).toHaveProperty("value", "example.com");
   });
 
   it("loads a link meant for a new tab itself when it has nowhere to open it", () => {

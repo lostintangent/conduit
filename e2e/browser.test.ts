@@ -78,7 +78,7 @@ describe("browser automation from the CLI", () => {
       const pane = outline?.parentElement;
       if (pane?.querySelector(".xterm")) return "terminal";
       const address = pane?.querySelector<HTMLInputElement>(
-        'input[placeholder="Enter URL..."]',
+        'input[placeholder="Search or enter address"]',
       );
       return address?.value ?? "none";
     });
@@ -146,7 +146,7 @@ describe("browser automation from the CLI", () => {
   function selectedAddress(): Promise<string | null> {
     return app.page.evaluate(() => {
       const input = document.activeElement as HTMLInputElement | null;
-      if (input?.placeholder !== "Enter URL...") return null;
+      if (input?.placeholder !== "Search or enter address") return null;
       const all =
         input.selectionStart === 0 && input.selectionEnd === input.value.length;
       return all ? input.value : null;
@@ -156,7 +156,7 @@ describe("browser automation from the CLI", () => {
   /** How many address bars show the given address. */
   function addressBars(address: string): Promise<number> {
     return app.page
-      .getByPlaceholder("Enter URL...")
+      .getByPlaceholder("Search or enter address")
       .evaluateAll(
         (inputs, address) =>
           inputs.filter(
@@ -267,7 +267,7 @@ describe("browser automation from the CLI", () => {
       fs.writeFileSync(path.join(project, "notes.txt"), "");
       await terminal.locator.click();
       expect(await terminal.run(`cd ${project}`)).toBe(0);
-      const address = app.page.getByPlaceholder("Enter URL...");
+      const address = app.page.getByPlaceholder("Search or enter address");
       await address.click();
       await address.blur();
 
@@ -391,7 +391,7 @@ describe("browser automation from the CLI", () => {
         await clickPage(0);
         await pageFocused(0);
       } else {
-        const addresses = app.page.getByPlaceholder("Enter URL...");
+        const addresses = app.page.getByPlaceholder("Search or enter address");
         const address = await addresses.evaluateAll(
           (inputs, url) =>
             inputs.findIndex(

@@ -79,18 +79,21 @@ describe("the browser's history and favorites", () => {
   }
 
   /**
-   * The addresses the address bar suggests once it's emptied. It leaves the
-   * field, so the next look starts from the page's address again.
+   * The addresses the address bar suggests once it's emptied, favorites
+   * first. It leaves the field, so the next look starts from the page's
+   * address again.
    */
   async function suggestions(): Promise<string[]> {
-    const address = app.page.getByPlaceholder("Enter URL...");
+    const address = app.page.getByPlaceholder("Search or enter address");
     await address.click();
     await address.fill("");
     // A list that's closing stays in the page until it has faded out
-    const items = app.page.locator(
-      "[data-radix-popper-content-wrapper] > [data-state=open] button:not([aria-label])",
-    );
-    const urls = await items.allTextContents();
+    const urls = await app.page
+      .locator("[data-radix-popper-content-wrapper] > [data-state=open]")
+      .getByRole("option")
+      .evaluateAll((options) =>
+        options.map((option) => option.lastElementChild!.textContent!),
+      );
     await address.blur();
     return urls;
   }
@@ -132,6 +135,7 @@ describe("the browser's history and favorites", () => {
     );
 
     await expectSuggestions([
+      `${origin}/starred`,
       `${origin}/two`,
       `${origin}/one`,
       `${origin}/typed`,
@@ -168,8 +172,9 @@ describe("the browser's history and favorites", () => {
     });
 
     await expectSuggestions([
-      `${origin}/three`,
       `${origin}/two`,
+      `${origin}/starred`,
+      `${origin}/three`,
       `${origin}/one`,
       `${origin}/typed`,
     ]);
@@ -180,10 +185,7 @@ describe("the browser's history and favorites", () => {
     await app.page.getByRole("menuitem", { name: "Clear history…" }).click();
     await app.page.getByRole("button", { name: "Clear" }).click();
 
-    await until(
-      async () => (await suggestions()).length === 0,
-      "the suggestions to clear",
-    );
+    await expectSuggestions([`${origin}/two`, `${origin}/starred`]);
     expect(readConduitFile("browser.json")).toMatchObject({
       favorites: [{ url: `${origin}/two` }, { url: `${origin}/starred` }],
       history: [],

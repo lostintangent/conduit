@@ -4,22 +4,60 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { libraryMutations, useLibrary } from "@features/browser/client/queries";
 import { normalizeUrl } from "@features/browser/client/url";
-import type { BrowserPage } from "@features/browser/model";
+import type { BrowserLibrary, BrowserPage } from "@features/browser/model";
+import { cn } from "@/utils/index";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, RefreshCw, Star, X } from "lucide-react";
 import {
   type Ref,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { BrowserMenu } from "./BrowserMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
-import { StarredPagesMenu } from "./StarredPagesMenu";
+import { StarButton } from "./StarButton";
 
-/** The address bar suggests this many of the pages the user visited. */
-const SUGGESTION_LIMIT = 5;
+/** The address bar suggests at most this many pages */
+const SUGGESTION_LIMIT = 8;
+/** Of which this many can be favorites, which come first */
+const FAVORITE_SUGGESTION_LIMIT = 3;
+
+type Suggestion = BrowserPage & { isFavorite: boolean };
+
+/**
+ * The pages whose address or title has the text, favorites first, then the
+ * pages the user visited most recently. Empty text matches every page.
+ */
+function suggestPages(
+  { favorites, history }: BrowserLibrary,
+  text: string,
+): Suggestion[] {
+  const query = text.trim().toLowerCase();
+  const matches = ({ url, title }: BrowserPage) =>
+    url.toLowerCase().includes(query) || title.toLowerCase().includes(query);
+
+  const shownFavorites = favorites
+    .filter(matches)
+    .slice(0, FAVORITE_SUGGESTION_LIMIT);
+  const visited = history.filter(
+    (page) =>
+      matches(page) && !shownFavorites.some(({ url }) => url === page.url),
+  );
+  return [
+    ...shownFavorites.map((page) => ({ ...page, isFavorite: true })),
+    ...visited.map(({ url, title }) => ({ url, title, isFavorite: false })),
+  ].slice(0, SUGGESTION_LIMIT);
+}
+
+/** The address to edit, which is empty for a blank page */
+const editableAddress = (url: string) => (url === "about:blank" ? "" : url);
+
+/** The address while the user isn't editing it, without https:// or www. */
+const shownAddress = (url: string) =>
+  editableAddress(url).replace(/^https:\/\/(www\.)?/, "");
 
 type BrowserToolbarProps = {
   currentPage: BrowserPage;
@@ -74,14 +112,17 @@ export function BrowserToolbar({
   onFocusLeave,
   ref,
 }: BrowserToolbarProps) {
-  const history = useLibrary((library) => library.history);
+  const library = useLibrary((library) => library);
   const { mutate: removeFromHistory } = useMutation(
     libraryMutations.removeFromHistory(),
   );
 
-  const [inputUrl, setInputUrl] = useState<string>(currentPage.url);
-  const [showHistory, setShowHistory] = useState<boolean>(false);
-  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number>(-1);
+  const [inputUrl, setInputUrl] = useState(() =>
+    editableAddress(currentPage.url),
+  );
+  const [isEditing, setIsEditing] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +131,27 @@ export function BrowserToolbar({
     inputRef.current?.select();
   };
   useImperativeHandle(ref, () => ({ focusAddressBar }), []);
+
+  // The full address replaces the shown one as editing starts, so it's
+  // selected once it's there
+  useLayoutEffect(() => {
+    if (isEditing) inputRef.current?.select();
+  }, [isEditing]);
+
+  // A click that focuses the field selects the whole address, as browsers do,
+  // since the address it clicked has changed under it
+  const selectOnMouseUpRef = useRef(false);
+  const handleMouseUp = (event: React.MouseEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    if (
+      selectOnMouseUpRef.current &&
+      input.selectionStart === input.selectionEnd
+    ) {
+      event.preventDefault();
+      input.select();
+    }
+    selectOnMouseUpRef.current = false;
+  };
 
   // Focus moving into a menu's portal still bubbles through React to the
   // toolbar, so a blur only counts if no focus inside follows it
@@ -104,33 +166,23 @@ export function BrowserToolbar({
     });
   };
 
-  // The latest pages whose address has the input text, or the latest of all
-  // when the input is empty or "about:blank"
-  const searchText = inputUrl.trim().toLowerCase();
-  const filteredHistory = (
-    !searchText || searchText === "about:blank"
-      ? history
-      : history.filter(({ url }) => url.toLowerCase().includes(searchText))
-  )
-    .slice(0, SUGGESTION_LIMIT)
-    .map(({ url }) => url);
+  const suggestions = suggestPages(library, inputUrl);
 
   const closeDropdowns = () => {
-    setShowHistory(false);
-    setSelectedHistoryIndex(-1);
+    setShowSuggestions(false);
+    setSelectedIndex(-1);
+  };
+
+  const navigateTo = (url: string) => {
+    setInputUrl(url);
+    onNavigate(url);
+    closeDropdowns();
   };
 
   const handleUrlSubmit = () => {
-    // If history is showing and an item is selected, navigate to it
-    if (
-      showHistory &&
-      selectedHistoryIndex >= 0 &&
-      selectedHistoryIndex < filteredHistory.length
-    ) {
-      const selectedUrl = filteredHistory[selectedHistoryIndex];
-      setInputUrl(selectedUrl);
-      onNavigate(selectedUrl);
-      closeDropdowns();
+    const selected = showSuggestions ? suggestions[selectedIndex] : undefined;
+    if (selected) {
+      navigateTo(selected.url);
       return;
     }
 
@@ -143,84 +195,50 @@ export function BrowserToolbar({
   };
 
   const handleUrlInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setInputUrl(value);
-
-    // Show history dropdown when there's input or when cleared (if history exists)
-    if (history.length > 0) {
-      setShowHistory(true);
-    }
-    setSelectedHistoryIndex(-1);
+    setInputUrl(e.target.value);
+    setIsEditing(true);
+    setShowSuggestions(true);
+    setSelectedIndex(-1);
   };
 
   const handleUrlInputBlur = () => {
-    // Reset the input URL to the current URL after a short delay
-    setInputUrl(currentPage.url);
+    setIsEditing(false);
+    setInputUrl(editableAddress(currentPage.url));
     closeDropdowns();
   };
 
   const handleUrlInputFocus = () => {
-    if (inputUrl.trim().length === 0 && history.length > 0) {
-      setShowHistory(true);
-    }
+    setIsEditing(true);
+    if (inputUrl.trim().length === 0) setShowSuggestions(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
-      if (showHistory) {
+      if (showSuggestions) {
         closeDropdowns();
       } else if (onDismiss) {
         onDismiss();
       } else {
-        // Clear the input if history isn't showing
+        // Clear the input, which suggests every page
         setInputUrl("");
-        // Show history if available
-        if (history.length > 0) {
-          setShowHistory(true);
-        }
+        setShowSuggestions(true);
       }
       return;
     }
 
-    if (!showHistory || filteredHistory.length === 0) return;
+    if (!showSuggestions || suggestions.length === 0) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedHistoryIndex((prev) => {
-        if (prev < filteredHistory.length - 1) {
-          return prev + 1;
-        }
-        return 0; // Wrap to top
-      });
+      setSelectedIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0,
+      );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedHistoryIndex((prev) => {
-        if (prev <= 0) {
-          return filteredHistory.length - 1; // Wrap to bottom
-        }
-        return prev - 1;
-      });
+      setSelectedIndex((prev) =>
+        prev <= 0 ? suggestions.length - 1 : prev - 1,
+      );
     }
-  };
-
-  const handleHistoryItemClick = (historyUrl: string) => {
-    setInputUrl(historyUrl);
-    onNavigate(historyUrl);
-    closeDropdowns();
-  };
-
-  const handleHistoryItemRemove = (historyUrl: string) => {
-    removeFromHistory(historyUrl);
-  };
-
-  const handleStarredNavigation = (pageUrl: string) => {
-    setInputUrl(pageUrl);
-    onNavigate(pageUrl);
-    closeDropdowns();
-  };
-
-  const handleStarredCloseRequest = () => {
-    setShowHistory(false);
   };
 
   // Helper to highlight matching text
@@ -252,16 +270,13 @@ export function BrowserToolbar({
     didAutoFocusRef.current = true;
     if (currentPage.url === "about:blank" || currentPage.url === "") {
       focusAddressBar();
-
-      if (history.length > 0) {
-        setShowHistory(true);
-      }
+      setShowSuggestions(true);
     }
   }, [isInPreview]);
 
   // Update input URL when user navigates via in-page links or back/forward buttons
   useEffect(() => {
-    setInputUrl(currentPage.url);
+    setInputUrl(editableAddress(currentPage.url));
 
     // If a navigation just happened, then
     // lets close any dropdowns, under the assumption
@@ -319,7 +334,7 @@ export function BrowserToolbar({
         </TooltipTrigger>
         <TooltipContent>{isLoading ? "Stop" : "Refresh"}</TooltipContent>
       </Tooltip>
-      <Popover open={showHistory && filteredHistory.length > 0}>
+      <Popover open={showSuggestions && suggestions.length > 0}>
         <PopoverTrigger asChild>
           <div className="relative flex-1 flex min-w-0">
             <form
@@ -332,20 +347,20 @@ export function BrowserToolbar({
               <InputGroup className="h-8">
                 <InputGroupInput
                   ref={inputRef}
-                  value={inputUrl}
+                  value={isEditing ? inputUrl : shownAddress(currentPage.url)}
                   onChange={handleUrlInputChange}
                   onBlur={handleUrlInputBlur}
                   onFocus={handleUrlInputFocus}
+                  onMouseDown={() => {
+                    selectOnMouseUpRef.current = !isEditing;
+                  }}
+                  onMouseUp={handleMouseUp}
                   onKeyDown={handleKeyDown}
                   className="text-sm"
-                  placeholder="Enter URL..."
+                  placeholder="Search or enter address"
                 />
-                <InputGroupAddon align="inline-end" className="gap-0">
-                  <StarredPagesMenu
-                    currentPage={currentPage}
-                    onPageSelected={handleStarredNavigation}
-                    onMenuOpened={handleStarredCloseRequest}
-                  />
+                <InputGroupAddon align="inline-end">
+                  <StarButton currentPage={currentPage} />
                 </InputGroupAddon>
               </InputGroup>
             </form>
@@ -354,38 +369,58 @@ export function BrowserToolbar({
         <PopoverContent
           align="start"
           sideOffset={4}
-          className="w-[--radix-popover-trigger-width] p-0 max-h-48 overflow-y-auto"
+          className="w-(--radix-popover-trigger-width) max-h-(--radix-popover-content-available-height) p-0 overflow-y-auto"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {filteredHistory.map((historyUrl, index) => (
-            <div
-              key={historyUrl}
-              className={`group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition ${
-                index === selectedHistoryIndex ? "bg-accent/50" : ""
-              }`}
-            >
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => handleHistoryItemClick(historyUrl)}
-                className="flex-1 px-3 py-2 text-sm text-left transition overflow-hidden text-ellipsis whitespace-nowrap"
-              >
-                {highlightMatch(historyUrl, inputUrl.trim())}
-              </button>
-              <button
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleHistoryItemRemove(historyUrl);
-                }}
-                className="px-2 py-2 text-foreground/50 hover:text-destructive transition"
-                aria-label="Remove from history"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+          <div role="listbox" aria-label="Suggestions">
+            {suggestions.map((page, index) => {
+              const isSelected = index === selectedIndex;
+              return (
+                <div
+                  key={page.url}
+                  className={cn(
+                    "group flex items-center border-b border-border last:border-b-0 hover:bg-accent/30 transition",
+                    isSelected && "bg-accent/50",
+                  )}
+                >
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => navigateTo(page.url)}
+                    className="flex-1 min-w-0 px-3 py-2 text-left"
+                  >
+                    <span className="block text-sm truncate">
+                      {highlightMatch(page.title || page.url, inputUrl.trim())}
+                    </span>
+                    <span className="block text-xs text-foreground/50 truncate">
+                      {highlightMatch(page.url, inputUrl.trim())}
+                    </span>
+                  </button>
+                  {page.isFavorite ? (
+                    <Star
+                      aria-hidden
+                      className="mr-3 size-3.5 shrink-0 fill-current text-yellow-400"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => removeFromHistory(page.url)}
+                      className={cn(
+                        "mr-1.5 p-1.5 shrink-0 text-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition",
+                        isSelected && "opacity-100",
+                      )}
+                      aria-label="Remove from history"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </PopoverContent>
       </Popover>
       <ConsoleErrors

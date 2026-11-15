@@ -3,27 +3,26 @@ export function searchUrl(query: string): string {
   return `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
 }
 
+/** Hosts that serve plain http, which are on this machine or this network */
+const isLocalHost = (host: string) =>
+  host === "localhost" ||
+  /\.(localhost|local|test)$/.test(host) ||
+  /^\d{1,3}(\.\d{1,3}){3}$/.test(host) ||
+  host.startsWith("[");
+
 /**
- * Normalizes a URL input by adding protocol and handling search queries.
- * This uses the same logic as the browser toolbar URL submission.
+ * Turns what the user typed into an address to load, searching the web for
+ * anything that doesn't look like an address.
  */
 export function normalizeUrl(input: string): string {
-  let targetUrl = input.trim();
-  if (targetUrl.length === 0) return targetUrl;
+  const text = input.trim();
+  if (text.length === 0) return text;
+  if (/^(https?|file):\/\//i.test(text)) return text;
 
-  // If it contains spaces, treat as a search query
-  if (targetUrl.includes(" ")) {
-    targetUrl = searchUrl(targetUrl);
-  } else if (!targetUrl.match(/^(https?|file):\/\//i)) {
-    // Add protocol if missing
-    const lowerTarget = targetUrl.toLowerCase();
-    const host = lowerTarget.split("/")[0];
+  // A word on its own is a search, unless it's a host with a port or a path
+  const isWord = !/[.:/]/.test(text) && text.toLowerCase() !== "localhost";
+  if (/\s/.test(text) || isWord) return searchUrl(text);
 
-    const isLocalhost = host === "localhost" || host.startsWith("localhost:");
-
-    const protocol = isLocalhost ? "http" : "https";
-    targetUrl = `${protocol}://${targetUrl}`;
-  }
-
-  return targetUrl;
+  const host = text.toLowerCase().split("/")[0].replace(/:\d*$/, "");
+  return `${isLocalHost(host) ? "http" : "https"}://${text}`;
 }

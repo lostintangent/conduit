@@ -407,6 +407,11 @@ export function BrowserPane({
       onUrlChangeRef.current(url);
     };
 
+    // A frame in the page moving within itself leaves the page where it was
+    const handleDidNavigateInPage = (event: DidNavigateInPageEvent) => {
+      if (event.isMainFrame) handleDidNavigate(event);
+    };
+
     const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) => {
       const normalizedTitle = typeof title === "string" ? title.trim() : "";
       setPageTitle(normalizedTitle);
@@ -514,7 +519,7 @@ export function BrowserPane({
     webview.addEventListener("did-finish-load", handleStopLoading);
 
     webview.addEventListener("did-navigate", handleDidNavigate);
-    webview.addEventListener("did-navigate-in-page", handleDidNavigate);
+    webview.addEventListener("did-navigate-in-page", handleDidNavigateInPage);
 
     webview.addEventListener("page-title-updated", notifyTitleChange);
     webview.addEventListener("context-menu", handleWebViewContextMenu);
@@ -540,7 +545,10 @@ export function BrowserPane({
       webview.removeEventListener("did-finish-load", handleStopLoading);
 
       webview.removeEventListener("did-navigate", handleDidNavigate);
-      webview.removeEventListener("did-navigate-in-page", handleDidNavigate);
+      webview.removeEventListener(
+        "did-navigate-in-page",
+        handleDidNavigateInPage,
+      );
 
       webview.removeEventListener("page-title-updated", notifyTitleChange);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);

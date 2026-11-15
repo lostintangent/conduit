@@ -104,7 +104,7 @@ describe("a page's new tabs and popups", () => {
       const pane = outline?.parentElement;
       if (pane?.querySelector(".xterm")) return "terminal";
       const address = pane?.querySelector<HTMLInputElement>(
-        'input[placeholder="Enter URL..."]',
+        'input[placeholder="Search or enter address"]',
       );
       return address?.value ?? "none";
     });

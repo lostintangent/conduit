@@ -1,5 +1,5 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { Activity, type ComponentProps } from "react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { Activity, type ComponentProps, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/hooks/useCommand", () => ({
@@ -7,7 +7,10 @@ vi.mock("@/commands/hooks/useCommand", () => ({
 }));
 
 import { createQueryClient } from "@/query";
-import { BrowserToolbar } from "@features/browser/components/toolbar/BrowserToolbar";
+import {
+  BrowserToolbar,
+  type BrowserToolbarHandle,
+} from "@features/browser/components/toolbar/BrowserToolbar";
 import { libraryQuery } from "@features/browser/client/queries";
 import type { BrowserLibrary } from "@features/browser/model";
 import { TooltipProvider } from "@/ui/tooltip";
@@ -54,12 +57,14 @@ function blankToolbar(mode: "visible" | "hidden", isInPreview = false) {
   );
 }
 
-const urlInput = () => screen.getByPlaceholderText(/Enter URL/);
+const urlInput = () =>
+  screen.getByPlaceholderText<HTMLInputElement>("Search or enter address");
 
 describe("BrowserToolbar with a blank page", () => {
   it("focuses its URL once, not each time its tab shows again", () => {
     const { rerender } = render(blankToolbar("visible"));
     expect(document.activeElement).toBe(urlInput());
+    expect(urlInput().value).toBe("");
 
     screen.getByText("Elsewhere").focus();
     rerender(blankToolbar("hidden"));
@@ -120,7 +125,7 @@ describe("BrowserToolbar shown for its address bar", () => {
 
   it("is dismissed by Escape, which keeps the address", () => {
     const { onDismiss } = revealedToolbar();
-    urlInput().focus();
+    act(() => urlInput().focus());
     fireEvent.keyDown(urlInput(), { key: "Escape" });
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(urlInput()).toHaveProperty("value", page.url);
@@ -136,36 +141,90 @@ describe("BrowserToolbar's history and favorites", () => {
   });
 
   /** A toolbar whose library has already loaded, as it has once the app's up */
-  function toolbarWith(library: BrowserLibrary) {
+  function toolbarWith(
+    library: BrowserLibrary,
+    props: Partial<ComponentProps<typeof BrowserToolbar>> = {},
+  ) {
     const queryClient = createQueryClient();
     queryClient.setQueryData(libraryQuery.queryKey, library);
     render(
-      <TooltipProvider>{toolbar({ currentPage: page })}</TooltipProvider>,
+      <TooltipProvider>
+        {toolbar({ currentPage: page, ...props })}
+      </TooltipProvider>,
       {
         queryClient,
       },
     );
   }
 
-  // Radix hides a popover it can't position, as in a test's DOM, and a hidden
-  // button's text isn't its name
+  // Radix hides a popover it can't position, as in a test's DOM
   const suggested = () =>
     screen
-      .queryAllByRole("button", { hidden: true })
-      .map(({ textContent }) => textContent)
-      .filter((text) => text?.startsWith("https://example.com/"));
+      .queryAllByRole("option", { hidden: true })
+      .map((option) => option.lastElementChild?.textContent);
+  const favorite = (path: string) => ({
+    url: `https://example.com/${path}`,
+    title: path,
+  });
+  const urls = (...paths: string[]) =>
+    paths.map((path) => `https://example.com/${path}`);
 
-  it("suggests the latest five pages the user visited", () => {
+  it("suggests up to three favorites that match, then history, eight in all", () => {
     toolbarWith({
-      favorites: [],
-      history: ["6", "5", "4", "3", "2", "1"].map(visit),
+      favorites: ["f1", "f2", "f3", "f4"].map(favorite),
+      history: ["h1", "f2", "h2", "h3", "h4", "h5", "h6", "h7"].map(visit),
     });
 
     fireEvent.change(urlInput(), { target: { value: "example" } });
 
     expect(suggested()).toEqual(
-      ["6", "5", "4", "3", "2"].map((path) => `https://example.com/${path}`),
+      urls("f1", "f2", "f3", "h1", "h2", "h3", "h4", "h5"),
     );
+  });
+
+  it("finds pages by their title", () => {
+    toolbarWith({
+      favorites: [{ url: "https://example.com/f", title: "Weather" }],
+      history: [
+        { url: "https://example.com/h", title: "Weather radar", visitedAt: 1 },
+        visit("other"),
+      ],
+    });
+
+    fireEvent.change(urlInput(), { target: { value: "weath" } });
+
+    expect(suggested()).toEqual(urls("f", "h"));
+  });
+
+  it("suggests favorites, then recent pages, once the field is emptied", () => {
+    toolbarWith({
+      favorites: ["f1"].map(favorite),
+      history: ["h2", "h1"].map(visit),
+    });
+
+    fireEvent.change(urlInput(), { target: { value: "" } });
+
+    expect(suggested()).toEqual(urls("f1", "h2", "h1"));
+  });
+
+  it("shows the address without https:// or www. until it's focused", () => {
+    const url = "https://www.example.com/one?two#three";
+    const ref = createRef<BrowserToolbarHandle>();
+    toolbarWith(
+      { favorites: [], history: [] },
+      { currentPage: { url, title: "One" }, ref },
+    );
+    expect(urlInput().value).toBe("example.com/one?two#three");
+
+    act(() => ref.current!.focusAddressBar());
+
+    expect(urlInput()).toMatchObject({
+      value: url,
+      selectionStart: 0,
+      selectionEnd: url.length,
+    });
+    fireEvent.blur(urlInput());
+    expect(urlInput().value).toBe("example.com/one?two#three");
   });
 
   it("removes a page from history", async () => {
@@ -183,7 +242,7 @@ describe("BrowserToolbar's history and favorites", () => {
       })[0],
     );
 
-    await waitFor(() => expect(suggested()).toEqual(["https://example.com/1"]));
+    await waitFor(() => expect(suggested()).toEqual(urls("1")));
     expect(browser.removeFromHistory).toHaveBeenCalledWith(
       "https://example.com/2",
     );
