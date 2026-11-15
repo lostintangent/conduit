@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { nativeTheme } from "electron";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import service from "./service";
 
@@ -9,7 +10,10 @@ const { setDotfilesRepo } = vi.hoisted(() => ({
   setDotfilesRepo: vi.fn(async (_url?: string) => {}),
 }));
 
-vi.mock("electron", () => ({ app: { getPath: () => home } }));
+vi.mock("electron", () => ({
+  app: { getPath: () => home },
+  nativeTheme: { themeSource: "system" },
+}));
 vi.mock("../../dotfiles/main", () => ({ setDotfilesRepo }));
 
 beforeAll(async () => {
@@ -31,4 +35,15 @@ it("moves the dotfiles repo only when a save sets it", async () => {
 
   await service.update({ dotfilesRepo: "me/chosen" });
   expect(setDotfilesRepo).toHaveBeenCalledWith("me/chosen");
+});
+
+it("has native menus and pages follow the theme it saves", async () => {
+  await service.update({ theme: "light" });
+  expect(nativeTheme.themeSource).toBe("light");
+
+  // So does one edited into settings.json since
+  const file = path.join(home, ".conduit", "settings.json");
+  await writeFile(file, JSON.stringify({ theme: "dark" }));
+  await service.update({ dotfilesRepo: "me/other" });
+  expect(nativeTheme.themeSource).toBe("dark");
 });

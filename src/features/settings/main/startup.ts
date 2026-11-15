@@ -1,9 +1,17 @@
 import { emitter } from "../../../main/events";
 import { settings } from "./settings";
+import { followTheme } from "./theme";
 
 const emit = emitter("settings");
 
-/** Tells the renderer when settings.json changes outside the app. */
+/**
+ * Applies the theme, and tells the renderer when settings.json changes
+ * outside the app.
+ */
 export default function watchSettings() {
-  return settings.watch((next) => emit("changed", next));
+  followTheme(settings.get());
+  return settings.watch((next) => {
+    followTheme(next);
+    emit("changed", next);
+  });
 }
