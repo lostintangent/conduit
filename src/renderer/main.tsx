@@ -1,4 +1,8 @@
 import { App } from "@/app";
+import {
+  installLibraryQueryBridge,
+  libraryQuery,
+} from "@features/browser/client/queries";
 import { installFilesQueryBridge } from "@features/files/client/queries";
 import { installGitQueryBridge } from "@features/git/client/queries";
 import {
@@ -22,6 +26,9 @@ import "./index.css";
 installFilesQueryBridge(queryClient);
 installGitQueryBridge(queryClient);
 installSettingsQueryBridge(queryClient);
+installLibraryQueryBridge(queryClient);
+// A blank page's address bar suggests history as soon as it's shown
+void queryClient.prefetchQuery(libraryQuery);
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element");

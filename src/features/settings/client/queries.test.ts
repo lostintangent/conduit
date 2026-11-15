@@ -96,27 +96,6 @@ describe("settings", () => {
     ]);
   });
 
-  it("shows a browser history save that failed", async () => {
-    (window as any).conduit = {
-      settings: {
-        addUrlToHistory: () =>
-          Promise.reject(new Error("EACCES: permission denied")),
-      },
-    };
-
-    await new MutationObserver(queryClient, settingsMutations.addUrlToHistory())
-      .mutate("https://example.com")
-      .catch(() => {});
-
-    expect(notificationsAtom.get()).toMatchObject([
-      {
-        kind: "error",
-        message: "Couldn't update settings",
-        details: "EACCES: permission denied",
-      },
-    ]);
-  });
-
   it("shows changes made to settings.json while the app runs", () => {
     let changed!: (settings: UserSettings) => void;
     (window as any).conduit = {

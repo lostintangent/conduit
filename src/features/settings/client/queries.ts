@@ -5,7 +5,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { queryClient } from "@/query";
-import type { BrowserPage, UserSettings } from "../model";
+import type { UserSettings } from "../model";
 
 export const settingsKeys = { all: ["settings"] as const };
 
@@ -54,24 +54,6 @@ function write(name: string) {
   };
 }
 
-/** A write that saves one field, and shows the field main replies with. */
-function saveField<Key extends keyof UserSettings, Variables>(
-  name: string,
-  key: Key,
-  save: (variables: Variables) => Promise<UserSettings[Key]>,
-) {
-  return mutationOptions({
-    ...write(name),
-    mutationFn: save,
-    onSuccess: (value, _variables, _onMutateResult, { client }) => {
-      client.setQueryData(
-        settingsQuery.queryKey,
-        (settings) => settings && { ...settings, [key]: value },
-      );
-    },
-  });
-}
-
 export const settingsMutations = {
   /**
    * Shows the change at once and saves it. A failed save re-reads main's
@@ -104,24 +86,4 @@ export const settingsMutations = {
           refetchType: "all",
         }),
     }),
-
-  addUrlToHistory: () =>
-    saveField("addUrlToHistory", "urlHistory", (url: string) =>
-      window.conduit.settings.addUrlToHistory(url),
-    ),
-
-  removeUrlFromHistory: () =>
-    saveField("removeUrlFromHistory", "urlHistory", (url: string) =>
-      window.conduit.settings.removeUrlFromHistory(url),
-    ),
-
-  addStarredPage: () =>
-    saveField("addStarredPage", "starredPages", (page: BrowserPage) =>
-      window.conduit.settings.addStarredPage(page),
-    ),
-
-  removeStarredPage: () =>
-    saveField("removeStarredPage", "starredPages", (url: string) =>
-      window.conduit.settings.removeStarredPage(url),
-    ),
 };

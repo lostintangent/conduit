@@ -421,6 +421,22 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
   ];
 
+export type BrowserPage = {
+  url: string;
+  title: string;
+};
+
+export type HistoryEntry = BrowserPage & {
+  /** When the user last went to the page, in milliseconds since the epoch */
+  visitedAt: number;
+};
+
+/** The pages the user starred and the ones they visited, newest first. */
+export type BrowserLibrary = {
+  favorites: BrowserPage[];
+  history: HistoryEntry[];
+};
+
 /** A page's download, which saves straight to Downloads. */
 export type Download = {
   id: number;
@@ -444,6 +460,8 @@ declare module "@shared/rpc" {
       };
       /** A download started, made progress or finished. */
       downloadUpdated: Download;
+      /** The user visited a page, or a visited page got its title. */
+      libraryChanged: BrowserLibrary;
     };
   }
 }

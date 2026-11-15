@@ -3,9 +3,17 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import type { BrowserPage } from "../model";
 import { capturePage, getWebContents } from "./capture";
+import { library } from "./library";
 
 const service = {
+  getLibrary: () => library.get(),
+  addFavorite: (page: BrowserPage) => library.addFavorite(page),
+  removeFavorite: (url: string) => library.removeFavorite(url),
+  removeFromHistory: (url: string) => library.removeFromHistory(url),
+  clearHistory: () => library.clearHistory(),
+
   /** Copies a screenshot of the page to the clipboard. */
   async captureScreenshot(webContentsId: number): Promise<void> {
     const image = await capturePage(getWebContents(webContentsId));

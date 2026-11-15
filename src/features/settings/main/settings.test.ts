@@ -44,14 +44,14 @@ describe("settings", () => {
   });
 
   it("runs writes one at a time, so none is lost", async () => {
-    const add = (url: string) =>
-      settings.update(({ urlHistory }) => ({
-        urlHistory: [url, ...urlHistory],
+    const enlarge = () =>
+      settings.update(({ terminalFontSize }) => ({
+        terminalFontSize: terminalFontSize + 1,
       }));
 
-    await Promise.all([add("a.com"), add("b.com"), add("c.com")]);
+    await Promise.all([enlarge(), enlarge(), enlarge()]);
 
-    expect((await onDisk()).urlHistory).toEqual(["c.com", "b.com", "a.com"]);
+    expect((await onDisk()).terminalFontSize).toBe(16);
   });
 
   it("rejects a write that fails, and keeps the settings it had", async () => {

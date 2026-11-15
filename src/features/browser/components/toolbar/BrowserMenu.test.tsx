@@ -1,20 +1,26 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { Activity } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/hooks/useCommand", () => ({
   useCommand: () => ({ execute: vi.fn<() => Promise<void>>() }),
 }));
 
+import { createQueryClient } from "@/query";
+import { libraryQuery } from "@features/browser/client/queries";
 import { BrowserMenu } from "@features/browser/components/toolbar/BrowserMenu";
+import type { BrowserLibrary } from "@features/browser/model";
 import { TooltipProvider } from "@/ui/tooltip";
 import { notificationsAtom } from "@features/workbench/client/atoms";
+import { render } from "../../../../../tests/renderer/queryRender";
+
+/** Main's browser service, with an empty library unless a test says otherwise */
+let browser: Record<string, (...args: any[]) => Promise<BrowserLibrary>>;
+beforeEach(() => {
+  browser = { getLibrary: async () => ({ favorites: [], history: [] }) };
+  (window as any).conduit = { browser };
+});
+afterEach(() => delete (window as any).conduit);
 
 function browserMenu(
   onCaptureScreenshot: () => Promise<void> = () => Promise.resolve(),
@@ -89,5 +95,44 @@ describe("BrowserMenu copy URL", () => {
     rerender(inTab("visible"));
 
     expect(checkmarkShown()).toBe(false);
+  });
+});
+
+describe("BrowserMenu clear history", () => {
+  const visited = {
+    url: "https://example.com/",
+    title: "Example",
+    visitedAt: 1,
+  };
+
+  function menuWith(library: BrowserLibrary) {
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(libraryQuery.queryKey, library);
+    render(browserMenu(), { queryClient });
+  }
+
+  it("clears history once the user confirms", async () => {
+    browser.clearHistory = vi.fn(async () => ({ favorites: [], history: [] }));
+    menuWith({ favorites: [], history: [visited] });
+
+    chooseFromMenu("Clear history…");
+    const clear = await screen.findByRole("button", { name: "Clear" });
+    expect(browser.clearHistory).not.toHaveBeenCalled();
+    fireEvent.click(clear);
+
+    await waitFor(() => expect(browser.clearHistory).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+  });
+
+  it("can't clear history when there's none", () => {
+    menuWith({ favorites: [], history: [] });
+
+    fireEvent.keyDown(screen.getByLabelText("More options"), { key: "Enter" });
+
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Clear history…" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 });

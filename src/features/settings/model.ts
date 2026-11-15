@@ -12,11 +12,6 @@ export type ThemeOverrides = {
   elevated?: string;
 };
 
-export type BrowserPage = {
-  url: string;
-  title: string;
-};
-
 export type AgentConfig = {
   id: string;
   name: string;
@@ -72,9 +67,7 @@ export type UserSettings = {
   showPlayButton: boolean;
   playButtonTarget: PlayButtonTarget;
 
-  // History/State
-  urlHistory: string[];
-  starredPages: BrowserPage[];
+  /** The user's home folder, which main fills in rather than saves */
   homeDirectory: string;
 
   // Agent settings
@@ -107,9 +100,6 @@ export const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
   showLaunchButton: false,
   showPlayButton: false,
   playButtonTarget: "newPane",
-
-  urlHistory: [],
-  starredPages: [],
 
   agents: [],
   launchGroups: [],

@@ -1,12 +1,9 @@
 import { InputGroupButton } from "@/ui/input-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
-import {
-  settingsMutations,
-  useSettings,
-} from "@features/settings/client/queries";
+import { libraryMutations, useLibrary } from "@features/browser/client/queries";
 import { cn } from "@/utils/index";
-import type { BrowserPage } from "@features/settings/model";
+import type { BrowserPage } from "@features/browser/model";
 import { useMutation } from "@tanstack/react-query";
 import { ChevronDown, Star } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -22,12 +19,10 @@ export function StarredPagesMenu({
   onPageSelected,
   onMenuOpened,
 }: StarredPagesMenuProps) {
-  const starredPages = useSettings((s) => s.starredPages);
-  const { mutate: addStarredPage } = useMutation(
-    settingsMutations.addStarredPage(),
-  );
-  const { mutate: removeStarredPage } = useMutation(
-    settingsMutations.removeStarredPage(),
+  const starredPages = useLibrary((library) => library.favorites);
+  const { mutate: addFavorite } = useMutation(libraryMutations.addFavorite());
+  const { mutate: removeFavorite } = useMutation(
+    libraryMutations.removeFavorite(),
   );
 
   const starButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -63,13 +58,9 @@ export function StarredPagesMenu({
     }
 
     if (isCurrentUrlStarred) {
-      removeStarredPage(currentPage.url);
+      removeFavorite(currentPage.url);
     } else {
-      const trimmedTitle = currentPage.title.trim();
-      addStarredPage({
-        url: currentPage.url,
-        title: trimmedTitle.length > 0 ? trimmedTitle : currentPage.url,
-      });
+      addFavorite(currentPage);
     }
 
     setShowStarredList(false);
@@ -81,7 +72,7 @@ export function StarredPagesMenu({
   };
 
   const handleStarredRemove = (pageUrl: string) => {
-    removeStarredPage(pageUrl);
+    removeFavorite(pageUrl);
   };
 
   return (

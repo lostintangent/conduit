@@ -1,14 +1,25 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { Activity, type ComponentProps } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/hooks/useCommand", () => ({
   useCommand: () => ({ execute: vi.fn<() => Promise<void>>() }),
 }));
 
+import { createQueryClient } from "@/query";
 import { BrowserToolbar } from "@features/browser/components/toolbar/BrowserToolbar";
+import { libraryQuery } from "@features/browser/client/queries";
+import type { BrowserLibrary } from "@features/browser/model";
 import { TooltipProvider } from "@/ui/tooltip";
 import { render } from "../../../../../tests/renderer/queryRender";
+
+/** Main's browser service, with an empty library unless a test says otherwise */
+let browser: Record<string, (...args: any[]) => Promise<BrowserLibrary>>;
+beforeEach(() => {
+  browser = { getLibrary: async () => ({ favorites: [], history: [] }) };
+  (window as any).conduit = { browser };
+});
+afterEach(() => delete (window as any).conduit);
 
 function toolbar(props: Partial<ComponentProps<typeof BrowserToolbar>>) {
   return (
@@ -113,5 +124,81 @@ describe("BrowserToolbar shown for its address bar", () => {
     fireEvent.keyDown(urlInput(), { key: "Escape" });
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(urlInput()).toHaveProperty("value", page.url);
+  });
+});
+
+describe("BrowserToolbar's history and favorites", () => {
+  const page = { url: "https://example.com/", title: "Example" };
+  const visit = (path: string) => ({
+    url: `https://example.com/${path}`,
+    title: path,
+    visitedAt: 1,
+  });
+
+  /** A toolbar whose library has already loaded, as it has once the app's up */
+  function toolbarWith(library: BrowserLibrary) {
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(libraryQuery.queryKey, library);
+    render(
+      <TooltipProvider>{toolbar({ currentPage: page })}</TooltipProvider>,
+      {
+        queryClient,
+      },
+    );
+  }
+
+  // Radix hides a popover it can't position, as in a test's DOM, and a hidden
+  // button's text isn't its name
+  const suggested = () =>
+    screen
+      .queryAllByRole("button", { hidden: true })
+      .map(({ textContent }) => textContent)
+      .filter((text) => text?.startsWith("https://example.com/"));
+
+  it("suggests the latest five pages the user visited", () => {
+    toolbarWith({
+      favorites: [],
+      history: ["6", "5", "4", "3", "2", "1"].map(visit),
+    });
+
+    fireEvent.change(urlInput(), { target: { value: "example" } });
+
+    expect(suggested()).toEqual(
+      ["6", "5", "4", "3", "2"].map((path) => `https://example.com/${path}`),
+    );
+  });
+
+  it("removes a page from history", async () => {
+    browser.removeFromHistory = vi.fn(async () => ({
+      favorites: [],
+      history: [visit("1")],
+    }));
+    toolbarWith({ favorites: [], history: [visit("2"), visit("1")] });
+    fireEvent.change(urlInput(), { target: { value: "example" } });
+
+    fireEvent.click(
+      screen.getAllByRole("button", {
+        name: "Remove from history",
+        hidden: true,
+      })[0],
+    );
+
+    await waitFor(() => expect(suggested()).toEqual(["https://example.com/1"]));
+    expect(browser.removeFromHistory).toHaveBeenCalledWith(
+      "https://example.com/2",
+    );
+  });
+
+  it("stars the page in the browser's favorites", async () => {
+    browser.addFavorite = vi.fn(async () => ({
+      favorites: [page],
+      history: [],
+    }));
+    toolbarWith({ favorites: [], history: [] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Star this page" }));
+
+    await screen.findByRole("button", { name: "Unstar this page" });
+    expect(browser.addFavorite).toHaveBeenCalledWith(page);
   });
 });

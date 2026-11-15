@@ -2,12 +2,9 @@ import { Button } from "@/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/ui/input-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
-import {
-  settingsMutations,
-  useSettings,
-} from "@features/settings/client/queries";
+import { libraryMutations, useLibrary } from "@features/browser/client/queries";
 import { normalizeUrl } from "@features/browser/client/url";
-import type { BrowserPage } from "@features/settings/model";
+import type { BrowserPage } from "@features/browser/model";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, RefreshCw, Trash2, X } from "lucide-react";
 import {
@@ -20,6 +17,9 @@ import {
 import { BrowserMenu } from "./BrowserMenu";
 import { ConsoleErrors, type ConsoleMessage } from "./ConsoleErrors";
 import { StarredPagesMenu } from "./StarredPagesMenu";
+
+/** The address bar suggests this many of the pages the user visited. */
+const SUGGESTION_LIMIT = 5;
 
 type BrowserToolbarProps = {
   currentPage: BrowserPage;
@@ -74,12 +74,9 @@ export function BrowserToolbar({
   onFocusLeave,
   ref,
 }: BrowserToolbarProps) {
-  const urlHistory = useSettings((s) => s.urlHistory);
-  const { mutate: addUrlToHistory } = useMutation(
-    settingsMutations.addUrlToHistory(),
-  );
-  const { mutate: removeUrlFromHistory } = useMutation(
-    settingsMutations.removeUrlFromHistory(),
+  const history = useLibrary((library) => library.history);
+  const { mutate: removeFromHistory } = useMutation(
+    libraryMutations.removeFromHistory(),
   );
 
   const [inputUrl, setInputUrl] = useState<string>(currentPage.url);
@@ -107,13 +104,16 @@ export function BrowserToolbar({
     });
   };
 
-  // Filter history based on input text. Show all of it when the input is
-  // empty or "about:blank".
+  // The latest pages whose address has the input text, or the latest of all
+  // when the input is empty or "about:blank"
   const searchText = inputUrl.trim().toLowerCase();
-  const filteredHistory =
+  const filteredHistory = (
     !searchText || searchText === "about:blank"
-      ? urlHistory
-      : urlHistory.filter((url) => url.toLowerCase().includes(searchText));
+      ? history
+      : history.filter(({ url }) => url.toLowerCase().includes(searchText))
+  )
+    .slice(0, SUGGESTION_LIMIT)
+    .map(({ url }) => url);
 
   const closeDropdowns = () => {
     setShowHistory(false);
@@ -130,7 +130,6 @@ export function BrowserToolbar({
       const selectedUrl = filteredHistory[selectedHistoryIndex];
       setInputUrl(selectedUrl);
       onNavigate(selectedUrl);
-      addUrlToHistory(selectedUrl);
       closeDropdowns();
       return;
     }
@@ -138,7 +137,6 @@ export function BrowserToolbar({
     const targetUrl = normalizeUrl(inputUrl);
     if (targetUrl.length === 0) return;
 
-    addUrlToHistory(targetUrl);
     closeDropdowns();
 
     onNavigate(targetUrl);
@@ -149,7 +147,7 @@ export function BrowserToolbar({
     setInputUrl(value);
 
     // Show history dropdown when there's input or when cleared (if history exists)
-    if (urlHistory.length > 0) {
+    if (history.length > 0) {
       setShowHistory(true);
     }
     setSelectedHistoryIndex(-1);
@@ -162,7 +160,7 @@ export function BrowserToolbar({
   };
 
   const handleUrlInputFocus = () => {
-    if (inputUrl.trim().length === 0 && urlHistory.length > 0) {
+    if (inputUrl.trim().length === 0 && history.length > 0) {
       setShowHistory(true);
     }
   };
@@ -177,7 +175,7 @@ export function BrowserToolbar({
         // Clear the input if history isn't showing
         setInputUrl("");
         // Show history if available
-        if (urlHistory.length > 0) {
+        if (history.length > 0) {
           setShowHistory(true);
         }
       }
@@ -208,20 +206,16 @@ export function BrowserToolbar({
   const handleHistoryItemClick = (historyUrl: string) => {
     setInputUrl(historyUrl);
     onNavigate(historyUrl);
-
-    addUrlToHistory(historyUrl);
     closeDropdowns();
   };
 
   const handleHistoryItemRemove = (historyUrl: string) => {
-    removeUrlFromHistory(historyUrl);
+    removeFromHistory(historyUrl);
   };
 
   const handleStarredNavigation = (pageUrl: string) => {
     setInputUrl(pageUrl);
     onNavigate(pageUrl);
-
-    addUrlToHistory(pageUrl);
     closeDropdowns();
   };
 
@@ -259,7 +253,7 @@ export function BrowserToolbar({
     if (currentPage.url === "about:blank" || currentPage.url === "") {
       focusAddressBar();
 
-      if (urlHistory.length > 0) {
+      if (history.length > 0) {
         setShowHistory(true);
       }
     }

@@ -8,8 +8,10 @@ import {
   session,
   type WebContents,
 } from "electron";
+import { settings } from "@features/settings/main/settings";
 import { emitter, getAppWindow } from "../../../main/events";
 import type { Download } from "../model";
+import { library, moveFromSettings } from "./library";
 
 const emit = emitter("browser");
 
@@ -193,6 +195,22 @@ function saveCookiesSoon(browserSession: Session) {
   });
 }
 
+/** Puts the pages the user goes to in history, with their titles. */
+function recordHistory(contents: WebContents) {
+  const page = () => ({ url: contents.getURL(), title: contents.getTitle() });
+  const changed = (recorded: boolean) => {
+    if (recorded) emit("libraryChanged", library.get());
+  };
+
+  // Chromium sends no did-navigate for an error page, so a page that didn't
+  // load isn't recorded
+  contents.on("did-navigate", () => changed(library.visit(page())));
+  contents.on("did-navigate-in-page", (_event, _url, isMainFrame) => {
+    if (isMainFrame) changed(library.visit(page()));
+  });
+  contents.on("page-title-updated", () => changed(library.retitle(page())));
+}
+
 /**
  * Where to save a file with this name in the folder, numbering it like
  * "report 2.csv" when the name is taken.
@@ -209,7 +227,7 @@ function availablePath(folder: string, name: string, taken: Set<string>) {
   }
 }
 
-export default function startBrowserSession() {
+export default async function startBrowserSession() {
   identifyAsChrome();
   const browserSession = session.fromPartition(PARTITION);
   limitPermissions(browserSession);
@@ -228,5 +246,11 @@ export default function startBrowserSession() {
   // from here on is a page or one of its popups
   app.on("web-contents-created", (_event, contents) => {
     handleWindowOpen(contents);
+    if (contents.getType() === "webview") recordHistory(contents);
   });
+
+  await moveFromSettings(library, settings).catch((error) =>
+    console.error("[Browser] Couldn't move history out of settings:", error),
+  );
+  return () => library.flush();
 }
