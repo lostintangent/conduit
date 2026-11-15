@@ -2,6 +2,7 @@ import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
 import type { LayoutNode, Pane, Tab } from "@features/workbench/model";
 import type { TerminalPane as SharedTerminalPane } from "@shared/types/panes";
 import type { Workspace } from "../model";
+import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { closeTab, openTab } from "@features/workbench/client/actions/tab";
 import { queryClient, runMutation } from "@/query";
 import { switching } from "./autosave";
@@ -11,6 +12,42 @@ const api = window.conduit;
 
 type WorkspacePane = Workspace["tabs"][number]["panes"][number];
 type WorkspaceTerminalPane = WorkspacePane & SharedTerminalPane;
+
+/**
+ * Reopens what was open when Conduit last quit: the named workspace, or else
+ * the window's unnamed tabs. When that can't open, or the page keeps crashing,
+ * the window starts outside any named workspace, so its new tab can't save
+ * over one.
+ */
+export async function restoreAtLaunch() {
+  try {
+    const state = await queryClient.ensureQueryData(workspacesQuery);
+    const last =
+      state.workspaces.find((saved) => saved.name === state.current) ??
+      state.untitled;
+    if (last?.tabs.length) {
+      if (await api.workbench.reloadedAfterCrashLoop()) {
+        await leaveNamedWorkspace();
+      } else {
+        await restoreTabs(last);
+      }
+    }
+  } catch (error) {
+    console.error("[Workspaces] Couldn't reopen the last session:", error);
+    enqueueNotification({
+      kind: "error",
+      message: "Couldn't reopen your last session",
+      details: (error as Error).message,
+    });
+    await leaveNamedWorkspace();
+  }
+  if (tabsAtom.get().length === 0) await openTab();
+}
+
+async function leaveNamedWorkspace() {
+  // Its own error toast is enough.
+  await runMutation(workspaceMutations.setCurrent(), null).catch(() => {});
+}
 
 /**
  * Opens a saved workspace in place of the window's tabs, once they've saved
@@ -53,7 +90,8 @@ export function saveWorkspaceAs(name: string) {
 
 /**
  * Replaces the window's tabs with a workspace's, starting its terminals. A
- * workspace without tabs gets a new one.
+ * workspace without tabs gets a new one. If a terminal can't start, the ones
+ * that did are closed and the window's tabs stay as they were.
  */
 async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
   // Shared across all tabs to support cross-tab terminal cloning
@@ -62,8 +100,35 @@ async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
     Awaited<ReturnType<typeof api.terminal.create>>
   >();
 
+  let workspaceTabs: Tab[];
+  try {
+    workspaceTabs = await startTabs(workspace.tabs, terminalSessions);
+  } catch (error) {
+    await Promise.allSettled(
+      Array.from(terminalSessions.values(), ({ sessionId }) =>
+        api.terminal.close(sessionId),
+      ),
+    );
+    throw error;
+  }
+
+  closeAllTabs();
+
+  tabsAtom.set(workspaceTabs);
+  // Workspace files can be edited by hand, so a field may be missing.
+  activeTabIdAtom.set(workspace.activeTabId ?? null);
+  if (workspaceTabs.length === 0) await openTab();
+}
+
+async function startTabs(
+  tabs: Workspace["tabs"],
+  terminalSessions: Map<
+    string,
+    Awaited<ReturnType<typeof api.terminal.create>>
+  >,
+) {
   const workspaceTabs: Tab[] = [];
-  for (const workspaceTab of workspace.tabs) {
+  for (const workspaceTab of tabs) {
     const panes: Record<string, Pane> = {};
     const restoreTerminalPane = async (pane: WorkspaceTerminalPane) => {
       const cloneSourceId = pane.cloneOf ?? pane.id;
@@ -79,11 +144,6 @@ async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
           cols: pane.cols,
           rows: pane.rows,
         });
-
-        if (!session) {
-          return;
-        }
-
         terminalSessions.set(cloneSourceId, session);
       }
 
@@ -124,13 +184,7 @@ async function restoreTabs(workspace: Pick<Workspace, "tabs" | "activeTabId">) {
 
     workspaceTabs.push(tab);
   }
-
-  closeAllTabs();
-
-  tabsAtom.set(workspaceTabs);
-  // Workspace files can be edited by hand, so a field may be missing.
-  activeTabIdAtom.set(workspace.activeTabId ?? null);
-  if (workspaceTabs.length === 0) await openTab();
+  return workspaceTabs;
 }
 
 function closeAllTabs() {

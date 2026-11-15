@@ -369,6 +369,41 @@ describe("workspaces", () => {
     await quitting;
   });
 
+  /** Starts Conduit again in the same home, once it has quit. */
+  async function relaunch(name: string) {
+    expect(app.pageErrors).toEqual([]);
+    expect(app.failedRequests).toEqual([]);
+    app = await launch({ name, home: app.home });
+  }
+
+  it("reopens the window's tabs as it starts again", async () => {
+    await relaunch("workspace-relaunched");
+
+    await tabs()
+      .nth(1)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+    expect(await tabs().count()).toBe(2);
+    expect(await title()).toBe("Conduit");
+    expect(await pwd()).toBe(path.join(app.home, "two"));
+  });
+
+  it("reopens the named workspace that was open as it starts again", async () => {
+    await choose("E2E Renamed");
+    await expectTerminalFocused("opening the workspace");
+    await app.quit();
+    await relaunch("workspace-relaunched-named");
+
+    // It was last on its first tab.
+    await tabs()
+      .nth(0)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+    expect(await tabs().count()).toBe(2);
+    expect(await title()).toBe("Conduit (E2E Renamed)");
+    expect(await pwd()).toBe(path.join(app.home, "one"));
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

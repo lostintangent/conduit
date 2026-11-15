@@ -1,5 +1,7 @@
 import type { ContextMenuOptions } from "@shared/commands";
-import { clipboard, dialog, shell } from "electron";
+import { type BrowserWindow, clipboard, dialog, shell } from "electron";
+import { setTimeout as delay } from "node:timers/promises";
+import { reloadedAfterCrashLoop } from "../../../main/crashRecovery";
 import { emitter, getAppWindow } from "../../../main/events";
 import { showContextMenu } from "../../../main/ui/contextMenu";
 
@@ -31,11 +33,34 @@ const service = {
 
   writeClipboard: (text: string) => clipboard.writeText(text),
 
+  reloadedAfterCrashLoop,
+
+  /** The page painted the tabs it opens with, so the window can show. */
+  opened() {
+    pageOpened?.();
+  },
+
   /** The page saved after `beforeClose`, so the window can close. */
   readyToClose() {
     pageSaved?.();
   },
 };
+
+let pageOpened: (() => void) | undefined;
+
+/**
+ * Shows the window once its page has painted the tabs it opens with, so it
+ * doesn't open on an empty workbench, or `limitMs` after its first paint when
+ * the page doesn't say so.
+ */
+export function showWhenOpened(window: BrowserWindow, limitMs: number) {
+  const opened = new Promise<void>((resolve) => (pageOpened = resolve));
+  window.once("ready-to-show", () => {
+    void Promise.race([opened, delay(limitMs)]).then(() => {
+      if (!window.isDestroyed()) window.show();
+    });
+  });
+}
 
 let pageSaved: (() => void) | undefined;
 

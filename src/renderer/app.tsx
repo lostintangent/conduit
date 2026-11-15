@@ -36,6 +36,7 @@ import { useContextMenu } from "@/commands/hooks/useContextMenu";
 import { useLayoutResizing } from "@features/workbench/components/layout/useLayoutResizing";
 import { useSettings } from "@features/settings/client/queries";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
+import { restoreAtLaunch } from "@features/workspaces/client/actions";
 import { flush, startAutosave } from "@features/workspaces/client/autosave";
 import {
   closeHyperTerminal,
@@ -59,7 +60,6 @@ import {
   duplicateTab,
   generateIncrementedTabTitle,
   getActiveTabCwd,
-  openTab,
   openTabFromExistingAgentSession,
   openTabFromPaneDescriptor,
   registerTabEventHandlers,
@@ -272,9 +272,13 @@ export function App() {
 
     hasInitializedTabsRef.current = true;
 
-    void (async () => {
-      if (tabsAtom.get().length === 0) await openTab();
-    })().finally(startAutosave);
+    void restoreAtLaunch().finally(() => {
+      startAutosave();
+      // Once the tabs have painted, so the window doesn't open without them.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => void api.workbench.opened()),
+      );
+    });
   }, []);
 
   useEffect(() => {

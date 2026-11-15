@@ -2,7 +2,7 @@ import type { Tab } from "@features/workbench/model";
 import type { Workspace, WorkspaceState } from "../model";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { workspaceApi, terminalApi } = vi.hoisted(() => {
+const { workspaceApi, terminalApi, workbenchApi } = vi.hoisted(() => {
   const workspaceApi = {
     saveWorkspace: vi.fn<() => Promise<WorkspaceState>>(),
     setCurrentWorkspace:
@@ -16,16 +16,22 @@ const { workspaceApi, terminalApi } = vi.hoisted(() => {
     })),
     close: vi.fn(),
   };
-  (window as any).conduit = { workspaces: workspaceApi, terminal: terminalApi };
-  return { workspaceApi, terminalApi };
+  const workbenchApi = { reloadedAfterCrashLoop: vi.fn(async () => false) };
+  (window as any).conduit = {
+    workspaces: workspaceApi,
+    terminal: terminalApi,
+    workbench: workbenchApi,
+  };
+  return { workspaceApi, terminalApi, workbenchApi };
 });
 
-import { closeWorkspace, openWorkspace } from "./actions";
+import { closeWorkspace, openWorkspace, restoreAtLaunch } from "./actions";
 import { workspacesQuery } from "./queries";
 import { queryClient } from "@/query";
 import {
   activeTabAtom,
   activeTabIdAtom,
+  notificationsAtom,
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { enableMapSet } from "immer";
@@ -53,7 +59,15 @@ beforeEach(() => {
   vi.clearAllMocks();
   tabsAtom.set([]);
   activeTabIdAtom.set(null);
+  notificationsAtom.set([]);
 });
+
+const shellTab = (id: string) => ({
+  ...editorTab(id),
+  panes: [{ id: `${id}-pane`, type: "terminal" as const, cwd: "/tmp" }],
+});
+
+const tabIds = () => tabsAtom.get().map((tab) => tab.id);
 
 describe("openWorkspace", () => {
   it("restores a saved workspace that is missing its active tab", async () => {
@@ -153,6 +167,83 @@ describe("closeWorkspace", () => {
     await closeWorkspace();
 
     expect(tabsAtom.get().map((tab) => tab.id)).toEqual(["mine"]);
+    expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("restoreAtLaunch", () => {
+  const work = {
+    name: "Work",
+    lastModified: 0,
+    activeTabId: "work",
+    tabs: [editorTab("work")],
+  };
+  const untitled = { lastModified: 0, tabs: [editorTab("mine")] };
+
+  it("reopens the named workspace that was open", async () => {
+    seed({ workspaces: [work], untitled, current: "Work" });
+
+    await restoreAtLaunch();
+
+    expect(tabIds()).toEqual(["work"]);
+    expect(activeTabIdAtom.get()).toBe("work");
+    expect(workspaceApi.setCurrentWorkspace).not.toHaveBeenCalled();
+    expect(workspaceApi.saveWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("reopens the window's unnamed tabs when no named workspace was open", async () => {
+    seed({ workspaces: [work], untitled });
+
+    await restoreAtLaunch();
+
+    expect(tabIds()).toEqual(["mine"]);
+  });
+
+  it("opens a new tab when there's nothing to reopen", async () => {
+    seed({ workspaces: [work] });
+
+    await restoreAtLaunch();
+
+    expect(tabsAtom.get()).toHaveLength(1);
+    expect(tabsAtom.get()[0].panes).toMatchObject({
+      [tabsAtom.get()[0].activePaneId!]: { sessionId: "session-1" },
+    });
+  });
+
+  it("closes the shells it started, and opens a new tab outside the workspace, when one can't start", async () => {
+    terminalApi.create
+      .mockResolvedValueOnce({ sessionId: "started", title: "zsh", cwd: "/" })
+      .mockRejectedValueOnce(new Error("posix_spawnp failed"));
+    vi.spyOn(console, "error").mockImplementationOnce(() => {});
+    seed({
+      workspaces: [{ ...work, tabs: [shellTab("one"), shellTab("two")] }],
+      current: "Work",
+    });
+
+    await restoreAtLaunch();
+
+    expect(terminalApi.close).toHaveBeenCalledWith("started");
+    expect(tabsAtom.get()).toHaveLength(1);
+    expect(tabIds()).not.toContain("one");
+    // Or the new tab would save over the workspace.
+    expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith(null);
+    expect(notificationsAtom.get()).toMatchObject([
+      {
+        kind: "error",
+        message: "Couldn't reopen your last session",
+        details: "posix_spawnp failed",
+      },
+    ]);
+  });
+
+  it("opens a new tab outside the workspace after the page crashed again soon after reloading", async () => {
+    workbenchApi.reloadedAfterCrashLoop.mockResolvedValueOnce(true);
+    seed({ workspaces: [work], untitled, current: "Work" });
+
+    await restoreAtLaunch();
+
+    expect(tabsAtom.get()).toHaveLength(1);
+    expect(tabIds()).not.toContain("work");
     expect(workspaceApi.setCurrentWorkspace).toHaveBeenCalledWith(null);
   });
 });

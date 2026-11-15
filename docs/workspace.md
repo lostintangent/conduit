@@ -26,8 +26,9 @@ This document provides a comprehensive overview of how Conduit workspaces are st
 Conduit workspaces represent the complete state of a user's tab layout, including terminal sessions, browser panes, and editor configurations. The workspace system supports:
 
 1. **Autosave** - The open workspace, named or not, saves 2 seconds after its tabs change, before another workspace replaces it, and as the window closes
-2. **Named workspaces** - User-saved workspace configurations for quick access
-3. **Import/Export** - YAML-based workspace templates for sharing and version control
+2. **Launch restore** - Conduit reopens the workspace that was open when it quit, and shows its window once those tabs have painted, or 2 seconds after its first paint at most. If a terminal can't start, or the page crashed again within a minute of reloading, the window opens a new tab outside any named workspace, so that tab can't save over one
+3. **Named workspaces** - User-saved workspace configurations for quick access
+4. **Import/Export** - YAML-based workspace templates for sharing and version control
 
 The workspace system uses three distinct representations optimized for different purposes:
 

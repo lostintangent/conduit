@@ -8,7 +8,10 @@ const electron = vi.hoisted(() => ({
 }));
 vi.mock("electron", () => electron);
 
-import { reloadAfterCrashes } from "../../src/main/crashRecovery";
+import {
+  reloadAfterCrashes,
+  reloadedAfterCrashLoop,
+} from "../../src/main/crashRecovery";
 
 function createWindow() {
   const webContents = Object.assign(new EventEmitter(), { reload: vi.fn() });
@@ -75,5 +78,20 @@ describe("crash recovery", () => {
     expect(electron.dialog.showMessageBox).toHaveBeenCalledTimes(2);
     expect(electron.app.quit).toHaveBeenCalled();
     expect(reload).toHaveBeenCalledTimes(3);
+  });
+
+  it("tells the page it reloaded after crashing again, until a crash that isn't", async () => {
+    const { die } = createWindow();
+    expect(reloadedAfterCrashLoop()).toBe(false);
+
+    await die("crashed");
+    expect(reloadedAfterCrashLoop()).toBe(false);
+
+    electron.dialog.showMessageBox.mockResolvedValueOnce({ response: 0 });
+    await die("crashed", 59_000);
+    expect(reloadedAfterCrashLoop()).toBe(true);
+
+    await die("crashed", 61_000);
+    expect(reloadedAfterCrashLoop()).toBe(false);
   });
 });

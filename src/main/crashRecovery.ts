@@ -3,10 +3,19 @@ import { app, type BrowserWindow, dialog } from "electron";
 /** A page that crashes again this soon after a recovery is crash-looping. */
 const CRASH_LOOP_MS = 60_000;
 
+let reloadedAfterLoop = false;
+
+/**
+ * Whether the page last reloaded after crashing again within a minute, so it
+ * starts with a new tab in case its last session is what crashes it.
+ */
+export const reloadedAfterCrashLoop = () => reloadedAfterLoop;
+
 /**
  * Reload the window's page whenever its renderer dies, which also closes the
  * dead page's shells and releases its watchers (see `initializeIpcHandlers`).
- * If it dies again within a minute of that, ask before reloading it again.
+ * If it dies again within a minute of that, ask before reloading it again,
+ * without the last session.
  */
 export function reloadAfterCrashes(window: BrowserWindow) {
   let isClosing = false;
@@ -25,11 +34,13 @@ export function reloadAfterCrashes(window: BrowserWindow) {
         `The window's page died (${reason}, exit code ${exitCode})`,
       );
 
-      if (Date.now() - lastReload < CRASH_LOOP_MS) {
+      const looping = Date.now() - lastReload < CRASH_LOOP_MS;
+      if (looping) {
         const { response } = await dialog.showMessageBox(window, {
           type: "error",
           message: "Conduit's window keeps crashing",
-          detail: "It crashed again less than a minute after reloading.",
+          detail:
+            "It crashed again less than a minute after reloading. Reload opens a new tab in place of your last session, in case that's what crashes it.",
           buttons: ["Reload", "Quit"],
         });
         if (response === 1) {
@@ -41,6 +52,7 @@ export function reloadAfterCrashes(window: BrowserWindow) {
         }
       }
 
+      reloadedAfterLoop = looping;
       lastReload = Date.now();
       window.webContents.reload();
     },

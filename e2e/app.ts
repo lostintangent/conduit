@@ -45,7 +45,7 @@ export interface LaunchOptions {
   files?: Record<string, string>;
   /** Written to ~/.conduit/settings.json before launch. */
   settings?: Record<string, unknown>;
-  /** The home of a launch that crashed, to start the app in again. */
+  /** The home of a launch that crashed or quit, to start the app in again. */
   home?: string;
 }
 
@@ -210,17 +210,17 @@ export interface Conduit {
   pageErrors: string[];
   /** Requests from the window that failed since launch, like a missing asset. */
   failedRequests: string[];
-  /**
-   * Quits the way ⌘Q does, since Electron handles SIGTERM with `app.quit()`,
-   * and resolves once the app has exited.
-   */
-  quit(): Promise<void>;
   close(): Promise<void>;
   /**
    * Stops the app the way a crash would, so it saves nothing on its way out,
    * and keeps its home for `launch({ home })`.
    */
   crash(): Promise<void>;
+  /**
+   * Quits the way ⌘Q does, since Electron handles SIGTERM with `app.quit()`,
+   * and keeps its home for `launch({ home })`.
+   */
+  quit(): Promise<void>;
 }
 
 /**
@@ -307,7 +307,8 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   let page: Page | undefined;
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
-  let crashed = false;
+  /** Set once the app crashed or quit, which leaves its home for a relaunch. */
+  let stopped = false;
 
   /** Waits for every process with the home to exit, and kills any that don't. */
   async function waitForExit() {
@@ -324,14 +325,27 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   }
 
   async function crash() {
-    crashed = true;
+    stopped = true;
     await browser?.close().catch(() => {});
     process.kill(-child.pid!, "SIGKILL");
     await waitForExit();
   }
 
+  async function quit() {
+    stopped = true;
+    child.kill("SIGTERM");
+    await until(
+      () => child.exitCode !== null || child.signalCode !== null,
+      "the app to quit",
+      10_000,
+    );
+    // Only once it has exited, so the page closes because its window did.
+    await browser?.close().catch(() => {});
+    await waitForExit();
+  }
+
   async function close() {
-    if (crashed) return;
+    if (stopped) return;
     if (artifactsDir && page) {
       fs.mkdirSync(artifactsDir, { recursive: true });
       await page
@@ -449,16 +463,9 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       reconnect: connect,
       pageErrors,
       failedRequests,
-      async quit() {
-        child.kill("SIGTERM");
-        await until(
-          () => child.exitCode !== null || child.signalCode !== null,
-          "the app to quit",
-          10_000,
-        );
-      },
       close,
       crash,
+      quit,
     };
   } catch (error) {
     await close().catch(() => {});

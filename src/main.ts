@@ -8,7 +8,10 @@ import {
   shutdownIpcHandlers,
 } from "./main/index";
 import { reloadAfterCrashes } from "./main/crashRecovery";
-import { pageSavedBeforeClose } from "@features/workbench/main/service";
+import {
+  pageSavedBeforeClose,
+  showWhenOpened,
+} from "@features/workbench/main/service";
 import { closeContextMenu } from "./main/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
@@ -66,14 +69,10 @@ async function createWindow() {
     frame: false,
     transparent: true,
     backgroundColor: "#00000000",
-    // Don't show until content is ready to avoid blank window flash
     show: false,
   });
 
-  // Show window only when content is ready to avoid blank screen
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-  });
+  showWhenOpened(mainWindow, 2_000);
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   mainWindow.webContents.on("will-navigate", (e) => e.preventDefault());
