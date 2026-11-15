@@ -40,7 +40,7 @@ export function NotificationCenter() {
               </p>
 
               {notification.details && (
-                <p className="mt-1 text-xs leading-snug text-white/80 light:text-foreground/70">
+                <p className="mt-1 whitespace-pre-line text-xs leading-snug text-white/80 light:text-foreground/70">
                   {notification.details}
                 </p>
               )}

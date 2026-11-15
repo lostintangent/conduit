@@ -456,8 +456,7 @@ const yaml = YAML.stringify(template);
 Converts renderer state to workspace format for persistence:
 
 1. **Convert pane storage** - Transform `Record<string, Pane>` to `Pane[]`
-2. **Capture commands** - Query live terminal sessions for current command
-3. **Strip runtime fields** - Remove `sessionId`, `title`, etc.
+2. **Serialize each pane in its feature** - `serializeTerminalPane` (`terminal/main/serialize.ts`) captures the command a terminal is running and its PTY's `cols` and `rows`, and drops `sessionId` and `title`, which only last while it runs. A clone saves only which pane it shows. Other panes save as they are, so a browser pane keeps its `title` to label its tab until the page loads.
 
 ```typescript
 const serializedTabs = await serializeTabs(tabs);
@@ -471,7 +470,7 @@ const serializedTabs = await serializeTabs(tabs);
 src/features/workspaces/
 ├── model.ts              # Workspace, WorkspaceTab, WorkspaceState
 ├── main/
-│   ├── service.ts        # Service methods, serialization
+│   ├── service.ts        # Service methods, serializeTabs
 │   ├── startup.ts        # Loads state, builds the menu
 │   └── template/
 │       ├── types.ts      # Template type definitions

@@ -82,6 +82,56 @@ describe("workspaces.importFromFile", () => {
 });
 
 describe("workspaces.saveWorkspaceAs", () => {
+  it("saves terminals without the session and title they only have while running", async () => {
+    storeTerminal({
+      id: "session-1",
+      command: "npm start",
+      pty: { pid: -1, cols: 132, rows: 41, process: "node" },
+    } as unknown as TerminalInstance);
+
+    try {
+      const tab = {
+        id: "tab-1",
+        name: "Dev",
+        panes: {
+          a: {
+            id: "a",
+            type: "terminal",
+            sessionId: "session-1",
+            title: "npm start",
+            cwd: "/tmp",
+          },
+          b: {
+            id: "b",
+            type: "terminal",
+            sessionId: "session-1",
+            title: "npm start",
+            cwd: "/tmp",
+            cloneOf: "a",
+          },
+        },
+        layout: { id: "node-a", type: "pane", paneId: "a" },
+        activePaneId: "a",
+      } as unknown as Tab;
+
+      const state = await service.saveWorkspaceAs("Dev", [tab], "tab-1");
+
+      expect(state?.workspaces[0].tabs[0].panes).toEqual([
+        {
+          id: "a",
+          type: "terminal",
+          cwd: "/tmp",
+          command: "npm start",
+          cols: 132,
+          rows: 41,
+        },
+        { id: "b", type: "terminal", cwd: "/tmp", cloneOf: "a" },
+      ]);
+    } finally {
+      removeTerminal("session-1");
+    }
+  });
+
   it("records each terminal's PTY size", async () => {
     storeTerminal({
       id: "session-1",

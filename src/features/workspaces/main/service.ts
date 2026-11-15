@@ -4,9 +4,7 @@ import path from "node:path";
 import yaml from "yaml";
 import type { Tab } from "@features/workbench/model";
 import { timestampedName, type Workspace, type WorkspaceState } from "../model";
-import { captureTerminalCommand } from "@features/terminal/main/command";
-import { getAllTerminals } from "@features/terminal/main/store";
-import type { TerminalInstance } from "@features/terminal/main/types";
+import { serializeTerminalPane } from "@features/terminal/main/serialize";
 import { writeJsonFile } from "../../../main/atomicWrite";
 import { refreshApplicationMenu } from "../../../main/ui/applicationMenu";
 import { convertWorkspaceToTemplate } from "./template/export";
@@ -136,47 +134,17 @@ async function saveWorkspaceState(): Promise<WorkspaceState> {
   return workspaceState;
 }
 
-type TabPane = Tab["panes"][string];
-type SerializedTab = Workspace["tabs"][number];
-type SerializedPane = SerializedTab["panes"][number];
-
-async function serializePane(
-  pane: TabPane,
-  terminalSessions: Map<string, TerminalInstance>,
-): Promise<SerializedPane> {
-  if (pane.type === "terminal" && !pane.cloneOf) {
-    const terminalSession = terminalSessions.get(pane.sessionId);
-    const capturedCommand = terminalSession
-      ? await captureTerminalCommand(terminalSession)
-      : null;
-
-    return {
-      ...pane,
-      command: capturedCommand,
-      cols: terminalSession?.pty.cols,
-      rows: terminalSession?.pty.rows,
-    };
-  }
-
-  return pane;
-}
-
-async function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
-  const terminalSessions = getAllTerminals();
-
+/** Each pane as its feature saves it, without what only lasts while it runs. */
+function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
   return Promise.all(
-    tabs.map(async (tab) => {
-      const panes = await Promise.all(
+    tabs.map(async (tab) => ({
+      ...tab,
+      panes: await Promise.all(
         Object.values(tab.panes).map((pane) =>
-          serializePane(pane, terminalSessions),
+          pane.type === "terminal" ? serializeTerminalPane(pane) : pane,
         ),
-      );
-
-      return {
-        ...tab,
-        panes,
-      };
-    }),
+      ),
+    })),
   );
 }
 

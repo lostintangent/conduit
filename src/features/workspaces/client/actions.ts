@@ -43,7 +43,7 @@ export async function restoreAtLaunch() {
         (error as Error).message,
       ]
         .filter(Boolean)
-        .join(" "),
+        .join("\n"),
     });
   }
   if (tabsAtom.get().length === 0) await openTab();

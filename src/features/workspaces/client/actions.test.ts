@@ -236,7 +236,7 @@ describe("restoreAtLaunch", () => {
         kind: "error",
         message: "Couldn't reopen your last session",
         details:
-          "Your tabs are saved as “Recovered Nov 15, 1:25 PM”. posix_spawnp failed",
+          "Your tabs are saved as “Recovered Nov 15, 1:25 PM”.\nposix_spawnp failed",
       },
     ]);
   });
