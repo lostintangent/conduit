@@ -225,6 +225,34 @@ describe("a page's new tabs and popups", () => {
     ).toBe(true);
   });
 
+  it("lets pages copy and keep the screen awake, and tells them no to the rest", async () => {
+    // Only probes that can't show a macOS prompt or take over the screen
+    const permissions = await inPage<Record<string, string>>(`(async () => {
+      const states = {};
+      for (const name of ["clipboard-write", "screen-wake-lock", "clipboard-read", "notifications", "geolocation", "camera", "microphone"]) {
+        states[name] = (await navigator.permissions.query({ name })).state;
+      }
+      states.wakeLock = await navigator.wakeLock.request("screen").then(
+        (lock) => lock.release().then(() => "granted"),
+        (error) => error.name,
+      );
+      states.notification = await Notification.requestPermission();
+      return states;
+    })()`);
+
+    expect(permissions).toEqual({
+      "clipboard-write": "granted",
+      "screen-wake-lock": "granted",
+      "clipboard-read": "denied",
+      notifications: "denied",
+      geolocation: "denied",
+      camera: "denied",
+      microphone: "denied",
+      wakeLock: "granted",
+      notification: "denied",
+    });
+  });
+
   it("blocks a popup the user didn't click for", async () => {
     expect(
       await terminal.run(`conduit browser-navigate ${origin}/unprompted`),

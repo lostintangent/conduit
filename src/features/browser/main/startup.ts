@@ -2,6 +2,8 @@ import {
   app,
   BrowserWindow,
   type BrowserWindowConstructorOptions,
+  type Session,
+  session,
   type WebContents,
 } from "electron";
 import { emitter, getAppWindow } from "../../../main/events";
@@ -11,6 +13,16 @@ const emit = emitter("browser");
 // Pages browse in a session of their own, apart from Conduit's window, which
 // keeps their cookies and storage across launches
 const PARTITION = "persist:browser";
+
+// What a page may do without asking. Conduit has no way to ask the user yet,
+// so a page is told no to the rest, like the camera or notifications.
+const ALLOWED_PERMISSIONS = new Set([
+  "clipboard-sanitized-write",
+  "fullscreen",
+  "openExternal",
+  "pointerLock",
+  "screen-wake-lock",
+]);
 
 // Electron has no popup blocker, so a page may only open a window right after
 // the user clicks or types in it. Safari allows about a second.
@@ -98,8 +110,21 @@ function identifyAsChrome() {
   );
 }
 
+/** Gives pages only the permissions they may have without asking. */
+function limitPermissions(browserSession: Session) {
+  browserSession.setPermissionRequestHandler(
+    (_contents, permission, callback) => {
+      callback(ALLOWED_PERMISSIONS.has(permission));
+    },
+  );
+  browserSession.setPermissionCheckHandler((_contents, permission) =>
+    ALLOWED_PERMISSIONS.has(permission),
+  );
+}
+
 export default function startBrowserSession() {
   identifyAsChrome();
+  limitPermissions(session.fromPartition(PARTITION));
 
   // A page's popups take its session, so they browse in this one too
   getAppWindow()?.webContents.on(
