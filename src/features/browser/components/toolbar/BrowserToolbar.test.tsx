@@ -1,6 +1,6 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { Activity, type ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/commands/hooks/useCommand", () => ({
   useCommand: () => ({ execute: vi.fn<() => Promise<void>>() }),
@@ -69,7 +69,7 @@ describe("BrowserToolbar with a blank page", () => {
 // A pane shows its hidden toolbar for Cmd+L until focus leaves it
 describe("BrowserToolbar shown for its address bar", () => {
   const page = { url: "https://example.com/", title: "Example" };
-  const nextTask = () => new Promise((resolve) => setTimeout(resolve));
+  afterEach(() => vi.useRealTimers());
 
   function revealedToolbar() {
     const onDismiss = vi.fn();
@@ -83,16 +83,28 @@ describe("BrowserToolbar shown for its address bar", () => {
     return { onDismiss, onFocusLeave };
   }
 
-  it("says when focus leaves it, not when focus moves to its buttons", async () => {
+  it("says when focus leaves it, not when focus moves to its buttons", () => {
+    vi.useFakeTimers();
     const { onFocusLeave } = revealedToolbar();
     urlInput().focus();
     screen.getByRole("button", { name: "Refresh" }).focus();
-    await nextTask();
+    vi.runAllTimers();
     expect(onFocusLeave).not.toHaveBeenCalled();
 
+    urlInput().focus();
     screen.getByText("Elsewhere").focus();
-    await nextTask();
+    vi.runAllTimers();
     expect(onFocusLeave).toHaveBeenCalledOnce();
+  });
+
+  // A window that loses focus leaves its active element where it was
+  it("stays when the window loses focus", () => {
+    vi.useFakeTimers();
+    const { onFocusLeave } = revealedToolbar();
+    urlInput().focus();
+    fireEvent.focusOut(urlInput());
+    vi.runAllTimers();
+    expect(onFocusLeave).not.toHaveBeenCalled();
   });
 
   it("is dismissed by Escape, which keeps the address", () => {
