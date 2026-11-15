@@ -50,6 +50,7 @@ import {
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
+import { sidebarBrowserUrlAtom } from "@features/browser/client/sidebar";
 import type { Pane, SplitDirection, Tab } from "@features/workbench/model";
 import { TooltipProvider } from "@/ui/tooltip";
 import { PANE_SPLIT_TYPES } from "@shared/cli/types";
@@ -141,8 +142,24 @@ describe("TabLayout terminal links", () => {
     expect(sidebarStateAtom.get()).toMatchObject({
       isOpen: true,
       view: "browser",
-      navigation: { cwd: "/repo", browserUrl: "https://example.com" },
     });
+    expect(sidebarBrowserUrlAtom.get()).toBe("https://example.com");
+  });
+
+  it("loads a link into the sidebar's page when that page is already up", () => {
+    // The sidebar's webview stays on the body after the sidebar closes
+    const webview = Object.assign(document.createElement("div"), {
+      id: "sidebar-browser",
+      src: "https://before.com",
+    });
+    document.body.append(webview);
+    seedSettings(queryClient, { terminalLinkTarget: "sidebar" });
+    renderTabLayout();
+
+    act(() => terminalProps!.onLinkClick("https://example.com"));
+
+    expect(webview.src).toBe("https://example.com");
+    webview.remove();
   });
 });
 

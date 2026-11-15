@@ -1,67 +1,26 @@
 /**
- * BrowserView - Browser view for the sidebar
- *
- * Renders a BrowserPane for the sidebar. URL state is managed at two levels:
- *
- * 1. cwdBrowserUrl (per-CWD): Stores URLs from explicit navigation requests (deep links
- *    from terminal). These represent "show this URL in context of this project".
- *    When CWD changes, we restore the cached URL for that directory.
- *
- * 2. browserFallbackUrl (global): Stores the current URL for manual browsing that has
- *    no project association. Used as fallback when no CWD-specific cache exists.
- *
- * Priority on mount/CWD change: cwdBrowserUrl > browserFallbackUrl > undefined (about:blank)
- *
- * When no URL is set, passes "about:blank" which triggers the MRU dropdown
- * in BrowserToolbar.
+ * The sidebar's browser. It shows one page for the whole app, which stays put
+ * as you switch folders and lasts the session. Terminal links set to open in
+ * the sidebar load there through `showInSidebarBrowser`.
  */
 
 import { BrowserPane } from "@features/browser/components/BrowserPane";
-import {
-  getBrowserFallbackUrl,
-  getCwdBrowserUrl,
-  setBrowserFallbackUrl,
-  setCwdBrowserUrl,
-  sidebarPaneIds,
-} from "@features/workbench/client/sidebarStore";
+import { sidebarBrowserUrlAtom } from "@features/browser/client/sidebar";
+import { sidebarPaneIds } from "@features/workbench/client/sidebarStore";
 import { noop } from "@/utils";
-import { useEffect, useState } from "react";
-import { useSidebarNavigationField } from "@features/workbench/components/sidebar/hooks/useSidebarNavigation";
+import { useSelector } from "@tanstack/react-store";
 
-interface BrowserViewProps {
-  cwd: string;
-}
+// Remembers the page so a new webview starts there
+const handleUrlChange = (url: string) => {
+  if (url && url !== "about:blank") sidebarBrowserUrlAtom.set(url);
+};
 
-export function BrowserView({ cwd }: BrowserViewProps) {
-  // Current URL state - initialized with CWD cache taking priority
-  const [currentUrl, setCurrentUrl] = useState(
-    () => getCwdBrowserUrl(cwd) ?? getBrowserFallbackUrl(),
-  );
-
-  // When CWD changes, prefer CWD-cached URL, fall back to persisted
-  useEffect(() => {
-    const cachedUrl = getCwdBrowserUrl(cwd);
-    setCurrentUrl(cachedUrl ?? getBrowserFallbackUrl());
-  }, [cwd]);
-
-  // Consume browser URL navigation requests (deep linking from terminal, etc.)
-  useSidebarNavigationField("browserUrl", (url) => {
-    setCwdBrowserUrl(cwd, url);
-    setCurrentUrl(url);
-    setBrowserFallbackUrl(url);
-  });
-
-  // Track URL changes from browser navigation (MRU, typing, clicking links)
-  const handleUrlChange = (url: string) => {
-    if (url && url !== "about:blank") {
-      setCurrentUrl(url);
-      setBrowserFallbackUrl(url);
-    }
-  };
+export function BrowserView() {
+  const url = useSelector(sidebarBrowserUrlAtom);
 
   return (
     <BrowserPane
-      url={currentUrl || "about:blank"}
+      url={url ?? "about:blank"}
       paneId={sidebarPaneIds.browser()}
       tabId={undefined}
       onUrlChange={handleUrlChange}

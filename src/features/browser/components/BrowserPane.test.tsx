@@ -34,13 +34,14 @@ function browserPane(
   isInPreview: boolean,
   isActive = false,
   onOpenPage?: (url: string, background: boolean) => void,
+  url = "https://example.com",
 ) {
   return (
     <TooltipProvider>
       <BrowserPane
         isActive={isActive}
         onOpenPage={onOpenPage}
-        url="https://example.com"
+        url={url}
         paneId="browser-1"
         tabId="tab-1"
         onUrlChange={vi.fn()}
@@ -172,6 +173,27 @@ describe("BrowserPane", () => {
     });
 
     expect(onOpenPage.mock.calls).toEqual([["https://docs.com", true]]);
+  });
+
+  // The pane's address follows its page, and loading it again would replace a
+  // page that's mid-redirect or was restored with its history
+  it("leaves its page alone when the pane's address changes", () => {
+    const { rerender } = render(browserPane(false, true));
+
+    rerender(browserPane(false, true, undefined, "https://docs.com"));
+
+    expect((webview as any).loadURL).not.toHaveBeenCalled();
+  });
+
+  // A sidebar reopened by a link renders its last URL once more, while its
+  // page is already on the link
+  it("shows its page's own address when it returns to an existing page", () => {
+    render(browserPane(false, true, undefined, "https://stale.com"));
+
+    expect(screen.getByPlaceholderText(/Enter URL/)).toHaveProperty(
+      "value",
+      "https://example.com",
+    );
   });
 
   it("loads a link meant for a new tab itself when it has nowhere to open it", () => {

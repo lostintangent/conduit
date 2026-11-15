@@ -3,9 +3,8 @@
  *
  * This store manages:
  * 1. Core sidebar UI state (open/close, view selection, navigation)
- * 2. Per-CWD metadata cache (editor file, browser URL per directory)
- * 3. Global browser fallback URL (last manually browsed URL)
- * 4. Pane ID generators for sidebar views
+ * 2. Per-CWD metadata cache (editor file per directory)
+ * 3. Pane ID generators for sidebar views
  *
  * State is session-scoped (in-memory) - it survives view switches but not app restart.
  * User preferences like treeMode/changesViewMode that should survive restart
@@ -26,14 +25,12 @@ export type SidebarView = "editor" | "canvas" | "browser";
  * Each view component consumes only the fields it cares about, then clears.
  *
  * - cwd: Target CWD for this navigation (updates lock target if locked)
- * - browserUrl: Navigate the sidebar browser to this URL
  * - editorTreeMode: Set the editor tree to "all" or "changes" mode
  * - editorFile: Open this file in the sidebar editor
  */
 export type SidebarNavigation = {
   /** Target CWD - if sidebar is locked, updates the lock to this CWD */
   cwd?: string;
-  browserUrl?: string;
   editorTreeMode?: "all" | "changes";
   editorFile?: string;
 };
@@ -52,8 +49,6 @@ export type SidebarState = {
 interface CwdMetadata {
   /** Currently open file in the editor view */
   editorFile?: string;
-  /** Last browser URL visited for this CWD (from deep-linking) */
-  browserUrl?: string;
 }
 
 // =============================================================================
@@ -68,12 +63,6 @@ export const sidebarStateAtom = createAtom<SidebarState>({
 
 /** Per-CWD metadata cache - survives view switches within a session */
 export const cwdMetadataAtom = createAtom<Map<string, CwdMetadata>>(new Map());
-
-/**
- * Global browser fallback URL - used when no CWD-specific URL exists.
- * This is the "last manually browsed URL" that has no project association.
- */
-const browserFallbackUrlAtom = createAtom(undefined as string | undefined);
 
 // =============================================================================
 // Store Access
@@ -111,31 +100,6 @@ export function clearCwdEditorFile(cwd: string): void {
     }
     return next;
   });
-}
-
-// --- CWD Metadata (Browser) ---
-
-export function getCwdBrowserUrl(cwd: string): string | undefined {
-  return cwdMetadataAtom.get().get(cwd)?.browserUrl;
-}
-
-export function setCwdBrowserUrl(cwd: string, url: string): void {
-  cwdMetadataAtom.set((current) => {
-    const next = new Map(current);
-    const metadata = next.get(cwd) ?? {};
-    next.set(cwd, { ...metadata, browserUrl: url });
-    return next;
-  });
-}
-
-// --- Browser Fallback URL ---
-
-export function getBrowserFallbackUrl(): string | undefined {
-  return browserFallbackUrlAtom.get();
-}
-
-export function setBrowserFallbackUrl(url: string): void {
-  browserFallbackUrlAtom.set(url);
 }
 
 // =============================================================================

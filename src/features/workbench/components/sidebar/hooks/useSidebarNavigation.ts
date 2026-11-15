@@ -1,8 +1,8 @@
 /**
  * useSidebarNavigation - Hook for consuming one-shot navigation requests
  *
- * Each sidebar view (editor, browser, canvas) can receive navigation requests
- * via the sidebarStateAtom. This hook provides a clean interface for consuming
+ * The sidebar's editor view receives navigation requests via the
+ * sidebarStateAtom. This hook provides a clean interface for consuming
  * those requests with automatic cleanup.
  *
  * The navigation is "one-shot": once consumed, it's cleared from the atom
@@ -14,7 +14,7 @@ import {
   type SidebarNavigation,
 } from "@features/workbench/client/sidebarStore";
 import { useAtom } from "@tanstack/react-store";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 type NavigationConsumer = (
   navigation: SidebarNavigation,
@@ -37,12 +37,6 @@ type NavigationConsumer = (
  *   if (nav.editorFile) setCwdEditorFile(cwd, nav.editorFile);
  *   return true; // Signal that we consumed something
  * });
- *
- * @example
- * // In BrowserView - single field (prefer useSidebarNavigationField):
- * useSidebarNavigationField("browserUrl", (url) => {
- *   setCwdBrowserUrl(cwd, url);
- * });
  */
 export function useSidebarNavigation(consumer: NavigationConsumer): void {
   const [sidebarState, setSidebarState] = useAtom(sidebarStateAtom);
@@ -62,35 +56,4 @@ export function useSidebarNavigation(consumer: NavigationConsumer): void {
       setSidebarState((prev) => ({ ...prev, navigation: undefined }));
     }
   }, [navigation, setSidebarState]);
-}
-
-/**
- * Simplified hook for single-field navigation consumption.
- *
- * @param field - The navigation field to watch
- * @param handler - Callback when the field is present
- *
- * @example
- * useSidebarNavigationField("browserUrl", setUrl);
- */
-export function useSidebarNavigationField<K extends keyof SidebarNavigation>(
-  field: K,
-  handler: (value: NonNullable<SidebarNavigation[K]>) => void,
-): void {
-  const handlerRef = useRef(handler);
-  handlerRef.current = handler;
-
-  useSidebarNavigation(
-    useCallback(
-      (nav) => {
-        const value = nav[field];
-        if (value !== undefined) {
-          handlerRef.current(value as NonNullable<SidebarNavigation[K]>);
-          return true;
-        }
-        return undefined;
-      },
-      [field],
-    ),
-  );
 }

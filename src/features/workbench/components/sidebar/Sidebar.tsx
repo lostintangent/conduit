@@ -141,7 +141,7 @@ export function Sidebar({ cwd }: SidebarProps) {
               {view === "editor" ? (
                 <EditorView cwd={effectiveCwd} />
               ) : view === "browser" ? (
-                <BrowserView cwd={effectiveCwd} />
+                <BrowserView />
               ) : (
                 <CanvasView cwd={effectiveCwd} isLocked={true} />
               )}

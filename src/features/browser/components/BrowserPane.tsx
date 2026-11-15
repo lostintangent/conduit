@@ -41,6 +41,7 @@ const WEBVIEW_Z_INDEX = {
 } as const;
 
 type BrowserPaneProps = {
+  /** Where a new webview starts. Changing it later doesn't navigate the page. */
   url: string;
   paneId: string;
   tabId?: string;
@@ -124,7 +125,6 @@ export function BrowserPane({
   const [isToolbarRevealed, setIsToolbarRevealed] = useState(false);
 
   const [consoleErrors, setConsoleErrors] = useState<ConsoleMessage[]>([]);
-  const [isDomReady, setIsDomReady] = useState<boolean>(false);
 
   // After the component is mounted, we need to create or attach
   // to the <wevbview> element for this pane. A tab's panes stay mounted as it
@@ -145,10 +145,11 @@ export function BrowserPane({
 
       document.body.appendChild(webview);
       setIsLoading(true);
-      setIsDomReady(false);
+      setCurrentUrl(url);
     } else {
-      // Attach to existing webview - it's already initialized
-      setIsDomReady(true);
+      // Attach to existing webview - it's already initialized, and its page
+      // may have moved on from the url prop while the pane was away
+      setCurrentUrl(webview.getURL());
       setIsLoading(webview.isLoading ? webview.isLoading() : false);
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
@@ -158,7 +159,6 @@ export function BrowserPane({
     }
 
     webviewRef.current = webview;
-    setCurrentUrl(url);
 
     // Because the webview is absolutely positioned and scaled
     // while in preview mode, we unfortunately need to implement
@@ -477,8 +477,6 @@ export function BrowserPane({
       ]);
     };
 
-    const handleDomReady = () => setIsDomReady(true);
-
     // A page the user just opened takes the keys once it can, unless the
     // user moved focus since
     const handleDidAttach = () => {
@@ -492,7 +490,6 @@ export function BrowserPane({
     };
 
     webview.addEventListener("did-attach", handleDidAttach);
-    webview.addEventListener("dom-ready", handleDomReady);
     webview.addEventListener("did-start-loading", handleStartLoading);
     webview.addEventListener("did-stop-loading", handleStopLoading);
     webview.addEventListener("did-finish-load", handleStopLoading);
@@ -519,7 +516,6 @@ export function BrowserPane({
       stopOpeningPages();
 
       webview.removeEventListener("did-attach", handleDidAttach);
-      webview.removeEventListener("dom-ready", handleDomReady);
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);
       webview.removeEventListener("did-finish-load", handleStopLoading);
@@ -550,21 +546,6 @@ export function BrowserPane({
       ? "none"
       : "auto";
   }, [disableInteraction]);
-
-  // Respond to URL prop changes (e.g., when sidebar browser receives a new URL)
-  // Skip about:blank as that's the initial/empty state
-  useEffect(() => {
-    if (!webviewRef.current || !url || url === "about:blank") return;
-
-    // Guard webview API calls until dom-ready has fired to avoid Electron errors
-    if (!isDomReady) return;
-
-    // Only load if the URL is different from current
-    const currentWebviewUrl = webviewRef.current.getURL?.() || "";
-    if (url !== currentWebviewUrl) {
-      webviewRef.current.loadURL(url);
-    }
-  }, [url, isDomReady]);
 
   // When rendered in focus mode, we need to add
   // rounded corners to the bottom of the webview,

@@ -1,8 +1,8 @@
+import { showInSidebarBrowser } from "@features/browser/client/sidebar";
 import { useSettings } from "@features/settings/client/queries";
 import { TerminalPane } from "@features/terminal/components/TerminalPane";
 import { openBrowserPane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
-import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import type { LayoutPaneProps } from "@features/workbench/components/layout/paneKinds";
 import type { TerminalPane as TerminalPaneType } from "@features/workbench/model";
 import { useSelector } from "@tanstack/react-store";
@@ -35,14 +35,7 @@ export default function TerminalLayoutPane({
       }
       onLinkClick={(url) => {
         if (terminalLinkTarget === "sidebar") {
-          sidebarStateAtom.set({
-            isOpen: true,
-            view: "browser",
-            navigation: {
-              cwd: pane.cwd ?? undefined,
-              browserUrl: url,
-            },
-          });
+          showInSidebarBrowser(url);
         } else if (terminalLinkTarget === "default") {
           window.conduit.workbench.openExternal(url);
         } else {
