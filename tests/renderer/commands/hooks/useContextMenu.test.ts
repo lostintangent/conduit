@@ -71,6 +71,7 @@ vi.mock("@/commands/menus/menuContextBuilders", () => ({
   getMenuContextBuilder: vi.fn(),
 }));
 
+import { executeCommand } from "@/commands";
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
 import { useContextMenu } from "@/commands/hooks/useContextMenu";
 import { tabsAtom } from "@features/workbench/client/atoms";
@@ -377,6 +378,111 @@ describe("useContextMenu", () => {
       expect(params.canChangeTitle).toBe(true);
       expect(params.tab).toBeDefined();
       expect(params.pane).toBeDefined();
+    });
+  });
+
+  describe("a pane's own items", () => {
+    const event = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as any;
+
+    beforeEach(() => {
+      (getMenuContextBuilder as any).mockReturnValue(vi.fn());
+      mockMenuRegistry.getSortedMenuItems.mockReturnValue([
+        { commandId: "pane.split", group: "1_split", order: 1 },
+      ]);
+      mockKeybindingRegistry.getKeybindingsForCommand.mockReturnValue([]);
+    });
+
+    /** The listener for the item main says was chosen */
+    const choose = (commandId: string, paneId = "pane-2") => {
+      const [[, listener]] = mockApi.workbench.on.mock.calls as any;
+      listener({ commandId, tabId: "tab-1", paneId, menuItems: [] });
+    };
+
+    it("go above its pane menu, which moves into a submenu", async () => {
+      const { result } = renderHook(() =>
+        useContextMenu({ canChangeTitle: () => true }),
+      );
+
+      await result.current(event, "tab-1", "pane-2", [
+        {
+          title: "Reload",
+          group: "5_navigation",
+          keybinding: "Cmd+R",
+          run() {},
+        },
+        { title: "Back", group: "5_navigation", enabled: false, run() {} },
+      ]);
+
+      const [[{ menuItems }]] = mockApi.workbench.showContextMenu.mock.calls;
+      expect(menuItems).toEqual([
+        {
+          commandId: expect.any(String),
+          title: "Reload",
+          group: "5_navigation",
+          enabled: true,
+          keybinding: "Cmd+R",
+        },
+        {
+          commandId: expect.any(String),
+          title: "Back",
+          group: "5_navigation",
+          enabled: false,
+        },
+        {
+          title: "Pane",
+          group: "9_pane",
+          submenu: [
+            {
+              commandId: "pane.split",
+              title: "Command pane.split",
+              group: "1_split",
+              enabled: true,
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("run in place when chosen, while its pane's commands still run as commands", async () => {
+      const reload = vi.fn();
+      const { result } = renderHook(() =>
+        useContextMenu({ canChangeTitle: () => true }),
+      );
+
+      await result.current(event, "tab-1", "pane-2", [
+        { title: "Reload", group: "5_navigation", run: reload },
+      ]);
+      const [[{ menuItems }]] = mockApi.workbench.showContextMenu.mock.calls;
+
+      choose(menuItems[0].commandId);
+      expect(reload).toHaveBeenCalledOnce();
+      expect(executeCommand).not.toHaveBeenCalled();
+
+      choose("pane.split");
+      expect(executeCommand).toHaveBeenCalledWith(
+        "pane.split",
+        "tab-1",
+        "pane-2",
+      );
+    });
+
+    it("are gone once a menu without them opens", async () => {
+      const reload = vi.fn();
+      const { result } = renderHook(() =>
+        useContextMenu({ canChangeTitle: () => true }),
+      );
+
+      await result.current(event, "tab-1", "pane-2", [
+        { title: "Reload", group: "5_navigation", run: reload },
+      ]);
+      const [[{ menuItems }]] = mockApi.workbench.showContextMenu.mock.calls;
+      await result.current(event, "tab-1", "pane-1");
+
+      expect(
+        mockApi.workbench.showContextMenu.mock.calls[1][0].menuItems,
+      ).toEqual([expect.objectContaining({ commandId: "pane.split" })]);
+      choose(menuItems[0].commandId);
+      expect(reload).not.toHaveBeenCalled();
     });
   });
 

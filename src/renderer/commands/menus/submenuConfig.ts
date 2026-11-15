@@ -1,3 +1,4 @@
+import type { ContextMenuItemData } from "@shared/commands";
 import { MenuId } from "./types";
 
 /**
@@ -18,4 +19,38 @@ const submenuLabels: Record<string, string> = {
  */
 export function getSubmenuLabel(menuId: MenuId, submenuPath: string): string {
   return submenuLabels[`${menuId}:${submenuPath}`] || submenuPath;
+}
+
+/**
+ * Moves each item whose group is a path, like "3_split_more/3_split_browser",
+ * into a submenu in the path's first group, where its first item was
+ */
+export function nestSubmenus(
+  menuId: MenuId,
+  items: ContextMenuItemData[],
+): ContextMenuItemData[] {
+  const nested: ContextMenuItemData[] = [];
+  const submenus = new Map<string, ContextMenuItemData[]>();
+
+  for (const item of items) {
+    const slash = item.group.indexOf("/");
+    if (slash === -1) {
+      nested.push(item);
+      continue;
+    }
+
+    let submenu = submenus.get(item.group);
+    if (!submenu) {
+      submenu = [];
+      submenus.set(item.group, submenu);
+      nested.push({
+        title: getSubmenuLabel(menuId, item.group),
+        group: item.group.slice(0, slash),
+        submenu,
+      });
+    }
+    submenu.push({ ...item, group: item.group.slice(slash + 1) });
+  }
+
+  return nested;
 }

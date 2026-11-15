@@ -9,6 +9,7 @@ import { ResizeHandle } from "@features/workbench/components/layout/normal/Resiz
 import { useTabContentPortal } from "@features/workbench/components/layout/normal/TabContentPortalContext";
 import { usePaneDragDrop } from "@features/workbench/components/layout/normal/usePaneDragDrop";
 import { ErrorBoundary } from "@/ui/error-boundary";
+import type { ContextMenuAction } from "@/commands/menus/types";
 import { SandboxIndicator } from "@features/terminal/components/shell/sandbox/SandboxIndicator";
 import { getLayoutPane } from "@features/workbench/components/layout/paneKinds";
 import type {
@@ -310,6 +311,7 @@ interface TabLayoutProps {
     event: React.MouseEvent,
     tabId: string,
     paneId?: string,
+    actions?: ContextMenuAction[],
   ) => void;
   handleResizeStart: (
     e: React.MouseEvent,
@@ -388,8 +390,10 @@ export function TabLayout({
     const isInPreview = isTabInPreview(tab.id);
     const isCollapsed = Boolean(node.collapsed);
 
-    const onPaneContextMenu = (event: React.MouseEvent) =>
-      handleContextMenu(event, tab.id, pane.id);
+    const onPaneContextMenu = (
+      event: React.MouseEvent,
+      actions?: ContextMenuAction[],
+    ) => handleContextMenu(event, tab.id, pane.id, actions);
 
     const onPaneActivate = (event?: React.MouseEvent) => {
       // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first

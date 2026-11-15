@@ -1,3 +1,5 @@
+import { pageMenu } from "@features/browser/client/pageMenu";
+import { getWebview } from "@features/browser/client/webview";
 import { BrowserPane } from "@features/browser/components/BrowserPane";
 import {
   activatePane,
@@ -35,15 +37,28 @@ export default function BrowserLayoutPane({
         tabId={tab.id}
         disableInteraction={isResizing}
         isActive={isActive}
-        // The page reports its context menu as coordinates, not a DOM event
-        onContextMenu={({ clientX, clientY }) =>
-          onContextMenu({
-            preventDefault: () => {},
-            stopPropagation: () => {},
-            clientX,
-            clientY,
-          } as React.MouseEvent)
-        }
+        // The page reports its context menu itself, not as a DOM event
+        onContextMenu={(params) => {
+          const webview = getWebview(pane.id);
+          onContextMenu(
+            {
+              preventDefault: () => {},
+              stopPropagation: () => {},
+            } as React.MouseEvent,
+            webview && !pane.devToolsFor
+              ? pageMenu(params, {
+                  webview,
+                  openPage: (url) => openBrowserPane(tab.id, pane.id, url),
+                  showToolbar: pane.chromeless
+                    ? () =>
+                        updatePaneProperty(tab.id, pane.id, {
+                          chromeless: false,
+                        })
+                    : undefined,
+                })
+              : undefined,
+          );
+        }}
         onUrlChange={(url) => updatePaneProperty(tab.id, pane.id, { url })}
         onTitleChange={(title) =>
           updatePaneProperty(tab.id, pane.id, { title })

@@ -1,3 +1,4 @@
+import type { ContextMenuAction } from "@/commands/menus/types";
 import type { Pane, Tab } from "@features/workbench/model";
 import type { ComponentType, MouseEvent } from "react";
 
@@ -10,7 +11,8 @@ export type LayoutPaneProps<P extends Pane = Pane> = {
   isResizing: boolean;
   hideIndividualSandboxIndicator: boolean;
   onActivate: (event?: MouseEvent) => void;
-  onContextMenu: (event: MouseEvent) => void;
+  /** Shows the pane's menu, below any items of the pane's own */
+  onContextMenu: (event: MouseEvent, actions?: ContextMenuAction[]) => void;
   onHover: (isHovering: boolean) => void;
 };
 

@@ -51,8 +51,8 @@ type BrowserPaneProps = {
   /** Opens a link the page meant for a new tab. Without it, the page loads it. */
   onOpenPage?: (url: string, background: boolean) => void;
 
-  // TODO: See if we can remove the X/Y coordinates and let Electron handle it internally
-  onContextMenu: (coords: { clientX: number; clientY: number }) => void;
+  /** The page was right-clicked, on what `params` describes */
+  onContextMenu: (params: ContextMenuParams) => void;
   onHover: (isHovering: boolean) => void;
 
   disableInteraction: boolean;
@@ -113,6 +113,7 @@ export function BrowserPane({
   onUrlChangeRef.current = onUrlChange;
   const onTitleChangeRef = useRef(onTitleChange);
   onTitleChangeRef.current = onTitleChange;
+  const showContextMenu = useEffectEvent(onContextMenu);
   // Without anywhere to open a new tab, the page loads it in place
   const openPage = useEffectEvent((url: string, background: boolean) => {
     if (onOpenPage) onOpenPage(url, background);
@@ -401,15 +402,7 @@ export function BrowserPane({
 
     const handleWebViewContextMenu = (
       event: Event & { params: ContextMenuParams },
-    ) => {
-      const { left, top } = webview.getBoundingClientRect();
-      const { x, y } = event.params;
-
-      onContextMenu?.({
-        clientX: left + x,
-        clientY: top + y,
-      });
-    };
+    ) => showContextMenu(event.params);
 
     const handleWebViewMouseEnter = () => {
       isPreviewHoveredRef.current = true;

@@ -63,3 +63,16 @@ export interface MenuItem {
   when?: WhenClause;
   icon?: React.ComponentType | string;
 }
+
+/**
+ * An item a pane adds to its right-click menu for what's under the pointer,
+ * which runs in place rather than as a registered command
+ */
+export interface ContextMenuAction {
+  title: string;
+  group: string;
+  enabled?: boolean;
+  /** An Electron accelerator, shown beside the title */
+  keybinding?: string;
+  run: () => void;
+}

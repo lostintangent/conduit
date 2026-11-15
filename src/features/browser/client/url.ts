@@ -1,3 +1,8 @@
+/** The search results page for `query` */
+export function searchUrl(query: string): string {
+  return `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
+}
+
 /**
  * Normalizes a URL input by adding protocol and handling search queries.
  * This uses the same logic as the browser toolbar URL submission.
@@ -8,7 +13,7 @@ export function normalizeUrl(input: string): string {
 
   // If it contains spaces, treat as a search query
   if (targetUrl.includes(" ")) {
-    targetUrl = `https://www.bing.com/search?q=${encodeURIComponent(targetUrl)}`;
+    targetUrl = searchUrl(targetUrl);
   } else if (!targetUrl.match(/^(https?|file):\/\//i)) {
     // Add protocol if missing
     const lowerTarget = targetUrl.toLowerCase();

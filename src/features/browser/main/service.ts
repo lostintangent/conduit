@@ -32,6 +32,11 @@ const service = {
     return file;
   },
 
+  /** Copies the image at a point in the page, which a webview can't itself */
+  copyImageAt(webContentsId: number, x: number, y: number) {
+    getWebContents(webContentsId).copyImageAt(x, y);
+  },
+
   /** Opens the page's DevTools inside the pane's own DevTools webview. */
   showDevTools(sourceWebContentsId: number, devToolsWebContentsId: number) {
     const sourceContents = getWebContents(sourceWebContentsId);

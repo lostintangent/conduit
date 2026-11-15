@@ -7,8 +7,8 @@ import {
 } from "@/commands";
 import { formatKeybindingForElectron } from "@/commands/keybindings/utils";
 import { getMenuContextBuilder } from "@/commands/menus/menuContextBuilders";
-import { getSubmenuLabel } from "@/commands/menus/submenuConfig";
-import { MenuId } from "@/commands/menus/types";
+import { nestSubmenus } from "@/commands/menus/submenuConfig";
+import { type ContextMenuAction, MenuId } from "@/commands/menus/types";
 import { tabsAtom } from "@features/workbench/client/atoms";
 import {
   ApplicationCommands,
@@ -22,6 +22,27 @@ type UseContextMenuParams = {
 };
 
 const api = window.conduit;
+
+/** What runs for each of the open menu's pane-supplied items, by its id */
+const openMenuActions = new Map<string, () => void>();
+
+/**
+ * The pane's own items, which run in place, above its usual menu, which
+ * moves into a "Pane" submenu
+ */
+function withPaneSubmenu(
+  actions: ContextMenuAction[],
+  paneMenu: ContextMenuItemData[],
+): ContextMenuItemData[] {
+  return [
+    ...actions.map(({ run, enabled = true, ...item }, index) => {
+      const commandId = `contextMenuAction:${index}`;
+      openMenuActions.set(commandId, run);
+      return { ...item, commandId, enabled };
+    }),
+    { title: "Pane", group: "9_pane", submenu: paneMenu },
+  ];
+}
 
 export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
   const [hasGitRepoCache, setHasGitRepoCache] = useState<
@@ -49,7 +70,12 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
   );
 
   const handleContextMenu = useCallback(
-    async (event: MouseEvent, tabId: string, paneId?: string) => {
+    async (
+      event: MouseEvent,
+      tabId: string,
+      paneId?: string,
+      actions?: ContextMenuAction[],
+    ) => {
       event.preventDefault();
       event.stopPropagation();
 
@@ -100,19 +126,11 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
         })
         .map((item) => {
           const command = commandRegistry.getCommand(item.commandId);
-
-          // If this is a hierarchical group, look up submenu label from registry
-          let submenuLabel: string | undefined;
-          if (item.group.includes("/")) {
-            submenuLabel = getSubmenuLabel(menuId, item.group);
-          }
-
           return {
             commandId: item.commandId,
             title: item.title || command?.title || item.commandId,
             group: item.group,
             enabled: !command?.when || command.when.evaluate(contextValues),
-            submenuLabel,
           };
         });
 
@@ -141,10 +159,12 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
         },
       );
 
+      const menu = nestSubmenus(menuId, menuItemsWithKeybindings);
+      openMenuActions.clear();
       api.workbench.showContextMenu({
         tabId,
         paneId,
-        menuItems: menuItemsWithKeybindings,
+        menuItems: actions ? withPaneSubmenu(actions, menu) : menu,
       });
     },
     [api, canChangeTitle, checkGitRepo],
@@ -154,6 +174,12 @@ export function useContextMenu({ canChangeTitle }: UseContextMenuParams) {
     const unsubscribeContextMenu = api.workbench.on(
       "contextMenuCommand",
       ({ commandId, tabId, paneId }) => {
+        const action = openMenuActions.get(commandId);
+        if (action) {
+          action();
+          return;
+        }
+
         const tab = tabsAtom.get().find((t) => t.id === tabId);
         if (!tab) {
           return;

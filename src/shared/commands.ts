@@ -94,15 +94,15 @@ export const ApplicationCommands = {
   EDITOR_QUICK_OPEN: "editor.quickOpen",
 } as const;
 
-/** A command the renderer offers in a native context menu */
-export interface ContextMenuItemData {
-  commandId: string;
+/** An item in a native context menu, or a submenu of more items */
+export type ContextMenuItemData = {
   title: string;
+  /** Items sort by their group's name, with a separator between groups */
   group: string;
-  enabled: boolean;
-  keybinding?: string;
-  submenuLabel?: string;
-}
+} & (
+  | { commandId: string; enabled: boolean; keybinding?: string }
+  | { submenu: ContextMenuItemData[] }
+);
 
 export interface ContextMenuOptions {
   tabId: string;

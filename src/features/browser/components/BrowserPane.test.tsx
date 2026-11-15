@@ -35,6 +35,7 @@ function browserPane(
   isActive = false,
   onOpenPage?: (url: string, background: boolean) => void,
   url = "https://example.com",
+  onContextMenu = vi.fn(),
 ) {
   return (
     <TooltipProvider>
@@ -46,7 +47,7 @@ function browserPane(
         tabId="tab-1"
         onUrlChange={vi.fn()}
         onTitleChange={vi.fn()}
-        onContextMenu={vi.fn()}
+        onContextMenu={onContextMenu}
         onHover={vi.fn()}
         disableInteraction={false}
         isInPreview={isInPreview}
@@ -180,6 +181,21 @@ describe("BrowserPane", () => {
       }
     });
   }
+
+  it("gives its page's right-click to the latest menu handler", () => {
+    const first = vi.fn();
+    const latest = vi.fn();
+    const { rerender } = render(
+      browserPane(false, true, undefined, undefined, first),
+    );
+    rerender(browserPane(false, true, undefined, undefined, latest));
+
+    const params = { x: 20, y: 40 };
+    webview.dispatchEvent(Object.assign(new Event("context-menu"), { params }));
+
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledWith(params);
+  });
 
   it("opens the links its own page meant for a new tab", () => {
     const onOpenPage = vi.fn();

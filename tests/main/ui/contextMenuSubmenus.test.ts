@@ -1,5 +1,7 @@
 import { BrowserWindow, Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { nestSubmenus } from "@/commands/menus/submenuConfig";
+import { MenuId } from "@/commands/menus/types";
 import type { ContextMenuItemData } from "@shared/commands";
 import { showContextMenu } from "../../../src/main/ui/contextMenu";
 
@@ -11,6 +13,7 @@ vi.mock("electron", () => ({
   },
 }));
 
+// A menu's group paths become submenus in the renderer, which main then shows
 describe("contextMenu - Submenus", () => {
   let mockWindow: any;
   let mockMenu: any;
@@ -38,6 +41,13 @@ describe("contextMenu - Submenus", () => {
     vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
   });
 
+  function show(menuItems: ContextMenuItemData[]) {
+    showContextMenu(mockWindow, {
+      tabId: "tab-1",
+      menuItems: nestSubmenus(MenuId.TabContext, menuItems),
+    });
+  }
+
   describe("hierarchical groups", () => {
     it("should create submenu from hierarchical group path", () => {
       const menuItems: ContextMenuItemData[] = [
@@ -52,14 +62,10 @@ describe("contextMenu - Submenus", () => {
           title: "with CWD...",
           group: "2_tab/duplicate_into",
           enabled: true,
-          submenuLabel: "Duplicate Tab into...",
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -86,10 +92,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -121,10 +124,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
       const submenu = template[0].submenu;
@@ -154,14 +154,10 @@ describe("contextMenu - Submenus", () => {
           title: "with CWD...",
           group: "2_tab/duplicate_into",
           enabled: true,
-          submenuLabel: "Duplicate Tab into...",
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -189,10 +185,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -230,10 +223,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -262,10 +252,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
       const submenu = template[0].submenu;
@@ -291,10 +278,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
       const submenu = template[0].submenu;
@@ -313,10 +297,11 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
+      const nested = nestSubmenus(MenuId.TabContext, menuItems);
       showContextMenu(mockWindow, {
         tabId: "tab-1",
         paneId: "pane-1",
-        menuItems,
+        menuItems: nested,
       });
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
@@ -330,7 +315,7 @@ describe("contextMenu - Submenus", () => {
         commandId: "tab.duplicateWithCwd",
         tabId: "tab-1",
         paneId: "pane-1",
-        menuItems,
+        menuItems: nested,
       });
     });
 
@@ -350,10 +335,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
       const submenu = template[0].submenu;
@@ -386,18 +368,14 @@ describe("contextMenu - Submenus", () => {
           title: "with CWD...",
           group: "2_tab/duplicate_into",
           enabled: true,
-          submenuLabel: "Duplicate Tab into...",
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
-      // Should use label from submenuLabel field
+      // Should use the label configured for the menu's group path
       expect(template[0].label).toBe("Duplicate Tab into...");
     });
 
@@ -411,15 +389,12 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
-      // Should use submenu path segment as fallback
-      expect(template[0].label).toBe("unknown_submenu");
+      // Should use the group path as fallback
+      expect(template[0].label).toBe("9_group/unknown_submenu");
     });
   });
 
@@ -454,10 +429,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -484,10 +456,7 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
@@ -497,7 +466,7 @@ describe("contextMenu - Submenus", () => {
     });
 
     it("should handle deeply nested paths as single submenu level", () => {
-      // The implementation treats "a/b/c" as submenu "b/c" under parent "a"
+      // "a/b/c" is one submenu in group "a", not a submenu of a submenu
       const menuItems: ContextMenuItemData[] = [
         {
           commandId: "command.deep",
@@ -507,17 +476,14 @@ describe("contextMenu - Submenus", () => {
         },
       ];
 
-      showContextMenu(mockWindow, {
-        tabId: "tab-1",
-        menuItems,
-      });
+      show(menuItems);
 
       const template = (Menu.buildFromTemplate as any).mock.calls[0][0];
 
-      // Should create submenu with path "sub1/sub2"
+      // Should create one submenu for the whole path
       expect(template).toHaveLength(1);
       expect(template[0].submenu).toBeDefined();
-      expect(template[0].label).toBe("sub1/sub2"); // Fallback to full path after first /
+      expect(template[0].label).toBe("1_group/sub1/sub2"); // Fallback to the group path
     });
   });
 });
