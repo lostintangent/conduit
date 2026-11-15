@@ -1,18 +1,14 @@
 /**
  * Workspace command handlers
  *
- * Handlers for the workspace commands that save, close and reopen workspaces.
+ * Handlers for the workspace commands that save and close workspaces.
  */
 
-import {
-  workspaceMutations,
-  workspacesQuery,
-} from "@features/workspaces/client/queries";
-import { queryClient, runMutation } from "@/query";
-import { workspaceNameAtom } from "@features/workbench/client/atoms";
+import { workspacesQuery } from "@features/workspaces/client/queries";
+import { queryClient } from "@/query";
 
 /**
- * Save the open workspace, or ask for a name when none is open
+ * Saves the open workspace now, or asks for a name for the anonymous one
  *
  * @param activeTabId - ID of the active tab
  * @param setShowCreateWorkspaceDialog - Function to show create workspace dialog
@@ -25,30 +21,19 @@ export async function handleSaveWorkspace(
     return;
   }
 
-  if (workspaceNameAtom.get()) {
-    await runMutation(workspaceMutations.save(), undefined);
+  if (queryClient.getQueryData(workspacesQuery.queryKey)?.current) {
+    const { flush } = await import("@features/workspaces/client/autosave");
+    await flush();
   } else {
     setShowCreateWorkspaceDialog?.(true);
   }
 }
 
 /**
- * Close the current workspace
+ * Go back to the anonymous workspace
  */
 export async function handleCloseWorkspace(): Promise<void> {
   const { closeWorkspace } =
     await import("@features/workspaces/client/actions");
-  closeWorkspace();
-}
-
-/**
- * Open the last workspace
- */
-export async function handleOpenLastWorkspace(): Promise<void> {
-  const state = await queryClient.ensureQueryData(workspacesQuery);
-  if (state.lastWorkspace) {
-    const { openWorkspace } =
-      await import("@features/workspaces/client/actions");
-    await openWorkspace(state.lastWorkspace);
-  }
+  await closeWorkspace();
 }

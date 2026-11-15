@@ -1,33 +1,26 @@
-import { openWorkspace } from "@features/workspaces/client/actions";
+import {
+  openWorkspace,
+  saveWorkspaceAs,
+} from "@features/workspaces/client/actions";
 import {
   workspaceMutations,
   workspacesQuery,
 } from "@features/workspaces/client/queries";
-import {
-  activeTabIdAtom,
-  previousTabsSnapshotAtom,
-  tabsAtom,
-  workspaceHasChangesAtom,
-  workspaceNameAtom,
-} from "@features/workbench/client/atoms";
-import { useSettings } from "@features/settings/client/queries";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useSelector } from "@tanstack/react-store";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+/** The name of the open workspace, or null while it's the anonymous one. */
+export function useCurrentWorkspace(): string | null {
+  const { data = null } = useQuery({
+    ...workspacesQuery,
+    select: (state) => state.current ?? null,
+  });
+  return data;
+}
 
 export function useWorkspaces() {
-  const workspaceName = useSelector(workspaceNameAtom);
-  const { data: hasLastWorkspace = false } = useQuery({
-    ...workspacesQuery,
-    select: (state) => Boolean(state.lastWorkspace),
-  });
-  // Autosave has its own observer, so it can't replace the save dialog's
-  // onSuccess, which only the latest mutate call on an observer gets.
-  const { mutate: autosave } = useMutation(workspaceMutations.save());
-  const { mutate: save } = useMutation(workspaceMutations.save());
+  const workspaceName = useCurrentWorkspace();
   const { mutate: rename } = useMutation(workspaceMutations.rename());
-
-  const autoSaveWorkspaces = useSettings((s) => s.autoSaveWorkspaces);
 
   const [showWorkspacePicker, setShowWorkspacePicker] = useState(false);
   const [showCreateWorkspaceDialog, setShowCreateWorkspaceDialog] =
@@ -35,84 +28,13 @@ export function useWorkspaces() {
   const [showRenameWorkspaceDialog, setShowRenameWorkspaceDialog] =
     useState(false);
 
-  // Track workspace changes - compare tabs deeply to detect changes
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const unsubscribeOpenWorkspace = window.conduit.workspaces.on(
-      "openRequested",
-      (workspace) => openWorkspace(workspace),
-    );
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-      }
-
-      unsubscribeOpenWorkspace();
-    };
-  }, []);
-
-  // Reset change tracking when workspace changes. It comes before the
-  // tracking below, so a newly opened workspace's tabs become its baseline.
-  useEffect(() => {
-    previousTabsSnapshotAtom.set("");
-
-    // Clear auto-save timer when workspace changes
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = null;
-    }
-  }, [workspaceName]);
-
-  // Subscribed rather than selected, so tab updates don't re-render the app
-  useEffect(() => {
-    if (!workspaceName) {
-      workspaceHasChangesAtom.set(false);
-      return;
-    }
-
-    const trackChanges = () => {
-      // Deep serialize tabs to detect any changes
-      const currentTabsSnapshot = JSON.stringify(tabsAtom.get());
-      const previousTabsSnapshot = previousTabsSnapshotAtom.get();
-
-      if (previousTabsSnapshot === "") {
-        // First time tracking this workspace
-        previousTabsSnapshotAtom.set(currentTabsSnapshot);
-        workspaceHasChangesAtom.set(false);
-      } else if (previousTabsSnapshot !== currentTabsSnapshot) {
-        // Tabs have changed
-        workspaceHasChangesAtom.set(true);
-
-        // If auto-save is enabled, schedule a save
-        if (autoSaveWorkspaces) {
-          // Clear any existing timer
-          if (autoSaveTimerRef.current) {
-            clearTimeout(autoSaveTimerRef.current);
-          }
-
-          // Schedule auto-save after 2 seconds
-          autoSaveTimerRef.current = setTimeout(() => {
-            if (activeTabIdAtom.get()) autosave();
-          }, 2000);
-        }
-      }
-    };
-
-    trackChanges();
-    const tabsSubscription = tabsAtom.subscribe(trackChanges);
-    // A save moves the baseline and clears the flag, so check again for
-    // changes made while it ran. The baseline alone may not notify, since a
-    // save can match the one before it.
-    const savedSubscription = workspaceHasChangesAtom.subscribe(() => {
-      if (!workspaceHasChangesAtom.get()) trackChanges();
-    });
-    return () => {
-      tabsSubscription.unsubscribe();
-      savedSubscription.unsubscribe();
-    };
-  }, [workspaceName, autoSaveWorkspaces, autosave]);
+  useEffect(
+    () =>
+      window.conduit.workspaces.on("openRequested", (name) => {
+        void openWorkspace(name);
+      }),
+    [],
+  );
 
   /** Saves the window's tabs as a new workspace and opens it. */
   const saveWorkspace = useCallback(
@@ -129,14 +51,17 @@ export function useWorkspaces() {
         })}`;
       }
 
-      save(name, {
-        onSuccess: () => {
+      // A failed save has already said so, and leaves the dialog open
+      void saveWorkspaceAs(name).then(
+        (saved) => {
+          if (!saved) return;
           setShowCreateWorkspaceDialog(false);
           onSaved?.();
         },
-      });
+        () => {},
+      );
     },
-    [save],
+    [],
   );
 
   const renameWorkspace = useCallback(
@@ -161,7 +86,6 @@ export function useWorkspaces() {
 
   return {
     workspaceName,
-    hasLastWorkspace,
 
     showWorkspacePicker,
     setShowWorkspacePicker,

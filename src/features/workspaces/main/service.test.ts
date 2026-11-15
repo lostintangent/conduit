@@ -9,7 +9,15 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { OpenDialogOptions, OpenDialogReturnValue } from "electron";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 const home = mkdtempSync(path.join(tmpdir(), "workspace-import-"));
 const showOpenDialog =
@@ -23,8 +31,9 @@ vi.mock("electron", () => ({
     showOpenDialog: (options: OpenDialogOptions) => showOpenDialog(options),
   },
 }));
+const refreshApplicationMenu = vi.fn(async () => {});
 vi.mock("../../../main/ui/applicationMenu", () => ({
-  refreshApplicationMenu: async () => {},
+  refreshApplicationMenu: () => refreshApplicationMenu(),
 }));
 // Capturing a command waits for the test terminal's `captured` signal
 vi.mock("@features/terminal/main/command", () => ({
@@ -40,7 +49,7 @@ vi.mock("@features/terminal/main/command", () => ({
 import type { Tab } from "@features/workbench/model";
 import { removeTerminal, storeTerminal } from "@features/terminal/main/store";
 import type { TerminalInstance } from "@features/terminal/main/types";
-import type { Workspace } from "../model";
+import type { Workspace, WorkspaceState } from "../model";
 import service, { loadWorkspaceState } from "./service";
 
 beforeAll(() => {
@@ -72,7 +81,7 @@ describe("workspaces.importFromFile", () => {
   });
 });
 
-describe("workspaces.saveWorkspace", () => {
+describe("workspaces.saveWorkspaceAs", () => {
   it("records each terminal's PTY size", async () => {
     storeTerminal({
       id: "session-1",
@@ -93,7 +102,7 @@ describe("workspaces.saveWorkspace", () => {
         activePaneId: "a",
       } as unknown as Tab;
 
-      const state = await service.saveWorkspace("Work", [tab], "tab-1");
+      const state = await service.saveWorkspaceAs("Work", [tab], "tab-1");
 
       expect(state?.workspaces[0].tabs[0].panes[0]).toMatchObject({
         cols: 132,
@@ -107,8 +116,8 @@ describe("workspaces.saveWorkspace", () => {
 
 describe("workspaces.renameWorkspace", () => {
   it("rejects instead of resolving empty when the new name is taken", async () => {
-    await service.saveWorkspace("Alpha", [], undefined);
-    await service.saveWorkspace("Beta", [], undefined);
+    await service.saveWorkspaceAs("Alpha", [], undefined);
+    await service.saveWorkspaceAs("Beta", [], undefined);
 
     await expect(service.renameWorkspace("Alpha", "Beta")).rejects.toThrow(
       'Workspace "Beta" already exists',
@@ -125,7 +134,8 @@ describe("workspaces.renameWorkspace", () => {
 
 describe("workspaces.deleteWorkspace", () => {
   it("resolves to the workspaces left, and rejects when it can't save them", async () => {
-    await service.saveWorkspace("Doomed", [], undefined);
+    await service.saveWorkspaceAs("Doomed", [], undefined);
+    await service.setCurrentWorkspace(null);
     const { workspaces } = await service.deleteWorkspace("Doomed");
     expect(workspaces.map(({ name }) => name)).not.toContain("Doomed");
 
@@ -141,7 +151,7 @@ describe("workspaces.deleteWorkspace", () => {
   });
 });
 
-describe("workspaces.saveWorkspace", () => {
+describe("workspaces.saveWorkspaceAs", () => {
   it("lands saves in the order they were asked for", async () => {
     const terminal = (id: string, command: string, captured?: Promise<void>) =>
       ({
@@ -166,8 +176,8 @@ describe("workspaces.saveWorkspace", () => {
 
     try {
       const saves = [
-        service.saveWorkspace("Race", [tab("slow")], "tab-1"),
-        service.saveWorkspace("Race", [tab("fast")], "tab-1"),
+        service.saveWorkspaceAs("Race", [tab("slow")], "tab-1"),
+        service.saveWorkspaceAs("Race", [tab("fast")], "tab-1"),
       ];
       // The first save is still capturing its terminal when the second asks
       finishCapture();
@@ -194,7 +204,7 @@ describe("loadWorkspaceState", () => {
 
     await loadWorkspaceState();
     expect(service.getState().workspaces).toEqual([]);
-    await service.saveWorkspace("Fresh", [], undefined);
+    await service.saveWorkspaceAs("Fresh", [], undefined);
 
     const aside = readdirSync(folder).filter((name) =>
       name.startsWith("workspaces.json.corrupt-"),
@@ -207,5 +217,156 @@ describe("loadWorkspaceState", () => {
       JSON.parse(readFileSync(path.join(folder, "workspaces.json"), "utf-8"))
         .workspaces,
     ).toMatchObject([{ name: "Fresh" }]);
+  });
+});
+
+describe("the open workspace", () => {
+  const file = path.join(home, ".conduit", "workspaces.json");
+  const tab = (id: string) =>
+    ({
+      id,
+      name: id,
+      panes: { a: { id: "a", type: "editor", cwd: "/tmp" } },
+      layout: { id: "node-a", type: "pane", paneId: "a" },
+      activePaneId: "a",
+    }) as unknown as Tab;
+  const onDisk = (): WorkspaceState => JSON.parse(readFileSync(file, "utf-8"));
+  const names = (state: WorkspaceState) =>
+    state.workspaces.map(({ name }) => name);
+
+  async function seed(state: object) {
+    writeFileSync(file, JSON.stringify(state));
+    await loadWorkspaceState();
+    refreshApplicationMenu.mockClear();
+  }
+
+  beforeEach(() => seed({ workspaces: [] }));
+
+  it("is the anonymous one, which saves without being listed, until it's saved under a name", async () => {
+    let state = await service.saveWorkspace([tab("one")], "one");
+    expect(state.current).toBeUndefined();
+    expect(state.untitled).toMatchObject({
+      tabs: [{ id: "one" }],
+      activeTabId: "one",
+    });
+    expect(names(state)).toEqual([]);
+
+    state = await service.saveWorkspaceAs("Reading", [tab("two")], "two");
+    expect(state.current).toBe("Reading");
+    // Its tabs moved into Reading, so closing Reading starts fresh
+    expect(state.untitled).toBeUndefined();
+
+    state = await service.saveWorkspace([tab("three")], "three");
+    expect(state.workspaces).toMatchObject([
+      { name: "Reading", tabs: [{ id: "three" }], activeTabId: "three" },
+    ]);
+    expect(state.untitled).toBeUndefined();
+    expect(onDisk()).toEqual(state);
+  });
+
+  it("keeps the anonymous workspace while a named one is open, and goes back to it", async () => {
+    await service.saveWorkspace([tab("mine")], "mine");
+    await seed({ ...onDisk(), workspaces: [{ name: "Build", tabs: [] }] });
+
+    let state = await service.setCurrentWorkspace("Build");
+    expect(state.current).toBe("Build");
+    await service.saveWorkspace([tab("build")], "build");
+
+    state = await service.setCurrentWorkspace(null);
+    expect(state.current).toBeUndefined();
+    expect(state.untitled).toMatchObject({ tabs: [{ id: "mine" }] });
+    expect(state.workspaces).toMatchObject([
+      { name: "Build", tabs: [{ id: "build" }] },
+    ]);
+    expect(onDisk().current).toBeUndefined();
+
+    await expect(service.setCurrentWorkspace("Gone")).rejects.toThrow(
+      'Workspace "Gone" not found',
+    );
+  });
+
+  it("stays open when it's renamed, and can't be deleted", async () => {
+    await service.saveWorkspaceAs("Reading", [tab("one")], "one");
+
+    const state = await service.renameWorkspace("Reading", "Notes");
+    expect(state.current).toBe("Notes");
+    expect(onDisk().current).toBe("Notes");
+
+    await expect(service.deleteWorkspace("Notes")).rejects.toThrow(
+      "The open workspace can't be deleted",
+    );
+    expect(names(service.getState())).toEqual(["Notes"]);
+  });
+
+  it("rebuilds the File menu only when the names it lists change", async () => {
+    await service.saveWorkspace([tab("one")], "one");
+    await service.saveWorkspace([tab("two")], "two");
+    expect(refreshApplicationMenu).not.toHaveBeenCalled();
+
+    await service.saveWorkspaceAs("Reading", [tab("two")], "two");
+    expect(refreshApplicationMenu).toHaveBeenCalledTimes(1);
+    await service.saveWorkspace([tab("three")], "three");
+    expect(refreshApplicationMenu).toHaveBeenCalledTimes(1);
+
+    await service.renameWorkspace("Reading", "Notes");
+    expect(refreshApplicationMenu).toHaveBeenCalledTimes(2);
+  });
+
+  it("imports a workspace whose name is taken as a copy, so it can't replace the open one", async () => {
+    await service.saveWorkspaceAs("Team", [tab("mine")], "mine");
+    refreshApplicationMenu.mockClear();
+    const template = path.join(home, "templates", "clash.yaml");
+    writeFileSync(
+      template,
+      "name: Team\ntabs:\n  - name: Dev\n    panes:\n      - npm start\n",
+    );
+
+    for (const name of ["Team 2", "Team 3"]) {
+      showOpenDialog.mockResolvedValueOnce({ filePaths: [template] });
+      await expect(service.importFromFile()).resolves.toMatchObject({ name });
+    }
+
+    expect(service.getState()).toMatchObject({
+      current: "Team",
+      workspaces: [
+        { name: "Team 3" },
+        { name: "Team 2" },
+        { name: "Team", tabs: [{ id: "mine" }] },
+      ],
+    });
+    expect(refreshApplicationMenu).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("loadWorkspaceState", () => {
+  it("makes the last session the anonymous workspace, and drops its leaked copies", async () => {
+    const file = path.join(home, ".conduit", "workspaces.json");
+    const last = {
+      name: "__last_workspace__",
+      lastModified: 1,
+      tabs: [{ id: "last" }],
+      activeTabId: "last",
+    };
+    writeFileSync(
+      file,
+      JSON.stringify({
+        workspaces: [
+          { ...last, tabs: [] },
+          { name: "Build", tabs: [] },
+        ],
+        lastWorkspace: last,
+      }),
+    );
+
+    await loadWorkspaceState();
+
+    expect(service.getState()).toEqual({
+      workspaces: [{ name: "Build", tabs: [] }],
+      untitled: {
+        lastModified: 1,
+        tabs: [{ id: "last" }],
+        activeTabId: "last",
+      },
+    });
   });
 });

@@ -36,8 +36,7 @@ import { useContextMenu } from "@/commands/hooks/useContextMenu";
 import { useLayoutResizing } from "@features/workbench/components/layout/useLayoutResizing";
 import { useSettings } from "@features/settings/client/queries";
 import { useWorkspaces } from "@features/workspaces/components/useWorkspaces";
-import { workspaceMutations } from "@features/workspaces/client/queries";
-import { runMutation } from "@/query";
+import { flush, startAutosave } from "@features/workspaces/client/autosave";
 import {
   closeHyperTerminal,
   handleHyperTerminalExit,
@@ -138,7 +137,6 @@ export function App() {
 
   const {
     workspaceName,
-    hasLastWorkspace,
     showWorkspacePicker,
     setShowWorkspacePicker,
     showCreateWorkspaceDialog,
@@ -188,8 +186,6 @@ export function App() {
     homeDirectory,
     dotfilesRepo,
     workspaceName,
-    // Context key data
-    hasLastWorkspace,
     // UI state setters
     setShowGeneralSettings: (show: boolean) =>
       setSettingsTab(show ? "general" : null),
@@ -276,9 +272,9 @@ export function App() {
 
     hasInitializedTabsRef.current = true;
 
-    if (tabsAtom.get().length === 0) {
-      void openTab();
-    }
+    void (async () => {
+      if (tabsAtom.get().length === 0) await openTab();
+    })().finally(startAutosave);
   }, []);
 
   useEffect(() => {
@@ -302,14 +298,7 @@ export function App() {
     });
 
     const unsubscribeBeforeClose = api.workbench.on("beforeClose", () => {
-      // Save the current workspace state as "last workspace"
-      const tabs = tabsAtom.get();
-      if (tabs.length > 0) {
-        void runMutation(workspaceMutations.saveLast(), {
-          tabs,
-          activeTabId: activeTabAtom.get()?.id,
-        });
-      }
+      void flush().finally(() => api.workbench.readyToClose());
     });
 
     return () => {

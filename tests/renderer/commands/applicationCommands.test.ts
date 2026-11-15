@@ -69,7 +69,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(84);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(83);
 
       // View commands
       expect(
@@ -121,9 +121,6 @@ describe("applicationCommands", () => {
       expect(registeredCommands.has(ApplicationCommands.WORKSPACE_OPEN)).toBe(
         true,
       );
-      expect(
-        registeredCommands.has(ApplicationCommands.WORKSPACE_OPEN_LAST),
-      ).toBe(true);
 
       // Pane commands
       expect(
@@ -615,19 +612,6 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(mockContext.setShowWorkspacePicker).toHaveBeenCalledWith(true);
-      });
-    });
-
-    describe("WORKSPACE_OPEN_LAST", () => {
-      it("should call handleOpenLastWorkspace handler", () => {
-        const command = registeredCommands.get(
-          ApplicationCommands.WORKSPACE_OPEN_LAST,
-        )!;
-        const mockContext = commandContext();
-
-        command.run(mockContext);
-
-        expect(workspaceHandlers.handleOpenLastWorkspace).toHaveBeenCalled();
       });
     });
 

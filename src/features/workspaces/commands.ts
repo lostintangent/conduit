@@ -2,14 +2,10 @@
  * Workspace commands
  */
 
-import {
-  hasLastWorkspace,
-  hasWorkspace,
-} from "@/commands/contextKeys/appContextKeys";
+import { hasWorkspace } from "@/commands/contextKeys/appContextKeys";
 import type { CommandDescriptor } from "@/commands/core/types";
 import {
   handleCloseWorkspace,
-  handleOpenLastWorkspace,
   handleSaveWorkspace,
 } from "@features/workspaces/client/workspaceHandlers";
 import { ApplicationCommands } from "@shared/commands";
@@ -83,18 +79,6 @@ export default [
     keybinding: { key: "Cmd+K Cmd+O" },
     run: (context) => {
       context.setShowWorkspacePicker?.(true);
-    },
-  },
-
-  // Workspace: Open Last
-  {
-    id: ApplicationCommands.WORKSPACE_OPEN_LAST,
-    title: "Continue Last Session",
-    description: "Restore your workspace from when you last closed the app",
-    category: "Workspace",
-    when: hasLastWorkspace.isTrue(),
-    run: () => {
-      void handleOpenLastWorkspace();
     },
   },
 ] satisfies CommandDescriptor[];

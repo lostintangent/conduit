@@ -21,7 +21,6 @@ import { WorkspaceMenu } from "@features/workspaces/components/WorkspaceMenu";
 import { TooltipProvider } from "@/ui/tooltip";
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { createQueryClient } from "@/query";
-import { workspaceNameAtom } from "@features/workbench/client/atoms";
 
 const workspace = (name: string): Workspace => ({
   name,
@@ -44,8 +43,8 @@ const openMenu = async () => {
   const queryClient = createQueryClient();
   queryClient.setQueryData(workspacesQuery.queryKey, {
     workspaces: [workspace("Alpha"), workspace("Beta")],
+    current: "Alpha",
   });
-  workspaceNameAtom.set("Alpha");
   document.body.append(pane);
   render(
     <TooltipProvider>
@@ -70,9 +69,7 @@ describe("WorkspaceMenu", () => {
     await openMenu();
 
     fireEvent.click(screen.getByRole("menuitem", { name: /Beta/ }));
-    expect(openWorkspace).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Beta" }),
-    );
+    expect(openWorkspace).toHaveBeenCalledWith("Beta");
     await waitFor(() => expect(document.activeElement).toBe(paneInput));
   });
 
@@ -88,7 +85,7 @@ describe("WorkspaceMenu", () => {
       screen.getByRole("menuitem", { name: "Import Workspace..." }),
     );
 
-    await waitFor(() => expect(openWorkspace).toHaveBeenCalledWith(imported));
+    await waitFor(() => expect(openWorkspace).toHaveBeenCalledWith("Gamma"));
     fireEvent.keyDown(screen.getByRole("button", { name: "Workspaces" }), {
       key: "Enter",
     });

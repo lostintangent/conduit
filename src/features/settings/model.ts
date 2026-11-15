@@ -67,9 +67,6 @@ export type UserSettings = {
   useConduitAsEditor: boolean;
   trackUnseenChangesInReviewMode: boolean; // Show unseen indicators for externally modified files in Review Mode
 
-  // Workspace settings
-  autoSaveWorkspaces: boolean;
-
   // Repository shortcuts
   showLaunchButton: boolean;
   showPlayButton: boolean;
@@ -106,8 +103,6 @@ export const defaultSettings: Omit<UserSettings, "homeDirectory"> = {
 
   useConduitAsEditor: true,
   trackUnseenChangesInReviewMode: true,
-
-  autoSaveWorkspaces: true,
 
   showLaunchButton: false,
   showPlayButton: false,

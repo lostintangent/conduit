@@ -8,7 +8,7 @@ import {
   shutdownIpcHandlers,
 } from "./main/index";
 import { reloadAfterCrashes } from "./main/crashRecovery";
-import { emitter } from "./main/events";
+import { pageSavedBeforeClose } from "@features/workbench/main/service";
 import { closeContextMenu } from "./main/ui/contextMenu";
 
 // Build-time constants injected by build/bun.build.ts.
@@ -92,14 +92,9 @@ async function createWindow() {
     event.preventDefault();
     isClosing = true;
 
-    // Notify the renderer to save state, and give
-    // it 1s to do so before forcing the close.
-    emitter("workbench")("beforeClose", undefined);
-    setTimeout(() => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.destroy();
-      }
-    }, 1000);
+    void pageSavedBeforeClose(3000).then(() => {
+      if (!mainWindow.isDestroyed()) mainWindow.destroy();
+    });
   });
 
   // Whenever the window is closed, quit the app.

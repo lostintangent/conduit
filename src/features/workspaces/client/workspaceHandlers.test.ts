@@ -6,9 +6,6 @@ import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 const mockWorkspaceApi = {
   getState: vi.fn(),
   saveWorkspace: vi.fn(),
-  deleteWorkspace: vi.fn(),
-  renameWorkspace: vi.fn(),
-  saveLastWorkspace: vi.fn(),
 };
 
 global.window = {
@@ -26,18 +23,11 @@ vi.mock("@features/workspaces/client/actions", () => ({
 // Import handlers AFTER setting up mocks
 import {
   handleCloseWorkspace,
-  handleOpenLastWorkspace,
   handleSaveWorkspace,
 } from "@features/workspaces/client/workspaceHandlers";
 import { workspacesQuery } from "@features/workspaces/client/queries";
 import { queryClient } from "@/query";
-import {
-  activeTabIdAtom,
-  previousTabsSnapshotAtom,
-  tabsAtom,
-  workspaceHasChangesAtom,
-  workspaceNameAtom,
-} from "@features/workbench/client/atoms";
+import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
 
 describe("workspaceHandlers", () => {
   let mockTabs: Tab[];
@@ -79,68 +69,58 @@ describe("workspaceHandlers", () => {
 
     mockSetShowCreateWorkspaceDialog = vi.fn();
 
-    // Reset the workspace atoms
     queryClient.clear();
     tabsAtom.set(mockTabs);
-    workspaceNameAtom.set(null);
-    previousTabsSnapshotAtom.set("");
-    workspaceHasChangesAtom.set(true);
   });
 
   describe("handleSaveWorkspace", () => {
-    it("saves the open workspace and marks it unchanged", async () => {
+    it("saves the open workspace now", async () => {
       const activeTabId = "tab-1";
-      const workspaceName = "my-workspace";
-      const mockSessions: Workspace[] = [
-        {
-          name: workspaceName,
-          lastModified: Date.now(),
-          tabs: toWorkspaceTabs(mockTabs),
-          activeTabId,
-        },
-      ];
-
-      workspaceNameAtom.set(workspaceName);
-      activeTabIdAtom.set(activeTabId);
-      mockWorkspaceApi.saveWorkspace.mockResolvedValue({
-        workspaces: mockSessions,
-        lastWorkspace: mockSessions[0],
+      const saved = {
+        workspaces: [
+          {
+            name: "my-workspace",
+            lastModified: Date.now(),
+            tabs: toWorkspaceTabs(mockTabs),
+            activeTabId,
+          },
+        ],
+        current: "my-workspace",
+      };
+      queryClient.setQueryData(workspacesQuery.queryKey, {
+        workspaces: [],
+        current: "my-workspace",
       });
+      activeTabIdAtom.set(activeTabId);
+      mockWorkspaceApi.saveWorkspace.mockResolvedValue(saved);
 
       await handleSaveWorkspace(activeTabId, mockSetShowCreateWorkspaceDialog);
 
       expect(mockWorkspaceApi.saveWorkspace).toHaveBeenCalledWith(
-        workspaceName,
         mockTabs,
         activeTabId,
       );
-      expect(queryClient.getQueryData(workspacesQuery.queryKey)).toEqual({
-        workspaces: mockSessions,
-        lastWorkspace: mockSessions[0],
-      });
-      expect(previousTabsSnapshotAtom.get()).toBe(JSON.stringify(mockTabs));
-      expect(workspaceHasChangesAtom.get()).toBe(false);
+      expect(queryClient.getQueryData(workspacesQuery.queryKey)).toEqual(saved);
       expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
     });
 
-    it("should show create dialog when no workspaceName exists", async () => {
-      const activeTabId = "tab-1";
+    it("asks for a name for the anonymous workspace", async () => {
+      queryClient.setQueryData(workspacesQuery.queryKey, { workspaces: [] });
 
-      workspaceNameAtom.set(null);
-
-      await handleSaveWorkspace(activeTabId, mockSetShowCreateWorkspaceDialog);
+      await handleSaveWorkspace("tab-1", mockSetShowCreateWorkspaceDialog);
 
       expect(mockWorkspaceApi.saveWorkspace).not.toHaveBeenCalled();
       expect(mockSetShowCreateWorkspaceDialog).toHaveBeenCalledWith(true);
     });
 
     it("should return early when activeTabId is undefined", async () => {
-      const getWorkspaceName = vi.spyOn(workspaceNameAtom, "get");
+      queryClient.setQueryData(workspacesQuery.queryKey, {
+        workspaces: [],
+        current: "my-workspace",
+      });
 
       await handleSaveWorkspace(undefined, mockSetShowCreateWorkspaceDialog);
 
-      expect(getWorkspaceName).not.toHaveBeenCalled();
-      getWorkspaceName.mockRestore();
       expect(mockWorkspaceApi.saveWorkspace).not.toHaveBeenCalled();
       expect(mockSetShowCreateWorkspaceDialog).not.toHaveBeenCalled();
     });
@@ -154,42 +134,6 @@ describe("workspaceHandlers", () => {
       const { closeWorkspace } =
         await import("@features/workspaces/client/actions");
       expect(closeWorkspace).toHaveBeenCalled();
-    });
-  });
-
-  describe("handleOpenLastWorkspace", () => {
-    it("should load last workspace and call openWorkspace when workspace exists", async () => {
-      const mockWorkspace: Workspace = {
-        name: "test-workspace",
-        lastModified: Date.now(),
-        tabs: [],
-        activeTabId: "tab-1",
-      };
-      mockWorkspaceApi.getState.mockResolvedValue({
-        workspaces: [mockWorkspace],
-        lastWorkspace: mockWorkspace,
-      });
-
-      await handleOpenLastWorkspace();
-
-      expect(mockWorkspaceApi.getState).toHaveBeenCalled();
-      const { openWorkspace } =
-        await import("@features/workspaces/client/actions");
-      expect(openWorkspace).toHaveBeenCalledWith(mockWorkspace);
-    });
-
-    it("should not call openWorkspace when no last workspace exists", async () => {
-      mockWorkspaceApi.getState.mockResolvedValue({
-        workspaces: [],
-        lastWorkspace: null,
-      });
-
-      await handleOpenLastWorkspace();
-
-      expect(mockWorkspaceApi.getState).toHaveBeenCalled();
-      const { openWorkspace } =
-        await import("@features/workspaces/client/actions");
-      expect(openWorkspace).not.toHaveBeenCalled();
     });
   });
 });

@@ -43,4 +43,20 @@ describe("WorkspacePicker", () => {
     await waitFor(() => expect(screen.queryByText("Alpha")).toBeNull());
     expect(screen.getByText("Beta")).toBeTruthy();
   });
+
+  it("doesn't delete the open workspace, which its next save would bring back", async () => {
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(workspacesQuery.queryKey, {
+      workspaces: [workspace("Alpha"), workspace("Beta")],
+      current: "Alpha",
+    });
+    workspaceApi.deleteWorkspace.mockClear();
+
+    render(<WorkspacePicker isOpen onClose={() => {}} />, { queryClient });
+
+    // Alpha is selected, and only Beta has a delete button
+    fireEvent.keyDown(await screen.findByRole("listbox"), { key: "Backspace" });
+    expect(screen.getAllByLabelText("Delete session")).toHaveLength(1);
+    expect(workspaceApi.deleteWorkspace).not.toHaveBeenCalled();
+  });
 });

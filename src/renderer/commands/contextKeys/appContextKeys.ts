@@ -13,19 +13,10 @@ import { ContextKey } from "./ContextKey";
 // ============================================================================
 
 /**
- * Whether a workspace is currently open
+ * Whether a named workspace is open, rather than the anonymous one
  * Used by: workspace.close, workspace.rename
  */
 export const hasWorkspace = new ContextKey<boolean>("hasWorkspace", false);
-
-/**
- * Whether a last workspace exists that can be restored
- * Used by: workspace.openLast
- */
-export const hasLastWorkspace = new ContextKey<boolean>(
-  "hasLastWorkspace",
-  false,
-);
 
 /**
  * Number of open tabs

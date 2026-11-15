@@ -210,6 +210,11 @@ export interface Conduit {
   pageErrors: string[];
   /** Requests from the window that failed since launch, like a missing asset. */
   failedRequests: string[];
+  /**
+   * Quits the way ⌘Q does, since Electron handles SIGTERM with `app.quit()`,
+   * and resolves once the app has exited.
+   */
+  quit(): Promise<void>;
   close(): Promise<void>;
   /**
    * Stops the app the way a crash would, so it saves nothing on its way out,
@@ -444,6 +449,14 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
       reconnect: connect,
       pageErrors,
       failedRequests,
+      async quit() {
+        child.kill("SIGTERM");
+        await until(
+          () => child.exitCode !== null || child.signalCode !== null,
+          "the app to quit",
+          10_000,
+        );
+      },
       close,
       crash,
     };

@@ -23,10 +23,6 @@ export const activePaneIdAtom = createAtom<string | null>(() => {
   return activeTab?.activePaneId ?? null;
 });
 
-export const workspaceNameAtom = createAtom(null as string | null);
-export const workspaceHasChangesAtom = createAtom<boolean>(false);
-export const previousTabsSnapshotAtom = createAtom<string>("");
-
 export const notificationsAtom = createAtom<Notification[]>([]);
 
 export type ApplicationMode =

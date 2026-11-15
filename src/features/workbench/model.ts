@@ -125,7 +125,10 @@ declare module "@shared/rpc" {
       newTabRequested: void;
       /** The item clicked in a menu from `showContextMenu`. */
       contextMenuCommand: ContextMenuOptions & { commandId: string };
-      /** The window is closing and gives the page a second to save. */
+      /**
+       * The window is closing once the page calls `readyToClose`, or after a
+       * few seconds without it.
+       */
       beforeClose: void;
     };
   }

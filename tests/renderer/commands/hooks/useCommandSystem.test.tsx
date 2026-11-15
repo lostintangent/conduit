@@ -50,7 +50,6 @@ describe("useCommandSystem", () => {
     return {
       applicationMode: "normal",
       setApplicationMode: setApplicationModeMock,
-      hasLastWorkspace: false,
       setShowGeneralSettings: vi.fn(),
       setShowKeybindingsEditor: vi.fn(),
       setShowPaneActionsEditor: vi.fn(),

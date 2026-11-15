@@ -369,18 +369,6 @@ export function GeneralTab() {
         />
       </SettingSection>
 
-      <SettingSection title="Workspaces">
-        <CheckboxSetting
-          id="autoSaveWorkspaces"
-          label="Auto-save workspaces"
-          description="Automatically save workspace changes"
-          checked={userSettings.autoSaveWorkspaces}
-          onChange={(checked) =>
-            updateSettings({ autoSaveWorkspaces: checked })
-          }
-        />
-      </SettingSection>
-
       <SettingSection title="Repository Shortcuts">
         <CheckboxSetting
           id="showLaunchButton"

@@ -1,14 +1,12 @@
-import { useSelector } from "@tanstack/react-store";
 import { Cable } from "lucide-react";
-
-import { workspaceNameAtom } from "@features/workbench/client/atoms";
 
 import { Separator } from "@/ui/separator";
 import { SettingsMenu } from "./SettingsMenu";
+import { useCurrentWorkspace } from "@features/workspaces/components/useWorkspaces";
 import { WorkspaceMenu } from "@features/workspaces/components/WorkspaceMenu";
 
 export const TitleBar = () => {
-  const workspaceName = useSelector(workspaceNameAtom);
+  const workspaceName = useCurrentWorkspace();
 
   return (
     <div className="h-[30px] flex items-center justify-between px-3 text-[0.8rem] font-medium bg-elevated mb-[1px] [app-region:drag]">

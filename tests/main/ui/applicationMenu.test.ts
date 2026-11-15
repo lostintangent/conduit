@@ -50,6 +50,8 @@ describe("application menu", () => {
   it("asks the page to open the workspace picked", async () => {
     (await fileMenuItem("Open Workspace..."))?.submenu?.[0]?.click?.();
 
-    expect(send).toHaveBeenCalledWith("workspaces:openRequested", workspace);
+    // By name, since the menu is only rebuilt when the names change, so the
+    // workspace it was built with can be out of date
+    expect(send).toHaveBeenCalledWith("workspaces:openRequested", "conduit");
   });
 });

@@ -75,7 +75,7 @@ export async function refreshApplicationMenu() {
                 submenu: workspaces.map((workspace: Workspace) => ({
                   label: workspace.name,
                   click: () =>
-                    emitter("workspaces")("openRequested", workspace),
+                    emitter("workspaces")("openRequested", workspace.name),
                 })),
               },
             ]

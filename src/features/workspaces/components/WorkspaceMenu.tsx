@@ -1,5 +1,4 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useSelector } from "@tanstack/react-store";
 import { Download, LayoutDashboard, Trash2 } from "lucide-react";
 import { type MouseEvent } from "react";
 
@@ -16,32 +15,25 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
-import { useSettings } from "@features/settings/client/queries";
 import { openWorkspace } from "@features/workspaces/client/actions";
 import {
   workspaceMutations,
   workspacesQuery,
 } from "@features/workspaces/client/queries";
-import {
-  workspaceHasChangesAtom,
-  workspaceNameAtom,
-} from "@features/workbench/client/atoms";
+import { useCurrentWorkspace } from "./useWorkspaces";
 import { cn } from "@/utils";
 import type { Workspace } from "../model";
 
 const api = window.conduit;
 
 export const WorkspaceMenu = () => {
-  const autoSaveWorkspaces = useSettings((s) => s.autoSaveWorkspaces);
-
   const { data: workspaces = [] } = useQuery({
     ...workspacesQuery,
     select: (state) => state.workspaces,
   });
   const { mutate: importWorkspace } = useMutation(workspaceMutations.import());
   const { mutate: deleteWorkspace } = useMutation(workspaceMutations.delete());
-  const workspaceName = useSelector(workspaceNameAtom);
-  const hasWorkspaceChanges = useSelector(workspaceHasChangesAtom);
+  const workspaceName = useCurrentWorkspace();
 
   const saveWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_SAVE);
   const renameWorkspaceCmd = useCommand(ApplicationCommands.WORKSPACE_RENAME);
@@ -53,14 +45,14 @@ export const WorkspaceMenu = () => {
   const handleImportWorkspace = () => {
     importWorkspace(undefined, {
       onSuccess: (workspace) => {
-        if (workspace) void openWorkspace(workspace);
+        if (workspace) void openWorkspace(workspace.name);
       },
     });
   };
 
   const handleOpenWorkspace = (workspace: Workspace) => {
     if (workspace.name === workspaceName) return;
-    openWorkspace(workspace);
+    void openWorkspace(workspace.name);
   };
 
   const handleExportWorkspace = async (
@@ -92,9 +84,6 @@ export const WorkspaceMenu = () => {
               aria-label="Workspaces"
             >
               <LayoutDashboard className="w-4 h-4" />
-              {hasWorkspaceChanges && !autoSaveWorkspaces && (
-                <span className="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full" />
-              )}
             </button>
           </DropdownMenuTrigger>
         </TooltipTrigger>

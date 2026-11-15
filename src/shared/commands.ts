@@ -33,7 +33,6 @@ export const ApplicationCommands = {
   WORKSPACE_DUPLICATE: "workspace.duplicate",
   WORKSPACE_CLOSE: "workspace.close",
   WORKSPACE_OPEN: "workspace.open",
-  WORKSPACE_OPEN_LAST: "workspace.openLast",
 
   // Pane commands
   PANE_OPEN_WEB_PAGE: "pane.openWebPage",

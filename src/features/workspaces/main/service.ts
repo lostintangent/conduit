@@ -20,10 +20,11 @@ const WORKSPACE_FILE_FILTER = {
 
 const service = {
   getState: () => workspaceState,
-  saveWorkspace: refreshingMenu(inOrder(saveWorkspace)),
-  deleteWorkspace: refreshingMenu(inOrder(deleteWorkspace)),
-  renameWorkspace: refreshingMenu(inOrder(renameWorkspace)),
-  saveLastWorkspace: inOrder(saveLastWorkspace),
+  saveWorkspace: inOrder(saveWorkspace),
+  saveWorkspaceAs: inOrder(saveWorkspaceAs),
+  setCurrentWorkspace: inOrder(setCurrentWorkspace),
+  deleteWorkspace: inOrder(deleteWorkspace),
+  renameWorkspace: inOrder(renameWorkspace),
   importFromFile: importWorkspace,
   exportToFile: exportWorkspaceToFile,
 };
@@ -34,17 +35,6 @@ declare module "@shared/rpc" {
   interface Services {
     workspaces: typeof service;
   }
-}
-
-/** The application menu lists workspaces, so changing them refreshes it. */
-function refreshingMenu<Args extends unknown[], Result>(
-  change: (...args: Args) => Promise<Result>,
-) {
-  return async (...args: Args) => {
-    const result = await change(...args);
-    await refreshApplicationMenu();
-    return result;
-  };
 }
 
 // Changes run one at a time, in the order they were asked for, so a save
@@ -61,6 +51,8 @@ function inOrder<Args extends unknown[], Result>(
 }
 
 let workspaceState: WorkspaceState = { workspaces: [] };
+/** The names the File menu lists, so a save that keeps them doesn't rebuild it. */
+let listedNames = "";
 // Without a defaultPath, open dialogs start in Downloads (Electron 43+)
 let lastImportDirectory: string | undefined;
 
@@ -82,7 +74,8 @@ export async function loadWorkspaceState(): Promise<void> {
   }
 
   try {
-    workspaceState = parseWorkspaceState(data);
+    workspaceState = migrate(parseWorkspaceState(data));
+    listedNames = JSON.stringify(workspaceState.workspaces.map((w) => w.name));
   } catch (error) {
     // The next save would replace it, and every workspace in it with it
     const aside = `${filePath}.corrupt-${Date.now()}`;
@@ -107,8 +100,39 @@ function parseWorkspaceState(data: string): WorkspaceState {
   return state as WorkspaceState;
 }
 
-async function saveWorkspaceState(): Promise<void> {
-  return writeJsonFile(workspacesFilePath(), workspaceState);
+/**
+ * Before the anonymous workspace, the tabs open at close were saved as
+ * `lastWorkspace`, and reopening them leaked copies named after it into the
+ * list.
+ */
+const LAST_WORKSPACE = "__last_workspace__";
+function migrate(
+  state: WorkspaceState & { lastWorkspace?: Workspace },
+): WorkspaceState {
+  const { lastWorkspace, ...migrated } = state;
+  migrated.workspaces = migrated.workspaces.filter(
+    ({ name }) => name !== LAST_WORKSPACE,
+  );
+  if (lastWorkspace && !migrated.untitled) {
+    const { name: _name, ...untitled } = lastWorkspace;
+    migrated.untitled = untitled;
+  }
+  if (!findWorkspace(migrated, migrated.current)) delete migrated.current;
+  return migrated;
+}
+
+function findWorkspace(state: WorkspaceState, name: string | undefined) {
+  return state.workspaces.find((workspace) => workspace.name === name);
+}
+
+async function saveWorkspaceState(): Promise<WorkspaceState> {
+  await writeJsonFile(workspacesFilePath(), workspaceState);
+  const names = JSON.stringify(workspaceState.workspaces.map((w) => w.name));
+  if (names !== listedNames) {
+    listedNames = names;
+    await refreshApplicationMenu();
+  }
+  return workspaceState;
 }
 
 type TabPane = Tab["panes"][string];
@@ -155,107 +179,104 @@ async function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
   );
 }
 
-/** Adds or updates a workspace in the state and persists it */
-async function addWorkspaceToState(workspace: Workspace): Promise<void> {
+/** Adds or replaces a workspace, as the most recent one */
+function putWorkspace(workspace: Workspace) {
   workspaceState.workspaces = workspaceState.workspaces.filter(
     (w) => w.name !== workspace.name,
   );
   workspaceState.workspaces.unshift(workspace);
-  await saveWorkspaceState();
 }
 
+/** The name, or the first of "name 2", "name 3" and so on that's free. */
+function unusedName(name: string): string {
+  let unused = name;
+  for (let n = 2; findWorkspace(workspaceState, unused); n++) {
+    unused = `${name} ${n}`;
+  }
+  return unused;
+}
+
+/** Saves the window's tabs into the open workspace. */
 async function saveWorkspace(
+  tabs: Tab[],
+  activeTabId: string | undefined,
+): Promise<WorkspaceState> {
+  const saved = {
+    lastModified: Date.now(),
+    tabs: await serializeTabs(tabs),
+    activeTabId,
+  };
+  const { current } = workspaceState;
+  if (current) {
+    putWorkspace({ name: current, ...saved });
+  } else {
+    workspaceState.untitled = saved;
+  }
+  return saveWorkspaceState();
+}
+
+/**
+ * Saves the window's tabs under a name, which becomes the open workspace.
+ * The anonymous workspace's tabs move into it, so it starts over.
+ */
+async function saveWorkspaceAs(
   name: string,
   tabs: Tab[],
   activeTabId: string | undefined,
 ): Promise<WorkspaceState> {
-  try {
-    const serializedTabs = await serializeTabs(tabs);
-    const newWorkspace: Workspace = {
-      name,
-      lastModified: Date.now(),
-      tabs: serializedTabs,
-      activeTabId,
-    };
+  putWorkspace({
+    name,
+    lastModified: Date.now(),
+    tabs: await serializeTabs(tabs),
+    activeTabId,
+  });
+  if (!workspaceState.current) delete workspaceState.untitled;
+  workspaceState.current = name;
+  return saveWorkspaceState();
+}
 
-    await addWorkspaceToState(newWorkspace);
-
-    return workspaceState;
-  } catch (error) {
-    console.error("Failed to save workspace:", error);
-    throw error;
+/** Opens a named workspace, or the anonymous one for `null`. */
+async function setCurrentWorkspace(
+  name: string | null,
+): Promise<WorkspaceState> {
+  if (name === null) {
+    delete workspaceState.current;
+  } else if (findWorkspace(workspaceState, name)) {
+    workspaceState.current = name;
+  } else {
+    throw new Error(`Workspace "${name}" not found`);
   }
+  return saveWorkspaceState();
 }
 
 async function deleteWorkspace(name: string): Promise<WorkspaceState> {
+  // Its next autosave would bring it back
+  if (name === workspaceState.current) {
+    throw new Error("The open workspace can't be deleted");
+  }
   workspaceState.workspaces = workspaceState.workspaces.filter(
     (workspace) => workspace.name !== name,
   );
-
-  await saveWorkspaceState();
-  return workspaceState;
-}
-
-async function saveLastWorkspace(
-  tabs: Tab[],
-  activeTabId: string | undefined,
-): Promise<WorkspaceState> {
-  try {
-    const serializedTabs = await serializeTabs(tabs);
-
-    const lastWorkspace: Workspace = {
-      name: "__last_workspace__",
-      lastModified: Date.now(),
-      tabs: serializedTabs,
-      activeTabId,
-    };
-
-    workspaceState.lastWorkspace = lastWorkspace;
-
-    await saveWorkspaceState();
-    console.log("[Workspace Save] Last workspace saved successfully");
-    return workspaceState;
-  } catch (error) {
-    console.error("Failed to save last workspace:", error);
-    throw error;
-  }
+  return saveWorkspaceState();
 }
 
 async function renameWorkspace(
   currentName: string,
   newName: string,
 ): Promise<WorkspaceState> {
-  try {
-    // Prevent renaming the special last workspace
-    if (currentName === "__last_workspace__") {
-      throw new Error("Cannot rename the last workspace");
-    }
-
-    const workspace = workspaceState.workspaces.find(
-      (s) => s.name === currentName,
-    );
-
-    if (!workspace) {
-      throw new Error(`Workspace "${currentName}" not found`);
-    }
-
-    // Check if new name already exists
-    const existingWithNewName = workspaceState.workspaces.find(
-      (s) => s.name === newName,
-    );
-    if (existingWithNewName) {
-      throw new Error(`Workspace "${newName}" already exists`);
-    }
-
-    // Update the workspace name
-    workspace.name = newName;
-
-    await saveWorkspaceState();
-    return workspaceState;
-  } catch (error) {
-    console.error("Failed to rename workspace:", error);
-    throw error;
+  const workspace = findWorkspace(workspaceState, currentName);
+  if (!workspace) {
+    throw new Error(`Workspace "${currentName}" not found`);
   }
+  if (findWorkspace(workspaceState, newName)) {
+    throw new Error(`Workspace "${newName}" already exists`);
+  }
+
+  workspace.name = newName;
+  if (workspaceState.current === currentName) {
+    workspaceState.current = newName;
+  }
+  return saveWorkspaceState();
 }
 
 export function getWorkspaces(): Workspace[] {
@@ -285,10 +306,15 @@ async function importWorkspace(): Promise<Workspace | null> {
       throw new Error("Invalid workspace file: missing name or tabs");
     }
 
-    const workspace = convertTemplateToWorkspace(template, fileDir);
-    await inOrder(addWorkspaceToState)(workspace);
-
-    return workspace;
+    return await inOrder(async () => {
+      const workspace = convertTemplateToWorkspace(template, fileDir);
+      // Replacing the open workspace would leave the window's tabs to
+      // autosave over it
+      workspace.name = unusedName(workspace.name);
+      putWorkspace(workspace);
+      await saveWorkspaceState();
+      return workspace;
+    })();
   } catch (error) {
     console.error("Failed to import workspace:", error);
     throw error;

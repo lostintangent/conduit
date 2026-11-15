@@ -7,6 +7,7 @@ import {
 import { cn } from "@/utils";
 import { formatRelativeTime } from "@/utils/time";
 import type { Workspace } from "../model";
+import { useCurrentWorkspace } from "./useWorkspaces";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
   const { mutate: deleteWorkspaceMutation } = useMutation(
     workspaceMutations.delete(),
   );
+  const workspaceName = useCurrentWorkspace();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
       const session = workspaces[selectedIndex];
       if (session) {
         void (async () => {
-          await openWorkspace(session);
+          await openWorkspace(session.name);
           clearPressedKeys();
           onClose();
         })();
@@ -82,7 +84,8 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
     if (key === "delete" || key === "backspace") {
       event.preventDefault();
       const selectedWorkspace = workspaces[selectedIndex];
-      if (selectedWorkspace) {
+      // The open workspace isn't deleted, as its next save would bring it back
+      if (selectedWorkspace && selectedWorkspace.name !== workspaceName) {
         deleteWorkspace(selectedWorkspace.name);
       }
     }
@@ -90,7 +93,7 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
 
   const handleOpenWorkspace = (session: Workspace) => {
     void (async () => {
-      await openWorkspace(session);
+      await openWorkspace(session.name);
       onClose();
     })();
   };
@@ -156,15 +159,17 @@ export function WorkspacePicker({ isOpen, onClose }: WorkspacePickerDialog) {
                         {`${formatRelativeTime(workspace.lastModified / 1000)} ago`}
                       </span>
                     </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => handleDeleteWorkspace(workspace, e)}
-                      aria-label="Delete session"
-                      className="mr-2 hover:bg-transparent! hover:text-destructive"
-                    >
-                      <Trash2 size={12} />
-                    </Button>
+                    {workspace.name !== workspaceName && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleDeleteWorkspace(workspace, e)}
+                        aria-label="Delete session"
+                        className="mr-2 hover:bg-transparent! hover:text-destructive"
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    )}
                   </div>
                 </li>
               );

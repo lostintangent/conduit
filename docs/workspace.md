@@ -25,7 +25,7 @@ This document provides a comprehensive overview of how Conduit workspaces are st
 
 Conduit workspaces represent the complete state of a user's tab layout, including terminal sessions, browser panes, and editor configurations. The workspace system supports:
 
-1. **Auto-saving** - Automatically persists the last workspace on close for session restore
+1. **Autosave** - The open workspace, named or not, saves 2 seconds after its tabs change, before another workspace replaces it, and as the window closes
 2. **Named workspaces** - User-saved workspace configurations for quick access
 3. **Import/Export** - YAML-based workspace templates for sharing and version control
 
@@ -124,13 +124,19 @@ type WorkspaceTab = TabMetadata & {
   activePaneId: string;
   layout: LayoutNode;
 };
+
+type WorkspaceState = {
+  workspaces: Workspace[];
+  untitled?: Omit<Workspace, "name">; // The window's tabs when no named workspace is open
+  current?: string; // The named workspace that's open
+};
 ```
 
 **Key characteristics:**
 
 - Panes stored as `Pane[]` array (converted from Record on save)
 - Includes `lastModified` timestamp for sorting
-- Stored in `{userData}/workspaces.json`
+- Stored in `~/.conduit/workspaces.json`
 - Terminal commands captured from live sessions during save
 
 **Example workspace structure:**
@@ -472,6 +478,7 @@ src/features/workspaces/
 │       ├── export.ts     # Workspace to template
 │       └── utils.ts      # Shared conversion helpers
 ├── client/actions.ts     # Open, close and restore workspaces
+├── client/autosave.ts    # Saves the open workspace as its tabs change
 └── components/           # WorkspaceMenu, WorkspacePicker, useWorkspaces
 
 src/shared/types/panes.ts        # PaneType, Pane types, TabMetadata
@@ -483,19 +490,20 @@ src/features/workbench/model.ts  # Layout types, runtime pane types with extensi
 
 The renderer calls these as `window.conduit.workspaces.<method>()`.
 
-| Method              | Description                   |
-| ------------------- | ----------------------------- |
-| `getState`          | Get current workspace state   |
-| `saveWorkspace`     | Save named workspace          |
-| `deleteWorkspace`   | Delete named workspace        |
-| `renameWorkspace`   | Rename existing workspace     |
-| `saveLastWorkspace` | Auto-save for session restore |
-| `importFromFile`    | Import from YAML file         |
-| `exportToFile`      | Export to YAML file           |
+| Method                | Description                                               |
+| --------------------- | --------------------------------------------------------- |
+| `getState`            | Get current workspace state                               |
+| `saveWorkspace`       | Save the tabs into the open workspace, named or not       |
+| `saveWorkspaceAs`     | Save the tabs under a name and make it the open workspace |
+| `setCurrentWorkspace` | Make a named workspace the open one, or `null` for none   |
+| `deleteWorkspace`     | Delete a named workspace other than the open one          |
+| `renameWorkspace`     | Rename existing workspace                                 |
+| `importFromFile`      | Import from YAML file, numbering the name if it's taken   |
+| `exportToFile`        | Export to YAML file                                       |
 
 ### Storage Locations
 
-| File              | Location      | Content                               |
-| ----------------- | ------------- | ------------------------------------- |
-| `workspaces.json` | `{userData}/` | All saved workspaces + last workspace |
-| `*.yaml`          | User-chosen   | Exported workspace templates          |
+| File              | Location      | Content                                               |
+| ----------------- | ------------- | ----------------------------------------------------- |
+| `workspaces.json` | `~/.conduit/` | Named workspaces, the unnamed tabs, and which is open |
+| `*.yaml`          | User-chosen   | Exported workspace templates                          |

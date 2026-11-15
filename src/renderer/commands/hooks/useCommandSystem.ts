@@ -37,8 +37,6 @@ export interface UseCommandSystemOptions {
   homeDirectory?: string | null;
   dotfilesRepo?: string;
   workspaceName?: string | null;
-  // Context key data
-  hasLastWorkspace: boolean;
   // UI state setters
   setShowGeneralSettings: (show: boolean) => void;
   setShowKeybindingsEditor: (show: boolean) => void;
@@ -77,7 +75,6 @@ export function useCommandSystem(
     homeDirectory,
     dotfilesRepo,
     workspaceName,
-    hasLastWorkspace,
     setShowGeneralSettings,
     setShowKeybindingsEditor,
     setShowPaneActionsEditor,
@@ -288,9 +285,8 @@ export function useCommandSystem(
 
     const contextKeyService = commandSystem.contextKeyService;
     contextKeyService.setGlobal("hasWorkspace", !!workspaceName);
-    contextKeyService.setGlobal("hasLastWorkspace", hasLastWorkspace ?? false);
     contextKeyService.setGlobal("dotfilesEnabled", !!dotfilesRepo);
-  }, [commandSystem, workspaceName, hasLastWorkspace, dotfilesRepo]);
+  }, [commandSystem, workspaceName, dotfilesRepo]);
 
   // Tab and pane keys follow every tab update, through subscriptions so pane
   // title changes don't re-render the app. Re-applying them also puts back the

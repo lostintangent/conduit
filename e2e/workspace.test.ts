@@ -97,7 +97,13 @@ describe("workspaces", () => {
         "one/.keep": "",
         "two/.keep": "",
         ".conduit/workspaces.json": JSON.stringify({
-          workspaces: [agents, collapsed, gone],
+          // Older versions saved the window's tabs as a workspace like this.
+          workspaces: [
+            agents,
+            collapsed,
+            gone,
+            { ...gone, name: "__last_workspace__" },
+          ],
         }),
       },
       // Large enough that a shell started at the default 80 columns would be
@@ -139,6 +145,15 @@ describe("workspaces", () => {
     );
   }
 
+  /** The workspace name the title bar shows, if any. */
+  const title = () =>
+    app.page.locator(":has(> svg.lucide-cable)").first().textContent();
+
+  const saved = () =>
+    JSON.parse(
+      fs.readFileSync(path.join(app.home, ".conduit/workspaces.json"), "utf8"),
+    );
+
   async function pwd(): Promise<string> {
     const terminal = await app.terminal();
     expect(await terminal.run('echo "pwd is $PWD"')).toBe(0);
@@ -146,6 +161,7 @@ describe("workspaces", () => {
   }
 
   it("saves the window's tabs as a named workspace", async () => {
+    expect(await title()).toBe("Conduit");
     expect(await (await app.terminal()).run("cd ~/one")).toBe(0);
     await app.page.getByRole("button", { name: "New Tab" }).click();
     await tabs()
@@ -160,6 +176,7 @@ describe("workspaces", () => {
     await dialog.getByRole("textbox").press("Enter");
     await dialog.waitFor({ state: "detached" });
     await expectTerminalFocused("saving");
+    expect(await title()).toBe("Conduit (E2E Space)");
 
     await openMenu();
     await menuItem("E2E Space").waitFor();
@@ -192,6 +209,7 @@ describe("workspaces", () => {
     expect(saved).toContain("E2E Renamed");
     expect(saved).not.toContain("E2E Space");
     expect(saved).not.toContain("E2E Cancelled");
+    expect(await title()).toBe("Conduit (E2E Renamed)");
   });
 
   it("closes the workspace into a fresh window", async () => {
@@ -205,6 +223,18 @@ describe("workspaces", () => {
     await expectTerminalFocused("closing the workspace");
     expect(await pwd()).toBe(app.home);
     expect(await tabs().count()).toBe(1);
+    expect(await title()).toBe("Conduit");
+  });
+
+  it("saves the window's tabs as they change, without a name", async () => {
+    expect(await (await app.terminal()).run("cd ~/two")).toBe(0);
+    await until(
+      () =>
+        saved().untitled?.tabs[0]?.panes[0]?.cwd === path.join(app.home, "two"),
+      "the window's tab to save in its new folder",
+      10_000,
+    );
+    expect(saved().current).toBeUndefined();
   });
 
   it("reopens the workspace's tabs in their directories", async () => {
@@ -292,6 +322,51 @@ describe("workspaces", () => {
     await terminal.waitForText("/conduit-e2e/gone no longer exists");
     expect(await pwd()).toBe(app.home);
     expect(await tabs().count()).toBe(1);
+  });
+
+  it("goes back to the window's own tabs when the workspace closes", async () => {
+    await choose("Close Workspace");
+    await expectTerminalFocused("closing the workspace");
+    expect(await tabs().count()).toBe(1);
+    expect(await pwd()).toBe(path.join(app.home, "two"));
+    expect(await title()).toBe("Conduit");
+  });
+
+  it("lists only named workspaces in the picker", async () => {
+    await app.page.keyboard.press("Meta+K");
+    await app.page.keyboard.press("Meta+O");
+    const picker = app.page.getByRole("dialog", { name: "Open Workspace" });
+    const options = picker.getByRole("option");
+    await options.first().waitFor();
+
+    expect(await options.count()).toBe(4);
+    expect((await options.allTextContents()).join()).not.toContain(
+      "__last_workspace__",
+    );
+    expect(
+      saved()
+        .workspaces.map((workspace: { name: string }) => workspace.name)
+        .sort(),
+    ).toEqual(["E2E Agents", "E2E Collapsed", "E2E Gone", "E2E Renamed"]);
+    await app.page.keyboard.press("Escape");
+    await picker.waitFor({ state: "detached" });
+  });
+
+  it("saves the window's tabs as it quits", async () => {
+    await app.page.getByRole("button", { name: "New Tab" }).click();
+    await tabs()
+      .nth(1)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+    const changed = Date.now();
+    const closed = app.page.waitForEvent("close", { timeout: 10_000 });
+
+    const quitting = app.quit();
+    await closed;
+    // Sooner than the change would have saved by itself.
+    expect(Date.now() - changed).toBeLessThan(2_000);
+    expect(saved().untitled.tabs).toHaveLength(2);
+    await quitting;
   });
 
   it("had no uncaught errors or failed loads", () => {
