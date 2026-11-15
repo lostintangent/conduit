@@ -118,6 +118,17 @@ async function createWindow() {
   }
 }
 
+// The DevTools pane's webview stays empty when Chromium gives a navigation a
+// new frame, because Electron's InspectableWebContents::ReadyToCommitNavigation
+// connects DevTools to the outgoing frame. RenderDocument does that for every
+// navigation, so turn it off. Any other disabled feature has to join this
+// value, since a second appendSwitch replaces it.
+// TODO: Remove this, along with the reload in the browser service's
+// showDevTools, once an Electron release shows a webview's DevTools with
+// RenderDocument on. The "shows the page's elements in its dev tools" e2e
+// checks it.
+app.commandLine.appendSwitch("disable-features", "RenderDocument");
+
 app.whenReady().then(async () => {
   const webviewPreloadPath = app.isPackaged
     ? path.join(process.resourcesPath, "webview-preload.js")

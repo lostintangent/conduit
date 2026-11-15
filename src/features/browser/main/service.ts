@@ -32,8 +32,10 @@ const service = {
     sourceContents.setDevToolsWebContents(devToolsContents);
     sourceContents.openDevTools();
 
-    // This is a needed workaround to ensure the DevTools reloads
-    // properly when opened in a separate window. Unfortunately it's required :/
+    // DevTools first loads without its connection to the page, and a reload
+    // in the same frame picks it up.
+    // TODO: Remove this, along with the RenderDocument switch in main.ts, once
+    // an Electron release shows a webview's DevTools with RenderDocument on.
     devToolsContents.executeJavaScript("window.location.reload()");
   },
 };

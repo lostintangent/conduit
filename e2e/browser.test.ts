@@ -36,8 +36,10 @@ describe("browser automation from the CLI", () => {
       requested.push(request.url!);
       response.writeHead(200, { "content-type": "text/html" });
       if (request.url === "/stalled") {
-        // Its page never finishes loading
-        response.write(page);
+        // Its page never finishes loading, and says when it has drawn
+        response.write(
+          `${page}<script>requestAnimationFrame(() => requestAnimationFrame(() => fetch("/painted")))</script>`,
+        );
         stalled.push(response);
       } else {
         response.end(page);
@@ -164,12 +166,24 @@ describe("browser automation from the CLI", () => {
       );
   }
 
-  async function focusPage(index: number) {
-    await clickPage(index);
-    await until(
-      () => inPage(index, "document.hasFocus()"),
+  /**
+   * Waits for the nth page to take focus and draw. Keys that come before a
+   * new page first draws don't reach it.
+   */
+  function pageFocused(index: number) {
+    return until(
+      () =>
+        inPage(
+          index,
+          "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(document.hasFocus()))))",
+        ),
       "the page to take focus",
     );
+  }
+
+  async function focusPage(index: number) {
+    await clickPage(index);
+    await pageFocused(index);
   }
 
   async function runCommand(title: string) {
@@ -375,10 +389,7 @@ describe("browser automation from the CLI", () => {
       // Focus goes back to it when the tab shows
       if (focused === "page") {
         await clickPage(0);
-        await until(
-          () => inPage(0, "document.hasFocus()"),
-          "the page to take focus",
-        );
+        await pageFocused(0);
       } else {
         const addresses = app.page.getByPlaceholder("Enter URL...");
         const address = await addresses.evaluateAll(
@@ -465,10 +476,7 @@ describe("browser automation from the CLI", () => {
     );
     await app.page.keyboard.press("Escape");
     await until(async () => (await addressBars(url)) === 0, "it to hide");
-    await until(
-      () => inPage(0, "document.hasFocus()"),
-      "the page to take focus",
-    );
+    await pageFocused(0);
 
     await app.page.keyboard.press("Meta+l");
     await until(selectedAddress, "the address to be selected");
@@ -485,16 +493,14 @@ describe("browser automation from the CLI", () => {
       async () => (await addressBars(`${url}typed`)) === 0,
       "it to hide",
     );
-    await until(
-      () => inPage(0, "document.hasFocus()"),
-      "the page to take focus",
-    );
+    await pageFocused(0);
 
     const panes = await conduit<Pane[]>("pane-list -t browser");
     const pane = panes.find((candidate) => candidate.url === `${url}typed`);
     expect(
       await terminal.run(`conduit browser-navigate -p ${pane!.id} ${url}`),
     ).toBe(0);
+    await pageFocused(0);
     await runCommand("Toggle Browser Toolbar");
     await until(async () => (await addressBars(url)) === 1, "it to show");
   });
@@ -585,18 +591,16 @@ describe("browser automation from the CLI", () => {
       ).toBe(0);
     }
     // Waits for each page to load, and the next test presses a key sooner
-    const pageFocused = () =>
-      until(() => inPage(0, "document.hasFocus()"), "the page to take focus");
     await clickPage(0);
     await expectActivePane(`${url}forward`);
-    await pageFocused();
+    await pageFocused(0);
 
     await navigateWith(0, "BracketLeft");
     await expectActivePane(`${url}back`);
-    await pageFocused();
+    await pageFocused(0);
     await navigateWith(0, "BracketRight");
     await expectActivePane(`${url}forward`);
-    await pageFocused();
+    await pageFocused(0);
     requested.length = 0;
     await navigateWith(0, "r");
     await until(() => requested.includes("/forward"), "the page to reload");
@@ -622,6 +626,8 @@ describe("browser automation from the CLI", () => {
         app.page.evaluate(() => document.activeElement?.tagName === "WEBVIEW"),
       "the page to take focus",
     );
+    // Keys that come before the page first draws don't reach it
+    await until(() => requested.includes("/painted"), "the page to draw");
 
     requested.length = 0;
     await navigateWith(0, "r");
@@ -659,6 +665,47 @@ describe("browser automation from the CLI", () => {
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(
       await app.page.evaluate(() => innerWidth),
+    );
+  });
+
+  it("shows the page's elements in its dev tools", async () => {
+    const pages = await app.page.locator("webview").count();
+    const toggleDevTools = async (item: string) => {
+      await app.page
+        .getByRole("button", { name: "More options" })
+        .first()
+        .click();
+      await app.page.getByRole("menuitem", { name: item }).click();
+    };
+    // The dev tools' page is the newest webview. Its Elements panel draws the
+    // page's tree in shadow roots, so this gathers every text node.
+    const devToolsText = () =>
+      inPage<string>(
+        pages,
+        `(() => {
+          const text = [];
+          const walk = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) text.push(node.textContent);
+            if (node.shadowRoot) walk(node.shadowRoot);
+            for (const child of node.childNodes) walk(child);
+          };
+          walk(document);
+          return text.join(" ");
+        })()`,
+      );
+
+    await toggleDevTools("Open dev tools");
+    expect(
+      await until(
+        async () => (await devToolsText()).includes("Greet"),
+        "the dev tools to show the page's elements",
+      ),
+    ).toBe(true);
+
+    await toggleDevTools("Close dev tools");
+    await until(
+      async () => (await app.page.locator("webview").count()) === pages,
+      "the dev tools to close",
     );
   });
 
