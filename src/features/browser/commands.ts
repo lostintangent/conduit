@@ -21,6 +21,9 @@ import { ApplicationCommands } from "@shared/commands";
 const activePage = ({ activePaneId }: CommandContext) =>
   activePaneId ? getWebview(activePaneId) : null;
 
+const activePaneHandlers = ({ activePaneId }: CommandContext) =>
+  activePaneId ? getBrowserPaneHandlers(activePaneId) : undefined;
+
 export default [
   // Pane: Open Web Page
   {
@@ -32,8 +35,7 @@ export default [
     keybinding: { key: "Cmd+L" },
     when: hasActivePane.isTrue(),
     run: (context) => {
-      const browserPane =
-        context.activePaneId && getBrowserPaneHandlers(context.activePaneId);
+      const browserPane = activePaneHandlers(context);
       if (browserPane) browserPane.focusAddressBar();
       else context.setIsUrlDialogOpen?.(true);
     },
@@ -187,5 +189,38 @@ export default [
     keybinding: { key: "Cmd+]" },
     when: activePaneType.equals("browser"),
     run: (context) => activePage(context)?.goForward(),
+  },
+
+  // A page with its own find, like a document editor, keeps these keys, see
+  // getAppKeys
+  {
+    id: ApplicationCommands.BROWSER_FIND,
+    title: "Find in Page",
+    description: "Find text in the page in the active browser pane",
+    category: "Browser",
+    keybinding: { key: "Cmd+F" },
+    when: activePaneType.equals("browser"),
+    run: (context) => activePaneHandlers(context)?.find(),
+  },
+
+  {
+    id: ApplicationCommands.BROWSER_FIND_NEXT,
+    title: "Find Next",
+    description: "Go to the next match in the page in the active browser pane",
+    category: "Browser",
+    keybinding: { key: "Cmd+G" },
+    when: activePaneType.equals("browser"),
+    run: (context) => activePaneHandlers(context)?.findNext(),
+  },
+
+  {
+    id: ApplicationCommands.BROWSER_FIND_PREVIOUS,
+    title: "Find Previous",
+    description:
+      "Go to the previous match in the page in the active browser pane",
+    category: "Browser",
+    keybinding: { key: "Cmd+Shift+G" },
+    when: activePaneType.equals("browser"),
+    run: (context) => activePaneHandlers(context)?.findPrevious(),
   },
 ] satisfies CommandDescriptor[];

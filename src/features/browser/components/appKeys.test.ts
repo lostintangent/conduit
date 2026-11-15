@@ -20,7 +20,7 @@ const paneType = new ContextKey<string>("activePaneType", "");
 
 /** The app keys, written the way keybindings are */
 function appKeys() {
-  return getAppKeys().map(({ chord, startsChord }) => {
+  return getAppKeys().map(({ chord, startsChord, pageFirst }) => {
     const modifiers = [
       chord.meta && "Cmd",
       chord.ctrl && "Ctrl",
@@ -28,7 +28,8 @@ function appKeys() {
       chord.shift && "Shift",
     ].filter(Boolean);
     const key = [...modifiers, chord.key.toUpperCase()].join("+");
-    return startsChord ? `${key} …` : key;
+    if (startsChord) return `${key} …`;
+    return pageFirst ? `${key} (page first)` : key;
   });
 }
 
@@ -121,6 +122,24 @@ describe("app keys", () => {
       expect(appKeys().filter((key) => key.startsWith("Cmd+K"))).toEqual([
         "Cmd+K …",
       ]);
+    });
+
+    it("lets the page have its find keys first, unless the user binds them", () => {
+      command("browser.find", "Cmd+F");
+      command("browser.findNext", "Cmd+G");
+      command("browser.findPrevious", "Cmd+Shift+G");
+      expect(appKeys().slice(9)).toEqual([
+        "Cmd+F (page first)",
+        "Cmd+G (page first)",
+        "Cmd+Shift+G (page first)",
+      ]);
+
+      getKeybindingRegistry().register(
+        "browser.find",
+        { key: "Cmd+F" },
+        USER_KEYBINDING_WEIGHT,
+      );
+      expect(appKeys()).toContain("Cmd+F");
     });
 
     it("hands over a chord's first key even when its command is off, since the app waits for the second", () => {

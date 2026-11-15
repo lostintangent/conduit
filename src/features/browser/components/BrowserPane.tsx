@@ -28,6 +28,7 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { shareAppKeys } from "./appKeys";
 import { ErrorPage } from "./ErrorPage";
+import { FindBar, type FindBarHandle } from "./FindBar";
 import {
   BrowserToolbar,
   type BrowserToolbarHandle,
@@ -48,6 +49,12 @@ const WEBVIEW_Z_INDEX = {
   /** Normal tab mode: lowest, below design mode overlays (z-30) */
   NORMAL: "1",
 } as const;
+
+/**
+ * Find floats on the body over its page, so it sits just above it. In the
+ * sidebar it's level with the page, and draws over it by coming later.
+ */
+const FIND_BAR_Z_INDEX = { SIDEBAR: 50, NORMAL: 2 } as const;
 
 type BrowserPaneProps = {
   /** Where a new webview starts. Changing it later doesn't navigate the page. */
@@ -149,6 +156,7 @@ export function BrowserPane({
   const [canGoForward, setCanGoForward] = useState<boolean>(false);
 
   const toolbarRef = useRef<BrowserToolbarHandle | null>(null);
+  const findBarRef = useRef<FindBarHandle | null>(null);
   // Cmd+L shows a hidden toolbar until focus leaves it
   const [isToolbarRevealed, setIsToolbarRevealed] = useState(false);
 
@@ -379,6 +387,9 @@ export function BrowserPane({
         if (toolbarRef.current) toolbarRef.current.focusAddressBar();
         else setIsToolbarRevealed(true);
       },
+      find: () => findBarRef.current?.open(),
+      findNext: () => findBarRef.current?.step(true),
+      findPrevious: () => findBarRef.current?.step(false),
     });
   }, [paneId, devToolsFor]);
 
@@ -706,6 +717,22 @@ export function BrowserPane({
           className="absolute inset-0 pointer-events-none"
           aria-hidden
         />
+        {!devToolsFor && (
+          <FindBar
+            ref={findBarRef}
+            page={webviewRef}
+            zIndex={tabId ? FIND_BAR_Z_INDEX.NORMAL : FIND_BAR_Z_INDEX.SIDEBAR}
+            follow={!tabId}
+            hidden={isInPreview}
+            onFocus={focusedOutside}
+            onFocusPage={() => {
+              const webview = webviewRef.current;
+              if (!webview) return;
+              webview.focus();
+              focusedOutside(webview);
+            }}
+          />
+        )}
         {loadFailure && (
           <ErrorPage
             failure={loadFailure}

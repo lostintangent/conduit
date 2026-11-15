@@ -24,6 +24,8 @@ export interface AppKey {
   chord: KeyChord;
   /** Whether it starts a two-part keybinding, like Cmd+K in Cmd+K Cmd+S */
   startsChord: boolean;
+  /** Whether the page may use it first, which hands it over only if not */
+  pageFirst?: boolean;
 }
 
 /** A key the page handed to the app, for its dispatcher to run */
@@ -38,6 +40,13 @@ const CHORD_TIMEOUT_MS = 1000;
 
 let appKeys: AppKey[] = [];
 let chordStartedAt = Number.NEGATIVE_INFINITY;
+
+function handOver(handed: HandedKey) {
+  ipcRenderer.sendToHost("browser:app-key", handed);
+  // The app may take focus, so the page might not see the key come up. The
+  // app's dispatcher forgets held keys after a command too.
+  clearPressedKeys();
+}
 
 export function handAppKeys(): void {
   ipcRenderer.on("browser:app-keys", (_, keys: AppKey[]) => {
@@ -60,21 +69,26 @@ export function handAppKeys(): void {
       const appKey = appKeys.find(({ chord }) => matchesEvent(chord, event));
       if (!isChordPart && !appKey) return;
 
+      const { key, code, ctrlKey, shiftKey, altKey, metaKey } = event;
+      const handed: HandedKey = {
+        init: { key, code, ctrlKey, shiftKey, altKey, metaKey },
+        held: heldKeys(event),
+      };
+      // Once every handler in the page has had it
+      if (!isChordPart && appKey?.pageFirst) {
+        setTimeout(() => {
+          if (!event.defaultPrevented) handOver(handed);
+        });
+        return;
+      }
+
       chordStartedAt =
         !isChordPart && appKey?.startsChord
           ? performance.now()
           : Number.NEGATIVE_INFINITY;
       event.preventDefault();
       event.stopImmediatePropagation();
-      const { key, code, ctrlKey, shiftKey, altKey, metaKey } = event;
-      const handed: HandedKey = {
-        init: { key, code, ctrlKey, shiftKey, altKey, metaKey },
-        held: heldKeys(event),
-      };
-      ipcRenderer.sendToHost("browser:app-key", handed);
-      // The app may take focus, so the page might not see the key come up.
-      // The app's dispatcher forgets held keys after a command too.
-      clearPressedKeys();
+      handOver(handed);
     },
     { capture: true },
   );

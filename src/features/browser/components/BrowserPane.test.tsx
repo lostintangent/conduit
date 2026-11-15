@@ -1,5 +1,13 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 
 const { requestNewPage } = vi.hoisted(() => {
   const listeners = new Set<(payload: unknown) => void>();
@@ -20,6 +28,7 @@ const { requestNewPage } = vi.hoisted(() => {
 });
 
 import { BrowserPane } from "@features/browser/components/BrowserPane";
+import { getBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import { focusPageOnOpen } from "@features/browser/client/webview";
 import { TooltipProvider } from "@/ui/tooltip";
 import { render } from "../../../../tests/renderer/queryRender";
@@ -411,5 +420,64 @@ describe("BrowserPane", () => {
 
     expect(screen.queryByRole("heading")).toBeNull();
     expect(webview.style.visibility).toBe("");
+  });
+
+  it("finds in its page from its commands, and keeps focus where find left it", async () => {
+    webview.tabIndex = 0;
+    // Like Electron, which fires no focus event when the app focuses a page
+    const appFocus = (event: FocusEvent) => {
+      if (event.target === webview) event.stopImmediatePropagation();
+    };
+    window.addEventListener("focus", appFocus, true);
+    onTestFinished(() => window.removeEventListener("focus", appFocus, true));
+    Object.assign(webview, {
+      findInPage: vi.fn(() => 1),
+      stopFindInPage: vi.fn(),
+    });
+    const { rerender } = render(browserPane(false, true));
+    const pane = getBrowserPaneHandlers("browser-1")!;
+
+    act(() => pane.find());
+    const field = screen.getByPlaceholderText("Find in page");
+    fireEvent.change(field, { target: { value: "cat" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    act(() => pane.findPrevious());
+    act(() => pane.findNext());
+    expect((webview as any).findInPage.mock.calls).toEqual([
+      ["cat", { forward: true, findNext: true }],
+      ["cat", { forward: false, findNext: false }],
+      ["cat", { forward: true, findNext: false }],
+    ]);
+
+    // Back in the field after another pane had focus
+    rerender(browserPane(false, false));
+    document.body.focus();
+    rerender(browserPane(false, true));
+    await nextFrames(1);
+    expect(document.activeElement).toBe(field);
+
+    // And in the page once find closes
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(document.activeElement).toBe(webview);
+    rerender(browserPane(false, false));
+    document.body.focus();
+    rerender(browserPane(false, true));
+    await nextFrames(1);
+    expect(document.activeElement).toBe(webview);
+  });
+
+  it("hides find while its tab is in a preview", () => {
+    Object.assign(webview, {
+      findInPage: vi.fn(() => 1),
+      stopFindInPage: vi.fn(),
+    });
+    const { rerender } = render(browserPane(false, true));
+    act(() => getBrowserPaneHandlers("browser-1")!.find());
+
+    rerender(browserPane(true, true));
+    expect(screen.queryByPlaceholderText("Find in page")).toBeNull();
+
+    rerender(browserPane(false, true));
+    screen.getByPlaceholderText("Find in page");
   });
 });

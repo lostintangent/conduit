@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from "vitest";
 
@@ -21,7 +22,7 @@ import { type AppKey, handAppKeys } from "./appKeys";
 function press(
   key: string,
   init: KeyboardEventInit = {},
-  { trusted = true, hold = false } = {},
+  { trusted = true, hold = false, handled = false } = {},
 ) {
   const keyEvent = (type: string) => {
     const event = new KeyboardEvent(type, {
@@ -35,7 +36,10 @@ function press(
   };
   const keydown = keyEvent("keydown");
   let reachedPage = false;
-  const page = () => (reachedPage = true);
+  const page = (event: KeyboardEvent) => {
+    reachedPage = true;
+    if (handled) event.preventDefault();
+  };
   window.addEventListener("keydown", page);
   window.dispatchEvent(keydown);
   window.removeEventListener("keydown", page);
@@ -119,5 +123,22 @@ describe("handAppKeys", () => {
 
     expect(press("t")).toBe(true);
     expect(press("y")).toBe(false);
+  });
+
+  it("hands over a key the page may use first once the page leaves it alone", () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    setAppKeys([
+      { chord: parseChord("Cmd+F"), startsChord: false, pageFirst: true },
+    ]);
+
+    // Like a document editor, which has its own find
+    press("f", {}, { handled: true });
+    expect(press("f")).toBe(true);
+    vi.runAllTimers();
+
+    expect(handed()).toEqual(["f"]);
   });
 });

@@ -5,6 +5,12 @@
 export interface BrowserPaneHandlers {
   /** Focuses the address bar and selects it, showing a hidden toolbar */
   focusAddressBar: () => void;
+  /** Opens find in the page, or focuses it, with its text selected */
+  find: () => void;
+  /** Goes to the next match of what find found, opening find if it's closed */
+  findNext: () => void;
+  /** Goes to the previous match, opening find if it's closed */
+  findPrevious: () => void;
 }
 
 const registeredHandlers = new Map<string, BrowserPaneHandlers>();

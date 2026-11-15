@@ -15,9 +15,9 @@ import type { IpcMessageEvent, WebviewTag } from "electron";
 import type { AppKey, HandedKey } from "../preload/appKeys";
 
 // Keys pages need, which stay with the page unless the user binds the key on
-// its own: select all, copy, cut, paste, undo, redo and find, moving the caret
-// or selecting to the edge of a line or the page, and the search many sites
-// open with Cmd+K
+// its own: select all, copy, cut, paste, undo and redo, moving the caret or
+// selecting to the edge of a line or the page, and the search many sites open
+// with Cmd+K
 const PAGE_KEYS = [
   "Cmd+K",
   "Cmd+A",
@@ -26,12 +26,15 @@ const PAGE_KEYS = [
   "Cmd+V",
   "Cmd+Z",
   "Cmd+Shift+Z",
-  "Cmd+F",
   ...["Left", "Right", "Up", "Down"].flatMap((arrow) => [
     `Cmd+${arrow}`,
     `Cmd+Shift+${arrow}`,
   ]),
 ].map(parseChord);
+
+// Find, which a page with its own, like a document editor, keeps for itself.
+// The page does nothing with them otherwise, so the app gets them then.
+const PAGE_FIRST_KEYS = ["Cmd+F", "Cmd+G", "Cmd+Shift+G"].map(parseChord);
 
 // The keybinding dispatcher switches tabs with these itself
 const TAB_KEYS = Array.from({ length: 9 }, (_, index) =>
@@ -53,13 +56,18 @@ export function getAppKeys(): AppKey[] {
     binding,
     startsChord,
   } of getKeybindingRegistry().getFirstChords()) {
+    const isUserKey = !!binding && isUserKeybinding(binding);
     const isPageKey = PAGE_KEYS.some((key) => isSameChord(key, chord));
-    if (isPageKey && !(binding && isUserKeybinding(binding))) continue;
+    if (isPageKey && !isUserKey) continue;
     if (
       startsChord ||
       (binding && commands.isCommandEnabled(binding.commandId))
     ) {
-      keys.push({ chord, startsChord });
+      const pageFirst =
+        !isUserKey && PAGE_FIRST_KEYS.some((key) => isSameChord(key, chord));
+      keys.push(
+        pageFirst ? { chord, startsChord, pageFirst } : { chord, startsChord },
+      );
     }
   }
   return keys;

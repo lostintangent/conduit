@@ -69,7 +69,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(83);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(86);
 
       // View commands
       expect(
@@ -640,6 +640,9 @@ describe("applicationCommands", () => {
         const focusAddressBar = vi.fn();
         const unregister = registerBrowserPaneHandlers("browser-pane", {
           focusAddressBar,
+          find: vi.fn(),
+          findNext: vi.fn(),
+          findPrevious: vi.fn(),
         });
 
         command.run(mockContext);
@@ -648,6 +651,27 @@ describe("applicationCommands", () => {
         expect(focusAddressBar).toHaveBeenCalled();
         expect(mockContext.setIsUrlDialogOpen).not.toHaveBeenCalled();
       });
+    });
+
+    it.each([
+      [ApplicationCommands.BROWSER_FIND, "find"],
+      [ApplicationCommands.BROWSER_FIND_NEXT, "findNext"],
+      [ApplicationCommands.BROWSER_FIND_PREVIOUS, "findPrevious"],
+    ] as const)("%s finds in the active browser pane's page", (id, handler) => {
+      const pane = {
+        focusAddressBar: vi.fn(),
+        find: vi.fn(),
+        findNext: vi.fn(),
+        findPrevious: vi.fn(),
+      };
+      const unregister = registerBrowserPaneHandlers("browser-pane", pane);
+
+      registeredCommands
+        .get(id)!
+        .run(commandContext({ activePaneId: "browser-pane" }));
+      unregister();
+
+      expect(pane[handler]).toHaveBeenCalledOnce();
     });
   });
 

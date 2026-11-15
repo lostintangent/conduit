@@ -87,6 +87,9 @@ export const ApplicationCommands = {
   BROWSER_RELOAD: "browser.reload",
   BROWSER_GO_BACK: "browser.goBack",
   BROWSER_GO_FORWARD: "browser.goForward",
+  BROWSER_FIND: "browser.find",
+  BROWSER_FIND_NEXT: "browser.findNext",
+  BROWSER_FIND_PREVIOUS: "browser.findPrevious",
 
   // Editor commands
   EDITOR_TOGGLE_SIDEBAR: "editor.toggleSidebar",
