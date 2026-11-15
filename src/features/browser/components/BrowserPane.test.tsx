@@ -128,6 +128,7 @@ describe("BrowserPane", () => {
     webview.tabIndex = 0;
     focusPageOnOpen("browser-1");
     const { unmount } = render(browserPane(false, true));
+    webview.dispatchEvent(new Event("did-attach"));
     await nextFrames(1);
     expect(document.activeElement).toBe(webview);
 
@@ -140,11 +141,8 @@ describe("BrowserPane", () => {
 
   it("holds the keyboard for a page the user just opened until it attaches", async () => {
     webview.tabIndex = 0;
-    Object.assign(webview, {
-      getWebContentsId: () => {
-        throw new Error("Not attached");
-      },
-    });
+    // Its web contents can come a moment before it attaches, which is
+    // too early to give it the keys
     focusPageOnOpen("browser-1");
     render(browserPane(false, true));
     await nextFrames(1);
@@ -166,16 +164,11 @@ describe("BrowserPane", () => {
         (event) => event.stopImmediatePropagation(),
         true,
       );
-      if (!attached) {
-        Object.assign(webview, { getWebContentsId: () => undefined });
-      }
       focusPageOnOpen("browser-1");
       const { rerender } = render(browserPane(false, true));
+      if (attached) webview.dispatchEvent(new Event("did-attach"));
       await nextFrames(1);
-      if (!attached) {
-        Object.assign(webview, { getWebContentsId: () => 7 });
-        webview.dispatchEvent(new Event("did-attach"));
-      }
+      if (!attached) webview.dispatchEvent(new Event("did-attach"));
       expect(document.activeElement).toBe(webview);
 
       for (let i = 0; i < 2; i++) {

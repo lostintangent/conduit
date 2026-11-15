@@ -66,7 +66,13 @@ type BrowserPaneProps = {
   onHideToolbar: () => void;
 };
 
-/** The page's web contents, which a webview only has once its page attaches */
+/**
+ * Webviews whose page has attached, which only then takes the keys. Its web
+ * contents can come a moment before that, so they can't tell.
+ */
+const attachedWebviews = new WeakSet<WebviewTag>();
+
+/** The page's web contents, which a webview only has once Electron creates it */
 function getWebContentsId(webview: WebviewTag): number | undefined {
   try {
     return webview.getWebContentsId();
@@ -314,7 +320,7 @@ export function BrowserPane({
     // lets go of them when the window takes focus back first
     paneRef.current?.focus({ preventScroll: true });
     if (webview && takePageFocus(paneId)) {
-      if (getWebContentsId(webview) === undefined) {
+      if (!attachedWebviews.has(webview)) {
         isPageFocusPendingRef.current = true;
         return;
       }
@@ -484,6 +490,7 @@ export function BrowserPane({
     // A page the user just opened takes the keys once it can, unless the
     // user moved focus since
     const handleDidAttach = () => {
+      attachedWebviews.add(webview);
       if (
         isPageFocusPendingRef.current &&
         document.activeElement === paneRef.current
