@@ -421,6 +421,17 @@ export const BROWSER_AUTOMATION_COMMANDS: BrowserAutomationCommandDefinition[] =
     },
   ];
 
+/** A page's download, which saves straight to Downloads. */
+export type Download = {
+  id: number;
+  /** What it's saved as, like "report 2.csv" when Downloads has a report.csv */
+  name: string;
+  path: string;
+  state: "progressing" | "completed" | "failed" | "cancelled";
+  /** How much has arrived, from 0 to 1, when the site said how big it is */
+  progress?: number;
+};
+
 declare module "@shared/rpc" {
   interface Events {
     browser: {
@@ -431,6 +442,8 @@ declare module "@shared/rpc" {
         /** Whether the page stays focused, as after a Cmd-click */
         background: boolean;
       };
+      /** A download started, made progress or finished. */
+      downloadUpdated: Download;
     };
   }
 }

@@ -13,6 +13,7 @@ import {
 } from "@features/workbench/components/layout/quick/QuickPaneDialog";
 import { GlobalEditorContainer } from "@features/editor/components/GlobalEditorContainer";
 import { normalizeUrl } from "@features/browser/client/url";
+import { useDownloadToasts } from "@features/browser/components/useDownloadToasts";
 import {
   disposeSession,
   updateTerminalThemes,
@@ -178,6 +179,7 @@ export function App() {
   // TODO: Once we ship a web variant of Conduit, this should
   // be conditioned on whether we're running in Electron or not.
   useAutoUpdater();
+  useDownloadToasts();
 
   // Initialize command system and wire up keyboard dispatch
   const commandSystem = useCommandSystem({

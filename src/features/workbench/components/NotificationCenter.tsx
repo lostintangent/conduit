@@ -9,11 +9,11 @@ import { useSelector } from "@tanstack/react-store";
 function notificationStyles(kind: Notification["kind"]) {
   switch (kind) {
     case "success":
-      return "border-l-4 border-l-emerald-400 bg-emerald-500/20 text-emerald-50";
+      return "border-l-4 border-l-emerald-400 bg-emerald-500/20 text-emerald-50 light:text-emerald-950";
     case "error":
-      return "border-l-4 border-l-red-500 bg-red-500/15 text-red-100";
+      return "border-l-4 border-l-red-500 bg-red-500/15 text-red-100 light:text-red-950";
     default:
-      return "border-l-4 border-l-sky-400 bg-popover bg-opacity-90 text-white";
+      return "border-l-4 border-l-sky-400 bg-popover bg-opacity-90 text-white light:text-popover-foreground";
   }
 }
 
@@ -29,7 +29,7 @@ export function NotificationCenter() {
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          className={`pointer-events-auto overflow-hidden rounded-lg border border-white/10 px-3 py-2 shadow-lg backdrop-blur ${notificationStyles(
+          className={`pointer-events-auto overflow-hidden rounded-lg border border-white/10 light:border-y-black/10 light:border-r-black/10 px-3 py-2 shadow-lg backdrop-blur ${notificationStyles(
             notification.kind,
           )}`}
         >
@@ -40,7 +40,7 @@ export function NotificationCenter() {
               </p>
 
               {notification.details && (
-                <p className="mt-1 text-xs leading-snug text-white/80">
+                <p className="mt-1 text-xs leading-snug text-white/80 light:text-foreground/70">
                   {notification.details}
                 </p>
               )}
@@ -66,7 +66,7 @@ export function NotificationCenter() {
               size="icon-sm"
               onClick={() => dismissNotification(notification.id)}
               aria-label="Close notification"
-              className="text-white/70 hover:text-white hover:bg-white/10"
+              className="text-white/70 hover:text-white hover:bg-white/10 light:text-foreground/60 light:hover:text-foreground light:hover:bg-black/5"
             >
               <X className="h-4 w-4" strokeWidth={2} />
             </Button>

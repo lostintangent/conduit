@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   app,
   BrowserWindow,
@@ -7,6 +9,7 @@ import {
   type WebContents,
 } from "electron";
 import { emitter, getAppWindow } from "../../../main/events";
+import type { Download } from "../model";
 
 const emit = emitter("browser");
 
@@ -122,9 +125,80 @@ function limitPermissions(browserSession: Session) {
   );
 }
 
+/**
+ * Saves a page's downloads straight to Downloads, as browsers do, and tells
+ * Conduit's window how each one is going.
+ */
+function saveDownloads(browserSession: Session) {
+  // Names taken by downloads still arriving, whose files don't exist yet
+  const arriving = new Set<string>();
+  let nextId = 0;
+
+  browserSession.on("will-download", (_event, item) => {
+    const savePath = availablePath(
+      app.getPath("downloads"),
+      item.getFilename(),
+      arriving,
+    );
+    arriving.add(savePath);
+    item.setSavePath(savePath);
+
+    const id = nextId++;
+    const update = (state: Download["state"]) => {
+      const total = item.getTotalBytes();
+      emit("downloadUpdated", {
+        id,
+        name: path.basename(savePath),
+        path: savePath,
+        state,
+        progress: total > 0 ? item.getReceivedBytes() / total : undefined,
+      });
+    };
+    let finished = false;
+    const finish = (state: Download["state"]) => {
+      if (finished) return;
+      finished = true;
+      arriving.delete(savePath);
+      update(state);
+    };
+
+    update("progressing");
+    item.on("updated", (_event, state) => {
+      if (state === "progressing") update(state);
+      else if (state === "interrupted") {
+        // Chromium has stopped retrying, and Conduit can't resume, so
+        // fail and discard the partial file rather than wait for "done"
+        finish("failed");
+        item.cancel();
+      }
+    });
+    item.once("done", (_event, state) => {
+      finish(state === "interrupted" ? "failed" : state);
+    });
+  });
+}
+
+/**
+ * Where to save a file with this name in the folder, numbering it like
+ * "report 2.csv" when the name is taken.
+ */
+function availablePath(folder: string, name: string, taken: Set<string>) {
+  const extension = /(?:\.tar)?\.[^.]+$/.exec(name.slice(1))?.[0] ?? "";
+  const stem = name.slice(0, name.length - extension.length);
+  for (let copy = 1; ; copy++) {
+    const candidate = path.join(
+      folder,
+      copy === 1 ? name : `${stem} ${copy}${extension}`,
+    );
+    if (!taken.has(candidate) && !fs.existsSync(candidate)) return candidate;
+  }
+}
+
 export default function startBrowserSession() {
   identifyAsChrome();
-  limitPermissions(session.fromPartition(PARTITION));
+  const browserSession = session.fromPartition(PARTITION);
+  limitPermissions(browserSession);
+  saveDownloads(browserSession);
 
   // A page's popups take its session, so they browse in this one too
   getAppWindow()?.webContents.on(
