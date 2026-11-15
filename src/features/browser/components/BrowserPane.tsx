@@ -126,9 +126,8 @@ export function BrowserPane({
   const onTitleChangeRef = useRef(onTitleChange);
   onTitleChangeRef.current = onTitleChange;
   const showContextMenu = useEffectEvent(onContextMenu);
-  const reportAttach = useEffectEvent((webview: WebviewTag) => {
-    const webContentsId = getWebContentsId(webview);
-    if (webContentsId !== undefined) onAttach?.(webContentsId);
+  const reportAttach = useEffectEvent((webContentsId: number) => {
+    onAttach?.(webContentsId);
   });
   // Without anywhere to open a new tab, the page loads it in place
   const openPage = useEffectEvent((url: string, background: boolean) => {
@@ -550,11 +549,24 @@ export function BrowserPane({
       ]);
     };
 
+    // Electron dispatches did-attach and replies with the page's id
+    // separately, so the id can come a moment after it
+    let idTimer: ReturnType<typeof setTimeout> | undefined;
+    const reportId = (triesLeft = 100) => {
+      const webContentsId = getWebContentsId(webview);
+      if (webContentsId !== undefined) reportAttach(webContentsId);
+      else if (triesLeft > 0) {
+        idTimer = setTimeout(reportId, 20, triesLeft - 1);
+      }
+    };
+    // Like when a remount cut short the wait for its id
+    if (attachedWebviews.has(webview)) reportId();
+
     // A page the user just opened takes the keys once it can, unless the
     // user moved focus since
     const handleDidAttach = () => {
       attachedWebviews.add(webview);
-      reportAttach(webview);
+      reportId();
       if (
         isPageFocusPendingRef.current &&
         document.activeElement === paneRef.current
@@ -589,6 +601,7 @@ export function BrowserPane({
     const stopSharingAppKeys = shareAppKeys(webview);
 
     return () => {
+      clearTimeout(idTimer);
       stopSharingAppKeys();
       stopOpeningPages();
 

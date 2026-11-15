@@ -1,4 +1,4 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { requestNewPage } = vi.hoisted(() => {
@@ -58,6 +58,26 @@ function browserPane(
     </TooltipProvider>
   );
 }
+
+const attachingPane = (onAttach: (webContentsId: number) => void) => (
+  <TooltipProvider>
+    <BrowserPane
+      url="https://example.com"
+      paneId="browser-1"
+      tabId="tab-1"
+      onAttach={onAttach}
+      onUrlChange={vi.fn()}
+      onTitleChange={vi.fn()}
+      onContextMenu={vi.fn()}
+      onHover={vi.fn()}
+      disableInteraction={false}
+      isInPreview={false}
+      isDevToolsOpen={false}
+      onToggleDevTools={vi.fn()}
+      onHideToolbar={vi.fn()}
+    />
+  </TooltipProvider>
+);
 
 describe("BrowserPane", () => {
   let webview: HTMLElement;
@@ -184,6 +204,43 @@ describe("BrowserPane", () => {
       }
     });
   }
+
+  it("tells its pane its page's id when the id comes after the page attaches", async () => {
+    // Electron dispatches did-attach and replies with the id separately
+    let id: number | undefined;
+    Object.assign(webview, {
+      getWebContentsId: () => {
+        if (id === undefined) throw new Error("The WebView must be attached");
+        return id;
+      },
+    });
+    const onAttach = vi.fn();
+    render(attachingPane(onAttach));
+    webview.dispatchEvent(new Event("did-attach"));
+    expect(onAttach).not.toHaveBeenCalled();
+
+    id = 7;
+    await waitFor(() => expect(onAttach).toHaveBeenCalled());
+    expect(onAttach.mock.calls).toEqual([[7]]);
+  });
+
+  it("tells its pane its page's id on return when it left before the id came", () => {
+    let id: number | undefined;
+    Object.assign(webview, {
+      getWebContentsId: () => {
+        if (id === undefined) throw new Error("The WebView must be attached");
+        return id;
+      },
+    });
+    const onAttach = vi.fn();
+    const { unmount } = render(attachingPane(onAttach));
+    webview.dispatchEvent(new Event("did-attach"));
+    unmount();
+
+    id = 7;
+    render(attachingPane(onAttach));
+    expect(onAttach.mock.calls).toEqual([[7]]);
+  });
 
   it("gives its page's right-click to the latest menu handler", () => {
     const first = vi.fn();
