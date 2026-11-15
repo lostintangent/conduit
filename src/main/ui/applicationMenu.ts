@@ -3,7 +3,7 @@ import type { Workspace } from "@features/workspaces/model";
 import { getUpdateStatus } from "@features/updates/main/startup";
 import type { UpdateStatus } from "@features/updates/model";
 import { getWorkspaces } from "@features/workspaces/main/service";
-import { emitter } from "../events";
+import { emitter, getAppWindow } from "../events";
 
 function getUpdateMenuLabel(status: UpdateStatus) {
   switch (status) {
@@ -89,8 +89,10 @@ export async function refreshApplicationMenu() {
       label: "View",
       submenu: [
         // A reload closes every shell, which would lose running agents, so
-        // only development builds offer it.
-        ...(app.isPackaged ? [] : [{ role: "reload" }]),
+        // only development builds offer it. It leaves ⌘R to browser panes.
+        ...(app.isPackaged
+          ? []
+          : [{ label: "Reload", click: () => getAppWindow()?.reload() }]),
         { role: "toggleDevTools" },
         { type: "separator" },
         { role: "resetZoom" },

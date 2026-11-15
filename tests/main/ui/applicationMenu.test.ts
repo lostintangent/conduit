@@ -2,6 +2,7 @@ import { Menu } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const send = vi.hoisted(() => vi.fn());
+const reload = vi.hoisted(() => vi.fn());
 const workspace = vi.hoisted(() => ({ name: "conduit", tabs: [] }));
 
 vi.mock("electron", () => ({
@@ -9,7 +10,7 @@ vi.mock("electron", () => ({
   autoUpdater: {},
   BrowserWindow: {
     getAllWindows: () => [
-      { webContents: { send }, getParentWindow: () => null },
+      { webContents: { send }, getParentWindow: () => null, reload },
     ],
   },
   Menu: {
@@ -26,15 +27,24 @@ vi.mock("../../../src/features/updates/main/startup", () => ({
 
 import { refreshApplicationMenu } from "../../../src/main/ui/applicationMenu";
 
-type Item = { label?: string; submenu?: Item[]; click?: () => void };
+type Item = {
+  label?: string;
+  role?: string;
+  submenu?: Item[];
+  click?: () => void;
+};
 
-async function fileMenuItem(label: string) {
+async function menuItems(menuLabel: string) {
   await refreshApplicationMenu();
   const menu = vi.mocked(Menu.setApplicationMenu).mock.lastCall?.[0];
-  const file = (menu as unknown as Item[]).find(
-    ({ label }) => label === "File",
-  );
-  return file?.submenu?.find((item) => item.label === label);
+  const items = (menu as unknown as Item[]).find(
+    ({ label }) => label === menuLabel,
+  )?.submenu;
+  return items ?? [];
+}
+
+async function fileMenuItem(label: string) {
+  return (await menuItems("File")).find((item) => item.label === label);
 }
 
 // The page hears these through `window.conduit.<feature>.on`
@@ -53,5 +63,16 @@ describe("application menu", () => {
     // By name, since the menu is only rebuilt when the names change, so the
     // workspace it was built with can be out of date
     expect(send).toHaveBeenCalledWith("workspaces:openRequested", "conduit");
+  });
+
+  // The reload role brings ⌘R with it, which would beat a browser pane's
+  // Reload Page
+  it("reloads Conduit's window in development builds without taking ⌘R", async () => {
+    const view = await menuItems("View");
+    expect(view.some(({ role }) => role === "reload")).toBe(false);
+
+    view.find(({ label }) => label === "Reload")?.click?.();
+
+    expect(reload).toHaveBeenCalledOnce();
   });
 });
