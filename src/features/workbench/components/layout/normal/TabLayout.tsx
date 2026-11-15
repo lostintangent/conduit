@@ -2,6 +2,7 @@ import { useSettings } from "@features/settings/client/queries";
 import { Activity } from "react";
 import { PaneControlButtons } from "@features/workbench/components/layout/design/PaneControlButtons";
 import { FocusModeIndicator } from "@features/workbench/components/layout/focus/FocusModeIndicator";
+import { CollapsedPaneBar } from "@features/workbench/components/layout/normal/CollapsedPaneBar";
 import { IntersectionHandles } from "@features/workbench/components/layout/normal/IntersectionHandles";
 import { PaneHighlight } from "@features/workbench/components/layout/normal/PaneHighlight";
 import { ResizeHandle } from "@features/workbench/components/layout/normal/ResizeHandle";
@@ -46,7 +47,6 @@ import {
 } from "@features/workbench/client/layout";
 import { getUnifiedSandboxForTab } from "@features/agents/client/sandbox";
 import { shallow, useSelector } from "@tanstack/react-store";
-import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -75,6 +75,12 @@ type BoundaryInfo = {
 type TabRenderContext = {
   paneCount: number;
   isOnlyTab: boolean;
+};
+
+// Where a node sits in the split that contains it
+type SplitPlacement = {
+  direction: SplitDirection;
+  isLastChild: boolean;
 };
 
 type IntersectionHandleConfig = {
@@ -368,7 +374,7 @@ export function TabLayout({
     tab: Tab,
     hasUnifiedSandbox: boolean,
     ctx: TabRenderContext,
-    parentDirection?: SplitDirection,
+    placement?: SplitPlacement,
   ): React.ReactNode => {
     const pane = tab.panes[node.paneId];
     if (!pane) {
@@ -404,8 +410,7 @@ export function TabLayout({
     // If the pane is collapsed, then we need to render it as a
     // horizontal/vertical bar with an expand button. But if we're
     // in focus mode, then we render the pane normally (not collapsed).
-    if (isCollapsed && !isInFocusMode) {
-      const isHorizontalBar = parentDirection === "column";
+    if (isCollapsed && placement && !isInFocusMode) {
       return (
         <div
           data-node-id={node.id}
@@ -415,16 +420,12 @@ export function TabLayout({
           )}
           onContextMenu={onPaneContextMenu}
         >
-          <button
-            className="flex items-center w-full h-full justify-center bg-elevated hover:bg-elevated/80 transition-colors"
-            onClick={() => setPaneCollapsed(tab.id, pane.id, false)}
-          >
-            {isHorizontalBar ? (
-              <UnfoldVertical className="w-4 h-4" />
-            ) : (
-              <UnfoldHorizontal className="w-4 h-4" />
-            )}
-          </button>
+          <CollapsedPaneBar
+            pane={pane}
+            splitDirection={placement.direction}
+            isLastChild={placement.isLastChild}
+            onExpand={() => setPaneCollapsed(tab.id, pane.id, false)}
+          />
         </div>
       );
     }
@@ -569,7 +570,7 @@ export function TabLayout({
       tab: Tab,
       hasUnifiedSandbox: boolean,
       ctx: TabRenderContext,
-      parentDirection: SplitDirection,
+      placement: SplitPlacement,
     ) => React.ReactNode,
     hasUnifiedSandbox: boolean,
     ctx: TabRenderContext,
@@ -715,7 +716,10 @@ export function TabLayout({
                 </>
               )}
 
-              {renderChild(child, tab, hasUnifiedSandbox, ctx, node.direction)}
+              {renderChild(child, tab, hasUnifiedSandbox, ctx, {
+                direction: node.direction,
+                isLastChild: index === node.children.length - 1,
+              })}
             </div>
           );
         })}
@@ -730,10 +734,10 @@ export function TabLayout({
     tab: Tab,
     hasUnifiedSandbox: boolean,
     ctx: TabRenderContext,
-    parentDirection?: SplitDirection,
+    placement?: SplitPlacement,
   ): React.ReactNode =>
     node.type === "pane"
-      ? renderPaneNode(node, tab, hasUnifiedSandbox, ctx, parentDirection)
+      ? renderPaneNode(node, tab, hasUnifiedSandbox, ctx, placement)
       : renderSplitNode(node, tab, renderLayout, hasUnifiedSandbox, ctx);
 
   const isFocusModeActive = applicationMode === "focus";

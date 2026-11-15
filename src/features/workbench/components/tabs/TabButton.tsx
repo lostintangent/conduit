@@ -245,12 +245,25 @@ export function TabButton({
     return button;
   }
 
+  return <PaneTooltip tooltip={tab.tooltip}>{button}</PaneTooltip>;
+}
+
+/** The details of a pane, from `describePane`, shown on hover. */
+export function PaneTooltip({
+  tooltip,
+  side,
+  align,
+  children,
+}: Pick<React.ComponentProps<typeof TooltipContent>, "side" | "align"> & {
+  tooltip: Record<string, string>;
+  children: React.ReactNode;
+}) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side={side} align={align}>
         <div className="flex flex-col gap-1">
-          {Object.entries(tab.tooltip).map(([key, value]) => (
+          {Object.entries(tooltip).map(([key, value]) => (
             <div key={key}>
               {key}: {value}
             </div>

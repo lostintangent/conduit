@@ -12,6 +12,65 @@ import { createAtom } from "@/createAtom";
 import { getSettings } from "@features/settings/client/queries";
 import { shallow } from "@tanstack/react-store";
 
+export type PaneLabel = {
+  label: string;
+  tooltip: Record<string, string>;
+};
+
+/**
+ * How a pane is labeled wherever it's shown, e.g. on its tab while it's the
+ * tab's active pane, or on its bar while it's collapsed.
+ */
+export function describePane(pane: Pane, homeDirectory: string): PaneLabel {
+  const formatPathForLabel = (pathValue: string | null | undefined) =>
+    pathValue ? formatHomePath(pathValue, homeDirectory) : null;
+
+  const tooltip: Record<string, string> = {};
+
+  switch (pane.type) {
+    case "terminal": {
+      if (pane.cwd) {
+        tooltip["CWD"] = pane.cwd;
+      }
+      if (pane.title) {
+        tooltip["Command"] = pane.title;
+      }
+
+      return {
+        label: formatPathForLabel(pane.cwd) ?? pane.title ?? "Shell",
+        tooltip,
+      };
+    }
+
+    case "browser": {
+      if (pane.title) {
+        tooltip["Title"] = pane.title;
+      }
+      tooltip["URL"] = pane.url;
+
+      return { label: pane.title?.trim() ?? pane.url ?? "Browser", tooltip };
+    }
+
+    case "editor": {
+      const editorPath = pane.file ?? pane.cwd ?? null;
+
+      tooltip["CWD"] = pane.cwd;
+      if (pane.file) {
+        tooltip["File"] = pane.file;
+      }
+
+      return {
+        label: formatPathForLabel(editorPath) ?? editorPath ?? "Editor",
+        tooltip,
+      };
+    }
+
+    case "canvas": {
+      return { label: "Canvas", tooltip };
+    }
+  }
+}
+
 export type TabDescriptor = {
   id: string;
   // Missing only for a tab without panes, which shouldn't exist.
@@ -53,68 +112,18 @@ export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
   // Not tracked, since the home directory doesn't change while the app runs
   const { homeDirectory } = getSettings();
 
-  const formatPathForLabel = (pathValue: string | null | undefined) =>
-    pathValue ? formatHomePath(pathValue, homeDirectory) : null;
-
   const descriptors = tabs.map((tab, index) => {
     const activePane = resolveActivePane(tab);
-
-    let label: string | undefined;
-    const tooltip: Record<string, string> = {};
-
-    switch (activePane?.type) {
-      case "terminal": {
-        label =
-          formatPathForLabel(activePane.cwd) ?? activePane.title ?? "Shell";
-
-        if (activePane.cwd) {
-          tooltip["CWD"] = activePane.cwd;
-        }
-        if (activePane.title) {
-          tooltip["Command"] = activePane.title;
-        }
-
-        break;
-      }
-
-      case "browser": {
-        const title = activePane.title?.trim();
-        label = title ?? activePane.url ?? "Browser";
-
-        if (activePane.title) {
-          tooltip["Title"] = activePane.title;
-        }
-        tooltip["URL"] = activePane.url;
-
-        break;
-      }
-
-      case "editor": {
-        const editorPath = activePane.file ?? activePane.cwd ?? null;
-        label = formatPathForLabel(editorPath) ?? editorPath ?? "Editor";
-
-        tooltip["CWD"] = activePane.cwd;
-        if (activePane.file) {
-          tooltip["File"] = activePane.file;
-        }
-
-        break;
-      }
-
-      case "canvas": {
-        label = "Canvas";
-        break;
-      }
-    }
+    const paneLabel = activePane && describePane(activePane, homeDirectory);
 
     const name = tab.name?.trim();
     const isActive = tab.id === activeTabId;
     const progress = tabProgress.get(tab.id);
     const descriptor: TabDescriptor = {
       id: tab.id,
-      label: name || label,
+      label: name || paneLabel?.label,
       name,
-      tooltip,
+      tooltip: paneLabel?.tooltip ?? {},
       isActive,
       locked: tab.locked,
       tabState: tabStates.get(tab.id) ?? "idle",

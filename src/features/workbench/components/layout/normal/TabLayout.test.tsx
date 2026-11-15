@@ -50,7 +50,8 @@ import {
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
-import type { Tab } from "@features/workbench/model";
+import type { Pane, SplitDirection, Tab } from "@features/workbench/model";
+import { TooltipProvider } from "@/ui/tooltip";
 import { PANE_SPLIT_TYPES } from "@shared/cli/types";
 import type { QueryClient } from "@tanstack/react-query";
 import { enableMapSet } from "immer";
@@ -84,14 +85,16 @@ beforeEach(() => {
 
 function tabLayout(preview?: React.ReactNode) {
   return (
-    <TabContentPortalProvider>
-      <TabLayout
-        handleContextMenu={vi.fn()}
-        handleResizeStart={vi.fn()}
-        resizingNode={null}
-      />
-      {preview}
-    </TabContentPortalProvider>
+    <TooltipProvider>
+      <TabContentPortalProvider>
+        <TabLayout
+          handleContextMenu={vi.fn()}
+          handleResizeStart={vi.fn()}
+          resizingNode={null}
+        />
+        {preview}
+      </TabContentPortalProvider>
+    </TooltipProvider>
   );
 }
 
@@ -386,4 +389,64 @@ describe("TabLayout pane errors", () => {
     expect(Object.keys(tabsAtom.get()[0].panes)).toEqual(["left"]);
     expect(terminalPanes()).toEqual(["left"]);
   });
+});
+
+describe("TabLayout collapsed panes", () => {
+  const collapsedPane = (cwd: string): Pane => ({
+    id: "collapsed",
+    type: "terminal",
+    sessionId: "session-2",
+    cwd,
+    title: "zsh",
+  });
+  const collapsedTab = (direction: SplitDirection): Tab => ({
+    ...tab,
+    panes: {
+      open: { ...tab.panes.term, id: "open" },
+      collapsed: collapsedPane("/Users/tester/proj"),
+    },
+    layout: {
+      id: "split",
+      type: "split",
+      direction,
+      children: [
+        { id: "node-open", type: "pane", paneId: "open" },
+        {
+          id: "node-collapsed",
+          type: "pane",
+          paneId: "collapsed",
+          collapsed: true,
+        },
+      ],
+    },
+    activePaneId: "open",
+  });
+
+  it.each(["row", "column"] as const)(
+    "labels a collapsed pane in a %s split the way its tab would, as it changes",
+    async (direction) => {
+      tabsAtom.set([collapsedTab(direction)]);
+      activeTabIdAtom.set("tab-1");
+      renderTabLayout();
+
+      expect(screen.getByRole("button", { name: "~/proj" })).not.toBeNull();
+
+      act(() =>
+        tabsAtom.set(
+          tabsAtom.get().map((candidate) => ({
+            ...candidate,
+            panes: {
+              ...candidate.panes,
+              collapsed: collapsedPane("/Users/tester/proj/src"),
+            },
+          })),
+        ),
+      );
+      fireEvent.focus(screen.getByRole("button", { name: "~/proj/src" }));
+
+      expect((await screen.findByRole("tooltip")).textContent).toBe(
+        "CWD: /Users/tester/proj/srcCommand: zsh",
+      );
+    },
+  );
 });
