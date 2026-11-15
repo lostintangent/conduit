@@ -50,6 +50,14 @@ describe("browser automation from the CLI", () => {
           `${page}<script>requestAnimationFrame(() => requestAnimationFrame(() => fetch("/painted")))</script>`,
         );
         stalled.push(response);
+      } else if (request.url === "/dark-ready") {
+        // A page that reads well in dark mode too, and says so
+        response.end(
+          page.replace(
+            "<title>",
+            '<meta name="color-scheme" content="light dark"><title>',
+          ),
+        );
       } else {
         response.end(page);
       }
@@ -901,6 +909,69 @@ describe("browser automation from the CLI", () => {
         app.page.off("dialog", dismiss);
       }
     });
+  });
+
+  it("shows a page with no background on white in the dark theme, as browsers do, and a page made for dark on dark", async () => {
+    await app.page
+      .locator("html[data-theme=dark]")
+      .waitFor({ state: "attached" });
+    await terminal.locator.click();
+    const before = await conduit<Pane[]>("pane-list -t browser");
+    expect(await terminal.run("conduit split right -t browser")).toBe(0);
+    const [pane] = (await conduit<Pane[]>("pane-list -t browser")).filter(
+      ({ id }) => !before.some((pane) => pane.id === id),
+    );
+    const webview = app.page.locator(`webview[id="${pane.id}"]`);
+
+    /** Loads the address, and returns the color below the page's content */
+    async function color(address: string) {
+      expect(
+        await terminal.run(`conduit browser-navigate -p ${pane.id} ${address}`),
+      ).toBe(0);
+      await until(
+        () =>
+          webview.evaluate(
+            (webview: Electron.WebviewTag, address) =>
+              webview.getURL() === address && !webview.isLoading(),
+            address,
+          ),
+        `${address} to load`,
+      );
+      // Playwright makes every page prefer light, unlike Conduit's dark theme
+      for (const context of app.page.context().browser()!.contexts()) {
+        for (const page of context.pages()) {
+          if (page.url() === address)
+            await page.emulateMedia({ colorScheme: null });
+        }
+      }
+      await webview.evaluate((webview: Electron.WebviewTag) =>
+        webview.executeJavaScript(
+          "new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)))",
+        ),
+      );
+      const png = await webview.screenshot();
+      return app.page.evaluate(async (base64) => {
+        const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+        const image = await createImageBitmap(new Blob([bytes]));
+        const canvas = new OffscreenCanvas(image.width, image.height);
+        const context = canvas.getContext("2d")!;
+        context.drawImage(image, 0, 0);
+        const { data } = context.getImageData(
+          image.width / 2,
+          image.height * 0.9,
+          1,
+          1,
+        );
+        return `rgb(${data[0]}, ${data[1]}, ${data[2]})`;
+      }, png.toString("base64"));
+    }
+
+    try {
+      expect(await color(url)).toBe("rgb(255, 255, 255)");
+      expect(await color(`${url}dark-ready`)).not.toBe("rgb(255, 255, 255)");
+    } finally {
+      await terminal.run(`conduit pane-close -p ${pane.id}`);
+    }
   });
 
   it("had no uncaught errors or failed loads", () => {

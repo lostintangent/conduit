@@ -239,6 +239,9 @@ export default async function startBrowserSession() {
   // A page's popups take its session, so they browse in this one too
   appWindow?.on("will-attach-webview", (_event, webPreferences) => {
     webPreferences.partition = PARTITION;
+    // Like a browser, a page with no background shows white, or dark when it
+    // says it reads well in dark. A webview shows what's behind it otherwise.
+    webPreferences.transparent = false;
   });
   if (appWindow) restorePages(appWindow);
 
