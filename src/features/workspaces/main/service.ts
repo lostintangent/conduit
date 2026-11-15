@@ -7,6 +7,7 @@ import type { Workspace, WorkspaceState } from "../model";
 import { captureTerminalCommand } from "@features/terminal/main/command";
 import { getAllTerminals } from "@features/terminal/main/store";
 import type { TerminalInstance } from "@features/terminal/main/types";
+import { writeJsonFile } from "../../../main/atomicWrite";
 import { refreshApplicationMenu } from "../../../main/ui/applicationMenu";
 import { convertWorkspaceToTemplate } from "./template/export";
 import { convertTemplateToWorkspace } from "./template/import";
@@ -19,10 +20,10 @@ const WORKSPACE_FILE_FILTER = {
 
 const service = {
   getState: () => workspaceState,
-  saveWorkspace: refreshingMenu(saveWorkspace),
-  deleteWorkspace: refreshingMenu(deleteWorkspace),
-  renameWorkspace: refreshingMenu(renameWorkspace),
-  saveLastWorkspace,
+  saveWorkspace: refreshingMenu(inOrder(saveWorkspace)),
+  deleteWorkspace: refreshingMenu(inOrder(deleteWorkspace)),
+  renameWorkspace: refreshingMenu(inOrder(renameWorkspace)),
+  saveLastWorkspace: inOrder(saveLastWorkspace),
   importFromFile: importWorkspace,
   exportToFile: exportWorkspaceToFile,
 };
@@ -46,6 +47,19 @@ function refreshingMenu<Args extends unknown[], Result>(
   };
 }
 
+// Changes run one at a time, in the order they were asked for, so a save
+// that's slow to capture its terminals can't land after a newer one.
+let changes: Promise<unknown> = Promise.resolve();
+function inOrder<Args extends unknown[], Result>(
+  change: (...args: Args) => Promise<Result>,
+) {
+  return (...args: Args): Promise<Result> => {
+    const result = changes.then(() => change(...args));
+    changes = result.catch(() => undefined);
+    return result;
+  };
+}
+
 let workspaceState: WorkspaceState = { workspaces: [] };
 // Without a defaultPath, open dialogs start in Downloads (Electron 43+)
 let lastImportDirectory: string | undefined;
@@ -56,21 +70,45 @@ const workspacesFilePath = () =>
 /* Load/save workspace state from/to disk */
 
 export async function loadWorkspaceState(): Promise<void> {
+  const filePath = workspacesFilePath();
+  let data: string;
   try {
-    const data = await fs.readFile(workspacesFilePath(), "utf-8");
-    workspaceState = JSON.parse(data) as WorkspaceState;
-  } catch {
-    // The workspace state is already initialized to an empty state,
-    // so if the file doesn't exist or fails to read, we can safely ignore the error.
+    data = await fs.readFile(filePath, "utf-8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error("[Workspaces] Couldn't read workspaces.json:", error);
+    }
+    return;
+  }
+
+  try {
+    workspaceState = parseWorkspaceState(data);
+  } catch (error) {
+    // The next save would replace it, and every workspace in it with it
+    const aside = `${filePath}.corrupt-${Date.now()}`;
+    await fs.rename(filePath, aside);
+    workspaceState = { workspaces: [] };
+    console.error(
+      `[Workspaces] Moved workspaces.json to ${path.basename(aside)}, since ${(error as Error).message}`,
+    );
   }
 }
 
+function parseWorkspaceState(data: string): WorkspaceState {
+  let state: unknown;
+  try {
+    state = JSON.parse(data);
+  } catch (error) {
+    throw new Error(`it doesn't parse: ${(error as Error).message}`);
+  }
+  if (!Array.isArray((state as WorkspaceState | null)?.workspaces)) {
+    throw new Error("it doesn't hold a list of workspaces");
+  }
+  return state as WorkspaceState;
+}
+
 async function saveWorkspaceState(): Promise<void> {
-  return fs.writeFile(
-    workspacesFilePath(),
-    JSON.stringify(workspaceState, null, 2),
-    "utf-8",
-  );
+  return writeJsonFile(workspacesFilePath(), workspaceState);
 }
 
 type TabPane = Tab["panes"][string];
@@ -248,7 +286,7 @@ async function importWorkspace(): Promise<Workspace | null> {
     }
 
     const workspace = convertTemplateToWorkspace(template, fileDir);
-    await addWorkspaceToState(workspace);
+    await inOrder(addWorkspaceToState)(workspace);
 
     return workspace;
   } catch (error) {
