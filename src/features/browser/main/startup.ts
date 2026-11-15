@@ -82,7 +82,21 @@ function popupOptions(
   };
 }
 
+/**
+ * Sites see Chrome rather than Conduit on Electron, which some, like Google's
+ * sign-in, refuse to work with. It's the app's fallback rather than the
+ * session's, since popups don't take the session's.
+ */
+function identifyAsChrome() {
+  app.userAgentFallback = app.userAgentFallback.replace(
+    / (Conduit|Electron)\/\S+/g,
+    "",
+  );
+}
+
 export default function startBrowserSession() {
+  identifyAsChrome();
+
   // Startups run once Conduit's window exists, so every web contents created
   // from here on is a page or one of its popups
   app.on("web-contents-created", (_event, contents) => {

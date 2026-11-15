@@ -42,10 +42,12 @@ describe("a page's new tabs and popups", () => {
   let app: Conduit;
   let terminal: Terminal;
   const requested: string[] = [];
+  const userAgents = new Set<string>();
 
   beforeAll(async () => {
     server = http.createServer((request, response) => {
       requested.push(request.url!);
+      userAgents.add(request.headers["user-agent"]!);
       if (request.url === "/authorize") {
         response.writeHead(302, { location: "/callback" });
         response.end();
@@ -166,6 +168,11 @@ describe("a page's new tabs and popups", () => {
       0,
     );
     await until(() => inPage("document.title === 'Links'"), "the links page");
+    // Until the page first paints, a click lands on Conduit's webview element
+    // instead of the page, so wait two frames before the tests below click.
+    await inPage(
+      "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))",
+    );
   });
 
   it("opens a link meant for a new tab in an active pane next to the page", async () => {
@@ -208,5 +215,14 @@ describe("a page's new tabs and popups", () => {
     expect(await inPage("opened")).toBe("null");
     expect(requested).not.toContain("/popup");
     expect(await browserPanes()).toHaveLength(1);
+  });
+
+  // Last, so every page and popup above has made its requests
+  it("tells sites it's Chrome, not Conduit on Electron", async () => {
+    const userAgent = await inPage<string>("navigator.userAgent");
+
+    expect(userAgent).toMatch(/ Chrome\/[\d.]+ Safari\/[\d.]+$/);
+    expect(userAgent).not.toMatch(/Conduit|Electron/);
+    expect([...userAgents]).toEqual([userAgent]);
   });
 });
