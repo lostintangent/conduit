@@ -399,11 +399,14 @@ describe("TabLayout collapsed panes", () => {
     cwd,
     title: "zsh",
   });
-  const collapsedTab = (direction: SplitDirection): Tab => ({
+  const collapsedTab = (
+    direction: SplitDirection,
+    collapsed = collapsedPane("/Users/tester/proj"),
+  ): Tab => ({
     ...tab,
     panes: {
       open: { ...tab.panes.term, id: "open" },
-      collapsed: collapsedPane("/Users/tester/proj"),
+      collapsed,
     },
     layout: {
       id: "split",
@@ -449,4 +452,36 @@ describe("TabLayout collapsed panes", () => {
       );
     },
   );
+
+  it("names a collapsed page by its address when its title is only whitespace", async () => {
+    tabsAtom.set([
+      collapsedTab("column", {
+        id: "collapsed",
+        type: "browser",
+        url: "https://example.com/",
+        title: "  ",
+      }),
+    ]);
+    activeTabIdAtom.set("tab-1");
+    renderTabLayout();
+
+    fireEvent.focus(
+      screen.getByRole("button", { name: "https://example.com/" }),
+    );
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(
+      "URL: https://example.com/",
+    );
+  });
+
+  it("shows no tooltip for a collapsed pane with nothing in it", async () => {
+    tabsAtom.set([collapsedTab("column", { id: "collapsed", type: "canvas" })]);
+    activeTabIdAtom.set("tab-1");
+    renderTabLayout();
+
+    fireEvent.focus(screen.getByRole("button", { name: "Canvas" }));
+    await act(async () => {});
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
 });

@@ -248,7 +248,10 @@ export function TabButton({
   return <PaneTooltip tooltip={tab.tooltip}>{button}</PaneTooltip>;
 }
 
-/** The details of a pane, from `describePane`, shown on hover. */
+/**
+ * The details of a pane, from `describePane`, shown on hover. A pane with no
+ * details, like a canvas, gets no tooltip rather than an empty one.
+ */
 export function PaneTooltip({
   tooltip,
   side,
@@ -258,10 +261,19 @@ export function PaneTooltip({
   tooltip: Record<string, string>;
   children: React.ReactNode;
 }) {
+  if (Object.keys(tooltip).length === 0) {
+    return children;
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side={side} align={align}>
+      {/* Breaks anywhere, since an address has no spaces to wrap at */}
+      <TooltipContent
+        side={side}
+        align={align}
+        className="max-w-[min(32rem,calc(100vw-2rem))] [overflow-wrap:anywhere]"
+      >
         <div className="flex flex-col gap-1">
           {Object.entries(tooltip).map(([key, value]) => (
             <div key={key}>

@@ -375,6 +375,35 @@ describe("browser automation from the CLI", () => {
     await shortcuts.waitFor({ state: "hidden" });
   });
 
+  // An address has no spaces to wrap at
+  it("keeps a long address's tooltip inside the window", async () => {
+    const panes = await conduit<Pane[]>("pane-list -t browser");
+    const pane = panes.find((candidate) => candidate.url === url);
+    const long = `${url}?${"0".repeat(300)}`;
+    expect(
+      await terminal.run(
+        `conduit browser-navigate -p ${pane!.id} "${url}?$(printf '%0300d' 0)"`,
+      ),
+    ).toBe(0);
+    await clickPage(0);
+    await expectActivePane(long);
+
+    await app.page.getByRole("tab", { selected: true }).focus();
+    const tooltip = app.page.getByRole("tooltip").filter({ hasText: long });
+    await tooltip.waitFor();
+    await tooltip.evaluate((element) =>
+      Promise.all(
+        element.getAnimations().map((animation) => animation.finished),
+      ),
+    );
+
+    const box = (await tooltip.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(
+      await app.page.evaluate(() => innerWidth),
+    );
+  });
+
   it("had no uncaught errors or failed loads", () => {
     expect(app.pageErrors).toEqual([]);
     expect(app.failedRequests).toEqual([]);

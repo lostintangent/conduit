@@ -43,12 +43,14 @@ export function describePane(pane: Pane, homeDirectory: string): PaneLabel {
     }
 
     case "browser": {
-      if (pane.title) {
-        tooltip["Title"] = pane.title;
+      // A page titled with only whitespace has no title worth showing
+      const title = pane.title?.trim() || undefined;
+      if (title) {
+        tooltip["Title"] = title;
       }
       tooltip["URL"] = pane.url;
 
-      return { label: pane.title?.trim() ?? pane.url ?? "Browser", tooltip };
+      return { label: title ?? pane.url ?? "Browser", tooltip };
     }
 
     case "editor": {
