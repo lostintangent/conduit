@@ -142,6 +142,25 @@ describe("a page's new tabs and popups", () => {
     if (meta) await app.page.keyboard.up("Meta");
   }
 
+  /** Types a key, returning what each page got. */
+  async function typeInPages(key: string): Promise<string[]> {
+    const pages = (code: string) =>
+      app.page
+        .locator("webview")
+        .evaluateAll(
+          (elements, code) =>
+            Promise.all(
+              elements.map((element) =>
+                (element as Electron.WebviewTag).executeJavaScript(code),
+              ),
+            ),
+          code,
+        );
+    await pages("keys = ''");
+    await app.page.keyboard.press(key);
+    return pages("keys");
+  }
+
   /**
    * Waits for a pane with the page next to the one that opened it. The new
    * page gets the keys, or the page that opened it keeps them when it opened
@@ -159,32 +178,31 @@ describe("a page's new tabs and popups", () => {
       // An active pane settles focus for up to half a second. Checked before
       // the CLI runs, which types in the terminal.
       await app.page.waitForTimeout(600);
-      await inPage("keys = ''");
-      await app.page.keyboard.press("x");
-      expect(
-        await webviews.evaluateAll((elements) =>
-          Promise.all(
-            elements.map((element) =>
-              (element as Electron.WebviewTag).executeJavaScript("keys"),
-            ),
-          ),
-        ),
-      ).toEqual(background ? ["x", ""] : ["", "x"]);
+      expect(await typeInPages("x")).toEqual(
+        background ? ["x", ""] : ["", "x"],
+      );
       const [source, opened] = await webviews.evaluateAll((elements) =>
         elements.map((element) => element.getBoundingClientRect().x),
       );
       expect(opened).toBeGreaterThan(source);
     } finally {
-      // Even when it fails, so the tests after it start from the one page
-      const pane = (await browserPanes()).find(
-        (candidate) => candidate.url === url,
-      );
-      if (pane) await terminal.run(`conduit pane-close -p ${pane.id}`);
-      await until(
-        async () => (await webviews.count()) === 1,
-        "the pane to close",
-      );
+      await closePane(url);
     }
+  }
+
+  /**
+   * Closes a page's pane, even after a test fails, so the tests after it
+   * start from the one page.
+   */
+  async function closePane(url: string) {
+    const pane = (await browserPanes()).find(
+      (candidate) => candidate.url === url,
+    );
+    if (pane) await terminal.run(`conduit pane-close -p ${pane.id}`);
+    await until(
+      async () => (await app.page.locator("webview").count()) === 1,
+      "the pane to close",
+    );
   }
 
   it("opens a page of links", async () => {
@@ -219,6 +237,36 @@ describe("a page's new tabs and popups", () => {
       await expectPane(`${origin}/background`, { background: true });
     });
   }
+
+  it("gives the keys to the page the user moves to with Cmd-Option-arrows", async () => {
+    const webviews = app.page.locator("webview");
+    await click("#blank");
+    try {
+      await until(async () => (await webviews.count()) === 2, "a second page");
+      await until(
+        async () => (await activePane()) === `${origin}/blank`,
+        "the page to open",
+      );
+      await app.page.waitForTimeout(600);
+      // From the page that just opened, which has the keys, and back and
+      // forth after that
+      for (const [key, url, typed] of [
+        ["Meta+Alt+ArrowLeft", `${origin}/links`, ["x", ""]],
+        ["Meta+Alt+ArrowRight", `${origin}/blank`, ["", "x"]],
+        ["Meta+Alt+ArrowLeft", `${origin}/links`, ["x", ""]],
+      ] as const) {
+        await app.page.keyboard.press(key);
+        await until(
+          async () => (await activePane()) === url,
+          `${url} to be the active pane`,
+        );
+        await app.page.waitForTimeout(600);
+        expect(await typeInPages("x")).toEqual(typed);
+      }
+    } finally {
+      await closePane(`${origin}/blank`);
+    }
+  });
 
   it("signs in through a popup window that reports back to the page", async () => {
     await click("#sign-in");

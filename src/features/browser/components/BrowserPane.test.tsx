@@ -157,6 +157,37 @@ describe("BrowserPane", () => {
     expect(document.activeElement).toBe(webview);
   });
 
+  for (const attached of [true, false]) {
+    it(`gives the keyboard back on each return to a page it gave it to ${attached ? "on opening" : "once attached"}`, async () => {
+      webview.tabIndex = 0;
+      // Like a real webview, which has no focus event when it's given focus
+      webview.addEventListener(
+        "focus",
+        (event) => event.stopImmediatePropagation(),
+        true,
+      );
+      if (!attached) {
+        Object.assign(webview, { getWebContentsId: () => undefined });
+      }
+      focusPageOnOpen("browser-1");
+      const { rerender } = render(browserPane(false, true));
+      await nextFrames(1);
+      if (!attached) {
+        Object.assign(webview, { getWebContentsId: () => 7 });
+        webview.dispatchEvent(new Event("did-attach"));
+      }
+      expect(document.activeElement).toBe(webview);
+
+      for (let i = 0; i < 2; i++) {
+        rerender(browserPane(false, false));
+        document.body.focus();
+        rerender(browserPane(false, true));
+        await nextFrames(1);
+        expect(document.activeElement).toBe(webview);
+      }
+    });
+  }
+
   it("opens the links its own page meant for a new tab", () => {
     const onOpenPage = vi.fn();
     render(browserPane(false, true, onOpenPage));

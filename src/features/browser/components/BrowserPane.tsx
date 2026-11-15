@@ -314,8 +314,12 @@ export function BrowserPane({
     // lets go of them when the window takes focus back first
     paneRef.current?.focus({ preventScroll: true });
     if (webview && takePageFocus(paneId)) {
-      if (getWebContentsId(webview) !== undefined) webview.focus();
-      else isPageFocusPendingRef.current = true;
+      if (getWebContentsId(webview) === undefined) {
+        isPageFocusPendingRef.current = true;
+        return;
+      }
+      webview.focus();
+      return webview;
     }
   });
 
@@ -485,6 +489,7 @@ export function BrowserPane({
         document.activeElement === paneRef.current
       ) {
         webview.focus();
+        focusedOutside(webview);
       }
       isPageFocusPendingRef.current = false;
     };

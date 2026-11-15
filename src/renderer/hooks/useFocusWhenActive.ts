@@ -27,15 +27,16 @@ const focusRequests = new Set<() => void>();
  *
  * Focus goes back to where it last was in the pane while that's still
  * showing, like a half-typed prompt, and to the pane's own target otherwise.
- * The function it returns tells it focus moved to something the pane shows
- * outside its DOM, like a browser pane's page.
+ * Something the pane shows outside its DOM, like a browser pane's page, has
+ * no focus event there, so the pane tells it focus moved there, either with
+ * the function it returns or by returning it from `focus`.
  *
  * The active pane also takes focus back when `focusActivePane` asks for it.
  */
 export function useFocusWhenActive(
   isActive: boolean,
   paneRef: RefObject<HTMLElement | null>,
-  focus: (settled: boolean) => void,
+  focus: (settled: boolean) => HTMLElement | void,
 ) {
   const focusRef = useRef(focus);
   focusRef.current = focus;
@@ -88,10 +89,22 @@ export function useFocusWhenActive(
         (last.isOutside || pane.contains(last.element)) &&
         last.element.checkVisibility()
       ) {
+        // A page that has the keys, like another pane's, only lets go of
+        // them when the window takes focus back first. The pane takes it
+        // for that without becoming where focus last was.
+        if (last.isOutside) {
+          pane.focus({ preventScroll: true });
+          lastFocusedRef.current = last;
+        }
         last.element.focus({ preventScroll: true });
       }
       // Like when it's been disabled since
-      if (document.activeElement !== last?.element) focusRef.current(settled);
+      if (document.activeElement !== last?.element) {
+        const outside = focusRef.current(settled);
+        if (outside) {
+          lastFocusedRef.current = { element: outside, isOutside: true };
+        }
+      }
 
       if (!settled && !hasFocus()) {
         frame = requestAnimationFrame(tryFocus);
