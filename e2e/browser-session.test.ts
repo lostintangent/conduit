@@ -53,7 +53,13 @@ describe("a page's new tabs and popups", () => {
         response.end();
         return;
       }
-      response.writeHead(200, { "content-type": "text/html" });
+      response.writeHead(200, {
+        "content-type": "text/html",
+        // The sign-in popup's cookie, which signs the page in too
+        ...(request.url === "/callback" && {
+          "set-cookie": "signed-in=yes; Path=/",
+        }),
+      });
       response.end(pages[request.url!] ?? `<title>${request.url}</title>`);
     });
     await new Promise<void>((resolve) =>
@@ -204,6 +210,19 @@ describe("a page's new tabs and popups", () => {
     );
     expect(requested).toContain("/callback");
     expect(await browserPanes()).toHaveLength(1);
+    // The popup browses in the page's session, so its sign-in is the page's
+    expect(await inPage("document.cookie")).toContain("signed-in=yes");
+  });
+
+  it("keeps pages' cookies in the browser's own session, apart from Conduit's", async () => {
+    const devTools = await app.page.context().newCDPSession(app.page);
+    const { cookies } = await devTools.send("Network.getAllCookies");
+    await devTools.detach();
+
+    expect(cookies.map((cookie) => cookie.name)).not.toContain("signed-in");
+    expect(
+      fs.existsSync(path.join(app.home, "ud", "Partitions", "browser")),
+    ).toBe(true);
   });
 
   it("blocks a popup the user didn't click for", async () => {

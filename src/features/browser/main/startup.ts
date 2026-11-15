@@ -4,9 +4,13 @@ import {
   type BrowserWindowConstructorOptions,
   type WebContents,
 } from "electron";
-import { emitter } from "../../../main/events";
+import { emitter, getAppWindow } from "../../../main/events";
 
 const emit = emitter("browser");
+
+// Pages browse in a session of their own, apart from Conduit's window, which
+// keeps their cookies and storage across launches
+const PARTITION = "persist:browser";
 
 // Electron has no popup blocker, so a page may only open a window right after
 // the user clicks or types in it. Safari allows about a second.
@@ -96,6 +100,14 @@ function identifyAsChrome() {
 
 export default function startBrowserSession() {
   identifyAsChrome();
+
+  // A page's popups take its session, so they browse in this one too
+  getAppWindow()?.webContents.on(
+    "will-attach-webview",
+    (_event, webPreferences) => {
+      webPreferences.partition = PARTITION;
+    },
+  );
 
   // Startups run once Conduit's window exists, so every web contents created
   // from here on is a page or one of its popups
