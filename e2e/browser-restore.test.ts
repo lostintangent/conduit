@@ -389,6 +389,9 @@ describe("a page in a tab that's previewed", () => {
           JSON.stringify([shown.width, shown.height]),
         "the page to be laid out at its pane's size",
       );
+      // A page hears that its size changed only when it next draws, which can
+      // be after it loads, so it hears about the size it loaded at first
+      await drawn();
       await inPage(
         `window.sizes = [];
         addEventListener("resize", () => sizes.push([innerWidth, innerHeight]));`,
