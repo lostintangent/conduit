@@ -194,6 +194,10 @@ describe("the browser's address bar", () => {
     );
   const appFocus = () =>
     app.page.evaluate(() => document.activeElement?.tagName);
+  const pageFocusedItsField = () =>
+    webview().evaluate((webview: Electron.WebviewTag) =>
+      webview.executeJavaScript("document.activeElement?.tagName === 'INPUT'"),
+    );
 
   it("gives the keys to the page it goes to on Enter, from a page that didn't load or another site's page", async () => {
     // Each on another site than the last, so another process has the page
@@ -206,6 +210,8 @@ describe("the browser's address bar", () => {
         await address().fill(`${place.slice("http://".length)}/field`);
         await address().press("Enter");
       });
+      // Keys typed before the page has its field are lost, as in any browser
+      await until(pageFocusedItsField, "the page to focus its field");
 
       await app.page.keyboard.type(typed);
       await until(
