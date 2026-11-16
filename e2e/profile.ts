@@ -587,8 +587,8 @@ for (const [direction, delta] of [
 results.scrolls = scrolls;
 
 // Idle, on the shell tab with the server tab streaming, then with it quiet,
-// then with the window just wide enough for the tabs but not the buttons after
-// them, which is where the tab strip can keep changing its mind.
+// then with the window as narrow as it can be with every tab still fitting,
+// which is where the tab strip once kept changing its mind.
 
 await switchTab("shell");
 await page.waitForTimeout(3000);
@@ -599,32 +599,46 @@ await page.waitForTimeout(2000);
 idle.quiet = await idleFor(idleSeconds);
 await profiled("idle", () => page.waitForTimeout(10_000));
 
-const edge = await page.evaluate(() => {
-  const strip = document.querySelector('[role="tablist"]')!;
-  const left = strip.getBoundingClientRect().left;
-  const tabs = [...strip.querySelectorAll('[role="tab"]')];
-  const tabsEnd = tabs.at(-1)!.getBoundingClientRect().right - left;
-  const end = strip.lastElementChild!.getBoundingClientRect().right - left;
-  return innerWidth - strip.clientWidth + Math.round((tabsEnd + end) / 2);
-});
-await cdp.send("Emulation.setDeviceMetricsOverride", {
-  width: edge,
-  height: viewport.height,
-  deviceScaleFactor: 0,
-  mobile: false,
-});
-await page.waitForTimeout(2000);
-const churn: number = await page.evaluate(async () => {
-  let mutations = 0;
-  const observer = new MutationObserver((list) => (mutations += list.length));
-  observer.observe(document.querySelector('[role="tablist"]')!.parentElement!, {
-    subtree: true,
-    childList: true,
+async function emulateWidth(width: number) {
+  await cdp.send("Emulation.setDeviceMetricsOverride", {
+    width,
+    height: viewport.height,
+    deviceScaleFactor: 0,
+    mobile: false,
   });
-  await new Promise((done) => setTimeout(done, 2000));
-  observer.disconnect();
-  return mutations / 2;
-});
+  await page.waitForTimeout(300);
+}
+const tabsFit = () =>
+  page.evaluate(() => {
+    const strip = document.querySelector('[role="tablist"]')!;
+    return strip.scrollWidth <= strip.clientWidth;
+  });
+let overflows = 400;
+let edge = viewport.width;
+while (edge - overflows > 1) {
+  const width = Math.round((edge + overflows) / 2);
+  await emulateWidth(width);
+  if (await tabsFit()) edge = width;
+  else overflows = width;
+}
+const tabStripChanges = () =>
+  page.evaluate(async () => {
+    let mutations = 0;
+    const observer = new MutationObserver((list) => (mutations += list.length));
+    observer.observe(
+      document.querySelector('[role="tablist"]')!.parentElement!,
+      { subtree: true, childList: true },
+    );
+    await new Promise((done) => setTimeout(done, 2000));
+    observer.disconnect();
+    return mutations / 2;
+  });
+await emulateWidth(edge - 1);
+await page.waitForTimeout(1000);
+let churn = await tabStripChanges();
+await emulateWidth(edge);
+await page.waitForTimeout(1000);
+churn = Math.max(churn, await tabStripChanges());
 idle.edge = await idleFor(Math.min(idleSeconds, 15));
 await cdp.send("Emulation.clearDeviceMetricsOverride");
 
@@ -666,7 +680,7 @@ for (const name of Object.keys(memory).sort()) {
 }
 summary.push(
   "",
-  `At ${edge}px wide the tab strip changed ${churn} times a second while idle.`,
+  `At ${edge}px wide, the narrowest that fits every tab, and 1px narrower, the tab strip changed up to ${churn} times a second while idle.`,
 );
 
 fs.writeFileSync(
