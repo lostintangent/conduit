@@ -2,7 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, git, happens, launch, Terminal, until } from "./app";
+import {
+  type Conduit,
+  git,
+  happens,
+  launch,
+  runCommand,
+  Terminal,
+  until,
+} from "./app";
 
 /** The editor's rendered lines, joined with newlines. */
 async function textOf(editor: Locator): Promise<string> {
@@ -78,7 +86,7 @@ describe("a quick pane", () => {
   async function openQuickTerminal(): Promise<Terminal> {
     const before = await quickPanes().count();
     await app.page
-      .getByRole("button", { name: "More quick terminal options" })
+      .getByRole("button", { name: "More quick pane options" })
       .click();
     await app.page.getByRole("menuitem", { name: "Quick Terminal" }).click();
     await quickPaneCount(before + 1);
@@ -97,6 +105,14 @@ describe("a quick pane", () => {
   const editorFocused = (editor: Locator) =>
     editor.evaluate((element) => element.contains(document.activeElement));
 
+  // Not on the dialog around the pane, where keys do nothing
+  const focusInPane = () =>
+    front().evaluate(
+      (dialog) =>
+        dialog.contains(document.activeElement) &&
+        document.activeElement !== dialog,
+    );
+
   /** The front quick editor, once it shows `text` and has focus. */
   async function quickEditorWith(text: string): Promise<Locator> {
     const editor = frontEditor();
@@ -107,6 +123,34 @@ describe("a quick pane", () => {
     await until(() => editorFocused(editor), "focus in the quick editor");
     return editor;
   }
+
+  // First, while the shell is still at home, where the quick editor shows
+  // the file only once Quick Open has closed
+  it("keeps the keys in a Quick Editor that Quick Open picks a file in", async () => {
+    await runCommand(app.page, "Quick Editor");
+    await quickPaneCount(1);
+    await until(focusInPane, "focus in the quick editor's pane");
+    await app.page.keyboard.press("Meta+p");
+    const palette = app.page.getByTestId("command-palette");
+    await palette.getByRole("textbox").fill("b.txt");
+    await palette
+      .locator('[data-index="0"]')
+      .filter({ hasText: "b.txt" })
+      .waitFor();
+    await app.page.keyboard.press("Enter");
+    await palette.waitFor({ state: "hidden" });
+    await until(
+      async () => (await textOf(frontEditor())).includes("bravo"),
+      "b.txt in the quick editor",
+    );
+
+    // Showing it redraws the pane while nothing has focus, which leaves focus
+    // on the dialog around the pane, where keys go nowhere
+    await until(focusInPane, "focus back in the quick editor's pane");
+
+    await app.page.keyboard.press("Meta+w");
+    await quickPaneCount(0);
+  });
 
   it("opens a quick terminal in front of the strip, with its prompt focused", async () => {
     expect(await shell.run("cd ~/proj")).toBe(0);
@@ -175,6 +219,110 @@ describe("a quick pane", () => {
     expect(await stripTabs().count()).toBe(2);
     expect(await selected()).toMatch(/^One/);
     await until(() => shell.focused(), "focus back in the strip's terminal");
+  });
+
+  it("moves a quick terminal to a Hyper Terminal, shell and all", async () => {
+    const quick = await openQuickTerminal();
+    expect(await quick.run("kept=moved")).toBe(0);
+
+    await control("Hyper Terminal").click();
+    await quickPaneCount(0);
+    const hyper = app.page
+      .locator(".fixed")
+      .filter({ has: app.page.getByRole("button", { name: "Maximize" }) });
+    const moved = new Terminal(app.page, hyper.locator(".xterm"));
+    expect(await moved.run('echo "kept is $kept"')).toBe(0);
+    expect(await moved.text()).toContain("kept is moved");
+
+    await hyper.getByRole("button", { name: "Close", exact: true }).click();
+    await hyper.waitFor({ state: "detached" });
+  });
+
+  it("opens a Quick Canvas from the palette, which keeps the Escape that cancels its text", async () => {
+    await runCommand(app.page, "Quick Canvas");
+    await quickPaneCount(1);
+    expect(await stripTabs().count()).toBe(2);
+
+    await front().locator(".lucide-type").click();
+    await front()
+      .locator('canvas[id^="canvas-"]')
+      .click({ position: { x: 200, y: 200 } });
+    const text = front().locator("input");
+    await until(
+      () => text.evaluate((input) => input === document.activeElement),
+      "focus in the canvas's text",
+    );
+    await app.page.keyboard.press("Escape");
+    await text.waitFor({ state: "detached" });
+    expect(await quickPanes().count()).toBe(1);
+
+    await app.page.keyboard.press("Escape");
+    await quickPaneCount(0);
+    await until(() => shell.focused(), "focus back in the strip's terminal");
+  });
+
+  it("keeps a Quick Canvas with a drawing open on Esc, which ⌘W still closes", async () => {
+    await runCommand(app.page, "Quick Canvas");
+    await quickPaneCount(1);
+    const canvas = front().locator('canvas[id^="canvas-"]');
+    const box = (await canvas.boundingBox())!;
+    const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+    const pixel = () =>
+      canvas.evaluate(
+        (canvas: HTMLCanvasElement, [x, y]) => {
+          const box = canvas.getBoundingClientRect();
+          const scale = canvas.width / box.width;
+          return canvas
+            .getContext("2d")!
+            .getImageData(
+              Math.round((x! - box.left) * scale),
+              Math.round((y! - box.top) * scale),
+              1,
+              1,
+            )
+            .data.join();
+        },
+        [x, y],
+      );
+    const blank = await pixel();
+
+    await app.page.mouse.move(x - 60, y);
+    await app.page.mouse.down();
+    await app.page.mouse.move(x, y, { steps: 5 });
+    await app.page.mouse.move(x + 60, y, { steps: 5 });
+    await app.page.mouse.up();
+    await until(async () => (await pixel()) !== blank, "the line to show");
+
+    await app.page.keyboard.press("Escape");
+    await app.page.keyboard.press("Escape");
+    expect(
+      await happens(
+        async () => (await quickPanes().count()) === 0,
+        "the quick canvas to close",
+      ),
+    ).toBe(false);
+    expect(await pixel()).not.toBe(blank);
+
+    await app.page.keyboard.press("Meta+w");
+    await quickPaneCount(0);
+    await until(() => shell.focused(), "focus back in the strip's terminal");
+  });
+
+  it("opens a Quick Browser from the menu next to the hyper terminal", async () => {
+    await app.page
+      .getByRole("button", { name: "More quick pane options" })
+      .click();
+    await app.page.getByRole("menuitem", { name: "Quick Browser" }).click();
+    await quickPaneCount(1);
+    expect(await stripTabs().count()).toBe(2);
+    const address = front().getByPlaceholder("Search or enter address");
+    await until(
+      () => address.evaluate((input) => input === document.activeElement),
+      "focus in the Quick Browser's address bar",
+    );
+
+    await app.page.keyboard.press("Escape");
+    await quickPaneCount(0);
   });
 
   it("stacks a commit message over a quick terminal, which is back in front once it's saved", async () => {

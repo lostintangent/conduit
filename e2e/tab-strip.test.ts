@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, until } from "./app";
+import { type Conduit, launch, runCommand, until } from "./app";
 
 describe("the tab strip", () => {
   let app: Conduit;
@@ -196,18 +196,6 @@ describe("the tab strip", () => {
     await app.page.getByRole("menu").waitFor({ state: "detached" });
   }
 
-  async function runCommand(title: string) {
-    await app.page.keyboard.press("Meta+Shift+p");
-    const palette = app.page.getByTestId("command-palette");
-    await palette.getByRole("textbox").fill(`>${title}`);
-    await palette
-      .locator('[data-index="0"]')
-      .filter({ hasText: title })
-      .waitFor();
-    await app.page.keyboard.press("Enter");
-    await palette.waitFor({ state: "hidden" });
-  }
-
   /**
    * How each kind of pane shows in its tab, and what takes the keys when it
    * opens: the address bar, the file tree, the canvas or the shell. A page's
@@ -276,6 +264,19 @@ describe("the tab strip", () => {
     await app.page.getByRole("menu").waitFor({ state: "detached" });
   });
 
+  it("offers a quick terminal or browser next to the hyper terminal, after it", async () => {
+    await app.page
+      .getByRole("button", { name: "More quick pane options" })
+      .click();
+    expect(await app.page.getByRole("menuitem").allTextContents()).toEqual([
+      "Hyper Terminal",
+      "Quick Terminal",
+      "Quick Browser",
+    ]);
+    await app.page.keyboard.press("Escape");
+    await app.page.getByRole("menu").waitFor({ state: "detached" });
+  });
+
   for (const kind of Object.keys(panes) as Kind[]) {
     it(`opens New Tab with ${kind} from the menu next to New Tab, with only that pane, which takes the keys`, async () => {
       await openTab(() => chooseNewTab(`New Tab with ${kind}`));
@@ -286,7 +287,7 @@ describe("the tab strip", () => {
   // New Tab is the terminal's command
   for (const kind of ["Browser", "Editor", "Canvas"] as const) {
     it(`opens New Tab with ${kind} from the command palette, with only that pane, which takes the keys`, async () => {
-      await openTab(() => runCommand(`New Tab with ${kind}`));
+      await openTab(() => runCommand(app.page, `New Tab with ${kind}`));
       await expectOnly(kind);
     });
   }

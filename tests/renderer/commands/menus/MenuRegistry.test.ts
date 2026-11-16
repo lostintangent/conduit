@@ -3,6 +3,7 @@ import { MenuRegistry } from "@/commands/menus/MenuRegistry";
 import { MenuId } from "@/commands/menus/types";
 import type { MenuContribution } from "@/commands/menus/types";
 import { When } from "@/commands/whenClauses/When";
+import { X } from "lucide-react";
 
 describe("MenuRegistry", () => {
   let registry: MenuRegistry;
@@ -80,11 +81,11 @@ describe("MenuRegistry", () => {
     it("should preserve icon", () => {
       registry.register("test.command", {
         id: MenuId.CommandPalette,
-        icon: "test-icon",
+        icon: X,
       });
 
       const items = registry.getMenuItems(MenuId.CommandPalette);
-      expect(items[0].icon).toBe("test-icon");
+      expect(items[0].icon).toBe(X);
     });
 
     it("should allow multiple commands in same menu", () => {

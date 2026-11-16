@@ -2,19 +2,15 @@ import {
   getCommandDisplayTitle,
   useCommand,
 } from "@/commands/hooks/useCommand";
+import { type MenuEntry, useMenu } from "@/commands/hooks/useMenu";
+import { MenuId } from "@/commands/menus/types";
 import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
-import { movePaneToHyperTerminal } from "@features/workbench/client/actions/hyperTerminal";
-import {
-  closeTab,
-  openQuickTabInStrip,
-} from "@features/workbench/client/actions/tab";
-import { quickTabsAtom, tabsAtom } from "@features/workbench/client/atoms";
+import { closeTab } from "@features/workbench/client/actions/tab";
+import { quickTabsAtom } from "@features/workbench/client/atoms";
 import { useTabContentPortal } from "@features/workbench/components/layout/normal/TabContentPortalContext";
-import { ApplicationCommands } from "@shared/commands";
 import { shallow, useSelector } from "@tanstack/react-store";
-import { ArrowUpRight, PictureInPicture2, X } from "lucide-react";
-import { useCallback, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -94,14 +90,6 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
     [tabId],
   );
 
-  const terminalPaneId = useSelector(tabsAtom, (tabs) => {
-    const tab = tabs.find((tab) => tab.id === tabId);
-    const pane = tab?.panes[tab.activePaneId];
-    return pane?.type === "terminal" ? pane.id : null;
-  });
-  const moveToTab = useCommand(ApplicationCommands.PANE_MOVE_TO_TAB);
-  const close = useCommand(ApplicationCommands.TAB_CLOSE);
-
   return (
     <Dialog
       open
@@ -132,41 +120,7 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
         <div
           className={`flex shrink-0 justify-end ${isFront ? "" : "invisible"}`}
         >
-          <div
-            role="toolbar"
-            aria-label="Quick Pane"
-            className="flex items-center rounded-full border border-border bg-elevated shadow-sm"
-          >
-            {terminalPaneId && (
-              <QuickPaneButton
-                label="Hyper Terminal"
-                tooltip="Hyper Terminal"
-                onClick={() => movePaneToHyperTerminal(tabId, terminalPaneId)}
-              >
-                <PictureInPicture2 size={15} />
-              </QuickPaneButton>
-            )}
-            <QuickPaneButton
-              label="Open in Tab"
-              tooltip={getCommandDisplayTitle({
-                title: "Open in Tab",
-                primaryKeybinding: moveToTab.primaryKeybinding,
-              })}
-              onClick={() => openQuickTabInStrip(tabId)}
-            >
-              <ArrowUpRight size={15} />
-            </QuickPaneButton>
-            <QuickPaneButton
-              label="Close"
-              tooltip={getCommandDisplayTitle({
-                title: "Close",
-                primaryKeybinding: close.primaryKeybinding,
-              })}
-              onClick={() => closeTab(tabId, { force: true })}
-            >
-              <X size={15} />
-            </QuickPaneButton>
-          </div>
+          <QuickPaneToolbar />
         </div>
         <div
           ref={body}
@@ -177,30 +131,44 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
   );
 }
 
-function QuickPaneButton({
-  label,
-  tooltip,
-  onClick,
-  children,
-}: {
-  label: string;
-  tooltip: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+/**
+ * The front quick pane's buttons, which commands contribute to the
+ * `QuickPane` menu, so they act on the front pane like their keys do
+ */
+function QuickPaneToolbar() {
+  const items = useMenu(MenuId.QuickPane);
+  return (
+    <div
+      role="toolbar"
+      aria-label="Quick Pane"
+      className="flex items-center rounded-full border border-border bg-elevated shadow-sm"
+    >
+      {items.map((item) => (
+        <QuickPaneButton key={item.commandId} item={item} />
+      ))}
+    </div>
+  );
+}
+
+function QuickPaneButton({ item }: { item: MenuEntry }) {
+  const command = useCommand(item.commandId);
+  const Icon = item.icon;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={label}
-          onClick={onClick}
-          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-foreground/10 hover:text-foreground"
+          aria-label={item.title}
+          disabled={!item.enabled}
+          onClick={() => void command.execute()}
+          className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-foreground/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
         >
-          {children}
+          {Icon && <Icon size={15} />}
         </button>
       </TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
+      <TooltipContent>
+        {getCommandDisplayTitle({ ...command, title: item.title })}
+      </TooltipContent>
     </Tooltip>
   );
 }

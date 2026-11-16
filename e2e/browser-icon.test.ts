@@ -2,7 +2,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, inWebview, launch, until } from "./app";
+import { type Conduit, inWebview, launch, runCommand, until } from "./app";
 
 /** A red square, which keeps its own color */
 const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#e11d48"/></svg>`;
@@ -229,18 +229,6 @@ describe("a page's icon", () => {
     if (label) await tab(label).waitFor();
   }
 
-  async function runCommand(title: string) {
-    await app.page.keyboard.press("Meta+Shift+p");
-    const palette = app.page.getByTestId("command-palette");
-    await palette.getByRole("textbox").fill(`>${title}`);
-    await palette
-      .locator('[data-index="0"]')
-      .filter({ hasText: title })
-      .waitFor();
-    await app.page.keyboard.press("Enter");
-    await palette.waitFor({ state: "hidden" });
-  }
-
   it("shows before the page's title on its tab", async () => {
     const icon = iconIn(tab(/^Square/));
     await icon.waitFor();
@@ -407,7 +395,7 @@ describe("a page's icon", () => {
       .click();
     await iconIn(splitTab.filter({ hasText: /^Mark/ })).waitFor();
 
-    await runCommand("Collapse Pane");
+    await runCommand(app.page, "Collapse Pane");
 
     await iconIn(bar()).waitFor();
     expect(await iconIn(bar()).getAttribute("data-page-icon")).toBe("template");

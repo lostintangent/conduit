@@ -95,6 +95,19 @@ export function happens(
   );
 }
 
+/** Runs the command with the title from the command palette. */
+export async function runCommand(page: Page, title: string): Promise<void> {
+  await page.keyboard.press("Meta+Shift+p");
+  const palette = page.getByTestId("command-palette");
+  await palette.getByRole("textbox").fill(`>${title}`);
+  await palette
+    .locator('[data-index="0"]')
+    .filter({ hasText: title })
+    .waitFor();
+  await page.keyboard.press("Enter");
+  await palette.waitFor({ state: "hidden" });
+}
+
 /**
  * A new temporary home. It's under /tmp so the CLI's socket path stays short,
  * and resolved because macOS reports /tmp paths as /private/tmp.

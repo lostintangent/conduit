@@ -45,7 +45,46 @@ import {
   handleToggleSidebar,
   handleViewFileExplorer,
 } from "@features/workbench/client/viewHandlers";
+import type { PaneType } from "@shared/types/panes";
 import { ApplicationCommands } from "@shared/commands";
+import { ArrowUpRight, X } from "lucide-react";
+
+/** What a tab or a quick pane can open with. New Tab itself has a terminal. */
+const PANE_TYPES: {
+  type: PaneType;
+  name: string;
+  pane: string;
+  newTab?: string;
+  quick: string;
+}[] = [
+  {
+    type: "terminal",
+    name: "Terminal",
+    pane: "a terminal",
+    quick: ApplicationCommands.TAB_QUICK_TERMINAL,
+  },
+  {
+    type: "browser",
+    name: "Browser",
+    pane: "a blank browser page",
+    newTab: ApplicationCommands.TAB_NEW_WITH_BROWSER,
+    quick: ApplicationCommands.TAB_QUICK_BROWSER,
+  },
+  {
+    type: "editor",
+    name: "Editor",
+    pane: "an editor",
+    newTab: ApplicationCommands.TAB_NEW_WITH_EDITOR,
+    quick: ApplicationCommands.TAB_QUICK_EDITOR,
+  },
+  {
+    type: "canvas",
+    name: "Canvas",
+    pane: "a canvas",
+    newTab: ApplicationCommands.TAB_NEW_WITH_CANVAS,
+    quick: ApplicationCommands.TAB_QUICK_CANVAS,
+  },
+];
 
 export default [
   // View: Toggle Focus Mode
@@ -130,28 +169,28 @@ export default [
     },
   },
 
-  // Tab: New with Browser, Editor or Canvas (New Tab has a terminal)
-  {
-    id: ApplicationCommands.TAB_NEW_WITH_BROWSER,
-    title: "New Tab with Browser",
-    description: "Create a new tab with a blank browser page",
-    category: "Tab",
-    run: () => openTabWithPane("browser"),
-  },
-  {
-    id: ApplicationCommands.TAB_NEW_WITH_EDITOR,
-    title: "New Tab with Editor",
-    description: "Create a new editor tab",
-    category: "Tab",
-    run: () => openTabWithPane("editor"),
-  },
-  {
-    id: ApplicationCommands.TAB_NEW_WITH_CANVAS,
-    title: "New Tab with Canvas",
-    description: "Create a new canvas tab",
-    category: "Tab",
-    run: () => openTabWithPane("canvas"),
-  },
+  // Tab: New with Browser, Editor or Canvas, and Quick Terminal, Browser,
+  // Editor or Canvas
+  ...PANE_TYPES.flatMap(({ type, name, pane, newTab, quick }) => [
+    ...(newTab
+      ? [
+          {
+            id: newTab,
+            title: `New Tab with ${name}`,
+            description: `Create a new tab with ${pane}`,
+            category: "Tab",
+            run: () => openTabWithPane(type),
+          } satisfies CommandDescriptor,
+        ]
+      : []),
+    {
+      id: quick,
+      title: `Quick ${name}`,
+      description: `Open ${pane} in a quick pane over the workspace`,
+      category: "Tab",
+      run: () => openTabWithPane(type, { quick: true }),
+    } satisfies CommandDescriptor,
+  ]),
 
   // Tab: Close
   {
@@ -165,11 +204,14 @@ export default [
       When.or(quickPaneOpen.isTrue(), tabCount.greaterThan(1)),
       tabIsLocked.isFalse(),
     ),
-    menu: {
-      id: MenuId.TabContext,
-      group: "4_tab",
-      order: 1,
-    },
+    menu: [
+      {
+        id: MenuId.TabContext,
+        group: "4_tab",
+        order: 1,
+      },
+      { id: MenuId.QuickPane, group: "2_close", title: "Close", icon: X },
+    ],
     run: (context, tabId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       if (targetTabId) {
@@ -715,11 +757,20 @@ export default [
     category: "Pane",
     keybinding: { key: "Cmd+Alt+T" },
     when: paneActionsEnabled,
-    menu: {
-      id: MenuId.PaneContext,
-      group: "2_pane",
-      order: 3,
-    },
+    menu: [
+      {
+        id: MenuId.PaneContext,
+        group: "2_pane",
+        order: 3,
+      },
+      {
+        id: MenuId.QuickPane,
+        group: "1_move",
+        order: 2,
+        title: "Open in Tab",
+        icon: ArrowUpRight,
+      },
+    ],
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;

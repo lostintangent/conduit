@@ -156,6 +156,8 @@ export const TabStrip = ({
   );
 
   const newTabCmd = useCommand(ApplicationCommands.TAB_NEW);
+  const quickTerminalCmd = useCommand(ApplicationCommands.TAB_QUICK_TERMINAL);
+  const quickBrowserCmd = useCommand(ApplicationCommands.TAB_QUICK_BROWSER);
 
   const isInOverviewMode = applicationMode === "overview";
 
@@ -617,18 +619,20 @@ export const TabStrip = ({
               </>
             }
             onClick={handleOpenHyperTerminal}
-            menuLabel="More quick terminal options"
+            menuLabel="More quick pane options"
           >
             <DropdownMenuItem onClick={handleNewHyperTerminal}>
               <Zap size={16} className="mr-3" />
               Hyper Terminal
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => openTabWithPane("terminal", { quick: true })}
-            >
+            <DropdownMenuItem onClick={quickTerminalCmd.execute}>
               <Terminal size={16} className="mr-3" />
-              Quick Terminal
+              {quickTerminalCmd.title}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={quickBrowserCmd.execute}>
+              <Globe size={16} className="mr-3" />
+              {quickBrowserCmd.title}
             </DropdownMenuItem>
           </SplitButton>
 

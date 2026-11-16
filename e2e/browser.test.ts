@@ -17,6 +17,7 @@ import {
   happens,
   inWebview,
   launch,
+  runCommand,
   type Terminal,
   until,
 } from "./app";
@@ -228,18 +229,6 @@ describe("browser automation from the CLI", () => {
   async function focusPage(index: number) {
     await clickPage(index);
     await pageFocused(index);
-  }
-
-  async function runCommand(title: string) {
-    await app.page.keyboard.press("Meta+Shift+p");
-    const palette = app.page.getByTestId("command-palette");
-    await palette.getByRole("textbox").fill(`>${title}`);
-    await palette
-      .locator('[data-index="0"]')
-      .filter({ hasText: title })
-      .waitFor();
-    await app.page.keyboard.press("Enter");
-    await palette.waitFor({ state: "hidden" });
   }
 
   /** The nth tab, once it's the selected one. */
@@ -519,7 +508,7 @@ describe("browser automation from the CLI", () => {
 
   it("shows a hidden toolbar while Cmd+L has its address bar focused", async () => {
     await focusPage(0);
-    await runCommand("Toggle Browser Toolbar");
+    await runCommand(app.page, "Toggle Browser Toolbar");
     await until(async () => (await addressBars(url)) === 0, "it to hide");
 
     // Escape gives the page its focus back
@@ -555,7 +544,7 @@ describe("browser automation from the CLI", () => {
       await terminal.run(`conduit browser-navigate -p ${pane!.id} ${url}`),
     ).toBe(0);
     await pageFocused(0);
-    await runCommand("Toggle Browser Toolbar");
+    await runCommand(app.page, "Toggle Browser Toolbar");
     await until(async () => (await addressBars(url)) === 1, "it to show");
   });
 

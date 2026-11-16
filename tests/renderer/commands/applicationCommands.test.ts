@@ -24,6 +24,7 @@ import * as agentHandlers from "@features/agents/client/agentHandlers";
 import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import * as terminalHandlers from "@features/terminal/client/terminalHandlers";
 import * as focusModeActions from "@features/workbench/client/actions/focusMode";
+import * as hyperTerminalActions from "@features/workbench/client/actions/hyperTerminal";
 import { navigatePane } from "@features/workbench/client/actions/paneNavigation";
 import * as tabActions from "@features/workbench/client/actions/tab";
 import { notificationsAtom } from "@features/workbench/client/atoms";
@@ -37,6 +38,7 @@ import { commandContext } from "./fixtures";
 // Mock store actions
 vi.mock("@features/workbench/client/actions/focusMode");
 vi.mock("@features/workbench/client/actions/tab");
+vi.mock("@features/workbench/client/actions/hyperTerminal");
 vi.mock("@features/agents/client/agentHandlers");
 vi.mock("@features/terminal/client/terminalHandlers");
 vi.mock("@features/workbench/client/viewHandlers");
@@ -73,7 +75,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(89);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(94);
 
       // View commands
       expect(
@@ -358,6 +360,47 @@ describe("applicationCommands", () => {
         command.run(mockContext);
 
         expect(tabActions.closeTab).not.toHaveBeenCalled();
+      });
+    });
+
+    it.each([
+      [ApplicationCommands.TAB_QUICK_TERMINAL, "terminal"],
+      [ApplicationCommands.TAB_QUICK_BROWSER, "browser"],
+      [ApplicationCommands.TAB_QUICK_EDITOR, "editor"],
+      [ApplicationCommands.TAB_QUICK_CANVAS, "canvas"],
+    ] as const)("%s opens a quick %s", (id, type) => {
+      registeredCommands.get(id)!.run(commandContext());
+
+      expect(tabActions.openTabWithPane).toHaveBeenCalledWith(type, {
+        quick: true,
+      });
+    });
+
+    describe("TERMINAL_MOVE_TO_HYPER_TERMINAL", () => {
+      const run = (activeTab: Partial<Tab>) =>
+        registeredCommands
+          .get(ApplicationCommands.TERMINAL_MOVE_TO_HYPER_TERMINAL)!
+          .run(
+            commandContext({
+              activeTab: activeTab as Tab,
+              activePaneId: "pane-1",
+            }),
+          );
+
+      it("moves the front quick pane's terminal", () => {
+        run({ id: "quick-tab", quick: true });
+
+        expect(
+          hyperTerminalActions.movePaneToHyperTerminal,
+        ).toHaveBeenCalledWith("quick-tab", "pane-1");
+      });
+
+      it("leaves a terminal in the strip where it is", () => {
+        run({ id: "strip-tab" });
+
+        expect(
+          hyperTerminalActions.movePaneToHyperTerminal,
+        ).not.toHaveBeenCalled();
       });
     });
 

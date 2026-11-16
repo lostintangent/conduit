@@ -1,5 +1,5 @@
 import type { WhenClause } from "../whenClauses/WhenClause";
-import type React from "react";
+import type { LucideIcon } from "lucide-react";
 
 /**
  * Menu location identifiers
@@ -12,6 +12,8 @@ export enum MenuId {
   EditorContext = "EditorContext",
   TerminalContext = "TerminalContext",
   FileTreeContext = "FileTreeContext",
+  /** The buttons over the front quick pane */
+  QuickPane = "QuickPane",
 }
 
 /**
@@ -47,8 +49,8 @@ export interface MenuContribution {
   /** When clause (controls visibility) */
   when?: WhenClause;
 
-  /** Icon (React component or string) */
-  icon?: React.ComponentType | string;
+  /** Icon, for a menu drawn in the app rather than a native one */
+  icon?: LucideIcon;
 }
 
 /**
@@ -61,7 +63,7 @@ export interface MenuItem {
   order: number;
   title?: string;
   when?: WhenClause;
-  icon?: React.ComponentType | string;
+  icon?: LucideIcon;
 }
 
 /**

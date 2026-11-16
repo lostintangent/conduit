@@ -2,7 +2,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, inWebview, launch, until } from "./app";
+import { type Conduit, inWebview, launch, runCommand, until } from "./app";
 
 /**
  * A page that plays a tone when asked. An 18 kHz tone at a thousandth of full
@@ -135,18 +135,6 @@ describe("a page's sound", () => {
       "the speaker to go",
     );
 
-  async function runCommand(title: string) {
-    await app.page.keyboard.press("Meta+Shift+p");
-    const palette = app.page.getByTestId("command-palette");
-    await palette.getByRole("textbox").fill(`>${title}`);
-    await palette
-      .locator('[data-index="0"]')
-      .filter({ hasText: title })
-      .waitFor();
-    await app.page.keyboard.press("Enter");
-    await palette.waitFor({ state: "hidden" });
-  }
-
   it("shows a speaker after its tab's label while it plays, and goes when it stops", async () => {
     await pageTab().filter({ hasText: /^Tone/ }).waitFor();
     expect(await speakerIn(pageTab()).count()).toBe(0);
@@ -240,7 +228,7 @@ describe("a page's sound", () => {
       .locator('[data-node-id="Split-page-node"]')
       .getByPlaceholder("Search or enter address")
       .click();
-    await runCommand("Collapse Pane");
+    await runCommand(app.page, "Collapse Pane");
     await (await soundOf(bar(), "playing")).click();
 
     await until(() => isMuted(splitPage()), "the page to be muted");

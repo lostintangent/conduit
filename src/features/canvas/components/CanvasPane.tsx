@@ -824,12 +824,22 @@ export function CanvasPane({
       recordDelete(selectedElements, elements);
       deleteSelectedElements();
     }
-    // Escape to clear selection or cancel text input
+    // Escape to clear selection or cancel text input. Only an Escape it
+    // doesn't use reaches a quick pane around it, which closes on it, and
+    // a quick canvas with a drawing keeps every one, since closing throws
+    // the drawing away.
     if (e.key === "Escape") {
       if (isAddingText) {
+        e.stopPropagation();
         setIsAddingText(false);
-      } else {
+      } else if (selectedIds.length > 0) {
+        e.stopPropagation();
         clearSelection();
+      } else if (
+        elements.length > 0 &&
+        e.currentTarget.closest("[data-quick-pane]")
+      ) {
+        e.stopPropagation();
       }
     }
   };
@@ -1350,6 +1360,7 @@ export function CanvasPane({
     if (e.key === "Enter") {
       handleTextCommit(e.currentTarget.value);
     } else if (e.key === "Escape") {
+      e.stopPropagation();
       setIsAddingText(false);
     }
   };

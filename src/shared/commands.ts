@@ -21,6 +21,10 @@ export const ApplicationCommands = {
   TAB_NEW_WITH_BROWSER: "tab.newWithBrowser",
   TAB_NEW_WITH_EDITOR: "tab.newWithEditor",
   TAB_NEW_WITH_CANVAS: "tab.newWithCanvas",
+  TAB_QUICK_TERMINAL: "tab.quickTerminal",
+  TAB_QUICK_BROWSER: "tab.quickBrowser",
+  TAB_QUICK_EDITOR: "tab.quickEditor",
+  TAB_QUICK_CANVAS: "tab.quickCanvas",
   TAB_CLOSE: "tab.close",
   TAB_DUPLICATE: "tab.duplicate",
   TAB_DUPLICATE_WITH_CWD: "tab.duplicateWithCwd",
@@ -77,6 +81,7 @@ export const ApplicationCommands = {
 
   // Terminal commands
   TERMINAL_OPEN_IN_VSCODE: "terminal.openInVSCode",
+  TERMINAL_MOVE_TO_HYPER_TERMINAL: "terminal.moveToHyperTerminal",
 
   // Agent session commands
   AGENT_LAUNCH: "agent.launch",
