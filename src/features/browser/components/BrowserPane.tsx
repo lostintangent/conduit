@@ -57,6 +57,9 @@ const WEBVIEW_Z_INDEX = {
  */
 const FIND_BAR_Z_INDEX = { SIDEBAR: 50, NORMAL: 2 } as const;
 
+/** How often a page is laid out again while a splitter beside it is dragged */
+const RESIZE_INTERVAL = 100;
+
 type BrowserPaneProps = {
   /** Where a new webview starts. Changing it later doesn't navigate the page. */
   url: string;
@@ -74,7 +77,8 @@ type BrowserPaneProps = {
   onContextMenu: (params: ContextMenuParams) => void;
   onHover: (isHovering: boolean) => void;
 
-  disableInteraction: boolean;
+  /** A splitter beside it is being dragged */
+  isResizing: boolean;
   isInPreview: boolean;
   /** Whether this is the active pane of the active tab */
   isActive?: boolean;
@@ -110,7 +114,7 @@ export function BrowserPane({
   onOpenPage,
   onContextMenu,
   onHover,
-  disableInteraction = false,
+  isResizing = false,
   isInPreview = false,
   isActive = false,
   devToolsFor,
@@ -127,6 +131,8 @@ export function BrowserPane({
 
   const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const isPreviewHoveredRef = useRef(false);
+
+  const isResizingRef = useRef(isResizing);
 
   // Refs for callbacks to avoid stale closures in event listeners
   const onUrlChangeRef = useRef(onUrlChange);
@@ -239,6 +245,11 @@ export function BrowserPane({
     // Ends this run's RAF loop, which would otherwise outlive it when the
     // effect runs again for the same webview
     let isDisposed = false;
+    // When the page was last laid out at another size, and the timer that
+    // lays it out at its pane's size once it can be again, even once the
+    // drag has ended
+    let resizedAt = Number.NEGATIVE_INFINITY;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
     const updatePosition = () => {
       const anchor = webviewAnchorRef.current;
@@ -278,12 +289,29 @@ export function BrowserPane({
         rectHeight: rect.height,
       });
 
-      applyWebviewScaling(currentWebview, scaling);
-
+      // Laying a big page out at every frame of a splitter's drag holds up
+      // the frames, so in between it keeps its size, cut to its pane
+      const width = Number.parseFloat(currentWebview.style.width);
+      const height = Number.parseFloat(currentWebview.style.height);
+      const isResized =
+        width !== scaling.targetWidth || height !== scaling.targetHeight;
+      const wait = resizedAt + RESIZE_INTERVAL - performance.now();
       const preview = isInPreview && anchor.closest("[data-tab-preview]");
-      currentWebview.style.clipPath = preview
-        ? clipToPreview(rect, preview, scaling.scaleX, scaling.scaleY)
-        : "";
+      if (isResized && isResizingRef.current && !isInPreview && wait > 0) {
+        currentWebview.style.clipPath = `inset(0 ${Math.max(0, width - scaling.targetWidth)}px ${Math.max(0, height - scaling.targetHeight)}px 0)`;
+        if (resizeTimer === undefined) {
+          resizeTimer = setTimeout(() => {
+            resizeTimer = undefined;
+            updatePosition();
+          }, wait);
+        }
+      } else {
+        if (isResized) resizedAt = performance.now();
+        applyWebviewScaling(currentWebview, scaling);
+        currentWebview.style.clipPath = preview
+          ? clipToPreview(rect, preview, scaling.scaleX, scaling.scaleY)
+          : "";
+      }
 
       const overlay = previewOverlayRef.current;
       if (overlay) {
@@ -327,6 +355,7 @@ export function BrowserPane({
 
     return () => {
       isDisposed = true;
+      clearTimeout(resizeTimer);
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
 
@@ -667,15 +696,13 @@ export function BrowserPane({
     };
   }, [webviewRef, focusedOutside]);
 
-  // Enable/disable pointer events for the wewbview
-  // whenever the parent asks for it (e.g. during a resize action)
+  // The page doesn't take the mouse while a splitter beside it is dragged
   useEffect(() => {
+    isResizingRef.current = isResizing;
     if (!webviewRef.current) return;
 
-    webviewRef.current.style.pointerEvents = disableInteraction
-      ? "none"
-      : "auto";
-  }, [disableInteraction]);
+    webviewRef.current.style.pointerEvents = isResizing ? "none" : "auto";
+  }, [isResizing]);
 
   // When rendered in focus mode, we need to add
   // rounded corners to the bottom of the webview,

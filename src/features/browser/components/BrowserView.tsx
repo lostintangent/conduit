@@ -27,7 +27,7 @@ export function BrowserView() {
       onTitleChange={noop}
       onContextMenu={noop}
       onHover={noop}
-      disableInteraction={false}
+      isResizing={false}
       isInPreview={false}
       isDevToolsOpen={false}
       onToggleDevTools={noop}
