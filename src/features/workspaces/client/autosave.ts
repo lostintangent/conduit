@@ -112,8 +112,13 @@ function withoutRuntimeFields(pane: Pane) {
     return saved;
   }
   if (pane.type === "browser") {
-    const { title: _title, webContentsId: _webContentsId, ...saved } = pane;
-    return saved;
+    const {
+      title: _title,
+      webContentsId: _webContentsId,
+      icon,
+      ...saved
+    } = pane;
+    return icon === "loading" ? saved : { ...saved, icon };
   }
   return pane;
 }

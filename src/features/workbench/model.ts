@@ -2,6 +2,7 @@ import type {
   BrowserPane as SharedBrowserPane,
   CanvasPane as SharedCanvasPane,
   EditorPane as SharedEditorPane,
+  PageIcon,
   TerminalPane as SharedTerminalPane,
   TabMetadata,
 } from "@shared/types/panes";
@@ -50,9 +51,19 @@ export type TerminalPane = Omit<SharedTerminalPane, "cwd"> &
     title?: string;
   };
 
-export type BrowserPane = Omit<SharedBrowserPane, "url" | "navigation"> & {
+/**
+ * What a pane's label shows before it: its page's icon, or "loading" while a
+ * new site's is on its way, which only lasts while the app runs
+ */
+export type PaneIcon = PageIcon | "loading";
+
+export type BrowserPane = Omit<
+  SharedBrowserPane,
+  "url" | "navigation" | "icon"
+> & {
   url: string;
   title?: string;
+  icon?: PaneIcon;
   /** The page's web contents, once it attaches, which main saves its history from */
   webContentsId?: number;
 };

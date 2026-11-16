@@ -15,6 +15,7 @@ const page = (title: string, icon?: string) =>
 const files: Record<string, [type: string, body: string]> = {
   "/square": ["text/html", page("Square", "/square.svg")],
   "/mark": ["text/html", page("Mark", "/mark.svg")],
+  "/also": ["text/html", page("Also", "/mark.svg")],
   // Its favicon.ico is a page saying it's not found
   "/plain": ["text/html", page("Plain")],
   "/square.svg": ["image/svg+xml", square],
@@ -79,6 +80,21 @@ afterAll(() => {
 });
 
 /**
+ * What a tab's label showed, in turn: what was in its icon's slot, and where
+ * its title started.
+ */
+interface Shown {
+  slots: string[];
+  titleAt: number[];
+}
+
+declare global {
+  interface Window {
+    firstTab?: { shown: Shown; observer: MutationObserver };
+  }
+}
+
+/**
  * Two tabs without names, so their active panes label them: one with a page,
  * and one with a shell beside a page.
  */
@@ -136,15 +152,72 @@ describe("a page's icon", () => {
       `tab ${index} to show`,
     );
   };
-  const iconIn = (locator: Locator) => locator.locator("[data-page-icon]");
+  /** What's in a label's icon slot: an icon, or a spinner while one loads */
+  const slotIn = (locator: Locator) => locator.locator("[data-page-icon]");
+  const iconIn = (locator: Locator) =>
+    locator.locator('[data-page-icon]:not([data-page-icon="loading"])');
+  const spinnerIn = (locator: Locator) =>
+    locator.locator('[data-page-icon="loading"]');
   const bar = () => app.page.locator('[data-node-id="Split-page-node"] button');
+  const pageWebview = () => app.page.locator("webview#Page-pane");
+
+  /**
+   * Watches the first tab's label from now on, through each change to it,
+   * even one that doesn't last a frame. The returned function says what it
+   * has shown since.
+   */
+  async function watchFirstTab() {
+    await app.page.evaluate(() => {
+      const tab = document.querySelector('[role="tab"]')!;
+      const shown: Shown = { slots: [], titleAt: [] };
+      const look = () => {
+        const label = tab.firstElementChild!;
+        const slot = label.querySelector("[data-page-icon]");
+        const kind = slot?.getAttribute("data-page-icon") ?? "none";
+        const titleAt = label.lastElementChild!.getBoundingClientRect().left;
+        if (shown.slots.at(-1) !== kind) shown.slots.push(kind);
+        if (shown.titleAt.at(-1) !== titleAt) shown.titleAt.push(titleAt);
+      };
+      look();
+      window.firstTab?.observer.disconnect();
+      const observer = new MutationObserver(look);
+      observer.observe(tab, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        characterData: true,
+      });
+      window.firstTab = { shown, observer };
+    });
+    return () => app.page.evaluate(() => window.firstTab!.shown);
+  }
+
+  /** Reloads the first tab's page, and waits for it to stop loading */
+  const reload = () =>
+    pageWebview().evaluate(
+      (webview: Electron.WebviewTag) =>
+        new Promise<void>((resolve) => {
+          const stopped = () => {
+            webview.removeEventListener("did-stop-loading", stopped);
+            resolve();
+          };
+          webview.addEventListener("did-stop-loading", stopped);
+          webview.reload();
+        }),
+    );
+
+  /** How many animations are running in a tab, a spinner's included */
+  const animationsIn = (locator: Locator) =>
+    locator.evaluate(
+      (element) => element.getAnimations({ subtree: true }).length,
+    );
 
   /**
    * Goes to `url` in the first tab's page, and waits for it to get there, and
    * for its tab to say `label`.
    */
   async function go(url: string, label?: RegExp) {
-    const webview = app.page.locator("webview#Page-pane");
+    const webview = pageWebview();
     await inWebview(webview, `location.href = ${JSON.stringify(url)}`);
     await until(
       async () =>
@@ -178,17 +251,26 @@ describe("a page's icon", () => {
     ).toBe("Square");
   });
 
-  it("leaves with its site, before the next site's icon has loaded", async () => {
+  it("leaves with its site, for a spinner that holds its place while the next site's icon loads", async () => {
     await iconIn(tab(/^Square/)).waitFor();
+    const shown = await watchFirstTab();
     holdIcons = true;
     await go(`${other}/mark`, /^Mark/);
     await until(
       () => heldIcons.length > 0,
       "the next site's icon to be asked for",
     );
-    await app.page.evaluate(() => new Promise(requestAnimationFrame));
+    await spinnerIn(tab(/^Mark/)).waitFor();
+    expect(await animationsIn(tab(/^Mark/))).toBe(1);
 
-    expect(await iconIn(tab(/^Mark/)).count()).toBe(0);
+    answerHeldIcons();
+    await iconIn(tab(/^Mark/)).waitFor();
+
+    expect(await shown()).toEqual({
+      slots: ["color", "loading", "template"],
+      titleAt: [expect.any(Number)],
+    });
+    expect(await animationsIn(tab(/^Mark/))).toBe(0);
   });
 
   it("takes its title's color when it's a single shade on a clear ground", async () => {
@@ -206,14 +288,53 @@ describe("a page's icon", () => {
     expect(iconColor).toBe(titleColor);
   });
 
-  it("goes when the site's next page has none", async () => {
+  it("stays, without a spinner, while its site's next page loads, or its page reloads", async () => {
     await iconIn(tab(/^Mark/)).waitFor();
-    await go(`${other}/plain`, /^Plain/);
+    const shown = await watchFirstTab();
 
+    await go(`${other}/also`, /^Also/);
+    await reload();
+    await iconIn(tab(/^Also/)).waitFor();
+
+    expect(await shown()).toEqual({
+      slots: ["template"],
+      titleAt: [expect.any(Number)],
+    });
+  });
+
+  it("goes when the site's next page has none, which leaves no spinner when it reloads", async () => {
+    await iconIn(tab(/^Also/)).waitFor();
+    await go(`${other}/plain`, /^Plain/);
     await until(
-      async () => (await iconIn(tab(/^Plain/)).count()) === 0,
+      async () => (await slotIn(tab(/^Plain/)).count()) === 0,
       "the mark to go",
     );
+    const shown = await watchFirstTab();
+
+    await reload();
+
+    expect((await shown()).slots).toEqual(["none"]);
+  });
+
+  it("gives way to a spinner that goes when a new site's page has none, or doesn't load", async () => {
+    const closed = http.createServer();
+    await new Promise<void>((resolve) =>
+      closed.listen(0, "127.0.0.1", resolve),
+    );
+    const nowhere = `http://127.0.0.1:${(closed.address() as AddressInfo).port}/`;
+    await new Promise((resolve) => closed.close(resolve));
+
+    for (const url of [`${other}/plain`, nowhere]) {
+      await go(`${site}/square`, /^Square/);
+      await iconIn(tab(/^Square/)).waitFor();
+      const shown = await watchFirstTab();
+
+      await go(url);
+      const slot = slotIn(app.page.getByRole("tab").first());
+      await until(async () => (await slot.count()) === 0, "the spinner to go");
+
+      expect((await shown()).slots).toEqual(["color", "loading", "none"]);
+    }
   });
 
   it("goes when the page goes blank, and comes back with its site, which doesn't report it again", async () => {
@@ -268,7 +389,23 @@ describe("a page's icon", () => {
     await iconIn(bar()).waitFor();
     expect(await iconIn(bar()).getAttribute("data-page-icon")).toBe("template");
     await splitTab.filter({ hasNotText: /^Mark/ }).waitFor();
-    expect(await iconIn(splitTab).count()).toBe(0);
+    expect(await slotIn(splitTab).count()).toBe(0);
+  });
+
+  it("gives way to a spinner on its pane's bar too, while a new site's loads", async () => {
+    holdIcons = true;
+    await inWebview(
+      app.page.locator("webview#Split-page"),
+      `location.href = ${JSON.stringify(`${other}/square`)}`,
+    );
+
+    await spinnerIn(bar()).waitFor();
+    answerHeldIcons();
+    await until(
+      async () =>
+        (await iconIn(bar()).getAttribute("data-page-icon")) === "color",
+      "the next site's icon to show on the bar",
+    );
   });
 
   it("still comes with a page that links to it after its tab has been away", async () => {
@@ -299,8 +436,7 @@ describe("a page's icon", () => {
       () => heldIcons.length > 0,
       "the next site's icon to be asked for",
     );
-    await app.page.evaluate(() => new Promise(requestAnimationFrame));
-    expect(await iconIn(tab(/^Square/)).count()).toBe(0);
+    await spinnerIn(tab(/^Square/)).waitFor();
 
     answerHeldIcons();
     const icon = iconIn(tab(/^Square/));

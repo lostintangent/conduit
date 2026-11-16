@@ -1,4 +1,4 @@
-import type { Tab } from "@features/workbench/model";
+import type { PaneIcon, Tab } from "@features/workbench/model";
 import type { WorkspaceState } from "../model";
 import { waitFor } from "@testing-library/react";
 import {
@@ -37,6 +37,22 @@ function tab(id: string, title = "zsh"): Tab {
     },
     layout: { id: `${id}-node`, type: "pane", paneId: `${id}-pane` },
     activePaneId: `${id}-pane`,
+  };
+}
+
+function page(icon?: PaneIcon): Tab {
+  return {
+    id: "page",
+    panes: {
+      "page-pane": {
+        id: "page-pane",
+        type: "browser",
+        url: "https://a.com/",
+        ...(icon && { icon }),
+      },
+    },
+    layout: { id: "page-node", type: "pane", paneId: "page-pane" },
+    activePaneId: "page-pane",
   };
 }
 
@@ -171,5 +187,21 @@ describe("autosave", () => {
 
     await expect(switching(change)).resolves.toBe(false);
     expect(change).not.toHaveBeenCalled();
+  });
+
+  it("doesn't save while a page's icon loads, or when it settles on none", async () => {
+    tabsAtom.set([page()]);
+    await flush();
+    saveWorkspace.mockClear();
+
+    vi.useFakeTimers();
+    tabsAtom.set([page("loading")]);
+    vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
+    tabsAtom.set([page()]);
+    vi.useRealTimers();
+
+    // The save it's asked for is the only one
+    await flush();
+    expect(saveWorkspace).toHaveBeenCalledTimes(1);
   });
 });

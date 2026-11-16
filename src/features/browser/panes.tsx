@@ -8,8 +8,15 @@ import {
   updatePaneProperty,
 } from "@features/workbench/client/actions/pane";
 import type { LayoutPaneProps } from "@features/workbench/components/layout/paneKinds";
-import type { BrowserPane as BrowserPaneType } from "@features/workbench/model";
+import type {
+  BrowserPane as BrowserPaneType,
+  PaneIcon,
+} from "@features/workbench/model";
 import type React from "react";
+
+/** Tells icons apart by their image, since each load draws a new one */
+const iconKey = (icon: PaneIcon | undefined) =>
+  typeof icon === "string" ? icon : icon?.src;
 
 export default function BrowserLayoutPane({
   pane,
@@ -38,6 +45,7 @@ export default function BrowserLayoutPane({
     >
       <BrowserPane
         url={pane.url}
+        hasIcon={pane.icon !== undefined && pane.icon !== "loading"}
         paneId={pane.id}
         tabId={tab.id}
         disableInteraction={isResizing}
@@ -74,7 +82,7 @@ export default function BrowserLayoutPane({
           pane.devToolsFor
             ? undefined
             : (icon) => {
-                if (icon?.src !== pane.icon?.src) {
+                if (iconKey(icon) !== iconKey(pane.icon)) {
                   updatePaneProperty(tab.id, pane.id, { icon });
                 }
               }

@@ -92,6 +92,15 @@ describe("serializeBrowserPane", () => {
     }
   });
 
+  it("saves the page's icon, but not one that's still loading", () => {
+    const icon = { src: "data:image/png;base64,AA==", template: false };
+
+    expect(serializeBrowserPane({ ...pane(), icon }).icon).toEqual(icon);
+    expect(
+      serializeBrowserPane({ ...pane(), icon: "loading" }),
+    ).not.toHaveProperty("icon");
+  });
+
   it("saves only which page a DevTools pane inspects", () => {
     pages.set(7, { entries: [entry("devtools://devtools/")], active: 0 });
 

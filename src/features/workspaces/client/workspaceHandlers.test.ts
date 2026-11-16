@@ -56,7 +56,7 @@ describe("workspaceHandlers", () => {
   const toWorkspaceTabs = (tabs: Tab[]): WorkspaceTab[] =>
     tabs.map((tab) => ({
       ...tab,
-      panes: Object.values(tab.panes),
+      panes: Object.values(tab.panes) as WorkspaceTab["panes"],
     }));
 
   beforeEach(() => {

@@ -1,4 +1,5 @@
 import type { WebviewTag } from "electron";
+import type { PaneIcon } from "@features/workbench/model";
 import type { PageIcon } from "@shared/types/panes";
 import { loadPageIcon } from "./pageIcon";
 import { siteOf } from "./url";
@@ -76,8 +77,11 @@ export function getWebContentsId(webview: WebviewTag): number | undefined {
 export type PageReports = {
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
-  /** Reports the page's icon, or that it has none. Without it, none loads. */
-  onIconChange?: (icon: PageIcon | undefined) => void;
+  /**
+   * Reports the page's icon, that a new site's is loading, or that it has
+   * none. Without it, none loads.
+   */
+  onIconChange?: (icon: PaneIcon | undefined) => void;
 };
 
 /** The pane each page reports to, which is the one that showed it last */
@@ -91,12 +95,12 @@ const pageReports = new WeakMap<
  * the pane's latest `reports`. A hidden tab's panes stop their effects, so the
  * page reports through listeners of its own, which keep its tab's label and
  * its saved address current while it's in the background. They go with the
- * webview, which goes with its pane. `url` is where the pane was saved, which
- * a saved icon goes with.
+ * webview, which goes with its pane. `iconUrl` is where the pane was saved
+ * with its page's icon, if it was, which the icon goes with.
  */
 export function reportPage(
   webview: WebviewTag,
-  url: string,
+  iconUrl: string | undefined,
   reports: { readonly current: PageReports },
 ) {
   const isReporting = pageReports.has(webview);
@@ -104,7 +108,7 @@ export function reportPage(
   if (isReporting) return;
 
   const report = () => pageReports.get(webview)?.current;
-  const icon = followIcon(webview, url, report);
+  const icon = followIcon(webview, iconUrl, report);
   const goTo = (url: string) => {
     icon.showSiteOf(url);
     report()?.onUrlChange(url);
@@ -133,11 +137,12 @@ export function reportPage(
 
 /**
  * Follows a page's icon from site to site. An icon goes as soon as its page
- * leaves for another site, which has its own.
+ * leaves for another site, which has its own. A web page's icon comes after
+ * its title, so until it does, it's loading, which holds its place.
  */
 function followIcon(
   webview: WebviewTag,
-  url: string,
+  iconUrl: string | undefined,
   report: () => PageReports | undefined,
 ) {
   const icons: {
@@ -149,7 +154,7 @@ function followIcon(
     reported?: { urls: string; icon: Promise<PageIcon | undefined> };
     /** Whether the page came to a new site without the webview reporting icons */
     unreported: boolean;
-  } = { site: siteOf(url), unreported: false };
+  } = { site: siteOf(iconUrl), unreported: false };
 
   // A page's icon loads a moment after the page, so one that loads for a
   // page before the latest, or on a site the webview has left, is dropped.
@@ -165,7 +170,8 @@ function followIcon(
   // without a report, it has the last ones if it links to them, as Gist
   // does to GitHub's. New ones are reported only after the page stops
   // loading, so a page that stops without a report may still have new ones
-  // coming, and only its links tell the two apart.
+  // coming, and only its links tell the two apart. A page that links to none
+  // has none coming.
   const urlSet = (urls: string[]) => [...new Set(urls)].sort().join(" ");
 
   return {
@@ -175,7 +181,9 @@ function followIcon(
       icons.site = site;
       icons.request = undefined;
       icons.unreported = true;
-      report()?.onIconChange?.(undefined);
+      // A web page always has icons to report, since without links to any,
+      // it has its site's favicon.ico
+      report()?.onIconChange?.(/^https?:/.test(url) ? "loading" : undefined);
     },
 
     load(favicons: string[]) {
@@ -191,17 +199,23 @@ function followIcon(
     async showUnreported() {
       const { reported } = icons;
       const webContentsId = getWebContentsId(webview);
-      if (!icons.unreported || !reported || webContentsId === undefined) return;
+      if (
+        !icons.unreported ||
+        !report()?.onIconChange ||
+        webContentsId === undefined
+      ) {
+        return;
+      }
       icons.unreported = false;
 
       const linked = await window.conduit.browser
         .linkedIcons(webContentsId)
         .catch(() => []);
-      if (
-        urlSet(linked) === reported.urls &&
-        reported === icons.reported &&
-        !icons.unreported
-      ) {
+      // A report came, or the page left for another site, while it looked
+      if (reported !== icons.reported || icons.unreported) return;
+      if (linked.length === 0) {
+        report()?.onIconChange?.(undefined);
+      } else if (urlSet(linked) === reported?.urls) {
         void show(reported.icon);
       }
     },

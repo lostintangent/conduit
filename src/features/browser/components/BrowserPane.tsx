@@ -38,7 +38,7 @@ import {
   type BrowserToolbarHandle,
 } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
-import type { PageIcon } from "@shared/types/panes";
+import type { PaneIcon } from "@features/workbench/model";
 
 const { browser } = window.conduit;
 
@@ -64,13 +64,18 @@ const FIND_BAR_Z_INDEX = { SIDEBAR: 50, NORMAL: 2 } as const;
 type BrowserPaneProps = {
   /** Where a new webview starts. Changing it later doesn't navigate the page. */
   url: string;
+  /** Whether the pane has its page's icon, saved with `url` */
+  hasIcon?: boolean;
   paneId: string;
   tabId?: string;
 
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
-  /** Reports the page's icon, or that it has none. Without it, none loads. */
-  onIconChange?: (icon: PageIcon | undefined) => void;
+  /**
+   * Reports the page's icon, that a new site's is loading, or that it has
+   * none. Without it, none loads.
+   */
+  onIconChange?: (icon: PaneIcon | undefined) => void;
   /** Reports the page's web contents, which main saves its history from. */
   onAttach?: (webContentsId: number) => void;
   /** Opens a link the page meant for a new tab. Without it, the page loads it. */
@@ -99,6 +104,7 @@ const attachedWebviews = new WeakSet<WebviewTag>();
 
 export function BrowserPane({
   url,
+  hasIcon = false,
   paneId,
   tabId,
   onTitleChange,
@@ -207,7 +213,7 @@ export function BrowserPane({
     }
 
     webviewRef.current = webview;
-    reportPage(webview, url, pageReports);
+    reportPage(webview, hasIcon ? url : undefined, pageReports);
 
     // Because the webview is absolutely positioned and scaled
     // while in preview mode, we unfortunately need to implement

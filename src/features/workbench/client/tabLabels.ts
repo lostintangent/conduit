@@ -6,18 +6,17 @@ import {
   type TabProgressState,
   type TabState,
 } from "@features/workbench/client/atoms";
-import type { Pane, Tab } from "@features/workbench/model";
+import type { Pane, PaneIcon, Tab } from "@features/workbench/model";
 import { isShellName } from "@features/terminal/model";
 import { formatHomePath } from "@/utils/pathUtils";
 import { createAtom } from "@/createAtom";
 import { getSettings } from "@features/settings/client/queries";
 import { shallow } from "@tanstack/react-store";
-import type { PageIcon } from "@shared/types/panes";
 
 export type PaneLabel = {
   label: string;
   tooltip: Record<string, string>;
-  icon?: PageIcon;
+  icon?: PaneIcon;
 };
 
 /**
@@ -92,7 +91,7 @@ export type TabDescriptor = {
   tooltip: Record<string, string>;
   name?: string;
   // A name is the user's own label, which shows without its pane's icon
-  icon?: PageIcon;
+  icon?: PaneIcon;
   isActive: boolean;
   locked?: boolean;
   tabState: TabState;
