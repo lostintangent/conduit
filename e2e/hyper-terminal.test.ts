@@ -80,6 +80,8 @@ describe("a hyper terminal being dragged", () => {
   afterAll(() => app?.close());
 
   const webview = () => app.page.locator("webview#Split-page");
+  const minimize = () => app.page.getByRole("button", { name: "Minimize" });
+  const hyper = () => app.page.locator(".fixed").filter({ has: minimize() });
   const editor = () =>
     app.page
       .getByTestId("editor-pane")
@@ -137,8 +139,7 @@ describe("a hyper terminal being dragged", () => {
     };
 
     await app.page.getByRole("button", { name: "Open hyper terminal" }).click();
-    const minimize = app.page.getByRole("button", { name: "Minimize" });
-    const bar = (await minimize.boundingBox())!;
+    const bar = (await minimize().boundingBox())!;
     await app.page.mouse.move(bar.x + 100, bar.y + bar.height / 2);
     await app.page.mouse.down();
     // Over the top of the notes, then down over the page, out of reach of the
@@ -154,9 +155,25 @@ describe("a hyper terminal being dragged", () => {
     await app.page.mouse.up();
 
     // The drag kept up, so the bar ended under the pointer
-    const moved = (await minimize.boundingBox())!;
+    const moved = (await minimize().boundingBox())!;
     expect(moved.x).toBeCloseTo(over.x - 100, 0);
     expect(await inWebview(webview(), "pointed")).toBe(0);
     expect(await app.page.evaluate(() => getSelection()!.toString())).toBe("");
+  });
+
+  // Like a window's title bar, pressing it doesn't take the keyboard away
+  it("keeps the keyboard in its terminal while it's dragged", async () => {
+    const typing = hyper().locator(".xterm-helper-textarea");
+    const isTyping = () => typing.evaluate((e) => e === document.activeElement);
+    await hyper().locator(".xterm-screen").click();
+    await until(isTyping, "the keyboard in the hyper terminal");
+
+    const bar = (await minimize().boundingBox())!;
+    await app.page.mouse.move(bar.x + 100, bar.y + bar.height / 2);
+    await app.page.mouse.down();
+    await app.page.mouse.move(bar.x + 60, bar.y - 60);
+    expect(await isTyping()).toBe(true);
+    await app.page.mouse.up();
+    expect(await isTyping()).toBe(true);
   });
 });

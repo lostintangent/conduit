@@ -137,12 +137,14 @@ export function HyperTerminal({
 
   // The pointer gets ahead of the title bar until the hyper terminal catches
   // up, so capturing it keeps every move with the title bar, rather than
-  // selecting or hovering what's behind
+  // selecting or hovering what's behind. Like a window's title bar, pressing
+  // it leaves the keyboard where it was.
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || (e.target as HTMLElement).closest("button")) {
       return;
     }
 
+    e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     setIsDragging(true);
     dragOffset.current = {
