@@ -308,7 +308,7 @@ describe("a page's new tabs and popups", () => {
     ).toBe(true);
   });
 
-  it("lets pages copy and keep the screen awake, and tells them no to the rest", async () => {
+  it("lets pages copy, keep the screen awake and see where the user is, and tells them no to the rest", async () => {
     // Only probes that can't show a macOS prompt or take over the screen
     const permissions = await inPage<Record<string, string>>(`(async () => {
       const states = {};
@@ -328,7 +328,7 @@ describe("a page's new tabs and popups", () => {
       "screen-wake-lock": "granted",
       "clipboard-read": "denied",
       notifications: "denied",
-      geolocation: "denied",
+      geolocation: "granted",
       camera: "denied",
       microphone: "denied",
       wakeLock: "granted",

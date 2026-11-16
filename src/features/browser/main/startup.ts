@@ -21,10 +21,12 @@ const emit = emitter("browser");
 const PARTITION = "persist:browser";
 
 // What a page may do without asking. Conduit has no way to ask the user yet,
-// so a page is told no to the rest, like the camera or notifications.
+// so a page is told no to the rest, like the camera or notifications. Every
+// site may see where the user is, once macOS lets Conduit.
 const ALLOWED_PERMISSIONS = new Set([
   "clipboard-sanitized-write",
   "fullscreen",
+  "geolocation",
   "openExternal",
   "pointerLock",
   "screen-wake-lock",

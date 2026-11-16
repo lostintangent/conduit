@@ -61,6 +61,8 @@ const config: ForgeConfig = {
     extendInfo: {
       NSAppleEventsUsageDescription:
         "Conduit needs to communicate with other applications to open files in Finder and URLs in your browser.",
+      NSLocationUsageDescription:
+        "Websites you open in Conduit can use your location.",
     },
     osxSign: process.env.CONDUIT_APPLE_ID_PASSWORD
       ? {
