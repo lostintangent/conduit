@@ -4,6 +4,7 @@ import type { TerminalPane as SharedTerminalPane } from "@shared/types/panes";
 import type { Workspace } from "../model";
 import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import { closeTab, openTab } from "@features/workbench/client/actions/tab";
+import { walkLayout } from "@features/workbench/client/layout";
 import { openSidebarPage } from "@features/browser/client/sidebar";
 import { restorePagesOnOpen } from "@features/browser/client/webview";
 import { queryClient, runMutation } from "@/query";
@@ -117,7 +118,13 @@ async function restoreTabs(
   let workspaceTabs: Tab[];
   let pages: string[];
   try {
-    workspaceTabs = await startTabs(workspace.tabs, terminalSessions);
+    workspaceTabs = await startTabs(
+      workspace.tabs,
+      terminalSessions,
+      shownTerminals(
+        workspace.tabs.find((tab) => tab.id === workspace.activeTabId),
+      ),
+    );
     pages = await api.workspaces.stagePages(workspace.name ?? null);
   } catch (error) {
     await Promise.allSettled(
@@ -138,12 +145,34 @@ async function restoreTabs(
   if (workspaceTabs.length === 0) await openTab();
 }
 
+/**
+ * The terminals the window shows as it opens a workspace, by the pane whose
+ * shell they share. The window may not be the size they were saved at, like
+ * one that zooms to fill the screen only as it shows, and a shell that starts
+ * wider than its pane leaves a stray line. So these start once their panes
+ * have fit. The rest start at their saved size so their commands run, since
+ * their panes can't fit until they're shown.
+ */
+function shownTerminals(tab: Workspace["tabs"][number] | undefined) {
+  const shown = new Set<string>();
+  if (!tab?.layout) return shown;
+  walkLayout(tab.layout as LayoutNode, ({ node }) => {
+    if (node.type !== "pane" || node.collapsed) return;
+    const pane = tab.panes.find((candidate) => candidate.id === node.paneId);
+    if (pane?.type === "terminal") {
+      shown.add((pane as WorkspaceTerminalPane).cloneOf ?? pane.id);
+    }
+  });
+  return shown;
+}
+
 async function startTabs(
   tabs: Workspace["tabs"],
   terminalSessions: Map<
     string,
     Awaited<ReturnType<typeof api.terminal.create>>
   >,
+  shown: Set<string>,
 ) {
   const workspaceTabs: Tab[] = [];
   for (const workspaceTab of tabs) {
@@ -159,8 +188,9 @@ async function startTabs(
         session = await api.terminal.create({
           cwd: pane.cwd ?? undefined,
           command,
-          cols: pane.cols,
-          rows: pane.rows,
+          ...(shown.has(cloneSourceId)
+            ? { waitForSize: true }
+            : { cols: pane.cols, rows: pane.rows }),
         });
         terminalSessions.set(cloneSourceId, session);
       }

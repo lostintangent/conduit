@@ -1,6 +1,10 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { type Conduit, launch, until } from "./app";
-import { expectStartedAtPaneSize, zshenv } from "./shells";
+import {
+  expectStartedAtPaneSize,
+  expectStartedAtPaneWidth,
+  zshenv,
+} from "./shells";
 
 interface Bounds {
   x: number;
@@ -96,6 +100,12 @@ describe("the window", () => {
     // macOS counts it as zoomed, which Electron restores as the window shows.
     await until(isAt(area), "the window to fill the screen");
     expect(await bounds()).toEqual(area);
+  });
+
+  it("starts its first shell no wider than its pane there", async () => {
+    // Its shells start before it shows, at the size it was before it zoomed,
+    // and grow with it.
+    await expectStartedAtPaneWidth(app, await app.terminal());
   });
 
   it("reopens on the screen when the display it was left on is gone", async () => {

@@ -149,22 +149,47 @@ describe("openWorkspace", () => {
     expect(sidebarStateAtom.get()).toEqual({ isOpen: true, view: "browser" });
   });
 
-  it("starts each restored terminal at the size it was saved at", async () => {
+  it("starts the terminals it shows once their panes fit, and the rest at the size they were saved at", async () => {
+    const terminal = (id: string) => ({
+      id,
+      type: "terminal" as const,
+      cwd: "/tmp",
+      cols: 132,
+      rows: 41,
+    });
     seed({
       workspaces: [
         {
           name: "Work",
           lastModified: 0,
-          activeTabId: "tab-1",
+          activeTabId: "shown",
           tabs: [
             {
-              id: "tab-1",
-              name: "Shell",
-              panes: [
-                { id: "a", type: "terminal", cwd: "/tmp", cols: 132, rows: 41 },
-              ],
-              layout: { id: "node-a", type: "pane", paneId: "a" },
+              id: "shown",
+              name: "Shown",
+              panes: [terminal("a"), terminal("collapsed")],
+              layout: {
+                id: "split",
+                type: "split",
+                direction: "row",
+                children: [
+                  { id: "node-a", type: "pane", paneId: "a" },
+                  {
+                    id: "node-collapsed",
+                    type: "pane",
+                    paneId: "collapsed",
+                    collapsed: true,
+                  },
+                ],
+              },
               activePaneId: "a",
+            },
+            {
+              id: "background",
+              name: "Background",
+              panes: [terminal("b")],
+              layout: { id: "node-b", type: "pane", paneId: "b" },
+              activePaneId: "b",
             },
           ],
         },
@@ -173,12 +198,12 @@ describe("openWorkspace", () => {
 
     await openWorkspace("Work");
 
-    expect(terminalApi.create).toHaveBeenCalledWith({
-      cwd: "/tmp",
-      command: undefined,
-      cols: 132,
-      rows: 41,
-    });
+    const saved = { cwd: "/tmp", command: undefined, cols: 132, rows: 41 };
+    expect(terminalApi.create.mock.calls).toEqual([
+      [{ cwd: "/tmp", command: undefined, waitForSize: true }],
+      [saved],
+      [saved],
+    ]);
   });
 
   it("saves the tabs it replaces first, and leaves them open when it can't restore", async () => {
