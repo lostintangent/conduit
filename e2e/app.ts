@@ -61,7 +61,11 @@ export interface LaunchOptions {
 
 type Truthy<T> = Exclude<T, false | 0 | "" | null | undefined>;
 
-/** Polls `check` until it returns a truthy value, and returns that value. */
+/**
+ * Polls `check` until it returns a truthy value, and returns that value. A
+ * check that never settles, like a script waiting on a page that stopped
+ * drawing, times out too.
+ */
 export async function until<T>(
   check: () => T | Promise<T>,
   what: string,
@@ -70,12 +74,24 @@ export async function until<T>(
   const deadline = Date.now() + timeout;
   let last: unknown;
   while (Date.now() < deadline) {
+    const pending = Promise.resolve().then(check);
+    pending.catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const stalled = new Promise<typeof STALLED>((resolve) => {
+      timer = setTimeout(() => resolve(STALLED), deadline - Date.now());
+    });
     try {
-      const value = await check();
+      const value = await Promise.race([pending, stalled]);
+      if (value === STALLED) {
+        last = "a check still running at the deadline";
+        break;
+      }
       if (value) return value as Truthy<T>;
       last = value;
     } catch (error) {
       last = error;
+    } finally {
+      clearTimeout(timer);
     }
     await delay(100);
   }
@@ -83,6 +99,8 @@ export async function until<T>(
     `Timed out after ${timeout}ms waiting for ${what} (last: ${last})`,
   );
 }
+
+const STALLED = Symbol("stalled");
 
 /** Whether `check` comes true within a moment, for what shouldn't happen. */
 export function happens(
