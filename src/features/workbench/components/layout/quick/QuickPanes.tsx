@@ -45,12 +45,16 @@ export function QuickPanes() {
 /**
  * Dims the workbench once for the whole stack. It stays mounted so it fades
  * out too, while a closing pane goes at once with its content.
+ *
+ * Quick panes sit above the Hyper Terminal (z-70) and below dialogs (z-80),
+ * so a dialog or the palette opened from one covers its page, which floats
+ * just above its panel, see BrowserPane.
  */
 function QuickBackdrop({ shown }: { shown: boolean }) {
   return createPortal(
     <div
       aria-hidden
-      className={`pointer-events-none fixed inset-0 z-[80] bg-black/30 transition-opacity duration-150 dark:bg-black/45 ${
+      className={`pointer-events-none fixed inset-0 z-[75] bg-black/30 transition-opacity duration-150 dark:bg-black/45 ${
         shown ? "opacity-100" : "opacity-0"
       }`}
     />,
@@ -109,9 +113,9 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
         ref={content}
         data-quick-pane=""
         showClose={false}
-        overlayClassName="bg-transparent"
+        overlayClassName="z-[75] bg-transparent"
         aria-describedby={undefined}
-        className="flex h-[758px] max-h-[90vh] w-full max-w-[min(95vw,1000px)] flex-col gap-2 border-0 bg-transparent p-0 shadow-none duration-150 data-[state=open]:zoom-in-100!"
+        className="z-[75] flex h-[758px] max-h-[90vh] w-full max-w-[min(95vw,1000px)] flex-col gap-2 border-0 bg-transparent p-0 shadow-none duration-150 data-[state=open]:zoom-in-100!"
         // The pane takes focus itself once it's active
         onOpenAutoFocus={(event) => event.preventDefault()}
         // Only an Escape the pane didn't use closes it, see `closeOnEscape`

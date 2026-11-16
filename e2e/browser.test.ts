@@ -12,7 +12,14 @@ import {
   expect,
   it,
 } from "vitest";
-import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
+import {
+  type Conduit,
+  happens,
+  inWebview,
+  launch,
+  type Terminal,
+  until,
+} from "./app";
 
 const page = `<!doctype html>
 <title>E2E Page</title>
@@ -124,11 +131,24 @@ describe("browser automation from the CLI", () => {
   }
 
   /**
-   * Presses Cmd and the key, which navigate the nth page, and lets go once
-   * the new page has arrived. A navigation gives the page a new frame, and the
-   * old one never acknowledges a key let go as it's replaced, so a whole press
-   * would wait for that forever.
+   * Presses Cmd and the key in a focused page, and lets go once `done`, for
+   * a key that navigates or closes the page. Either takes away the frame with
+   * the keys, which never acknowledges a key let go as it goes, so a whole
+   * press would wait for that forever.
    */
+  async function pressInPage(
+    key: string,
+    done: () => Promise<boolean>,
+    what: string,
+  ) {
+    await app.page.keyboard.down("Meta");
+    await app.page.keyboard.down(key);
+    await until(done, what);
+    await app.page.keyboard.up(key);
+    await app.page.keyboard.up("Meta");
+  }
+
+  /** Presses Cmd and the key, which navigate the nth page. */
   async function navigateWith(index: number, key: string) {
     const webview = app.page.locator("webview").nth(index);
     await webview.evaluate((webview: Electron.WebviewTag) => {
@@ -139,9 +159,8 @@ describe("browser automation from the CLI", () => {
       };
       webview.addEventListener("did-navigate", navigated);
     });
-    await app.page.keyboard.down("Meta");
-    await app.page.keyboard.down(key);
-    await until(
+    await pressInPage(
+      key,
       () =>
         webview.evaluate(
           (webview: Electron.WebviewTag) =>
@@ -149,8 +168,22 @@ describe("browser automation from the CLI", () => {
         ),
       "the page to navigate",
     );
-    await app.page.keyboard.up(key);
-    await app.page.keyboard.up("Meta");
+  }
+
+  /** Closes the nth page's tab or quick pane with Cmd+W from the page. */
+  async function closeFromPage(index: number) {
+    await app.page
+      .locator("webview")
+      .nth(index)
+      .evaluate((webview) => {
+        (webview as HTMLElement).dataset.closing = "";
+      });
+    await pressInPage(
+      "w",
+      async () =>
+        (await app.page.locator("webview[data-closing]").count()) === 0,
+      "the page to close",
+    );
   }
 
   /** The focused address bar's address, once all of it is selected. */
@@ -216,6 +249,15 @@ describe("browser automation from the CLI", () => {
       .nth(index)
       .and(app.page.getByRole("tab", { selected: true }));
   }
+
+  const quickPanes = () => app.page.locator("[data-quick-pane]");
+  const quickPaneCount = (count: number) =>
+    until(
+      async () => (await quickPanes().count()) === count,
+      `${count} quick panes`,
+    );
+  // The strip is hidden from roles while a quick pane is open
+  const stripTabs = () => app.page.getByRole("tab", { includeHidden: true });
 
   it("opens a browser pane and navigates it", async () => {
     expect(await terminal.run("conduit split right -t browser")).toBe(0);
@@ -517,28 +559,267 @@ describe("browser automation from the CLI", () => {
     await until(async () => (await addressBars(url)) === 1, "it to show");
   });
 
-  it("opens a web page from a terminal with Cmd+L", async () => {
-    await terminal.locator.click();
-    await expectActivePane("terminal");
-    await app.page.keyboard.press("Meta+l");
-    const dialog = app.page.getByRole("dialog", { name: "Open Web Page" });
-    const open = dialog.getByRole("button", { name: "Open", exact: true });
-    await open.waitFor();
-    expect(await open.isDisabled()).toBe(true);
+  describe("a Quick Browser", () => {
+    // A page's webview goes on the body as its pane first shows
+    const quickPageIndex = async () =>
+      (await app.page.locator("webview").count()) - 1;
 
-    // Without a scheme, a local address opens over http
-    const address = url.replace("127.0.0.1", "localhost");
-    await dialog
-      .getByPlaceholder("Enter a URL or search")
-      .fill(`${address.slice("http://".length)}dialog`);
-    expect(await open.isDisabled()).toBe(false);
-    await app.page.keyboard.press("Enter");
-    await dialog.waitFor({ state: "hidden" });
-    await expectActivePane(`${address}dialog`);
+    /** Opens a Quick Browser with Cmd+L, and goes to `address` in it. */
+    async function openQuickBrowser(address?: string): Promise<number> {
+      const before = await quickPanes().count();
+      await app.page.keyboard.press("Meta+l");
+      await quickPaneCount(before + 1);
+      await until(
+        () =>
+          quickPanes()
+            .last()
+            .getByPlaceholder("Search or enter address")
+            .evaluate((input) => input === document.activeElement),
+        "focus in its address bar",
+      );
+      const index = await quickPageIndex();
+      if (address) await goTo(index, address);
+      return index;
+    }
 
-    const panes = await conduit<Pane[]>("pane-list -t browser");
-    const pane = panes.find((candidate) => candidate.url.endsWith("/dialog"));
-    expect(await terminal.run(`conduit pane-close -p ${pane!.id}`)).toBe(0);
+    /**
+     * Types `address` in the nth page's focused address bar, and lets go of
+     * Enter once the page is there. Enter gives the page the keys, and the
+     * page it replaces never acknowledges the key let go, see `pressInPage`.
+     */
+    async function goTo(index: number, address: string) {
+      await app.page.keyboard.type(address);
+      await app.page.keyboard.down("Enter");
+      const { pathname } = new URL(address.replace(/^(?!http)/, "http://"));
+      await until(
+        async () => (await inPage(index, "location.pathname")) === pathname,
+        `${pathname} to load`,
+      );
+      await app.page.keyboard.up("Enter");
+      await pageFocused(index);
+    }
+
+    /** Whether the nth page is what shows at the middle of it. */
+    function pageOnTop(index: number): Promise<boolean> {
+      return app.page.evaluate((index) => {
+        const page = document.querySelectorAll("webview")[index]!;
+        const box = page.getBoundingClientRect();
+        const middle = [box.x + box.width / 2, box.y + box.height / 2];
+        return document.elementFromPoint(middle[0]!, middle[1]!) === page;
+      }, index);
+    }
+
+    it("opens from a terminal with Cmd+L, its page floating over the pane with the keys", async () => {
+      const tabs = await stripTabs().count();
+      await terminal.locator.click();
+      await expectActivePane("terminal");
+      const index = await openQuickBrowser();
+
+      // Without a scheme, a local address opens over http
+      const local = url.replace("127.0.0.1", "localhost");
+      await goTo(index, `${local.slice("http://".length)}quick`);
+      expect(await inPage(index, "location.href")).toBe(`${local}quick`);
+
+      const pane = (await quickPanes().boundingBox())!;
+      const page = app.page.locator("webview").nth(index);
+      const box = (await page.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(pane.x);
+      expect(box.y).toBeGreaterThanOrEqual(pane.y);
+      expect(box.x + box.width).toBeLessThanOrEqual(pane.x + pane.width);
+      expect(box.y + box.height).toBeLessThanOrEqual(pane.y + pane.height);
+      expect(await pageOnTop(index)).toBe(true);
+      // The quick pane hides the rest of the body from assistive tech
+      expect(await page.getAttribute("aria-hidden")).toBeNull();
+      expect(await stripTabs().count()).toBe(tabs);
+    });
+
+    it("gives an Escape to its page first, and closes on one the page doesn't use", async () => {
+      const index = await quickPageIndex();
+      await inPage(
+        index,
+        `onkeydown = (event) => {
+          if (event.key === "Escape" && holding) {
+            event.preventDefault();
+            held++;
+          }
+        };
+        window.held = 0;
+        window.holding = true;`,
+      );
+      await app.page.keyboard.press("Escape");
+      await until(() => inPage(index, "held === 1"), "the page's Escape");
+      expect(
+        await happens(
+          async () => (await quickPanes().count()) === 0,
+          "the Quick Browser to close",
+        ),
+      ).toBe(false);
+
+      await inPage(index, "holding = false");
+      await app.page.keyboard.press("Escape");
+      await quickPaneCount(0);
+      await until(() => terminal.focused(), "focus back in the terminal");
+    });
+
+    it("puts back what was typed in its address bar on the first Escape, and closes on the next", async () => {
+      await openQuickBrowser();
+      const field = quickPanes().getByPlaceholder("Search or enter address");
+      await app.page.keyboard.type("not there yet");
+      await app.page.keyboard.press("Escape");
+      await until(
+        async () => (await field.inputValue()) === "",
+        "what was typed to go",
+      );
+      expect(
+        await happens(
+          async () => (await quickPanes().count()) === 0,
+          "the Quick Browser to close",
+        ),
+      ).toBe(false);
+
+      await app.page.keyboard.press("Escape");
+      await quickPaneCount(0);
+    });
+
+    it("keeps its page and the keys as it opens in a tab", async () => {
+      const tabs = await stripTabs().count();
+      const index = await openQuickBrowser(`${url}kept`);
+      await inPage(index, "window.kept = true");
+
+      requested.length = 0;
+      await quickPanes()
+        .getByRole("toolbar", { name: "Quick Pane" })
+        .getByRole("button", { name: "Open in Tab", exact: true })
+        .click();
+      await quickPaneCount(0);
+      await until(
+        async () => (await stripTabs().count()) === tabs + 1,
+        "its tab",
+      );
+      await pageFocused(index);
+      expect(await inPage(index, "window.kept")).toBe(true);
+      expect(requested).not.toContain("/kept");
+      expect(await pageOnTop(index)).toBe(true);
+
+      await closeFromPage(index);
+      await until(
+        async () => (await stripTabs().count()) === tabs,
+        "its tab to close",
+      );
+      await app.page.keyboard.press("Meta+1");
+      await selectedTab(0).waitFor();
+    });
+
+    it("goes under the palette, and under a quick pane stacked in front of it", async () => {
+      fs.writeFileSync(path.join(app.home, "stacked.txt"), "stacked\n");
+      // Opens a quick editor once the test says so. It goes home first, since
+      // the terminal's directory was removed by now.
+      await terminal.type(
+        '(cd; until [ -e stack ]; do sleep 0.1; done; conduit --quick stacked.txt; echo stacked-""closed) &\n',
+      );
+      const index = await openQuickBrowser(`${url}stacked`);
+
+      await app.page.keyboard.press("Meta+Shift+p");
+      const palette = app.page.getByTestId("command-palette");
+      await palette.waitFor();
+      // The palette takes the pointer a render after it shows, once its layer
+      // is stacked over the quick pane's
+      await until(
+        () =>
+          palette.evaluate((palette, index) => {
+            const box = palette.getBoundingClientRect();
+            const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+            const page = document
+              .querySelectorAll("webview")
+              [index]!.getBoundingClientRect();
+            const overPage =
+              x > page.left &&
+              x < page.right &&
+              y > page.top &&
+              y < page.bottom;
+            return (
+              overPage && palette.contains(document.elementFromPoint(x, y))
+            );
+          }, index),
+        "the palette on top, over the page",
+      );
+      await app.page.keyboard.press("Escape");
+      await palette.waitFor({ state: "hidden" });
+      expect(await quickPanes().count()).toBe(1);
+
+      fs.writeFileSync(path.join(app.home, "stack"), "");
+      await quickPaneCount(2);
+      const editor = quickPanes().last().locator(".monaco-editor");
+      await until(
+        () =>
+          editor.evaluate((editor) => editor.contains(document.activeElement)),
+        "focus in the quick editor",
+      );
+      expect(await pageOnTop(index)).toBe(false);
+
+      await app.page.keyboard.press("Escape");
+      await quickPaneCount(1);
+      await terminal.waitForText("stacked-closed");
+      await pageFocused(index);
+      expect(await pageOnTop(index)).toBe(true);
+
+      await closeFromPage(index);
+      await quickPaneCount(0);
+    });
+  });
+
+  it("leaves a page behind a quick pane without the keys as the pane opens in a tab", async () => {
+    fs.writeFileSync(path.join(app.home, "behind.txt"), "behind\n");
+    // Opens a quick editor once the page has the keys. It goes home first,
+    // since the terminal's directory was removed by now.
+    await terminal.type(
+      "(cd; until [ -e behind ]; do sleep 0.1; done; conduit --quick behind.txt) &\n",
+    );
+    await focusPage(0);
+    await inPage(
+      0,
+      `window.strayed = [];
+      addEventListener("keydown", (event) => strayed.push(event.key), true);`,
+    );
+    fs.writeFileSync(path.join(app.home, "behind"), "");
+    await quickPaneCount(1);
+    const inEditor = () =>
+      app.page.evaluate(
+        () => !!document.activeElement?.closest(".monaco-editor"),
+      );
+    await until(inEditor, "focus in the quick editor");
+
+    const tabs = await stripTabs().count();
+    await quickPanes()
+      .getByRole("toolbar", { name: "Quick Pane" })
+      .getByRole("button", { name: "Open in Tab", exact: true })
+      .click();
+    await quickPaneCount(0);
+    await until(
+      async () => (await stripTabs().count()) === tabs + 1,
+      "its tab",
+    );
+    await until(inEditor, "focus in the editor's tab");
+    await app.page.evaluate(() => {
+      const editor = document.activeElement as HTMLElement;
+      editor.dataset.pressed = "";
+      editor.addEventListener("keydown", (event) => {
+        editor.dataset.pressed += event.key;
+      });
+    });
+    await app.page.keyboard.press("ArrowRight");
+    expect(
+      await app.page.locator("[data-pressed]").getAttribute("data-pressed"),
+    ).toBe("ArrowRight");
+    expect(await inPage(0, "strayed")).toEqual([]);
+
+    await app.page.keyboard.press("Meta+w");
+    await until(
+      async () => (await stripTabs().count()) === tabs,
+      "its tab to close",
+    );
+    await app.page.keyboard.press("Meta+1");
+    await selectedTab(0).waitFor();
   });
 
   it("leaves a page its editing keys and the keys the app isn't using", async () => {

@@ -3,6 +3,7 @@ import {
   getContextKeyService,
   getKeybindingRegistry,
 } from "@/commands";
+import { quickPaneOpen } from "@/commands/contextKeys/appContextKeys";
 import {
   clearPressedKeys,
   isSameChord,
@@ -35,6 +36,9 @@ const PAGE_KEYS = [
 // Find, which a page with its own, like a document editor, keeps for itself.
 // The page does nothing with them otherwise, so the app gets them then.
 const PAGE_FIRST_KEYS = ["Cmd+F", "Cmd+G", "Cmd+Shift+G"].map(parseChord);
+
+// A quick pane closes on an Escape its page doesn't use
+const ESCAPE = parseChord("Escape");
 
 // The keybinding dispatcher switches tabs with these itself
 const TAB_KEYS = Array.from({ length: 9 }, (_, index) =>
@@ -70,17 +74,23 @@ export function getAppKeys(): AppKey[] {
       );
     }
   }
+  if (quickPaneOpen.isTrue().evaluate(getContextKeyService().getAll())) {
+    keys.push({ chord: ESCAPE, startsChord: false, pageFirst: true });
+  }
   return keys;
 }
 
-/** Runs a key a page handed over, as if it had been pressed in the app */
-function runHandedKey({ init, held }: HandedKey) {
+/**
+ * Runs a key a page handed over, as if it had been pressed in its pane. The
+ * page's webview isn't in the pane, and a quick pane listens there.
+ */
+function runHandedKey(pane: HTMLElement, { init, held }: HandedKey) {
   clearPressedKeys();
   for (const key of held) {
     trackKeyDown(new KeyboardEvent("keydown", { key }));
   }
-  window.dispatchEvent(
-    new KeyboardEvent("keydown", { ...init, cancelable: true }),
+  pane.dispatchEvent(
+    new KeyboardEvent("keydown", { ...init, bubbles: true, cancelable: true }),
   );
   // The key comes up in the page, so the app wouldn't see it released
   clearPressedKeys();
@@ -88,9 +98,12 @@ function runHandedKey({ init, held }: HandedKey) {
 
 /**
  * Keeps a webview's pages up to date on the app's keys, and runs the ones they
- * hand back. Returns a function that stops.
+ * hand back in its pane. Returns a function that stops.
  */
-export function shareAppKeys(webview: WebviewTag): () => void {
+export function shareAppKeys(
+  webview: WebviewTag,
+  pane: HTMLElement,
+): () => void {
   let sent: string | undefined;
   const send = () => {
     const keys = getAppKeys();
@@ -121,7 +134,9 @@ export function shareAppKeys(webview: WebviewTag): () => void {
       sent = undefined;
       send();
     }
-    if (channel === "browser:app-key") runHandedKey(args[0] as HandedKey);
+    if (channel === "browser:app-key") {
+      runHandedKey(pane, args[0] as HandedKey);
+    }
   };
 
   webview.addEventListener("ipc-message", handleIpcMessage);

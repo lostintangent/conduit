@@ -173,6 +173,28 @@ describe("BrowserToolbar's address field", () => {
     fireEvent.keyDown(urlInput(), { key: "Escape" });
     expect(onDismiss).toHaveBeenCalledOnce();
   });
+
+  // A quick pane closes on an Escape that reaches it
+  it("keeps the Escape it uses from the pane around it", () => {
+    const reached = vi.fn();
+    document.body.addEventListener("keydown", reached);
+    typedIn("foo");
+    fireEvent.keyDown(urlInput(), { key: "Escape" });
+    expect(reached).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(urlInput(), { key: "Escape" });
+    document.body.removeEventListener("keydown", reached);
+    expect(reached).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an empty field with nothing to suggest on the first Escape", () => {
+    const onDismiss = vi.fn();
+    render(<TooltipProvider>{toolbar({ onDismiss })}</TooltipProvider>);
+    expect(document.activeElement).toBe(urlInput());
+
+    fireEvent.keyDown(urlInput(), { key: "Escape" });
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
 });
 
 describe("BrowserToolbar's history and favorites", () => {

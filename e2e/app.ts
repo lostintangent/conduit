@@ -84,6 +84,17 @@ export async function until<T>(
   );
 }
 
+/** Whether `check` comes true within a moment, for what shouldn't happen. */
+export function happens(
+  check: () => boolean | Promise<boolean>,
+  what: string,
+): Promise<boolean> {
+  return until(check, what, 1_000).then(
+    () => true,
+    () => false,
+  );
+}
+
 /**
  * A new temporary home. It's under /tmp so the CLI's socket path stays short,
  * and resolved because macOS reports /tmp paths as /private/tmp.

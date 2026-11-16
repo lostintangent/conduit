@@ -38,7 +38,7 @@ export const tabIsLocked = new ContextKey<boolean>("tabIsLocked", false);
 
 /**
  * Whether the active tab has an active pane
- * Used by: pane.openWebPage
+ * Used by: commands that act on the active pane
  */
 export const hasActivePane = new ContextKey<boolean>("hasActivePane", false);
 

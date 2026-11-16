@@ -57,7 +57,6 @@ describe("useCommandSystem", () => {
       setShowAgentLauncher: vi.fn(),
       setShowRenameWorkspaceDialog: vi.fn(),
       setShowWorkspacePicker: vi.fn(),
-      setIsUrlDialogOpen: vi.fn(),
       setCleanupDialogSessions: vi.fn(),
       setShowCreateWorkspaceDialog: vi.fn(),
       setShowDuplicateWorkspaceDialog: vi.fn(),

@@ -2,20 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, git, launch, Terminal, until } from "./app";
+import { type Conduit, git, happens, launch, Terminal, until } from "./app";
 
 /** The editor's rendered lines, joined with newlines. */
 async function textOf(editor: Locator): Promise<string> {
   const lines = await editor.locator(".view-line").allTextContents();
   return lines.map((line) => line.replaceAll("\u00a0", " ")).join("\n");
-}
-
-/** Whether `check` comes true within a moment, for what shouldn't happen. */
-function happens(check: () => boolean | Promise<boolean>, what: string) {
-  return until(check, what, 1_000).then(
-    () => true,
-    () => false,
-  );
 }
 
 describe("a quick pane", () => {
@@ -156,6 +148,24 @@ describe("a quick pane", () => {
       ),
     ).toBe(false);
     await until(() => quick.focused(), "focus in the quick terminal");
+  });
+
+  it("stacks a Quick Browser over a quick terminal with ⌘L, which Esc closes back to the terminal", async () => {
+    const quick = new Terminal(app.page, front().locator(".xterm"));
+    await app.page.keyboard.press("Meta+l");
+    await quickPaneCount(2);
+    expect(await stripTabs().count()).toBe(2);
+    const address = front().getByPlaceholder("Search or enter address");
+    await until(
+      () => address.evaluate((input) => input === document.activeElement),
+      "focus in the Quick Browser's address bar",
+    );
+
+    // With no pages seen yet, there's nothing to suggest for the first Escape
+    // to close
+    await app.page.keyboard.press("Escape");
+    await quickPaneCount(1);
+    await until(() => quick.focused(), "focus back in the quick terminal");
   });
 
   it("closes with ⌘W, and leaves the strip as it was with focus back in it", async () => {

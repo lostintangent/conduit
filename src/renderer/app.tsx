@@ -9,7 +9,6 @@ import { TabsOverview } from "@features/workbench/components/layout/overview/Tab
 import { HyperTerminal } from "@features/workbench/components/layout/quick/HyperTerminal";
 import { QuickPanes } from "@features/workbench/components/layout/quick/QuickPanes";
 import { GlobalEditorContainer } from "@features/editor/components/GlobalEditorContainer";
-import { normalizeUrl } from "@features/browser/client/url";
 import { useDownloadToasts } from "@features/browser/components/useDownloadToasts";
 import { updateTerminalThemes } from "@features/terminal/client/xtermCache";
 import { NotificationCenter } from "@features/workbench/components/NotificationCenter";
@@ -44,7 +43,6 @@ import {
   updateNotification,
 } from "@features/workbench/client/actions/notifications";
 import {
-  openBrowserPane,
   removePane,
   updatePaneProperty,
 } from "@features/workbench/client/actions/pane";
@@ -113,7 +111,6 @@ export function App() {
     tabId: string;
     initialValue: string;
   } | null>(null);
-  const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
   const [quickOpenInitialValue, setQuickOpenInitialValue] = useState("");
 
@@ -189,7 +186,6 @@ export function App() {
     setShowAgentLauncher,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
-    setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
@@ -392,16 +388,6 @@ export function App() {
     }
 
     setCleanupDialogSessions(null);
-  };
-
-  const handleOpenWebPage = (url: string) => {
-    const activeTab = activeTabAtom.get();
-    if (!activeTab || !activeTab.activePaneId) {
-      return;
-    }
-
-    openBrowserPane(activeTab.id, activeTab.activePaneId, normalizeUrl(url));
-    setIsUrlDialogOpen(false);
   };
 
   const handleDuplicateWorkspace = (name: string) => {
@@ -647,17 +633,6 @@ export function App() {
             }
           />
         ))}
-
-      <InputDialog
-        isOpen={isUrlDialogOpen}
-        onClose={() => setIsUrlDialogOpen(false)}
-        onSave={handleOpenWebPage}
-        title="Open Web Page"
-        placeholder="Enter a URL or search"
-        submitLabel="Open"
-        required
-        initialValue=""
-      />
 
       <InputDialog
         isOpen={showCreateWorkspaceDialog}

@@ -209,13 +209,16 @@ export function BrowserToolbar({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
-      // Typing opens the suggestions, so while they're open, the page's
-      // address goes back in, selected to type over, as Safari does
-      if (showSuggestions) {
+      const address = editableAddress(currentPage.url);
+      // Typing opens the suggestions, so while they show or there's an edit,
+      // the page's address goes back in, selected to type over, as Safari
+      // does. That uses the Escape, so a quick pane stays open.
+      if ((showSuggestions && suggestions.length > 0) || inputUrl !== address) {
+        e.stopPropagation();
         const field = e.currentTarget;
         flushSync(() => {
           closeDropdowns();
-          setInputUrl(editableAddress(currentPage.url));
+          setInputUrl(address);
         });
         field.select();
       } else {

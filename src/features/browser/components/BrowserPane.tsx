@@ -12,7 +12,10 @@ import {
 } from "@features/browser/client/webview";
 import { restoreAddress } from "@features/browser/model";
 import { activatePane } from "@features/workbench/client/actions/pane";
-import { applicationModeAtom } from "@features/workbench/client/atoms";
+import {
+  applicationModeAtom,
+  quickTabsAtom,
+} from "@features/workbench/client/atoms";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
@@ -49,6 +52,8 @@ const { browser } = window.conduit;
 const WEBVIEW_Z_INDEX = {
   /** Preview mode: highest priority, above all overlays */
   PREVIEW: "10001",
+  /** Front quick pane: over its panel (z-75), below dialogs (z-80) */
+  QUICK: "76",
   /** Sidebar mode: above sidebar panel (z-40) but below preview */
   SIDEBAR: "50",
   /** Normal tab mode: lowest, below design mode overlays (z-30) */
@@ -59,7 +64,7 @@ const WEBVIEW_Z_INDEX = {
  * Find floats on the body over its page, so it sits just above it. In the
  * sidebar it's level with the page, and draws over it by coming later.
  */
-const FIND_BAR_Z_INDEX = { SIDEBAR: 50, NORMAL: 2 } as const;
+const FIND_BAR_Z_INDEX = { QUICK: 77, SIDEBAR: 50, NORMAL: 2 } as const;
 
 type BrowserPaneProps = {
   /** Where a new webview starts. Changing it later doesn't navigate the page. */
@@ -127,6 +132,22 @@ export function BrowserPane({
   onHideToolbar,
 }: BrowserPaneProps) {
   const applicationMode = useSelector(applicationModeAtom);
+  // The page floats over a quick pane's panel, and goes back under once
+  // another quick pane stacks in front of it or it opens in a tab
+  const isFrontQuick = useSelector(
+    quickTabsAtom,
+    (tabs) => tabId !== undefined && tabs.at(-1)?.id === tabId,
+  );
+  const webviewZIndex = useEffectEvent(() =>
+    isInPreview
+      ? WEBVIEW_Z_INDEX.PREVIEW
+      : isFrontQuick
+        ? WEBVIEW_Z_INDEX.QUICK
+        : !tabId
+          ? WEBVIEW_Z_INDEX.SIDEBAR
+          : WEBVIEW_Z_INDEX.NORMAL,
+  );
+  const positionWebviewRef = useRef<() => void>(undefined);
 
   const paneRef = useRef<HTMLDivElement | null>(null);
   const webviewRef = useRef<WebviewTag | null>(null);
@@ -266,13 +287,7 @@ export function BrowserPane({
 
       ensurePreviewOverlay();
 
-      // Set z-index based on context
-      const zIndex = isInPreview
-        ? WEBVIEW_Z_INDEX.PREVIEW
-        : !tabId
-          ? WEBVIEW_Z_INDEX.SIDEBAR
-          : WEBVIEW_Z_INDEX.NORMAL;
-      currentWebview.style.zIndex = zIndex;
+      currentWebview.style.zIndex = webviewZIndex();
 
       const rect = anchor.getBoundingClientRect();
       const layoutWidth =
@@ -322,6 +337,7 @@ export function BrowserPane({
       }
     };
 
+    positionWebviewRef.current = updatePosition;
     const resizeObserver = new ResizeObserver(updatePosition);
     resizeObserver.observe(webviewAnchorRef.current);
 
@@ -344,6 +360,9 @@ export function BrowserPane({
 
     return () => {
       isDisposed = true;
+      if (positionWebviewRef.current === updatePosition) {
+        positionWebviewRef.current = undefined;
+      }
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
 
@@ -368,6 +387,24 @@ export function BrowserPane({
       }
     };
   }, [webviewAnchorRef, isInPreview, tabId]);
+
+  // The page changes layer without its webview being set up again, which
+  // would take its focus
+  useEffect(() => {
+    positionWebviewRef.current?.();
+  }, [isFrontQuick]);
+
+  // A quick pane's dialog hides everything else on the body from assistive
+  // tech, which includes its page's webview
+  useEffect(() => {
+    const webview = webviewRef.current;
+    if (!isFrontQuick || !webview) return;
+    const expose = () => webview.removeAttribute("aria-hidden");
+    expose();
+    const observer = new MutationObserver(expose);
+    observer.observe(webview, { attributeFilter: ["aria-hidden"] });
+    return () => observer.disconnect();
+  }, [isFrontQuick]);
 
   // A page the user just opened can only take the keys once it attaches,
   // see handleDidAttach
@@ -453,7 +490,8 @@ export function BrowserPane({
   // up the event listeners to it (e.g. navigation, title change, etc)
   useEffect(() => {
     const webview = webviewRef.current;
-    if (!webview) return;
+    const pane = paneRef.current;
+    if (!webview || !pane) return;
 
     if (devToolsFor) {
       setTimeout(() => {
@@ -655,7 +693,7 @@ export function BrowserPane({
 
     webview.addEventListener("console-message", handleConsoleMessage);
 
-    const stopSharingAppKeys = shareAppKeys(webview);
+    const stopSharingAppKeys = shareAppKeys(webview, pane);
 
     return () => {
       clearTimeout(idTimer);
@@ -698,17 +736,16 @@ export function BrowserPane({
       : "auto";
   }, [disableInteraction]);
 
-  // When rendered in focus mode, we need to add
-  // rounded corners to the bottom of the webview,
-  // to match the rounded corners of the window.
+  // The webview is a rectangle over the pane, so it rounds its bottom corners
+  // to match the window's in focus mode, and a quick pane's panel
   useEffect(() => {
     if (!webviewRef.current) return;
 
     webviewRef.current.classList.toggle(
       "rounded-b-xl",
-      applicationMode === "focus",
+      applicationMode === "focus" || isFrontQuick,
     );
-  }, [applicationMode]);
+  }, [applicationMode, isFrontQuick]);
 
   return (
     <div
@@ -768,7 +805,13 @@ export function BrowserPane({
           <FindBar
             ref={findBarRef}
             page={webviewRef}
-            zIndex={tabId ? FIND_BAR_Z_INDEX.NORMAL : FIND_BAR_Z_INDEX.SIDEBAR}
+            zIndex={
+              isFrontQuick
+                ? FIND_BAR_Z_INDEX.QUICK
+                : tabId
+                  ? FIND_BAR_Z_INDEX.NORMAL
+                  : FIND_BAR_Z_INDEX.SIDEBAR
+            }
             follow={!tabId}
             hidden={isInPreview}
             onFocus={focusedOutside}

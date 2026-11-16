@@ -8,12 +8,13 @@ The application uses a hierarchical z-index system with distinct layer groups. E
 
 ```
 z-[90]  ─────────────────────────────────  Notifications (topmost)
-z-[85]  ─────────────────────────────────  Tab Preview
+z-[85]  ─────────────────────────────────  Tab Preview, Popovers, Dropdown Menus
 z-[80]  ─────────────────────────────────  Dialogs/Modals
+z-[75]  ─────────────────────────────────  Quick Panes (to z-[77])
 z-[70]  ─────────────────────────────────  HyperTerminal (floating)
 z-[65]  ─────────────────────────────────  Overview Mode Buttons
 z-[60]  ─────────────────────────────────  Focus Mode Indicator
-z-50    ─────────────────────────────────  UI Overlays (tooltips, menus)
+z-50    ─────────────────────────────────  UI Overlays (tooltips)
 z-40    ─────────────────────────────────  Sidebar
 z-[35]  ─────────────────────────────────  Drag/Drop Overlays
 z-[34]  ─────────────────────────────────  Design Mode Fan Buttons
@@ -83,16 +84,14 @@ z-0     ────────────────────────
 
 ### 6. UI Overlays (z-50)
 
-**Purpose:** Standard UI overlay components like tooltips, popovers, and dropdown menus.
+**Purpose:** Standard UI overlay components like tooltips. Popovers and dropdown menus are with the previews, above dialogs.
 
-| z-index | Component       | File                | Description                 |
-| ------- | --------------- | ------------------- | --------------------------- |
-| `z-50`  | Tooltip         | `tooltip.tsx`       | Hover tooltips              |
-| `z-50`  | Popover         | `popover.tsx`       | Click popovers              |
-| `z-50`  | DropdownMenu    | `dropdown-menu.tsx` | Context menus               |
-| `z-50`  | Drawer          | `drawer.tsx`        | Mobile drawer               |
-| `z-50`  | RepoScriptsMenu | `TerminalPane.tsx`  | Repository scripts dropdown |
-| `z-50`  | AgentPanel      | `AgentPanel.tsx`    | Terminal agent panel        |
+| z-index | Component       | File               | Description                 |
+| ------- | --------------- | ------------------ | --------------------------- |
+| `z-50`  | Tooltip         | `tooltip.tsx`      | Hover tooltips              |
+| `z-50`  | Drawer          | `drawer.tsx`       | Mobile drawer               |
+| `z-50`  | RepoScriptsMenu | `TerminalPane.tsx` | Repository scripts dropdown |
+| `z-50`  | AgentPanel      | `AgentPanel.tsx`   | Terminal agent panel        |
 
 ### 7. Application Mode Indicators (z-[60] to z-[65])
 
@@ -111,7 +110,17 @@ z-0     ────────────────────────
 | -------- | ------------- | ------------------- | ----------------------- |
 | `z-[70]` | HyperTerminal | `HyperTerminal.tsx` | Floating quick terminal |
 
-### 9. Modals (z-[80])
+### 9. Quick Panes (z-[75] to z-[77])
+
+**Purpose:** Tabs that open in front of the strip, above the HyperTerminal and below dialogs, so a dialog or the palette opened from one covers it. A page's webview lives on the body, so the front Quick Browser's page floats just above its panel.
+
+| z-index  | Component             | File              | Description                    |
+| -------- | --------------------- | ----------------- | ------------------------------ |
+| `z-[75]` | Quick backdrop, panel | `QuickPanes.tsx`  | Dims the workbench, holds tabs |
+| `z-[76]` | Front quick page      | `BrowserPane.tsx` | The front Quick Browser's page |
+| `z-[77]` | Front quick Find bar  | `BrowserPane.tsx` | Find over that page            |
+
+### 10. Modals (z-[80])
 
 **Purpose:** Modal dialogs that require user attention and block interaction with content below.
 
@@ -120,15 +129,17 @@ z-0     ────────────────────────
 | `z-[80]` | Dialog overlay | `dialog.tsx` | Modal backdrop |
 | `z-[80]` | Dialog content | `dialog.tsx` | Modal content  |
 
-### 10. Previews (z-[85])
+### 11. Previews and Menus (z-[85])
 
-**Purpose:** Preview overlays that appear when hovering over tabs.
+**Purpose:** Preview overlays that appear when hovering over tabs, and popovers and dropdown menus, which open from dialogs and quick panes too.
 
 | z-index  | Component         | File                    | Description       |
 | -------- | ----------------- | ----------------------- | ----------------- |
 | `z-[85]` | TabPreviewOverlay | `TabPreviewOverlay.tsx` | Tab hover preview |
+| `z-[85]` | Popover           | `popover.tsx`           | Click popovers    |
+| `z-[85]` | DropdownMenu      | `dropdown-menu.tsx`     | Context menus     |
 
-### 11. Notifications (z-[90])
+### 12. Notifications (z-[90])
 
 **Purpose:** Toast notifications that should always be visible above all other content.
 

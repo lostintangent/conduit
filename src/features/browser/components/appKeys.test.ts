@@ -56,6 +56,7 @@ describe("app keys", () => {
     for (const registered of commands) registered.dispose();
     getKeybindingRegistry().clear();
     getContextKeyService().setGlobal(paneType.key, "");
+    getContextKeyService().setGlobal("quickPaneOpen", false);
   });
 
   describe("getAppKeys", () => {
@@ -142,6 +143,13 @@ describe("app keys", () => {
       expect(appKeys()).toContain("Cmd+F");
     });
 
+    it("hands a quick pane the Escape its page doesn't use", () => {
+      expect(appKeys()).not.toContain("ESCAPE (page first)");
+
+      getContextKeyService().setGlobal("quickPaneOpen", true);
+      expect(appKeys().at(-1)).toBe("ESCAPE (page first)");
+    });
+
     it("hands over a chord's first key even when its command is off, since the app waits for the second", () => {
       command("workspace.open", "Cmd+J Cmd+O", paneType.equals("editor"));
       command("workspace.save", "Cmd+J Cmd+W");
@@ -154,18 +162,23 @@ describe("app keys", () => {
 
   describe("shareAppKeys", () => {
     let webview: EventTarget & { send: ReturnType<typeof vi.fn> };
+    let pane: HTMLElement;
     let stop: () => void;
 
     beforeEach(() => {
       webview = Object.assign(new EventTarget(), {
         send: vi.fn(() => Promise.resolve()),
       });
+      pane = document.body.appendChild(document.createElement("div"));
     });
 
-    afterEach(() => stop());
+    afterEach(() => {
+      stop();
+      pane.remove();
+    });
 
     const share = () => {
-      stop = shareAppKeys(webview as unknown as WebviewTag);
+      stop = shareAppKeys(webview as unknown as WebviewTag, pane);
     };
 
     const sentKeys = () =>
@@ -195,11 +208,15 @@ describe("app keys", () => {
       expect(sentKeys()).toHaveLength(3);
     });
 
-    it("runs a handed key as if it were pressed in the app", () => {
+    it("runs a handed key as if it were pressed in its pane", () => {
       share();
-      const pressed: boolean[] = [];
-      const listener = (event: KeyboardEvent) =>
-        pressed.push(matchesEvent(parseChord("Cmd+Shift+B+Left"), event));
+      const pressed: string[] = [];
+      const listener = (event: KeyboardEvent) => {
+        if (matchesEvent(parseChord("Cmd+Shift+B+Left"), event)) {
+          pressed.push(event.currentTarget === pane ? "pane" : "app");
+        }
+      };
+      pane.addEventListener("keydown", listener);
       window.addEventListener("keydown", listener);
 
       webview.dispatchEvent(
@@ -213,9 +230,10 @@ describe("app keys", () => {
           ],
         }),
       );
+      pane.removeEventListener("keydown", listener);
       window.removeEventListener("keydown", listener);
 
-      expect(pressed).toEqual([true]);
+      expect(pressed).toEqual(["pane", "app"]);
       // Its keys come up in the page, so the app forgets them
       expect(heldKeys(new KeyboardEvent("keydown", { key: "x" }))).toEqual([]);
     });

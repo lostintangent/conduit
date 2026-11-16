@@ -30,6 +30,8 @@ const { requestNewPage } = vi.hoisted(() => {
 import { BrowserPane } from "@features/browser/components/BrowserPane";
 import { getBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import { focusPageOnOpen } from "@features/browser/client/webview";
+import { tabsAtom } from "@features/workbench/client/atoms";
+import type { Tab } from "@features/workbench/model";
 import { TooltipProvider } from "@/ui/tooltip";
 import { Activity } from "react";
 import { render } from "../../../../tests/renderer/queryRender";
@@ -126,6 +128,43 @@ describe("BrowserPane", () => {
     await nextFrames(3);
 
     expect(webview.style.zIndex).toBe("1");
+  });
+
+  describe("in a quick pane", () => {
+    const tab = (id: string, quick?: true) => ({ id, quick }) as Tab;
+    afterEach(() => tabsAtom.set([]));
+
+    it("floats its page over the pane's panel, and puts it back under with its focus as it opens in a tab", () => {
+      tabsAtom.set([tab("tab-1", true)]);
+      render(browserPane(false));
+      expect(webview.style.zIndex).toBe("76");
+      expect(webview.classList).toContain("rounded-b-xl");
+      webview.tabIndex = 0;
+      webview.focus();
+
+      act(() => tabsAtom.set([tab("tab-1")]));
+
+      expect(webview.style.zIndex).toBe("1");
+      expect(webview.classList).not.toContain("rounded-b-xl");
+      expect(document.activeElement).toBe(webview);
+    });
+
+    it("keeps its page exposed to assistive tech, and puts it under a quick pane stacked in front", async () => {
+      tabsAtom.set([tab("tab-1", true)]);
+      render(browserPane(false));
+
+      // As the quick pane's dialog does to the rest of the body
+      webview.setAttribute("aria-hidden", "true");
+      await waitFor(() =>
+        expect(webview.hasAttribute("aria-hidden")).toBe(false),
+      );
+
+      act(() => tabsAtom.set([tab("tab-1", true), tab("tab-2", true)]));
+      expect(webview.style.zIndex).toBe("1");
+      webview.setAttribute("aria-hidden", "true");
+      await nextFrames(1);
+      expect(webview.getAttribute("aria-hidden")).toBe("true");
+    });
   });
 
   it("takes the keyboard back from its page when its tab is hidden", () => {

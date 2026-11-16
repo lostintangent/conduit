@@ -5,7 +5,6 @@
 
 import {
   activePaneType,
-  hasActivePane,
   paneActionsEnabled,
 } from "@/commands/contextKeys/appContextKeys";
 import type { CommandContext, CommandDescriptor } from "@/commands/core/types";
@@ -14,6 +13,7 @@ import {
   openBrowserPane,
   updatePaneProperty,
 } from "@features/workbench/client/actions/pane";
+import { openTabWithPane } from "@features/workbench/client/actions/tab";
 import { getBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import { getWebview } from "@features/browser/client/webview";
 import { ApplicationCommands } from "@shared/commands";
@@ -30,14 +30,13 @@ export default [
     id: ApplicationCommands.PANE_OPEN_WEB_PAGE,
     title: "Open Web Page",
     description:
-      "Go to the browser pane's address bar, or open a web page in a split view",
+      "Go to the browser pane's address bar, or open a page in a Quick Browser",
     category: "Pane",
     keybinding: { key: "Cmd+L" },
-    when: hasActivePane.isTrue(),
     run: (context) => {
       const browserPane = activePaneHandlers(context);
       if (browserPane) browserPane.focusAddressBar();
-      else context.setIsUrlDialogOpen?.(true);
+      else void openTabWithPane("browser", { quick: true });
     },
   },
 

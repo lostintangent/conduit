@@ -47,7 +47,6 @@ export interface UseCommandSystemOptions {
   setShowAgentLauncher: (show: boolean) => void;
   setShowRenameWorkspaceDialog: (show: boolean) => void;
   setShowWorkspacePicker: (show: boolean) => void;
-  setIsUrlDialogOpen: (open: boolean) => void;
   setCleanupDialogSessions: (sessions: any[] | null) => void;
   setShowCreateWorkspaceDialog: (show: boolean) => void;
   setShowDuplicateWorkspaceDialog: (show: boolean) => void;
@@ -84,7 +83,6 @@ export function useCommandSystem(
     setShowAgentLauncher,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
-    setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
@@ -156,7 +154,6 @@ export function useCommandSystem(
         setShowAgentLauncher: () => {},
         setShowRenameWorkspaceDialog: () => {},
         setShowWorkspacePicker: () => {},
-        setIsUrlDialogOpen: () => {},
         setCleanupDialogSessions: () => {},
         setShowCreateWorkspaceDialog: () => {},
         setShowDuplicateWorkspaceDialog: () => {},
@@ -248,7 +245,6 @@ export function useCommandSystem(
       setShowAgentLauncher,
       setShowRenameWorkspaceDialog,
       setShowWorkspacePicker,
-      setIsUrlDialogOpen,
       setCleanupDialogSessions,
       setShowCreateWorkspaceDialog,
       setShowDuplicateWorkspaceDialog,
@@ -269,7 +265,6 @@ export function useCommandSystem(
     setShowAgentLauncher,
     setShowRenameWorkspaceDialog,
     setShowWorkspacePicker,
-    setIsUrlDialogOpen,
     setCleanupDialogSessions,
     setShowCreateWorkspaceDialog,
     setShowDuplicateWorkspaceDialog,
