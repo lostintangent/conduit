@@ -39,8 +39,8 @@ export function QuickPanes() {
 }
 
 /**
- * Dims the workbench once for the whole stack. It stays mounted so it fades
- * out too, while a closing pane goes at once with its content.
+ * Dims and blurs the workbench once for the whole stack. It stays mounted so
+ * it fades out too, while a closing pane goes at once with its content.
  *
  * Quick panes sit above the Hyper Terminal (z-70) and below dialogs (z-80),
  * so a dialog or the palette opened from one covers its page, which floats
@@ -50,7 +50,7 @@ function QuickBackdrop({ shown }: { shown: boolean }) {
   return createPortal(
     <div
       aria-hidden
-      className={`pointer-events-none fixed inset-0 z-[75] bg-black/30 transition-opacity duration-150 dark:bg-black/45 ${
+      className={`pointer-events-none fixed inset-0 z-[75] bg-black/30 backdrop-blur-sm transition-opacity duration-150 dark:bg-black/45 ${
         shown ? "opacity-100" : "opacity-0"
       }`}
     />,

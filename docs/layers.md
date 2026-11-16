@@ -114,11 +114,11 @@ z-0     ────────────────────────
 
 **Purpose:** Tabs that open in front of the strip, above the HyperTerminal and below dialogs, so a dialog or the palette opened from one covers it. A page's webview lives on the body, so the front Quick Browser's page floats just above its panel. Only a click on a quick pane's overlay closes it, so what its tab shows over it on the body, like a page's suggestions or Find bar, is in it.
 
-| z-index  | Component             | File              | Description                    |
-| -------- | --------------------- | ----------------- | ------------------------------ |
-| `z-[75]` | Quick backdrop, panel | `QuickPanes.tsx`  | Dims the workbench, holds tabs |
-| `z-[76]` | Front quick page      | `BrowserPane.tsx` | The front Quick Browser's page |
-| `z-[77]` | Front quick Find bar  | `BrowserPane.tsx` | Find over that page            |
+| z-index  | Component             | File              | Description                              |
+| -------- | --------------------- | ----------------- | ---------------------------------------- |
+| `z-[75]` | Quick backdrop, panel | `QuickPanes.tsx`  | Dims and blurs the workbench, holds tabs |
+| `z-[76]` | Front quick page      | `BrowserPane.tsx` | The front Quick Browser's page           |
+| `z-[77]` | Front quick Find bar  | `BrowserPane.tsx` | Find over that page                      |
 
 ### 10. Modals (z-[80])
 
