@@ -92,7 +92,7 @@ export type TabDescriptor = {
   label: string | undefined;
   tooltip: Record<string, string>;
   name?: string;
-  // A name is the user's own label, which shows without its pane's icon
+  // A name replaces the label, never the icon, which is the active pane's
   icon?: PaneIcon;
   sound?: PaneSound;
   isActive: boolean;
@@ -158,7 +158,7 @@ export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
       id: tab.id,
       label: name || paneLabel?.label,
       name,
-      icon: name ? undefined : paneLabel?.icon,
+      icon: paneLabel?.icon,
       sound: tabSound(tab),
       tooltip: paneLabel?.tooltip ?? {},
       isActive,

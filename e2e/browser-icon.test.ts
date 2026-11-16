@@ -251,6 +251,29 @@ describe("a page's icon", () => {
     ).toBe("Square");
   });
 
+  it("shows before its tab's name too, but not while the tab is being renamed", async () => {
+    const pageTab = app.page.getByRole("tab").first();
+    const rename = async (name: string) => {
+      await pageTab.locator(":scope > span:first-child").dblclick();
+      await pageTab.locator("input").fill(name);
+      expect(await slotIn(pageTab).count()).toBe(0);
+      await app.page.keyboard.press("Enter");
+    };
+    await iconIn(tab(/^Square/)).waitFor();
+
+    await rename("Docs");
+
+    const icon = iconIn(tab(/^Docs/));
+    await icon.waitFor();
+    expect(
+      await icon.evaluate((icon) => icon.nextElementSibling?.textContent),
+    ).toBe("Docs");
+
+    // Without a name, the page's title labels the tab again
+    await rename("");
+    await iconIn(tab(/^Square/)).waitFor();
+  });
+
   it("leaves with its site, for a spinner that holds its place while the next site's icon loads", async () => {
     await iconIn(tab(/^Square/)).waitFor();
     const shown = await watchFirstTab();

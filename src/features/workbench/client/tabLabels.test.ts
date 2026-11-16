@@ -66,14 +66,25 @@ describe("tabLabelsAtom", () => {
     expect(tabLabelsAtom.get()[0].label).toBe("~/proj");
   });
 
-  it("shows its page's icon, unless the tab has a name of its own", () => {
+  it("shows its active page's icon, before its name when it has one", () => {
     const icon = { src: "data:image/png;base64,AAAA", template: false };
-    const tab = (name?: string) => ({
+    const tab = (name?: string, activePaneId = "page") => ({
       id: "tab-1",
       name,
-      panes: { page: { id: "page", type: "browser" as const, url: "", icon } },
-      layout: { id: "node-page", type: "pane" as const, paneId: "page" },
-      activePaneId: "page",
+      panes: {
+        page: { id: "page", type: "browser" as const, url: "", icon },
+        term: terminal("zsh"),
+      },
+      layout: {
+        id: "split",
+        type: "split" as const,
+        direction: "row" as const,
+        children: [
+          { id: "node-page", type: "pane" as const, paneId: "page" },
+          { id: "node-term", type: "pane" as const, paneId: "term" },
+        ],
+      },
+      activePaneId,
     });
     tabsAtom.set([tab()]);
     activeTabIdAtom.set("tab-1");
@@ -82,6 +93,11 @@ describe("tabLabelsAtom", () => {
 
     tabsAtom.set([tab("Docs")]);
 
+    expect(tabLabelsAtom.get()[0]).toMatchObject({ label: "Docs", icon });
+
+    tabsAtom.set([tab("Docs", "term")]);
+
+    expect(tabLabelsAtom.get()[0]).toMatchObject({ label: "Docs" });
     expect(tabLabelsAtom.get()[0].icon).toBeUndefined();
   });
 
