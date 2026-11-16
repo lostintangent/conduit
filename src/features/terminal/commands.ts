@@ -9,11 +9,9 @@ import {
   quickPaneOpen,
 } from "@/commands/contextKeys/appContextKeys";
 import type { CommandDescriptor } from "@/commands/core/types";
-import { MenuId } from "@/commands/menus/types";
 import { handleOpenInVSCode } from "@features/terminal/client/terminalHandlers";
 import { movePaneToHyperTerminal } from "@features/workbench/client/actions/hyperTerminal";
 import { ApplicationCommands } from "@shared/commands";
-import { PictureInPicture2 } from "lucide-react";
 
 export default [
   // Terminal: Open in VS Code
@@ -35,14 +33,6 @@ export default [
     description: "Move the quick terminal to a Hyper Terminal, shell and all",
     category: "Terminal",
     when: When.and(quickPaneOpen.isTrue(), activePaneType.equals("terminal")),
-    menu: {
-      id: MenuId.QuickPane,
-      group: "1_move",
-      order: 1,
-      title: "Hyper Terminal",
-      icon: PictureInPicture2,
-      when: activePaneType.equals("terminal"),
-    },
     run: (context) => {
       if (context.activeTab?.quick && context.activePaneId) {
         movePaneToHyperTerminal(context.activeTab.id, context.activePaneId);

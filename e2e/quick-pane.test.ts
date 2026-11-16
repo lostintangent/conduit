@@ -220,11 +220,20 @@ describe("a quick pane", () => {
     await until(() => shell.focused(), "focus back in the strip's terminal");
   });
 
-  it("moves a quick terminal to a Hyper Terminal, shell and all", async () => {
+  it("moves a quick terminal to a Hyper Terminal from the palette, shell and all", async () => {
     const quick = await openQuickTerminal();
     expect(await quick.run("kept=moved")).toBe(0);
+    // Its buttons are the same as every quick pane's
+    expect(
+      await front()
+        .getByRole("toolbar", { name: "Quick Pane" })
+        .getByRole("button")
+        .evaluateAll((buttons) =>
+          buttons.map((button) => button.getAttribute("aria-label")),
+        ),
+    ).toEqual(["Open in Tab", "Close"]);
 
-    await control("Hyper Terminal").click();
+    await runCommand(app.page, "Move to Hyper Terminal");
     await quickPaneCount(0);
     const hyper = app.page
       .locator(".fixed")
