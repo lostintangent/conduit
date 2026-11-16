@@ -500,7 +500,22 @@ export const TerminalPane = ({
       )}
 
       {/** xTerm.js container (which can't have padding applied directly to it) */}
-      <div className="w-full h-full pl-2 pt-2">
+      <div
+        className="w-full h-full pl-2 pt-2"
+        // A press on the padding, or below the last row, is one on the
+        // terminal, rather than one that takes focus out of it
+        onMouseDown={(event) => {
+          if (
+            event.button !== 0 ||
+            (event.target !== event.currentTarget &&
+              event.target !== containerRef.current)
+          ) {
+            return;
+          }
+          event.preventDefault();
+          terminalRef.current?.terminal.focus();
+        }}
+      >
         <div className="w-full h-full" ref={containerRef} />
       </div>
 

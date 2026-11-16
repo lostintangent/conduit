@@ -33,6 +33,12 @@ describe("a quick pane", () => {
   beforeAll(async () => {
     server = http.createServer((request, response) => {
       response.writeHead(200, { "content-type": "text/html" });
+      if (request.url === "/field") {
+        response.end(
+          `<!doctype html><title>Field</title><body style="margin:0"><input aria-label="Field" style="box-sizing:border-box;width:100vw;height:100vh">`,
+        );
+        return;
+      }
       const name = request.url === "/one" ? "One" : "Two";
       response.end(`<!doctype html><title>Page ${name}</title><p>${name}</p>`);
     });
@@ -202,6 +208,35 @@ describe("a quick pane", () => {
         "a new tab in the strip",
       ),
     ).toBe(false);
+  });
+
+  it("keeps the keyboard in a quick terminal on a click just off it", async () => {
+    const quick = new Terminal(app.page, front().locator(".xterm"));
+    const dialog = (await front().boundingBox())!;
+    const toolbar = (await front()
+      .getByRole("toolbar", { name: "Quick Pane" })
+      .boundingBox())!;
+    const xterm = (await quick.locator.boundingBox())!;
+    const misses = [
+      // The terminal's padding, and below its last row
+      { x: xterm.x - 4, y: xterm.y + 100 },
+      { x: xterm.x + 100, y: xterm.y - 4 },
+      { x: xterm.x + 100, y: dialog.y + dialog.height - 3 },
+      // The strip beside the toolbar, and the gap under it
+      { x: dialog.x + 100, y: toolbar.y + toolbar.height / 2 },
+      { x: dialog.x + 100, y: toolbar.y + toolbar.height + 4 },
+    ];
+
+    // Straight from the keyboard, since `run` would focus the terminal first
+    await until(() => quick.focused(), "focus in the quick terminal");
+    await app.page.keyboard.type("echo near-miss-");
+    for (const [index, { x, y }] of misses.entries()) {
+      await app.page.mouse.click(x, y);
+      expect(await quick.focused(), `focus after miss ${index}`).toBe(true);
+      await app.page.keyboard.type(String(index));
+    }
+    await app.page.keyboard.press("Enter");
+    await quick.waitForText(/^near-miss-01234$/m);
   });
 
   it("keeps a quick terminal open on Esc and on a click in it", async () => {
@@ -432,6 +467,62 @@ describe("a quick pane", () => {
     expect(await quickPanes().count()).toBe(1);
 
     // Closing the bar gives the page back the keys
+    await pressInPage(
+      app.page,
+      "Meta+w",
+      async () => (await quickPanes().count()) === 0,
+      "the Quick Browser to close",
+    );
+  });
+
+  it("keeps the keys in a Quick Browser's page on a click just off it", async () => {
+    await app.page.keyboard.press("Meta+l");
+    await quickPaneCount(1);
+    const address = front().getByPlaceholder("Search or enter address");
+    await address.fill(`${origin}/field`);
+    await pressInPage(
+      app.page,
+      "Enter",
+      async () => (await pageUrl()) === `${origin}/field`,
+      "the field's page to load",
+    );
+    await app.page.getByRole("listbox").waitFor({ state: "detached" });
+
+    const page = app.page.locator("webview").last();
+    const field = () =>
+      inWebview<string>(page, 'document.querySelector("input").value');
+    await until(async () => {
+      const box = (await page.boundingBox())!;
+      await app.page.mouse.click(box.x + 8, box.y + 8);
+      return inWebview<boolean>(
+        page,
+        'document.activeElement?.localName === "input" && document.hasFocus()',
+      );
+    }, "the page's field to have focus");
+    await app.page.keyboard.type("a");
+    await until(async () => (await field()) === "a", "a in the field");
+
+    const dialog = (await front().boundingBox())!;
+    const toolbar = (await front()
+      .getByRole("toolbar", { name: "Quick Pane" })
+      .boundingBox())!;
+    const misses = {
+      // The strip beside the toolbar, and the gap under it
+      b: { x: dialog.x + 100, y: toolbar.y + toolbar.height / 2 },
+      c: { x: dialog.x + 100, y: toolbar.y + toolbar.height + 4 },
+    };
+    let typed = "a";
+    for (const [key, { x, y }] of Object.entries(misses)) {
+      await app.page.mouse.click(x, y);
+      await app.page.keyboard.type(key);
+      typed += key;
+      await until(
+        async () => (await field()) === typed,
+        `${typed} in the field`,
+      );
+    }
+    expect(await field()).toBe("abc");
+
     await pressInPage(
       app.page,
       "Meta+w",

@@ -58,6 +58,25 @@ function QuickBackdrop({ shown }: { shown: boolean }) {
   );
 }
 
+/**
+ * A press on the frame around a quick pane's content, like the strip beside
+ * its buttons, leaves focus where it was, rather than giving it to the
+ * dialog, where keys do nothing.
+ */
+function keepFocus(event: React.MouseEvent) {
+  if (event.target !== event.currentTarget) return;
+  event.preventDefault();
+  // A press anywhere in the window takes the keys from a browser's page, even
+  // with the webview still the focused element, so it hands them back. As in
+  // BrowserPane, focusing the webview does nothing while it's already
+  // focused, so it lets go first.
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && focused.localName === "webview") {
+    focused.blur();
+    focused.focus();
+  }
+}
+
 function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
   const { showTabIn } = useTabContentPortal();
   // The provider's functions change on every render, and showing the tab
@@ -102,7 +121,8 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
         showClose={false}
         overlayClassName="z-[75] bg-transparent"
         aria-describedby={undefined}
-        className="z-[75] flex h-[758px] max-h-[90vh] w-full max-w-[min(95vw,1000px)] flex-col gap-2 border-0 bg-transparent p-0 shadow-none duration-150 data-[state=open]:zoom-in-100!"
+        className="z-[75] flex h-[758px] max-h-[90vh] w-full max-w-[min(95vw,1000px)] flex-col gap-2 border-0 bg-transparent p-0 shadow-none outline-none duration-150 data-[state=open]:zoom-in-100!"
+        onMouseDown={keepFocus}
         // The pane takes focus itself once it's active
         onOpenAutoFocus={(event) => event.preventDefault()}
         // Only an Escape the pane didn't use closes it, see `closeOnEscape`
@@ -119,11 +139,13 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
         <DialogTitle className="sr-only">Quick Pane</DialogTitle>
         <div
           className={`flex shrink-0 justify-end ${isFront ? "" : "invisible"}`}
+          onMouseDown={keepFocus}
         >
           <QuickPaneToolbar />
         </div>
         <div
           ref={body}
+          onMouseDown={keepFocus}
           className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-background shadow-[0_24px_64px_rgb(0_0_0/0.35)]"
         />
       </DialogContent>
