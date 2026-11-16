@@ -1041,6 +1041,18 @@ describe("a tab whose terminal hasn't shown yet", () => {
     vi.advanceTimersByTime(500);
     expect(state()).toBe("idle-unseen");
   });
+
+  it("takes the title its shell gives it, which main reports", () => {
+    const [, listener] = mockApi.terminal.on.mock.calls.find(
+      ([event]) => event === "title",
+    )!;
+    listener({ sessionId: "session-1", title: "npm run dev" });
+
+    const [tab] = tabsAtom.get();
+    expect(tab.panes[tab.activePaneId]).toMatchObject({
+      title: "npm run dev",
+    });
+  });
 });
 
 describe("a tab with a collapsed pane", () => {

@@ -40,8 +40,11 @@ export function CollapsedPaneBar({
       <button
         type="button"
         className={cn(
-          "flex items-center gap-1.5 w-full h-full overflow-hidden bg-elevated text-muted-foreground hover:bg-elevated/80 hover:text-foreground transition-colors select-none",
-          isVertical ? "flex-col py-2" : "px-2",
+          "flex items-center gap-2 w-full h-full overflow-hidden bg-elevated text-muted-foreground hover:bg-elevated/80 hover:text-foreground transition-colors select-none",
+          // A browser toolbar's icons sit 16px in from its sides, its 8px
+          // padding plus the 8px around each in its 32px buttons, so a bar
+          // beside one lines up with it
+          isVertical ? "flex-col py-2" : "px-4",
         )}
         onClick={onExpand}
       >

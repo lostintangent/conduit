@@ -68,6 +68,9 @@ const HIDDEN_COALESCE_MS = 250;
  */
 const ACTIVITY_MS = 500;
 
+/** OSC 0 and 2 title a terminal, and end with BEL or ST. */
+const TITLE_SEQUENCE = /\x1b\][02];([^\x07\x1b]*)(?:\x07|\x1b\\)/g;
+
 export async function createTerminal(options?: TerminalCreateOptions) {
   const id = randomUUID();
   const { cwd, notice } = await startingFolder(options?.cwd);
@@ -201,10 +204,29 @@ function setupTerminalListeners(terminal: TerminalInstance) {
     }, ACTIVITY_MS);
   };
 
+  // A pane that hasn't shown can't read how its shell titles it either, like
+  // with the command it's running, so main reports that too. A title can span
+  // two reads.
+  let title: string | undefined;
+  let unread = "";
+  const reportTitle = (data: string) => {
+    const output = unread + data;
+    const start = output.lastIndexOf("\x1b]");
+    if (start === -1) return;
+
+    const rest = output.slice(start);
+    unread = rest.length < 256 && !/\x07|\x1b\\/.test(rest) ? rest : "";
+    const latest = [...output.matchAll(TITLE_SEQUENCE)].at(-1)?.[1];
+    if (latest === undefined || latest === title) return;
+    title = latest;
+    emit("title", { sessionId: id, title });
+  };
+
   pty.onData((data) => {
     if (!terminal.isRendererReady) {
       bufferOutput(terminal, data);
       reportActivity();
+      reportTitle(data);
     } else if (terminal.isHidden) {
       pending += data;
       coalescing ??= setTimeout(flush, HIDDEN_COALESCE_MS);

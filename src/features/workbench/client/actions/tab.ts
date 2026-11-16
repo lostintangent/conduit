@@ -15,6 +15,7 @@ import {
   detachPane,
   inheritAgentSession,
   removePane,
+  updateTerminalSessionProperty,
 } from "@features/workbench/client/actions/pane";
 import {
   activeTabAtom,
@@ -802,6 +803,12 @@ export function registerTabEventHandlers() {
     notifyDataReceived(sessionId);
   });
 
+  // Main reports how its shell titles it too, so its tab and collapsed bar can
+  // say what it's running
+  const unsubscribeTitle = api.terminal.on("title", ({ sessionId, title }) => {
+    updateTerminalSessionProperty(sessionId, { title });
+  });
+
   // Track terminal state changes for tab indicators
   const unsubscribeStateChange = onSessionStateChange((sessionId, state) => {
     const tab = tabsAtom
@@ -897,6 +904,7 @@ export function registerTabEventHandlers() {
     unsubscribeExit();
     unsubscribeNewTab();
     unsubscribeActivity();
+    unsubscribeTitle();
     tabsSubscription.unsubscribe();
     unsubscribeStateChange();
     unsubscribeProgressChange();

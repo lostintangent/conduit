@@ -322,6 +322,29 @@ describe("a restored terminal", () => {
     vi.advanceTimersByTime(1_000);
     expect(reports()).toHaveLength(3);
   });
+
+  it("reports how its shell titles it until it shows, so its tab can say what's running", async () => {
+    const { id } = await createTerminal({ command: "npm run dev" });
+    const titles = () =>
+      vi
+        .mocked(emit)
+        .mock.calls.filter(([event]) => event === "title")
+        .map(([, payload]) => (payload as { title: string }).title);
+
+    output(`\x1b]2;zsh\x07${PROMPT}`);
+    output("\x1b]2;npm run dev\x07> dev\r\n");
+    expect(titles()).toEqual(["zsh", "npm run dev"]);
+
+    // A title can span two reads, and one the shell repeats isn't reported again.
+    output("ready\r\n\x1b]0;z");
+    output("sh\x1b\\~ % \x1b]2;zsh\x07");
+    expect(titles()).toEqual(["zsh", "npm run dev", "zsh"]);
+
+    // Once its pane shows, the pane's terminal reads the title itself.
+    resizeTerminal(id, 80, 24);
+    output("\x1b]2;vim\x07");
+    expect(titles()).toEqual(["zsh", "npm run dev", "zsh"]);
+  });
 });
 
 describe("a terminal's output", () => {

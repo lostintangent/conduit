@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
+import { isShellName } from "../model";
 import type { TerminalInstance } from "./types";
 
 const execFileAsync = promisify(execFile);
@@ -11,12 +12,6 @@ type ProcessInfo = {
   stat: string;
   command: string;
 };
-
-const SHELL_PROCESS_NAMES = new Set(
-  ["bash", "zsh", "fish", "sh", "ksh", "tcsh", "csh"].map((name) =>
-    name.toLowerCase(),
-  ),
-);
 
 /**
  * Normalizes a command string to extract the base binary name.
@@ -42,10 +37,8 @@ const normalizeBinaryName = (command: string): string => {
 /**
  * Checks if a command is a shell process (bash, zsh, fish, etc.)
  */
-const isShellProcess = (command: string): boolean => {
-  const normalized = normalizeBinaryName(command);
-  return normalized.length > 0 && SHELL_PROCESS_NAMES.has(normalized);
-};
+const isShellProcess = (command: string): boolean =>
+  isShellName(normalizeBinaryName(command));
 
 /**
  * Checks if a command is the `conduit` CLI, which runs as this app's own

@@ -7,6 +7,7 @@ import {
   type TabState,
 } from "@features/workbench/client/atoms";
 import type { Pane, Tab } from "@features/workbench/model";
+import { isShellName } from "@features/terminal/model";
 import { formatHomePath } from "@/utils/pathUtils";
 import { createAtom } from "@/createAtom";
 import { getSettings } from "@features/settings/client/queries";
@@ -36,8 +37,13 @@ export function describePane(pane: Pane, homeDirectory: string): PaneLabel {
         tooltip["Command"] = pane.title;
       }
 
+      // The shell titles its terminal with the command it's running, and
+      // with its own name again at the prompt
+      const command =
+        pane.title && !isShellName(pane.title) ? pane.title : null;
+
       return {
-        label: formatPathForLabel(pane.cwd) ?? pane.title ?? "Shell",
+        label: command ?? formatPathForLabel(pane.cwd) ?? pane.title ?? "Shell",
         tooltip,
       };
     }

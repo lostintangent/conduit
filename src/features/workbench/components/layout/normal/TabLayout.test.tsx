@@ -543,12 +543,12 @@ describe("TabLayout pane errors", () => {
 });
 
 describe("TabLayout collapsed panes", () => {
-  const collapsedPane = (cwd: string): Pane => ({
+  const collapsedPane = (cwd: string, title = "zsh"): Pane => ({
     id: "collapsed",
     type: "terminal",
     sessionId: "session-2",
     cwd,
-    title: "zsh",
+    title,
   });
   const collapsedTab = (
     direction: SplitDirection,
@@ -583,24 +583,27 @@ describe("TabLayout collapsed panes", () => {
       activeTabIdAtom.set("tab-1");
       renderTabLayout();
 
+      const update = (collapsed: Pane) =>
+        act(() =>
+          tabsAtom.set(
+            tabsAtom.get().map((candidate) => ({
+              ...candidate,
+              panes: { ...candidate.panes, collapsed },
+            })),
+          ),
+        );
+
       expect(screen.getByRole("button", { name: "~/proj" })).not.toBeNull();
 
-      act(() =>
-        tabsAtom.set(
-          tabsAtom.get().map((candidate) => ({
-            ...candidate,
-            panes: {
-              ...candidate.panes,
-              collapsed: collapsedPane("/Users/tester/proj/src"),
-            },
-          })),
-        ),
-      );
-      fireEvent.focus(screen.getByRole("button", { name: "~/proj/src" }));
+      update(collapsedPane("/Users/tester/proj/src", "sleep 100"));
+      fireEvent.focus(screen.getByRole("button", { name: "sleep 100" }));
 
       expect((await screen.findByRole("tooltip")).textContent).toBe(
-        "CWD: /Users/tester/proj/srcCommand: zsh",
+        "CWD: /Users/tester/proj/srcCommand: sleep 100",
       );
+
+      update(collapsedPane("/Users/tester/proj/src"));
+      expect(screen.getByRole("button", { name: "~/proj/src" })).not.toBeNull();
     },
   );
 

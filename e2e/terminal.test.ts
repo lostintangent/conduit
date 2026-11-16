@@ -99,8 +99,10 @@ describe("terminal and CLI", () => {
       // The tab closes with its shell, so this listens to the shell's output.
       await recordOutput();
       await terminal.type(`conduit tab-new --title E2E-EXIT-${where}\n`);
+      // Anchored, because the tab that runs `conduit tab-new` is named for
+      // that command, title and all, until it finishes.
       const tab = app.page.getByRole("tab", {
-        name: new RegExp(`E2E-EXIT-${where}`),
+        name: new RegExp(`^E2E-EXIT-${where}`),
       });
       await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
       const shell = await app.terminal();
@@ -125,7 +127,7 @@ describe("terminal and CLI", () => {
 
   it("ends a paused shell when its pane closes", async () => {
     await terminal.type("conduit tab-new --title E2E-CLOSE-PAUSED\n");
-    const tab = app.page.getByRole("tab", { name: /E2E-CLOSE-PAUSED/ });
+    const tab = app.page.getByRole("tab", { name: /^E2E-CLOSE-PAUSED/ });
     await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
     const shell = await app.terminal();
     const ids = path.join(app.home, "paused-shell");
@@ -153,7 +155,7 @@ describe("terminal and CLI", () => {
   it("holds a hidden tab's output for a moment, and not a shown tab's", async () => {
     await recordOutput();
     await terminal.type("conduit tab-new --title E2E-HIDDEN\n");
-    const tab = app.page.getByRole("tab", { name: /E2E-HIDDEN/ });
+    const tab = app.page.getByRole("tab", { name: /^E2E-HIDDEN/ });
     await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
     const shell = await app.terminal();
     // A pane's IntersectionObserver tells main when it leaves or comes back
@@ -225,7 +227,7 @@ describe("terminal and CLI", () => {
 
     await terminal.type("conduit tab-new --title E2E-CLI-TAB\n");
     await app.page
-      .getByRole("tab", { name: /E2E-CLI-TAB/, selected: true })
+      .getByRole("tab", { name: /^E2E-CLI-TAB/, selected: true })
       .waitFor();
   });
 
@@ -288,10 +290,13 @@ describe("terminal and CLI", () => {
     fs.appendFileSync(path.join(repo, "a.txt"), "b\n");
 
     const tab = (title: string) =>
-      app.page.getByRole("tab", { name: new RegExp(title), selected: true });
+      app.page.getByRole("tab", {
+        name: new RegExp(`^${title}`),
+        selected: true,
+      });
     const shortcut = async (title: string) => {
       const names = await tabs().allTextContents();
-      return `Meta+${names.findIndex((name) => name.includes(title)) + 1}`;
+      return `Meta+${names.findIndex((name) => name.startsWith(title)) + 1}`;
     };
     const stats = () =>
       app.page
