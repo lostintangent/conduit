@@ -9,6 +9,7 @@ import {
   InputGroupInput,
 } from "@/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
+import { FocusScope } from "@radix-ui/react-focus-scope";
 import { ApplicationCommands } from "@shared/commands";
 import type { FoundInPageEvent, WebviewTag } from "electron";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
@@ -101,10 +102,11 @@ export function FindBar({
   };
 
   // A new search starts past the match the page kept selected, so the page
-  // stays where it is until the user goes on
+  // stays where it is until the user goes on. The bar's focus scope focuses
+  // the field as it opens, see below.
   const open = () => {
-    setIsOpen(true);
-    setSelectRequest((request) => request + 1);
+    if (isOpen) setSelectRequest((request) => request + 1);
+    else setIsOpen(true);
   };
 
   // While it's closed, from where the user is in the page, like Safari's
@@ -191,7 +193,7 @@ export function FindBar({
   const findNext = useCommand(ApplicationCommands.BROWSER_FIND_NEXT);
   const findPrevious = useCommand(ApplicationCommands.BROWSER_FIND_PREVIOUS);
 
-  if (!isShown) return null;
+  if (!isOpen) return null;
 
   const count =
     !text || !found
@@ -208,77 +210,88 @@ export function FindBar({
         aria-hidden
       />
       {createPortal(
-        <div
-          ref={barRef}
-          role="search"
-          className="fixed animate-in fade-in-0 duration-120 motion-safe:slide-in-from-top-1"
-          style={{ zIndex }}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape") return;
-            event.preventDefault();
-            close(true);
-          }}
+        // A layer over the page, like a Radix popover, which a quick pane's
+        // dialog would otherwise take as outside it. It takes pointer events,
+        // which the dialog turns off for the body, and its scope pauses the
+        // dialog's focus trap before focusing the field. It stays while it's
+        // hidden, so that's only as it opens.
+        <FocusScope
+          asChild
+          onUnmountAutoFocus={(event) => event.preventDefault()}
         >
-          <InputGroup className="h-8 rounded-lg border-border bg-popover text-popover-foreground shadow-md dark:bg-popover">
-            <InputGroupInput
-              ref={fieldRef}
-              value={text}
-              placeholder="Find in page"
-              aria-label="Find in page"
-              className="text-sm"
-              onFocus={(event) => onFocus(event.currentTarget)}
-              onChange={(event) => {
-                const text = event.target.value;
-                setText(text);
-                clearTimeout(searchTimerRef.current);
-                searchTimerRef.current = setTimeout(
-                  () => search(text),
-                  SEARCH_DELAY_MS,
-                );
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                step(!event.shiftKey);
-              }}
-            />
-            <InputGroupAddon align="inline-end" className="gap-0.5">
-              <span
-                role="status"
-                className="px-1 text-xs tabular-nums whitespace-nowrap"
-              >
-                {count}
-              </span>
-              <FindButton
-                label={getCommandDisplayTitle({
-                  title: "Previous",
-                  primaryKeybinding: findPrevious.primaryKeybinding,
-                })}
-                name="Previous"
-                onClick={() => step(false)}
-              >
-                <ChevronUp className="size-3.5" />
-              </FindButton>
-              <FindButton
-                label={getCommandDisplayTitle({
-                  title: "Next",
-                  primaryKeybinding: findNext.primaryKeybinding,
-                })}
-                name="Next"
-                onClick={() => step(true)}
-              >
-                <ChevronDown className="size-3.5" />
-              </FindButton>
-              <FindButton
-                label="Close (Esc)"
-                name="Close"
-                onClick={() => close(true)}
-              >
-                <X className="size-3.5" />
-              </FindButton>
-            </InputGroupAddon>
-          </InputGroup>
-        </div>,
+          <div
+            ref={barRef}
+            role="search"
+            hidden={!isShown}
+            className="pointer-events-auto fixed animate-in fade-in-0 duration-120 motion-safe:slide-in-from-top-1"
+            style={{ zIndex }}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              close(true);
+            }}
+          >
+            <InputGroup className="h-8 rounded-lg border-border bg-popover text-popover-foreground shadow-md dark:bg-popover">
+              <InputGroupInput
+                ref={fieldRef}
+                value={text}
+                placeholder="Find in page"
+                aria-label="Find in page"
+                className="text-sm"
+                onFocus={(event) => onFocus(event.currentTarget)}
+                onChange={(event) => {
+                  const text = event.target.value;
+                  setText(text);
+                  clearTimeout(searchTimerRef.current);
+                  searchTimerRef.current = setTimeout(
+                    () => search(text),
+                    SEARCH_DELAY_MS,
+                  );
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  step(!event.shiftKey);
+                }}
+              />
+              <InputGroupAddon align="inline-end" className="gap-0.5">
+                <span
+                  role="status"
+                  className="px-1 text-xs tabular-nums whitespace-nowrap"
+                >
+                  {count}
+                </span>
+                <FindButton
+                  label={getCommandDisplayTitle({
+                    title: "Previous",
+                    primaryKeybinding: findPrevious.primaryKeybinding,
+                  })}
+                  name="Previous"
+                  onClick={() => step(false)}
+                >
+                  <ChevronUp className="size-3.5" />
+                </FindButton>
+                <FindButton
+                  label={getCommandDisplayTitle({
+                    title: "Next",
+                    primaryKeybinding: findNext.primaryKeybinding,
+                  })}
+                  name="Next"
+                  onClick={() => step(true)}
+                >
+                  <ChevronDown className="size-3.5" />
+                </FindButton>
+                <FindButton
+                  label="Close (Esc)"
+                  name="Close"
+                  onClick={() => close(true)}
+                >
+                  <X className="size-3.5" />
+                </FindButton>
+              </InputGroupAddon>
+            </InputGroup>
+          </div>
+        </FocusScope>,
         document.body,
       )}
     </>

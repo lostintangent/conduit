@@ -635,9 +635,9 @@ describe("BrowserPane", () => {
     act(() => getBrowserPaneHandlers("browser-1")!.find());
 
     rerender(browserPane(true, true));
-    expect(screen.queryByPlaceholderText("Find in page")).toBeNull();
+    expect(screen.queryByRole("search")).toBeNull();
 
     rerender(browserPane(false, true));
-    screen.getByPlaceholderText("Find in page");
+    screen.getByRole("search");
   });
 });

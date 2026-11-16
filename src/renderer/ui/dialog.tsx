@@ -30,6 +30,7 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     showClose?: boolean;
     overlayClassName?: string;
+    overlayRef?: React.Ref<HTMLDivElement>;
   }
 >(
   (
@@ -38,13 +39,14 @@ const DialogContent = React.forwardRef<
       children,
       showClose = true,
       overlayClassName,
+      overlayRef,
       onCloseAutoFocus,
       ...props
     },
     ref,
   ) => (
     <DialogPortal>
-      <DialogOverlay className={overlayClassName} />
+      <DialogOverlay ref={overlayRef} className={overlayClassName} />
       <DialogPrimitive.Content
         ref={ref}
         onCloseAutoFocus={(event) => {

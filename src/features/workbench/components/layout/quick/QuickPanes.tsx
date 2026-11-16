@@ -71,10 +71,9 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
     [tabId],
   );
 
-  const contentRef = useRef<HTMLDivElement | null>(null);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
   const content = useCallback(
     (element: HTMLDivElement | null) => {
-      contentRef.current = element;
       if (!element) return;
       // Native, because the tab's content is a React child of the tab layout,
       // so its keys never reach a React handler here. Whatever used an Escape,
@@ -108,12 +107,13 @@ function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {
         onOpenAutoFocus={(event) => event.preventDefault()}
         // Only an Escape the pane didn't use closes it, see `closeOnEscape`
         onEscapeKeyDown={(event) => event.preventDefault()}
+        overlayRef={overlayRef}
         onPointerDownOutside={(event) => {
-          // The tab's content isn't in the dialog's React tree, so Radix
-          // takes a click in it as outside
-          if (contentRef.current?.contains(event.target as Node)) {
-            event.preventDefault();
-          }
+          // Only a click on its overlay is outside it. Anything else is in it
+          // or layered over it, like what its tab's content shows on the
+          // body, which Radix can't tell from outside since that content
+          // isn't in the dialog's React tree.
+          if (event.target !== overlayRef.current) event.preventDefault();
         }}
       >
         <DialogTitle className="sr-only">Quick Pane</DialogTitle>

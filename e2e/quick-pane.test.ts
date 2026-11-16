@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -6,6 +8,7 @@ import {
   type Conduit,
   git,
   happens,
+  inWebview,
   launch,
   runCommand,
   Terminal,
@@ -23,8 +26,20 @@ describe("a quick pane", () => {
   let project: string;
   let shell: Terminal;
   let quickTerminals = 0;
+  let server: http.Server;
+  let origin: string;
 
   beforeAll(async () => {
+    server = http.createServer((request, response) => {
+      response.writeHead(200, { "content-type": "text/html" });
+      const name = request.url === "/one" ? "One" : "Two";
+      response.end(`<!doctype html><title>Page ${name}</title><p>${name}</p>`);
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
     const tab = (id: string, pane: object) => ({
       id,
       name: id,
@@ -61,7 +76,10 @@ describe("a quick pane", () => {
     shell = await app.terminal();
   });
 
-  afterAll(() => app?.close());
+  afterAll(async () => {
+    await app?.close();
+    server?.close();
+  });
 
   const quickPanes = () => app.page.locator("[data-quick-pane]");
   const front = () => quickPanes().last();
@@ -74,6 +92,11 @@ describe("a quick pane", () => {
   const selectedTab = () =>
     app.page.getByRole("tab", { selected: true, includeHidden: true });
   const selected = async () => (await selectedTab().textContent())?.trim();
+  const pageUrl = () =>
+    app.page
+      .locator("webview")
+      .last()
+      .evaluate((webview: Electron.WebviewTag) => webview.getURL());
   const lastCommit = () => git(project, "log", "-1", "--format=%s").trim();
 
   const quickPaneCount = (count: number) =>
@@ -330,6 +353,106 @@ describe("a quick pane", () => {
     );
 
     await app.page.keyboard.press("Escape");
+    await quickPaneCount(0);
+  });
+
+  it("goes to a suggestion clicked in a Quick Browser's address bar, staying open until a click outside it", async () => {
+    await app.page.keyboard.press("Meta+l");
+    await quickPaneCount(1);
+    const address = front().getByPlaceholder("Search or enter address");
+    for (const page of ["one", "two"]) {
+      await address.fill(`${origin}/${page}`);
+      await address.press("Enter");
+      await until(
+        async () => (await pageUrl()) === `${origin}/${page}`,
+        `page ${page} to load`,
+      );
+    }
+
+    await address.click();
+    await address.fill("Page");
+    await app.page.getByRole("option", { name: /Page One/ }).click();
+    await until(
+      async () => (await pageUrl()) === `${origin}/one`,
+      "page one to load in the Quick Browser",
+    );
+    expect(await quickPanes().count()).toBe(1);
+
+    const height = await app.page.evaluate(() => innerHeight);
+    await app.page.mouse.click(4, height - 4);
+    await quickPaneCount(0);
+  });
+
+  it("finds what's typed in a Quick Browser's find bar, and closes it from its own button", async () => {
+    await app.page.keyboard.press("Meta+l");
+    await quickPaneCount(1);
+    const address = front().getByPlaceholder("Search or enter address");
+    await address.fill(`${origin}/one`);
+    await address.press("Enter");
+    await until(
+      async () => (await pageUrl()) === `${origin}/one`,
+      "page one to load",
+    );
+
+    // Back to the page from the address bar, which the quick pane would hold
+    // on to once it sees it take focus, past the suggestions for what was
+    // typed. The page passes Cmd+F on once it has drawn with focus.
+    await app.page.getByRole("listbox").waitFor({ state: "detached" });
+    await address.click();
+    const page = app.page.locator("webview").last();
+    await until(async () => {
+      const box = (await page.boundingBox())!;
+      await app.page.mouse.click(box.x + 8, box.y + 8);
+      return inWebview<boolean>(
+        page,
+        'new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(document.title === "Page One" && document.hasFocus()))))',
+      );
+    }, "page one to have focus");
+
+    await app.page.keyboard.press("Meta+f");
+    const find = app.page.getByRole("search");
+    const field = find.getByLabel("Find in page");
+    await field.waitFor();
+    await app.page.keyboard.type("One");
+    await until(
+      async () => (await find.getByRole("status").textContent()) === "1 of 1",
+      "find to count what's typed",
+    );
+    expect(await address.inputValue()).toBe(`${origin}/one`);
+
+    // Where the user clicks, rather than wherever Playwright can
+    const box = (await find
+      .getByRole("button", { name: "Close", exact: true })
+      .boundingBox())!;
+    await app.page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    await find.waitFor({ state: "detached" });
+    expect(await quickPanes().count()).toBe(1);
+
+    await app.page.keyboard.press("Meta+w");
+    await quickPaneCount(0);
+  });
+
+  it("uses a menu in a Quick Canvas, and stays open", async () => {
+    await runCommand(app.page, "Quick Canvas");
+    await quickPaneCount(1);
+    const actions = front().locator("button:has(.lucide-ellipsis)");
+    const dotGrid = app.page.getByRole("menuitem", { name: "Show dot grid" });
+
+    const isDotGridShown = async () => {
+      await actions.click();
+      await dotGrid.waitFor();
+      return (await dotGrid.locator(".lucide-check").count()) === 1;
+    };
+
+    const wasShown = await isDotGridShown();
+    await dotGrid.click();
+    await dotGrid.waitFor({ state: "detached" });
+    expect(await isDotGridShown()).toBe(!wasShown);
+    await app.page.keyboard.press("Escape");
+    await dotGrid.waitFor({ state: "detached" });
+    expect(await quickPanes().count()).toBe(1);
+
+    await app.page.keyboard.press("Meta+w");
     await quickPaneCount(0);
   });
 

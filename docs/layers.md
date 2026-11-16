@@ -112,7 +112,7 @@ z-0     ────────────────────────
 
 ### 9. Quick Panes (z-[75] to z-[77])
 
-**Purpose:** Tabs that open in front of the strip, above the HyperTerminal and below dialogs, so a dialog or the palette opened from one covers it. A page's webview lives on the body, so the front Quick Browser's page floats just above its panel.
+**Purpose:** Tabs that open in front of the strip, above the HyperTerminal and below dialogs, so a dialog or the palette opened from one covers it. A page's webview lives on the body, so the front Quick Browser's page floats just above its panel. Only a click on a quick pane's overlay closes it, so what its tab shows over it on the body, like a page's suggestions or Find bar, is in it.
 
 | z-index  | Component             | File              | Description                    |
 | -------- | --------------------- | ----------------- | ------------------------------ |
