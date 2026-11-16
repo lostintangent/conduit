@@ -35,6 +35,10 @@ A feature lives in `src/features/<name>/` and has only the parts it needs:
 
 Data that main owns lives in TanStack Query, through the feature's `client/queries.ts`, and main's events keep it fresh. TanStack Store atoms hold only UI state, like tabs, layout and the sidebar, never a copy of something main owns.
 
+## Browser panes
+
+Electron never asks macOS for location access, so a site's location only works once Conduit is switched on in System Settings > Privacy & Security > Location Services.
+
 ## Releasing
 
 1. `bun pm version patch` (or `minor`), then `git push --follow-tags`.
