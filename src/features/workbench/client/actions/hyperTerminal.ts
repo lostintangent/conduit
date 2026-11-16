@@ -1,6 +1,7 @@
 import { disposeSession } from "@features/terminal/client/xtermCache";
+import { detachPane } from "@features/workbench/client/actions/pane";
 import { openTabFromExistingSession } from "@features/workbench/client/actions/tab";
-import { hyperTerminalsAtom } from "@features/workbench/client/atoms";
+import { hyperTerminalsAtom, tabsAtom } from "@features/workbench/client/atoms";
 import type { HyperTerminalPosition } from "@features/workbench/model";
 import { generateId } from "@shared/utils";
 import { produce } from "immer";
@@ -70,6 +71,13 @@ export function openHyperTerminal(
       }
     }),
   );
+}
+
+/** Moves a terminal pane out of its tab into a hyper terminal, shell and all */
+export function movePaneToHyperTerminal(tabId: string, paneId: string) {
+  const pane = tabsAtom.get().find((tab) => tab.id === tabId)?.panes[paneId];
+  if (pane?.type !== "terminal" || !detachPane(tabId, paneId)) return;
+  openHyperTerminal(pane.sessionId, paneId, pane.cwd);
 }
 
 /**
@@ -167,39 +175,17 @@ export function handleHyperTerminalExit(terminalId: string) {
 }
 
 /**
- * Maximizes a hyper terminal by moving it to the quick pane dialog.
- * Removes the terminal from the floating overlays array.
- *
- * @param terminalId - The terminal session ID to maximize
- * @param cwd - The current working directory (or null)
- * @returns An object with the terminal data for the quick pane
- */
-export function maximizeHyperTerminal(terminalId: string, cwd: string | null) {
-  removeHyperTerminal(terminalId);
-
-  // Return the quick pane descriptor
-  return {
-    type: "terminal" as const,
-    sessionId: terminalId,
-    cwd,
-  };
-}
-
-/**
- * Moves a hyper terminal to a new tab.
- * Removes the terminal from the floating overlays array.
+ * Moves a hyper terminal to a new tab, or to a quick pane when it's
+ * maximized. Removes the terminal from the floating overlays array.
  *
  * @param terminalId - The terminal session ID to move
  * @param cwd - The current working directory (or null)
  */
-export async function moveHyperTerminalToTab(
+export function moveHyperTerminalToTab(
   terminalId: string,
   cwd: string | null,
+  { quick = false } = {},
 ) {
   removeHyperTerminal(terminalId);
-
-  await openTabFromExistingSession({
-    sessionId: terminalId,
-    cwd,
-  });
+  openTabFromExistingSession({ sessionId: terminalId, cwd, quick });
 }

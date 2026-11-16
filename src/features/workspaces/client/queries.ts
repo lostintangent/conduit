@@ -4,7 +4,10 @@ import {
   queryOptions,
 } from "@tanstack/react-query";
 import { sidebarPage } from "@features/browser/client/sidebar";
-import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import {
+  activeTabIdAtom,
+  stripTabsAtom,
+} from "@features/workbench/client/atoms";
 import type { WorkspaceState } from "../model";
 
 export const workspaceKeys = { all: ["workspaces"] as const };
@@ -56,7 +59,7 @@ export const workspaceMutations = {
       ...write("save", "Couldn't save the workspace"),
       mutationFn: () =>
         window.conduit.workspaces.saveWorkspace(
-          tabsAtom.get(),
+          stripTabsAtom.get(),
           activeTabId(),
           sidebarPage(),
         ),
@@ -72,7 +75,7 @@ export const workspaceMutations = {
       mutationFn: (name: string) =>
         window.conduit.workspaces.saveWorkspaceAs(
           name,
-          tabsAtom.get(),
+          stripTabsAtom.get(),
           activeTabId(),
           sidebarPage(),
         ),

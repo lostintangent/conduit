@@ -1,5 +1,4 @@
 import type { ResolvedKeybinding } from "@/commands/keybindings/types";
-import type { QuickPaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
 import { getDefaultActions } from "@features/workbench/client/paneActions/defaults";
 import type { Action } from "@features/workbench/client/paneActions/types";
 import type {
@@ -11,8 +10,23 @@ import { createAtom, createFrozenAtom } from "@/createAtom";
 
 export const tabsAtom = createFrozenAtom<Tab[]>([]);
 
+/** The user's tabs, in the strip's order, without quick panes */
+export const stripTabsAtom = createAtom<Tab[]>(() =>
+  tabsAtom.get().filter((tab) => !tab.quick),
+);
+
+/** The open quick panes, the last one in front */
+export const quickTabsAtom = createAtom<Tab[]>(() =>
+  tabsAtom.get().filter((tab) => tab.quick),
+);
+
+/** The strip's selected tab */
 export const activeTabIdAtom = createAtom(null as string | null);
+
+/** The tab keys and commands act on: the front quick pane, or the strip's selection */
 export const activeTabAtom = createAtom<Tab | null>(() => {
+  const quick = quickTabsAtom.get().at(-1);
+  if (quick) return quick;
   const tabs = tabsAtom.get();
   const activeTabId = activeTabIdAtom.get();
   return tabs.find((tab) => tab.id === activeTabId) ?? null;
@@ -28,7 +42,21 @@ export const notificationsAtom = createAtom<Notification[]>([]);
 export type ApplicationMode =
   "normal" | "design" | "quick" | "focus" | "overview";
 
-export const applicationModeAtom = createAtom<ApplicationMode>("normal");
+const chosenModeAtom = createAtom<ApplicationMode>("normal");
+
+/** The mode is "quick" while a quick pane is open, and the chosen mode otherwise */
+export const applicationModeAtom = createAtom<ApplicationMode>(() =>
+  quickTabsAtom.get().length > 0 ? "quick" : chosenModeAtom.get(),
+);
+
+/**
+ * Chooses the mode. A quick pane keeps the strip out of reach, so the mode
+ * can't change under one, and the chosen mode returns once it closes.
+ */
+export function setApplicationMode(mode: ApplicationMode) {
+  if (quickTabsAtom.get().length > 0) return;
+  chosenModeAtom.set(mode);
+}
 
 /**
  * Keybindings atom - stores all resolved keybindings grouped by command ID
@@ -45,14 +73,6 @@ export const keybindingsAtom = createAtom<Map<string, ResolvedKeybinding[]>>(
 export const paneActionsAtom = createAtom<Action[]>(getDefaultActions());
 
 export const hyperTerminalsAtom = createFrozenAtom<HyperTerminal[]>([]);
-
-/**
- * Quick pane atom - stores the current quick pane descriptor
- * Used to display the quick action dialog
- */
-export const quickPaneAtom = createAtom(
-  undefined as QuickPaneDescriptor | null | undefined,
-);
 
 /**
  * Tab terminal state for background tabs.

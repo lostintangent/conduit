@@ -40,6 +40,8 @@ export default function EditorLayoutPane({
         isActive={isActive}
         hideIndividualSandboxIndicator={hideIndividualSandboxIndicator}
         tabId={tab.id}
+        hideFileTree={pane.closeOnSave}
+        onSave={pane.closeOnSave ? () => closePane(tab.id, pane.id) : undefined}
         onClose={() => closePane(tab.id, pane.id)}
         className="h-full w-full"
       />

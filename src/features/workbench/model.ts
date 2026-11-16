@@ -84,6 +84,8 @@ export type PaneSound = "playing" | "muted";
 export type EditorPane = Omit<SharedEditorPane, "cwd"> &
   AgentPaneMetadata & {
     cwd: string;
+    /** Closes the pane once its file saves, e.g. for `conduit edit --quick`. Never saved. */
+    closeOnSave?: boolean;
   };
 
 export type CanvasPane = SharedCanvasPane;
@@ -94,11 +96,14 @@ export type Tab = TabMetadata & {
   panes: Record<string, Pane>;
   layout: LayoutNode;
   activePaneId: string;
+  /** Shown in the quick pane rather than the strip, and never saved */
+  quick?: true;
 } & Identifiable;
 
 export type NewTabOptions = {
   command?: string;
   title?: string;
+  quick?: boolean;
 };
 
 /* Hyper terminal types */

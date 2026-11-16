@@ -5,7 +5,7 @@ import { focusTab } from "@features/workbench/client/actions/tab";
 import {
   activeTabAtom,
   activeTabIdAtom,
-  tabsAtom,
+  stripTabsAtom,
 } from "@features/workbench/client/atoms";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import { shallow, useSelector } from "@tanstack/react-store";
@@ -16,8 +16,8 @@ import { FocusModeMiniMap } from "./FocusModeMiniMap";
 export function FocusModeIndicator() {
   const [isVisible, setIsVisible] = useState(false);
   const activeTabId = useSelector(activeTabIdAtom);
-  const totalTabs = useSelector(tabsAtom, (tabs) => tabs.length);
-  const activeTabIndex = useSelector(tabsAtom, (tabs) =>
+  const totalTabs = useSelector(stripTabsAtom, (tabs) => tabs.length);
+  const activeTabIndex = useSelector(stripTabsAtom, (tabs) =>
     tabs.findIndex((tab) => tab.id === activeTabId),
   );
   // Pane titles change constantly, so select only what the indicator shows
@@ -55,7 +55,7 @@ export function FocusModeIndicator() {
       if (!canGoPrev) {
         return;
       }
-      focusTab(tabsAtom.get()[activeTabIndex - 1].id);
+      focusTab(stripTabsAtom.get()[activeTabIndex - 1].id);
       return;
     }
 
@@ -63,7 +63,7 @@ export function FocusModeIndicator() {
       return;
     }
 
-    focusTab(tabsAtom.get()[activeTabIndex + 1].id);
+    focusTab(stripTabsAtom.get()[activeTabIndex + 1].id);
   };
 
   const handleSelectPane = (paneId: string) => {

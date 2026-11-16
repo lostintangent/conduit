@@ -11,6 +11,7 @@ import {
   paneActionsEnabled,
   paneCanBeCollapsed,
   paneIsCollapsed,
+  quickPaneOpen,
   tabCount,
   tabIsLocked,
 } from "@/commands/contextKeys/appContextKeys";
@@ -32,6 +33,7 @@ import {
   duplicateTabIntoWorktree,
   lockTab,
   movePaneToTab,
+  openQuickTabInStrip,
   openTab,
   openTabWithPane,
   unlockTab,
@@ -122,6 +124,7 @@ export default [
     description: "Create a new terminal tab",
     category: "Tab",
     keybinding: { key: "Cmd+T" },
+    when: quickPaneOpen.isFalse(),
     run: () => {
       void openTab();
     },
@@ -157,7 +160,11 @@ export default [
     description: "Close the currently active tab",
     category: "Tab",
     keybinding: { key: "Cmd+W" },
-    when: When.and(tabCount.greaterThan(1), tabIsLocked.isFalse()),
+    // A quick pane always closes, and the strip keeps its last tab
+    when: When.and(
+      When.or(quickPaneOpen.isTrue(), tabCount.greaterThan(1)),
+      tabIsLocked.isFalse(),
+    ),
     menu: {
       id: MenuId.TabContext,
       group: "4_tab",
@@ -716,7 +723,10 @@ export default [
     run: (context, tabId?: string, paneId?: string) => {
       const targetTabId = tabId ?? context.activeTab?.id;
       const targetPaneId = paneId ?? context.activePaneId;
-      if (targetTabId && targetPaneId) {
+      // A quick pane moves into the strip whole, with its splits
+      if (!tabId && context.activeTab?.quick) {
+        openQuickTabInStrip(context.activeTab.id);
+      } else if (targetTabId && targetPaneId) {
         movePaneToTab(targetTabId, targetPaneId);
       }
     },

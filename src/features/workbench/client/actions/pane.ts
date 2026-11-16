@@ -7,7 +7,11 @@ import {
   isFocusModeActive,
 } from "@features/workbench/client/actions/focusMode";
 import { enqueueNotification } from "@features/workbench/client/actions/notifications";
-import { closeTab } from "@features/workbench/client/actions/tab";
+import {
+  closeTab,
+  isLastStripTab,
+  nextStripTabId,
+} from "@features/workbench/client/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
 import type {
   BrowserPane,
@@ -429,6 +433,14 @@ export function movePane(
   );
 }
 
+/** Whether the tab is on screen: the strip's selection, or a quick pane */
+function isTabShown(tabId: string): boolean {
+  return (
+    tabId === activeTabIdAtom.get() ||
+    Boolean(tabsAtom.get().find((tab) => tab.id === tabId)?.quick)
+  );
+}
+
 type DetachPaneResult = {
   pane: Pane;
   tabClosed: boolean;
@@ -455,22 +467,18 @@ export function detachPane(
 
   let detachedPane: Pane | null = null;
   let tabClosed = false;
-  let removedTabIndex = -1;
-  const previousActiveTabId = activeTabIdAtom.get();
-  let removedTabWasActive = false;
   let nextActiveTabId: string | null | undefined = undefined;
 
   tabsAtom.set(
     produce((current) => {
       const next: Tab[] = [];
 
-      current.forEach((tab, index) => {
+      current.forEach((tab) => {
         if (tab.id !== tabId) {
           next.push(tab);
           return;
         }
 
-        removedTabIndex = index;
         const pane = tab.panes[paneId];
         if (!pane) {
           next.push(tab);
@@ -494,7 +502,6 @@ export function detachPane(
 
         if (!newLayout || Object.keys(newPanes).length === 0) {
           tabClosed = true;
-          removedTabWasActive = tab.id === previousActiveTabId;
           return;
         }
 
@@ -512,17 +519,9 @@ export function detachPane(
       });
 
       if (tabClosed) {
-        if (removedTabWasActive) {
-          if (next.length > 0) {
-            const targetIndex =
-              removedTabIndex >= next.length
-                ? next.length - 1
-                : removedTabIndex;
-            nextActiveTabId = next[targetIndex]?.id ?? null;
-          } else {
-            nextActiveTabId = null;
-          }
-        } else if (next.length === 0) {
+        if (activeTabIdAtom.get() === tabId) {
+          nextActiveTabId = nextStripTabId(tabs, tabId);
+        } else if (isLastStripTab(tabs, tabId)) {
           nextActiveTabId = null;
         }
       }
@@ -582,7 +581,7 @@ export async function splitPane(
   // prompt draws at its own width. One in a background tab can't fit until
   // it's shown, so its shell starts right away.
   const result = await api.terminal.create({
-    waitForSize: tabId === activeTabIdAtom.get(),
+    waitForSize: isTabShown(tabId),
     ...(options.terminalOptions ?? { cwd: defaultCwd }),
   });
   if (!result) {
@@ -862,6 +861,7 @@ export function openBrowserPane(
 type NewEditorPaneOptions = {
   file?: string;
   preview?: boolean;
+  closeOnSave?: boolean;
 };
 
 /** A new editor pane, for a split or a tab of its own */
@@ -875,7 +875,27 @@ export function newEditorPane(
     cwd,
     file: options.file,
     preview: options.preview,
+    ...(options.closeOnSave && { closeOnSave: true }),
   };
+}
+
+/**
+ * Resolves once no tab holds the pane, like `code --wait`. Moving the pane to
+ * another tab keeps it open, though it leaves one tab before joining the next.
+ */
+export function paneClosed(paneId: string): Promise<void> {
+  const isOpen = () => tabsAtom.get().some((tab) => paneId in tab.panes);
+  return new Promise((resolve) => {
+    if (!isOpen()) return resolve();
+    const subscription = tabsAtom.subscribe(() => {
+      if (isOpen()) return;
+      queueMicrotask(() => {
+        if (isOpen()) return;
+        subscription.unsubscribe();
+        resolve();
+      });
+    });
+  });
 }
 
 export function openEditorPane(

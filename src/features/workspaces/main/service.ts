@@ -191,6 +191,11 @@ function serializeTabs(tabs: Tab[]): Promise<Workspace["tabs"]> {
           if (pane.type === "browser") {
             return serializeBrowserPane(pane, saved.get(pane.id));
           }
+          if (pane.type === "editor") {
+            // Nobody waits on a reopened editor's save
+            const { closeOnSave: _closeOnSave, ...editor } = pane;
+            return editor;
+          }
           return pane;
         }),
       ),

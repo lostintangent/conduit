@@ -11,11 +11,25 @@ const { createTerminal, spawnSession } = vi.hoisted(() => {
 });
 
 import {
+  detachPane,
   dropPane,
+  paneClosed,
   splitPane,
   splitPaneWithAgentSession,
 } from "@features/workbench/client/actions/pane";
-import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import {
+  closeTab,
+  movePaneToTab,
+  openQuickTabInStrip,
+} from "@features/workbench/client/actions/tab";
+import {
+  activeTabAtom,
+  activeTabIdAtom,
+  applicationModeAtom,
+  setApplicationMode,
+  stripTabsAtom,
+  tabsAtom,
+} from "@features/workbench/client/atoms";
 import type { LayoutNode, Pane, Tab } from "@features/workbench/model";
 import { enableMapSet } from "immer";
 
@@ -105,6 +119,117 @@ describe("dropPane", () => {
 
     expect(moved).toBe(false);
     expect(tabsAtom.get()).toEqual(before);
+  });
+});
+
+describe("a quick pane", () => {
+  const quickTab = (id: string, paneId: string): Tab => ({
+    ...makeTab(id, [paneId]),
+    quick: true,
+  });
+
+  beforeEach(() => {
+    setApplicationMode("normal");
+    tabsAtom.set([
+      makeTab("tab-1", ["a"]),
+      makeTab("tab-2", ["b"]),
+      quickTab("quick", "q"),
+    ]);
+    activeTabIdAtom.set("tab-2");
+  });
+
+  it("is the tab in front, outside the strip", () => {
+    expect(activeTabAtom.get()?.id).toBe("quick");
+    expect(stripTabsAtom.get().map((tab) => tab.id)).toEqual([
+      "tab-1",
+      "tab-2",
+    ]);
+    expect(applicationModeAtom.get()).toBe("quick");
+  });
+
+  it("keeps the mode chosen under it, which returns once it closes", () => {
+    tabsAtom.set([makeTab("tab-1", ["a"])]);
+    setApplicationMode("focus");
+    tabsAtom.set([makeTab("tab-1", ["a"]), quickTab("quick", "q")]);
+
+    setApplicationMode("overview");
+    expect(applicationModeAtom.get()).toBe("quick");
+
+    closeTab("quick");
+    expect(applicationModeAtom.get()).toBe("focus");
+  });
+
+  it("leaves the strip's selection alone when it closes", () => {
+    closeTab("quick");
+
+    expect(tabsAtom.get().map((tab) => tab.id)).toEqual(["tab-1", "tab-2"]);
+    expect(activeTabIdAtom.get()).toBe("tab-2");
+  });
+
+  it("isn't selected when the strip's selected tab closes", () => {
+    closeTab("tab-2");
+    expect(activeTabIdAtom.get()).toBe("tab-1");
+
+    tabsAtom.set([
+      makeTab("tab-1", ["a"]),
+      makeTab("tab-2", ["b"]),
+      quickTab("quick", "q"),
+    ]);
+    activeTabIdAtom.set("tab-2");
+    detachPane("tab-2", "b");
+    expect(activeTabIdAtom.get()).toBe("tab-1");
+  });
+
+  it("doesn't count toward the strip, which gets a new tab once its last one closes", () => {
+    createTerminal.mockReset();
+    createTerminal.mockResolvedValue(null);
+    tabsAtom.set([makeTab("tab-1", ["a"]), quickTab("quick", "q")]);
+    activeTabIdAtom.set("tab-1");
+
+    closeTab("tab-1");
+
+    expect(activeTabIdAtom.get()).toBeNull();
+    expect(createTerminal).toHaveBeenCalled();
+  });
+
+  it("joins the strip in place, selected, when it opens in a tab", () => {
+    openQuickTabInStrip("quick");
+
+    expect(stripTabsAtom.get().map((tab) => tab.id)).toEqual([
+      "tab-1",
+      "tab-2",
+      "quick",
+    ]);
+    expect(activeTabIdAtom.get()).toBe("quick");
+    expect(applicationModeAtom.get()).toBe("normal");
+  });
+});
+
+describe("paneClosed", () => {
+  beforeEach(() => {
+    tabsAtom.set([makeTab("tab-1", ["a"]), makeTab("tab-2", ["b", "c"])]);
+    activeTabIdAtom.set("tab-1");
+  });
+
+  it("waits while the pane moves to another tab, and resolves once it closes", async () => {
+    let closed = false;
+    const waiting = paneClosed("c").then(() => {
+      closed = true;
+    });
+
+    movePaneToTab("tab-2", "c");
+    // The check for a pane that left one tab runs in a microtask
+    await Promise.resolve();
+    expect(closed).toBe(false);
+
+    const tabId = tabsAtom.get().find((tab) => "c" in tab.panes)!.id;
+    closeTab(tabId);
+    await waiting;
+    expect(closed).toBe(true);
+  });
+
+  it("resolves at once for a pane that isn't open", async () => {
+    await expect(paneClosed("missing")).resolves.toBeUndefined();
   });
 });
 

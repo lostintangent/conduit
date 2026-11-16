@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 
+// A quick pane is a dialog that hosts a pane rather than an overlay over one,
+// so a pane opened in front of it takes focus like any other
 const OVERLAY_SELECTOR =
-  '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+  '[role="dialog"]:not([data-quick-pane]), [role="alertdialog"], [role="menu"], [role="listbox"]';
 
 const PRESSED_SELECTOR = 'button, [role="button"]';
 
@@ -152,7 +154,16 @@ export function focusActivePane() {
   [...focusRequests].reverse().forEach((request) => request());
 }
 
-/** Focus is on the body, or on an element that was hidden (e.g. in a tab that was just switched away from) */
+/**
+ * Focus is on the body, on an element that was hidden (e.g. in a tab that was
+ * just switched away from), or on a quick pane's dialog, which its focus trap
+ * gives it when what had it goes away
+ */
 function isFocusLost(element: Element | null) {
-  return !element || element === document.body || !element.checkVisibility();
+  return (
+    !element ||
+    element === document.body ||
+    element.matches("[data-quick-pane]") ||
+    !element.checkVisibility()
+  );
 }

@@ -7,17 +7,11 @@ import { TabContentPortalProvider } from "@features/workbench/components/layout/
 import { TabLayout } from "@features/workbench/components/layout/normal/TabLayout";
 import { TabsOverview } from "@features/workbench/components/layout/overview/TabsOverview";
 import { HyperTerminal } from "@features/workbench/components/layout/quick/HyperTerminal";
-import {
-  QuickPaneDialog,
-  type PaneDescriptor,
-} from "@features/workbench/components/layout/quick/QuickPaneDialog";
+import { QuickPanes } from "@features/workbench/components/layout/quick/QuickPanes";
 import { GlobalEditorContainer } from "@features/editor/components/GlobalEditorContainer";
 import { normalizeUrl } from "@features/browser/client/url";
 import { useDownloadToasts } from "@features/browser/components/useDownloadToasts";
-import {
-  disposeSession,
-  updateTerminalThemes,
-} from "@features/terminal/client/xtermCache";
+import { updateTerminalThemes } from "@features/terminal/client/xtermCache";
 import { NotificationCenter } from "@features/workbench/components/NotificationCenter";
 import { AgentCleanupDialog } from "@features/agents/components/AgentCleanupDialog";
 import { AgentLauncherDialog } from "@features/agents/components/AgentLauncherDialog";
@@ -41,10 +35,8 @@ import { flush, startAutosave } from "@features/workspaces/client/autosave";
 import {
   closeHyperTerminal,
   handleHyperTerminalExit,
-  maximizeHyperTerminal,
   minimizeHyperTerminal,
   moveHyperTerminalToTab,
-  openHyperTerminal,
   updateHyperTerminalPosition,
 } from "@features/workbench/client/actions/hyperTerminal";
 import {
@@ -61,7 +53,6 @@ import {
   generateIncrementedTabTitle,
   getActiveTabCwd,
   openTabFromExistingAgentSession,
-  openTabFromPaneDescriptor,
   registerTabEventHandlers,
   updateTabProperty,
 } from "@features/workbench/client/actions/tab";
@@ -69,19 +60,20 @@ import {
   activeTabAtom,
   applicationModeAtom,
   hyperTerminalsAtom,
-  quickPaneAtom,
+  setApplicationMode,
+  stripTabsAtom,
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import { applyTheme, watchSystemTheme } from "@/utils/theme";
 import type { AgentSessionInfo } from "@features/agents/model";
-import { useAtom, useSelector } from "@tanstack/react-store";
+import { useSelector } from "@tanstack/react-store";
 import { useEffect, useRef, useState } from "react";
 
 const api = window.conduit;
 
 export function App() {
-  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
   const hyperTerminals = useSelector(hyperTerminalsAtom);
 
   const {
@@ -121,7 +113,6 @@ export function App() {
     tabId: string;
     initialValue: string;
   } | null>(null);
-  const [quickPaneState, setQuickPaneState] = useAtom(quickPaneAtom);
   const [isUrlDialogOpen, setIsUrlDialogOpen] = useState(false);
   const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
   const [quickOpenInitialValue, setQuickOpenInitialValue] = useState("");
@@ -238,8 +229,9 @@ export function App() {
 
   // Mouse position tracking for auto-hiding drawer
   useEffect(() => {
-    // Only track mouse if we're using drawer mode (not alwaysShowTabs)
-    if (alwaysShowTabs) {
+    // Only track mouse if we're using drawer mode (not alwaysShowTabs), and
+    // not under a quick pane, which keeps the strip out of reach
+    if (alwaysShowTabs || applicationMode === "quick") {
       setIsTabDrawerOpen(false);
       return;
     }
@@ -261,7 +253,7 @@ export function App() {
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
     };
-  }, [alwaysShowTabs, tabPosition]);
+  }, [alwaysShowTabs, applicationMode, tabPosition]);
 
   const hasInitializedTabsRef = useRef(false);
 
@@ -283,21 +275,6 @@ export function App() {
 
   useEffect(() => {
     const unsubscribeExit = api.terminal.on("exit", ({ sessionId }) => {
-      // Handle quick pane exit
-      setQuickPaneState((current) => {
-        if (
-          !current ||
-          current.type !== "terminal" ||
-          current.sessionId !== sessionId
-        ) {
-          return current;
-        }
-
-        disposeSession(sessionId);
-        return null;
-      });
-
-      // Handle floating terminal exit
       handleHyperTerminalExit(sessionId);
     });
 
@@ -325,7 +302,7 @@ export function App() {
 
   const handleContextMenu = useContextMenu({
     canChangeTitle: (_tabId: string) => {
-      const tabCount = tabsAtom.get().length;
+      const tabCount = stripTabsAtom.get().length;
       if (tabCount > 1) {
         return true;
       }
@@ -479,64 +456,6 @@ export function App() {
     commandSystem?.contextKeyService,
   );
 
-  const handleCloseQuickPane = () => {
-    setQuickPaneState((current) => {
-      if (!current) {
-        return current;
-      }
-
-      current.onClose?.();
-
-      if (current.type === "terminal") {
-        api.terminal.close(current.sessionId);
-        disposeSession(current.sessionId);
-      }
-
-      return null;
-    });
-  };
-
-  const handleOpenQuickPaneAsTab = async (descriptor: PaneDescriptor) => {
-    // Close quick pane without disposing terminal sessions
-    // since they will be reused in the new tab
-    setQuickPaneState((current) => {
-      if (current) {
-        current.onClose?.();
-      }
-      return null;
-    });
-    await openTabFromPaneDescriptor(descriptor);
-  };
-
-  const handleOpenQuickPaneAsFloating = (
-    terminalId: string,
-    paneId: string,
-  ) => {
-    // Transfer terminal from quick pane to floating overlay.
-    setQuickPaneState((current) => {
-      if (!current || current.type !== "terminal") {
-        return null;
-      }
-
-      const cwd = current.cwd;
-
-      current.onClose?.();
-
-      openHyperTerminal(terminalId, paneId, cwd);
-
-      return null;
-    });
-  };
-
-  const handleMaximizeHyperTerminal = (
-    terminalId: string,
-    cwd: string | null,
-  ) => {
-    // Transfer terminal from floating overlay back to quick dialog.
-    const quickPaneDescriptor = maximizeHyperTerminal(terminalId, cwd);
-    setQuickPaneState(quickPaneDescriptor);
-  };
-
   const shouldUseDrawer = !alwaysShowTabs;
 
   return (
@@ -622,6 +541,8 @@ export function App() {
           {/* Sidebar overlay - covers tab strip and content but not title bar */}
           <Sidebar cwd={activeCwd} />
         </div>
+
+        <QuickPanes />
       </TabContentPortalProvider>
 
       <NotificationCenter />
@@ -636,15 +557,6 @@ export function App() {
         title="Rename tab"
         placeholder="Enter a name..."
       />
-
-      {quickPaneState && (
-        <QuickPaneDialog
-          paneDescriptor={quickPaneState}
-          onClose={handleCloseQuickPane}
-          onOpenAsTab={handleOpenQuickPaneAsTab}
-          onOpenAsFloating={handleOpenQuickPaneAsFloating}
-        />
-      )}
 
       {isQuickOpenOpen && (
         <CommandPalette
@@ -723,7 +635,9 @@ export function App() {
             onClose={() => closeHyperTerminal(terminal.terminalId)}
             onMinimize={() => minimizeHyperTerminal(terminal.terminalId)}
             onMaximize={() =>
-              handleMaximizeHyperTerminal(terminal.terminalId, terminal.cwd)
+              moveHyperTerminalToTab(terminal.terminalId, terminal.cwd, {
+                quick: true,
+              })
             }
             onOpenAsTab={() =>
               moveHyperTerminalToTab(terminal.terminalId, terminal.cwd)

@@ -31,8 +31,10 @@ import { hasNeighborPane } from "@features/workbench/client/actions/paneNavigati
 import { focusTab } from "@features/workbench/client/actions/tab";
 import {
   activePaneIdAtom,
+  activeTabAtom,
   activeTabIdAtom,
   applicationModeAtom,
+  setApplicationMode,
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import type {
@@ -332,10 +334,11 @@ export function TabLayout({
     compare: shallow,
   });
   const activeTabId = useSelector(activeTabIdAtom);
+  // The tab keys go to, which is the front quick pane's while one is open
+  const frontTabId = useSelector(activeTabAtom, (tab) => tab?.id ?? null);
   const activePaneId = useSelector(activePaneIdAtom);
 
   const applicationMode = useSelector(applicationModeAtom);
-  const setApplicationMode = applicationModeAtom.set;
   const isInDesignMode = applicationMode === "design";
 
   const dimInactivePanes = useSettings((s) => s.dimInactivePanes);
@@ -385,7 +388,7 @@ export function TabLayout({
     }
 
     const isLocked = tab.locked;
-    const isActivePane = tab.id === activeTabId && pane.id === activePaneId;
+    const isActivePane = tab.id === frontTabId && pane.id === activePaneId;
     const isInFocusMode = applicationMode === "focus";
     const isHiddenInFocusMode = isInFocusMode && !isActivePane;
     const isInPreview = isTabInPreview(tab.id);
@@ -398,7 +401,7 @@ export function TabLayout({
 
     const onPaneActivate = (event?: React.MouseEvent) => {
       // If clicking a pane in a non-active tab (e.g., from preview), switch to that tab first
-      if (tab.id !== activeTabId) {
+      if (tab.id !== frontTabId) {
         focusTab(tab.id);
       }
       if (applicationMode === "overview") {
@@ -769,7 +772,7 @@ export function TabLayout({
         key={tab.id}
         tabId={tab.id}
         isActive={isActive}
-        isVisible={isActive || isTabInPreview(tab.id)}
+        isVisible={isActive || isTabInPreview(tab.id) || Boolean(tab.quick)}
         tabContent={tabContent}
         role="tabpanel"
         className={

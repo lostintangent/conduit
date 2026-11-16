@@ -10,7 +10,11 @@ import {
   registerApplicationCommands,
   _resetCommandRegistration,
 } from "@/commands/applicationCommands";
-import { hasActivePane } from "@/commands/contextKeys/appContextKeys";
+import {
+  hasActivePane,
+  hasWorkspace,
+  quickPaneOpen,
+} from "@/commands/contextKeys/appContextKeys";
 import { ContextKeyService } from "@/commands/contextKeys/ContextKeyServiceImpl";
 import { CommandRegistry } from "@/commands/core/CommandRegistryImpl";
 import type { CommandDescriptor } from "@/commands/core/types";
@@ -709,6 +713,43 @@ describe("applicationCommands", () => {
       await Promise.resolve();
 
       expect(navigatePane).toHaveBeenCalledWith("tab-1", "pane-1", direction);
+    });
+  });
+
+  // Restoring a workspace closes every tab, so a quick editor git waits on
+  // would lose its text without a prompt
+  describe("over a quick pane", () => {
+    it.each([
+      ApplicationCommands.WORKSPACE_OPEN,
+      ApplicationCommands.WORKSPACE_CLOSE,
+    ])("%s doesn't run", async (commandId) => {
+      const contextKeys = new ContextKeyService();
+      contextKeys.setGlobal(hasWorkspace.key, true);
+      const registry = new CommandRegistry(
+        contextKeys,
+        new KeybindingRegistry(),
+      );
+      const setShowWorkspacePicker = vi.fn();
+      registry.setContextBuilder(() =>
+        commandContext({
+          contextKeys,
+          workspaceName: "my-workspace",
+          setShowWorkspacePicker,
+        }),
+      );
+      registerApplicationCommands(registry);
+      const ran = () =>
+        setShowWorkspacePicker.mock.calls.length +
+        vi.mocked(workspaceHandlers.handleCloseWorkspace).mock.calls.length;
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      contextKeys.setGlobal(quickPaneOpen.key, true);
+      await registry.executeCommand(commandId);
+      expect(ran()).toBe(0);
+
+      contextKeys.setGlobal(quickPaneOpen.key, false);
+      await registry.executeCommand(commandId);
+      expect(ran()).toBe(1);
     });
   });
 

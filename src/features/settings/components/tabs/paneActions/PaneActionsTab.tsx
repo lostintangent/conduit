@@ -28,7 +28,7 @@ import type {
 } from "@features/workbench/client/paneActions/types";
 import { MAX_ACTIONS } from "@features/workbench/client/paneActions/types";
 import { preCommands } from "@features/workbench/client/preCommands/registeredPreCommands";
-import { quickPaneAtom } from "@features/workbench/client/atoms";
+import { openQuickEditor } from "@features/workbench/client/actions/tab";
 import {
   Check,
   ChevronDown,
@@ -54,7 +54,6 @@ export function PaneActionsTab({
   homeDirectory,
   onClose,
 }: PaneActionsTabProps) {
-  const setQuickPane = quickPaneAtom.set;
   const actions = usePaneActions();
   const [expandedActions, setExpandedActions] = useState<Set<string>>(
     new Set(),
@@ -282,11 +281,7 @@ export function PaneActionsTab({
 
   const handleOpenConfigFile = () => {
     const configPath = `${homeDirectory}/.conduit/paneactions.json`;
-    setQuickPane({
-      type: "editor",
-      cwd: homeDirectory,
-      file: configPath,
-    });
+    openQuickEditor(homeDirectory, configPath);
     onClose?.();
   };
 

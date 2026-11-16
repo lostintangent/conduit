@@ -1,4 +1,7 @@
-import { applicationModeAtom } from "@features/workbench/client/atoms";
+import {
+  applicationModeAtom,
+  setApplicationMode,
+} from "@features/workbench/client/atoms";
 import { activatePane } from "./pane";
 
 export function isFocusModeActive(): boolean {
@@ -7,11 +10,11 @@ export function isFocusModeActive(): boolean {
 
 export function enterFocusMode(tabId: string, paneId: string): void {
   activatePane(tabId, paneId);
-  applicationModeAtom.set("focus");
+  setApplicationMode("focus");
 }
 
 export function exitFocusMode(): void {
-  applicationModeAtom.set("normal");
+  setApplicationMode("normal");
 }
 
 export function toggleFocusMode(tabId: string, paneId: string): void {

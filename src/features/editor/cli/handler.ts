@@ -1,19 +1,18 @@
-import type { QuickPaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
-import { quickPaneAtom } from "@features/workbench/client/atoms";
+import {
+  newEditorPane,
+  paneClosed,
+} from "@features/workbench/client/actions/pane";
+import { createTabWithPane } from "@features/workbench/client/actions/tab";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
-import type { EditorPane } from "@features/workbench/model";
 import type { HandlerMap } from "@/cli/handlers/types";
-
-type EditorQuickDescriptor = Omit<EditorPane, "id"> &
-  Pick<QuickPaneDescriptor, "closeOnSave" | "onClose">;
 
 export default {
   /**
    * Handle editor-open requests from the CLI.
    *
    * When --quick flag is passed (used by $EDITOR for git commit, etc.):
-   * - Opens in a modal quick pane that closes on save
-   * - Blocks until the user saves and closes the editor
+   * - Opens in a quick pane that closes on save
+   * - Blocks until the editor closes, by save, Close or Esc
    *
    * Without --quick flag (direct CLI usage like `conduit file.txt`):
    * - Opens in the sidebar editor
@@ -22,18 +21,15 @@ export default {
   "editor-open": (args) => {
     const commandArgs = args ?? { cwd: "" };
 
-    // Quick mode: open in modal dialog, block until closed
+    // Quick mode: open in a quick pane, and wait until its editor closes,
+    // wherever it went in the meantime
     if (commandArgs.quick) {
-      return new Promise<void>((resolve) => {
-        const descriptor: EditorQuickDescriptor = {
-          type: "editor",
-          cwd: commandArgs.cwd,
-          file: commandArgs.filePath,
-          closeOnSave: true,
-          onClose: resolve,
-        };
-        quickPaneAtom.set(descriptor);
+      const pane = newEditorPane(commandArgs.cwd, {
+        file: commandArgs.filePath,
+        closeOnSave: true,
       });
+      createTabWithPane(pane, { quick: true });
+      return paneClosed(pane.id);
     }
 
     // Normal mode: open in sidebar, return immediately

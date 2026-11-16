@@ -2,7 +2,11 @@
  * Workspace commands
  */
 
-import { hasWorkspace } from "@/commands/contextKeys/appContextKeys";
+import {
+  hasWorkspace,
+  quickPaneOpen,
+} from "@/commands/contextKeys/appContextKeys";
+import { When } from "@/commands";
 import type { CommandDescriptor } from "@/commands/core/types";
 import {
   handleCloseWorkspace,
@@ -62,7 +66,8 @@ export default [
     description: "Close the current workspace",
     category: "Workspace",
     keybinding: { key: "Cmd+K F" },
-    when: hasWorkspace.isTrue(),
+    // Restoring tabs closes the quick ones too, unsaved text and all
+    when: When.and(hasWorkspace.isTrue(), quickPaneOpen.isFalse()),
     run: (context) => {
       if (context.workspaceName) {
         void handleCloseWorkspace();
@@ -77,6 +82,7 @@ export default [
     description: "Restore tabs from a saved workspace",
     category: "Workspace",
     keybinding: { key: "Cmd+K Cmd+O" },
+    when: quickPaneOpen.isFalse(),
     run: (context) => {
       context.setShowWorkspacePicker?.(true);
     },

@@ -1271,29 +1271,26 @@ export function EditorPane({
   }, [pane.id, handleToggleTree, handleRevealActiveFile]);
 
   /**
-   * Keyboard shortcuts for editor actions.
-   * Handles Cmd/Ctrl+S (save).
-   * Monaco handles Cmd/Ctrl+F (find) internally.
-   * Cmd/Ctrl+P (quick open) is handled globally by the command system.
+   * A quick pane closes on an Escape nothing used. Unsaved changes keep it,
+   * so a stray Escape never drops a commit message. Native, because the quick
+   * pane's listener is.
    */
+  const selectedPath = selectedFile?.path;
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Cmd/Ctrl+S: Save file
+    const container = containerRef.current;
+    if (!container || !selectedPath) return;
+    const keepEscape = (event: KeyboardEvent) => {
       if (
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "s" &&
-        selectedFile &&
-        onSave
+        event.key === "Escape" &&
+        isFileDirty(selectedPath) &&
+        container.closest("[data-quick-pane]")
       ) {
-        event.preventDefault();
-        onSave();
-        return;
+        event.stopPropagation();
       }
     };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedFile, onSave]);
+    container.addEventListener("keydown", keepEscape);
+    return () => container.removeEventListener("keydown", keepEscape);
+  }, [selectedPath]);
 
   useFocusFollowsSide(
     showTree && showEditor ? null : showTree ? "tree" : "editor",

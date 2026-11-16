@@ -6,7 +6,7 @@ import {
   focusTab,
   openTab,
 } from "@features/workbench/client/actions/tab";
-import { applicationModeAtom } from "@features/workbench/client/atoms";
+import { setApplicationMode } from "@features/workbench/client/atoms";
 import { useSettings } from "@features/settings/client/queries";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import { LabelIcon } from "@features/workbench/components/tabs/LabelIcon";
@@ -19,7 +19,6 @@ import { TabPreviewItem } from "./TabPreviewItem";
 export function TabsOverview() {
   const tabLabels = useSelector(tabLabelsAtom);
   const showTabState = useSettings((s) => s.showTabState);
-  const setApplicationMode = applicationModeAtom.set;
 
   const [hoveredTabId, setHoveredTabId] = useState<string | null>(null);
 

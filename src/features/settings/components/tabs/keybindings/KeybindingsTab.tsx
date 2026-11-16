@@ -4,10 +4,8 @@
  * Visual interface for discovering and editing keyboard shortcuts.
  */
 
-import {
-  keybindingsAtom,
-  quickPaneAtom,
-} from "@features/workbench/client/atoms";
+import { openQuickEditor } from "@features/workbench/client/actions/tab";
+import { keybindingsAtom } from "@features/workbench/client/atoms";
 import { useSelector } from "@tanstack/react-store";
 import {
   AlertTriangle,
@@ -53,7 +51,6 @@ export function KeybindingsTab({
   keybindingRegistry,
   homeDirectory,
 }: KeybindingsTabProps) {
-  const setQuickPane = quickPaneAtom.set;
   const [searchQuery, setSearchQuery] = useState("");
   const [editingCommandId, setEditingCommandId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<"all" | "user" | "conflicts">(
@@ -174,11 +171,7 @@ export function KeybindingsTab({
 
   const handleOpenKeybindingsFile = () => {
     const keybindingsPath = getUserKeybindingsPath(homeDirectory);
-    setQuickPane({
-      type: "editor",
-      cwd: homeDirectory,
-      file: keybindingsPath,
-    });
+    openQuickEditor(homeDirectory, keybindingsPath);
   };
 
   const handleRemoveKeybinding = async (commandId: string) => {

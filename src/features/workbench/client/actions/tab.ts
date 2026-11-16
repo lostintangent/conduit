@@ -1,4 +1,4 @@
-import type { PaneDescriptor } from "@features/workbench/components/layout/quick/QuickPaneDialog";
+import { executeCommand } from "@/commands";
 import { disposeEditorPane } from "@features/editor/components/EditorPaneAnchor";
 import {
   getSessionState,
@@ -46,6 +46,7 @@ import { walkLayout } from "@features/workbench/client/layout";
 import type { AgentSessionInfo } from "@features/agents/model";
 import { generateElementId } from "@features/canvas/model";
 import { getSettings } from "@features/settings/client/queries";
+import { ApplicationCommands } from "@shared/commands";
 import type { PaneType } from "@shared/types/panes";
 import { generateId } from "@shared/utils";
 import path from "path-browserify";
@@ -169,7 +170,7 @@ export async function openTab(
       cwd: result.cwd ?? null,
       title: result.title,
     },
-    options?.title,
+    { name: options?.title, quick: options?.quick },
   );
 
   return { tabId, paneId, sessionId: result.sessionId };
@@ -180,31 +181,54 @@ export async function openTab(
  * split of that type: a blank page, or the active pane's folder for a
  * terminal or editor.
  */
-export async function openTabWithPane(type: PaneType): Promise<void> {
+export async function openTabWithPane(
+  type: PaneType,
+  { quick = false } = {},
+): Promise<void> {
   switch (type) {
     case "terminal":
-      await openTab();
+      await openTab({ quick });
       return;
     case "browser":
-      createTabWithPane(newBrowserPane("about:blank"));
+      createTabWithPane(newBrowserPane("about:blank"), { quick });
       return;
     case "editor":
       createTabWithPane(
         newEditorPane(
           getActiveTabCwd(activeTabAtom.get(), getSettings().homeDirectory),
         ),
+        { quick },
       );
       return;
     case "canvas":
-      createTabWithPane(newCanvasPane());
+      createTabWithPane(newCanvasPane(), { quick });
       return;
   }
 }
 
-// Helper function to create a tab with a pane
-function createTabWithPane(
+/** Opens a file, or a folder without one, in a quick editor */
+export function openQuickEditor(cwd: string, file?: string) {
+  createTabWithPane(newEditorPane(cwd, { file }), { quick: true });
+}
+
+/** Moves a quick pane into the strip as its last tab, keeping it mounted */
+export function openQuickTabInStrip(tabId: string) {
+  tabsAtom.set(
+    produce((current) => {
+      const tab = current.find((tab) => tab.id === tabId);
+      if (tab) delete tab.quick;
+    }),
+  );
+  focusTab(tabId);
+}
+
+/**
+ * Opens a tab with the pane. A quick one shows in front of the workbench,
+ * outside the strip, and leaves the strip's selection alone.
+ */
+export function createTabWithPane(
   paneState: Pane,
-  name?: string,
+  { name, quick = false }: { name?: string; quick?: boolean } = {},
 ): { tabId: string; paneId: string } {
   const tabId = generateId();
 
@@ -223,10 +247,11 @@ function createTabWithPane(
         layout,
         activePaneId: paneState.id,
         name,
+        ...(quick && { quick: true as const }),
       },
     ]),
   );
-  focusTab(tabId);
+  if (!quick) focusTab(tabId);
 
   return { tabId, paneId: paneState.id };
 }
@@ -235,10 +260,12 @@ export function openTabFromExistingSession({
   sessionId,
   cwd,
   title,
+  quick,
 }: {
   sessionId: string;
   cwd?: string | null;
   title?: string | null;
+  quick?: boolean;
 }): { tabId: string; paneId: string } {
   const paneId = generateId();
 
@@ -250,7 +277,7 @@ export function openTabFromExistingSession({
     title: title ?? "Terminal",
   };
 
-  return createTabWithPane(paneState);
+  return createTabWithPane(paneState, { quick });
 }
 
 export async function openTabFromExistingAgentSession(
@@ -279,18 +306,6 @@ export async function openTabFromExistingAgentSession(
   const { tabId } = createTabWithPane(paneState);
 
   return { tabId, paneId, sessionId: result.sessionId };
-}
-
-export async function openTabFromPaneDescriptor(
-  descriptor: PaneDescriptor,
-): Promise<{ tabId: string; paneId: string } | null> {
-  const paneId = generateId();
-  const newPane = {
-    id: paneId,
-    ...descriptor,
-  };
-
-  return createTabWithPane(newPane as Pane);
 }
 
 export function updateTabProperty(tabId: string, updates: Partial<Tab>) {
@@ -382,9 +397,30 @@ type CloseTabOptions = {
   openReplacement?: boolean;
 };
 
+/**
+ * The strip tab to select once the selected `tabId` leaves `tabs`: the one
+ * that takes its place, or else the new last one
+ */
+export function nextStripTabId(
+  tabs: readonly Tab[],
+  tabId: string,
+): string | null {
+  const strip = tabs.filter((tab) => !tab.quick);
+  const index = strip.findIndex((tab) => tab.id === tabId);
+  const remaining = strip.filter((tab) => tab.id !== tabId);
+  return remaining[Math.min(index, remaining.length - 1)]?.id ?? null;
+}
+
+/** Whether `tabId` is the strip's only tab, so the strip is empty without it */
+export function isLastStripTab(tabs: readonly Tab[], tabId: string): boolean {
+  const strip = tabs.filter((tab) => !tab.quick);
+  return strip.length === 1 && strip[0].id === tabId;
+}
+
 export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   const { force = false, openReplacement = true } = options;
-  const targetTab = tabsAtom.get().find((tab) => tab.id === tabId);
+  const tabs = tabsAtom.get();
+  const targetTab = tabs.find((tab) => tab.id === tabId);
   if (!targetTab || (targetTab.locked && !force)) {
     return;
   }
@@ -394,9 +430,15 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
   const editorPaneIdsToDispose: string[] = [];
   const canvasPaneIdsToDispose: string[] = [];
   const paneIdsToCleanup: string[] = [];
-  let shouldOpenReplacement = false;
-  const previousActiveTabId = activeTabIdAtom.get();
-  let nextActiveTabId: string | null | undefined = undefined;
+
+  // Quick panes aren't in the strip, so closing one leaves its selection alone
+  const emptiesStrip = isLastStripTab(tabs, tabId);
+  const shouldOpenReplacement = emptiesStrip && openReplacement;
+  const nextActiveTabId = emptiesStrip
+    ? null
+    : activeTabIdAtom.get() === tabId
+      ? nextStripTabId(tabs, tabId)
+      : undefined;
 
   tabsAtom.set(
     produce((current) => {
@@ -416,20 +458,6 @@ export function closeTab(tabId: string, options: CloseTabOptions = {}) {
           canvasPaneIdsToDispose.push(pane.id);
         }
       });
-
-      if (current.length === 0) {
-        shouldOpenReplacement = openReplacement;
-        nextActiveTabId = null;
-        return;
-      }
-
-      if (previousActiveTabId === tabId) {
-        const targetIndex =
-          removedTabIndex >= current.length
-            ? current.length - 1
-            : removedTabIndex;
-        nextActiveTabId = current[targetIndex]?.id ?? null;
-      }
     }),
   );
 
@@ -834,8 +862,9 @@ export function registerTabEventHandlers() {
     }
   });
 
+  // Through the command, so the menu's ⌘T is gated like the key
   const unsubscribeNewTab = api.workbench.on("newTabRequested", () => {
-    void openTab();
+    void executeCommand(ApplicationCommands.TAB_NEW);
   });
 
   // A pane that hasn't shown has no xterm to hear its shell print, so main

@@ -16,7 +16,6 @@ import {
   createHyperTerminal,
   restoreMinimizedHyperTerminals,
 } from "@features/workbench/client/actions/hyperTerminal";
-import { openQuickTerminal } from "@features/workbench/client/actions/quickPane";
 import {
   focusTab,
   getActiveTabCwd,
@@ -29,10 +28,11 @@ import {
   activeTabIdAtom,
   applicationModeAtom,
   hyperTerminalsAtom,
-  tabsAtom,
+  setApplicationMode,
+  stripTabsAtom,
 } from "@features/workbench/client/atoms";
 import type { TabPosition } from "@features/settings/model";
-import { shallow, useAtom, useSelector } from "@tanstack/react-store";
+import { shallow, useSelector } from "@tanstack/react-store";
 import {
   Code,
   Fullscreen,
@@ -106,9 +106,11 @@ export const TabStrip = ({
   position = "top",
 }: TabStripProps) => {
   // Each tab's button selects its own label
-  const tabIds = useSelector(tabsAtom, (tabs) => tabs.map((tab) => tab.id), {
-    compare: shallow,
-  });
+  const tabIds = useSelector(
+    stripTabsAtom,
+    (tabs) => tabs.map((tab) => tab.id),
+    { compare: shallow },
+  );
   const hasMultipleTabs = tabIds.length > 1;
   const activeTabId = useSelector(activeTabIdAtom);
   const hasActiveTab = useSelector(activeTabAtom, (tab) => tab !== null);
@@ -123,7 +125,7 @@ export const TabStrip = ({
       showLaunchButton: s.showLaunchButton,
     }),
   );
-  const [applicationMode, setApplicationMode] = useAtom(applicationModeAtom);
+  const applicationMode = useSelector(applicationModeAtom);
   const isDesignMode = applicationMode === "design";
   const isInFocusMode = applicationMode === "focus";
 
@@ -484,12 +486,6 @@ export const TabStrip = ({
     );
   };
 
-  const handleOpenQuickTerminal = async () => {
-    await openQuickTerminal(
-      getActiveTabCwd(activeTabAtom.get(), homeDirectory),
-    );
-  };
-
   // Use margins to create gaps that reveal the overlay underneath
   // On Windows, no rounded corners (Windows 11 handles rounding)
   const marginClass = alwaysShowTabs
@@ -628,9 +624,11 @@ export const TabStrip = ({
               Hyper Terminal
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+            <DropdownMenuItem
+              onClick={() => openTabWithPane("terminal", { quick: true })}
+            >
               <Terminal size={16} className="mr-3" />
-              Quick Terminal (Local)
+              Quick Terminal
             </DropdownMenuItem>
           </SplitButton>
 

@@ -1,6 +1,7 @@
 import { focusTab } from "@features/workbench/client/actions/tab";
 import {
-  tabsAtom,
+  quickTabsAtom,
+  stripTabsAtom,
   type ApplicationMode,
 } from "@features/workbench/client/atoms";
 import { useEffect, useRef } from "react";
@@ -89,14 +90,14 @@ export function useKeybindingDispatch(
       }
 
       // Cmd+1-9: Focus tab by index
-      // Only when quick open dialog is closed and no shift key
-      if (opts && !opts.isQuickOpenOpen) {
+      // Only when quick open and quick panes are closed, and no shift key
+      if (opts && !opts.isQuickOpenOpen && quickTabsAtom.get().length === 0) {
         if (event.metaKey && !event.shiftKey && !event.altKey) {
           const key = event.key.toLowerCase();
           const tabNumber = Number.parseInt(key, 10);
 
           if (!Number.isNaN(tabNumber) && tabNumber >= 1) {
-            const tabs = tabsAtom.get();
+            const tabs = stripTabsAtom.get();
             const targetIndex = Math.min(tabNumber, tabs.length) - 1;
             const targetTab = tabs[targetIndex];
             if (targetTab) {

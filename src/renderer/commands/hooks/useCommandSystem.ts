@@ -18,6 +18,8 @@ import {
   activeTabIdAtom,
   type ApplicationMode,
   keybindingsAtom,
+  quickTabsAtom,
+  stripTabsAtom,
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { layoutHasCustomSizes } from "@features/workbench/client/layout";
@@ -302,7 +304,11 @@ export function useCommandSystem(
       const activePane = tab?.activePaneId
         ? tab.panes[tab.activePaneId]
         : undefined;
-      contextKeyService.setGlobal("tabCount", tabsAtom.get().length);
+      contextKeyService.setGlobal("tabCount", stripTabsAtom.get().length);
+      contextKeyService.setGlobal(
+        "quickPaneOpen",
+        quickTabsAtom.get().length > 0,
+      );
       contextKeyService.setGlobal("hasActivePane", !!tab?.activePaneId);
       contextKeyService.setGlobal("tabIsLocked", Boolean(tab?.locked));
       contextKeyService.setGlobal(

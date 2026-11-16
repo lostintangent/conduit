@@ -1,7 +1,7 @@
 import { updateTerminalFonts } from "@features/terminal/client/xtermCache";
 import { useDotfiles } from "@features/dotfiles/components/useDotfiles";
 import { settingsMutations, useSettings } from "../../../client/queries";
-import { quickPaneAtom } from "@features/workbench/client/atoms";
+import { openQuickEditor } from "@features/workbench/client/actions/tab";
 import { capitalize } from "@/utils";
 import type {
   PlayButtonTarget,
@@ -39,7 +39,6 @@ const themeOptions = new Map<ThemeMode, LucideIcon>([
 export function GeneralTab() {
   const userSettings = useSettings();
   const { mutate: updateSettings } = useMutation(settingsMutations.update());
-  const setQuickPane = quickPaneAtom.set;
   const { showLaunchButton, showPlayButton, playButtonTarget } = userSettings;
 
   const [dotfilesRepo, setDotfilesRepo] = useState(
@@ -212,12 +211,7 @@ export function GeneralTab() {
               )}
               {dotfilesStatus !== "disabled" && dotfilesRepo && repoPath && (
                 <button
-                  onClick={() =>
-                    setQuickPane({
-                      type: "editor",
-                      cwd: repoPath,
-                    })
-                  }
+                  onClick={() => openQuickEditor(repoPath)}
                   disabled={dotfilesStatus !== "idle"}
                   className="p-1 hover:bg-tinted-foreground/10 rounded text-tinted-foreground/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Open in Editor"

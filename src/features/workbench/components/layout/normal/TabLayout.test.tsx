@@ -52,7 +52,7 @@ import { TabPreviewItem } from "@features/workbench/components/layout/overview/T
 import { createQueryClient } from "@/query";
 import {
   activeTabIdAtom,
-  applicationModeAtom,
+  setApplicationMode,
   tabsAtom,
 } from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
@@ -298,12 +298,12 @@ describe("TabLayout terminal links", () => {
 });
 
 describe("TabLayout pane controls", () => {
-  afterEach(() => applicationModeAtom.set("normal"));
+  afterEach(() => setApplicationMode("normal"));
 
   it("hides the close button once the last other tab closes", () => {
     tabsAtom.set([tab, { ...tab, id: "tab-2" }]);
     activeTabIdAtom.set("tab-1");
-    applicationModeAtom.set("design");
+    setApplicationMode("design");
     renderTabLayout();
 
     expect(screen.queryByTitle("Close pane (Alt+W)")).not.toBeNull();

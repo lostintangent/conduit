@@ -1,7 +1,7 @@
 import {
   activeTabIdAtom,
+  stripTabsAtom,
   tabProgressAtom,
-  tabsAtom,
   tabStateAtom,
   type TabProgressState,
   type TabState,
@@ -140,7 +140,7 @@ function isSameDescriptor(
 // and the list stays the same when no tab changed. That way subscribers
 // re-render only for the tabs whose labels changed.
 export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
-  const tabs = tabsAtom.get();
+  const tabs = stripTabsAtom.get();
   const activeTabId = activeTabIdAtom.get();
   const tabStates = tabStateAtom.get();
   const tabProgress = tabProgressAtom.get();

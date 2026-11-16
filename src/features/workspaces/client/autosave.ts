@@ -2,7 +2,11 @@ import {
   sidebarBrowserUrlAtom,
   sidebarPage,
 } from "@features/browser/client/sidebar";
-import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import {
+  activeTabIdAtom,
+  stripTabsAtom,
+  tabsAtom,
+} from "@features/workbench/client/atoms";
 import { sidebarStateAtom } from "@features/workbench/client/sidebarStore";
 import type { Pane } from "@features/workbench/model";
 import { runMutation } from "@/query";
@@ -77,7 +81,7 @@ function schedule() {
 async function save(): Promise<boolean> {
   clearTimeout(timer);
   timer = undefined;
-  if (tabsAtom.get().length === 0) return true;
+  if (stripTabsAtom.get().length === 0) return true;
 
   const saving = snapshot();
   try {
@@ -99,7 +103,7 @@ function snapshot(): string {
   return JSON.stringify({
     sidebarPage: sidebarPage(),
     activeTabId: activeTabIdAtom.get(),
-    tabs: tabsAtom.get().map((tab) => ({
+    tabs: stripTabsAtom.get().map((tab) => ({
       ...tab,
       panes: Object.values(tab.panes).map(withoutRuntimeFields),
     })),
@@ -121,6 +125,10 @@ function withoutRuntimeFields(pane: Pane) {
       ...saved
     } = pane;
     return icon === "loading" ? saved : { ...saved, icon };
+  }
+  if (pane.type === "editor") {
+    const { closeOnSave: _closeOnSave, ...saved } = pane;
+    return saved;
   }
   return pane;
 }

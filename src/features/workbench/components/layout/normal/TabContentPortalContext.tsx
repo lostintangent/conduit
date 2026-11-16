@@ -23,6 +23,9 @@ type TabContentPortalContextValue = {
   ) => () => void;
 
   /** Shows the tab's content in `container` until the returned cleanup runs */
+  showTabIn: (tabId: string, container: HTMLElement) => () => void;
+
+  /** Shows a thumbnail of the tab in `container` until the cleanup runs */
   previewTab: (tabId: string, container: HTMLElement) => () => void;
 
   isTabInPreview: (tabId: string) => boolean;
@@ -97,16 +100,23 @@ export function TabContentPortalProvider({
     };
   };
 
-  const previewTab = (tabId: string, container: HTMLElement) => {
+  const showTabIn = (tabId: string, container: HTMLElement) => {
     update(tabId, { preview: container });
-    setPreviewTabIds((ids) => new Set(ids).add(tabId));
-
     return () => {
-      // Moves the content back before the preview leaves the page, which
+      // Moves the content back before the container leaves the page, which
       // would reset scroll positions inside it
       if (contents.get(tabId)?.preview === container) {
         update(tabId, { preview: undefined });
       }
+    };
+  };
+
+  const previewTab = (tabId: string, container: HTMLElement) => {
+    const hide = showTabIn(tabId, container);
+    setPreviewTabIds((ids) => new Set(ids).add(tabId));
+
+    return () => {
+      hide();
       setPreviewTabIds((ids) => {
         const next = new Set(ids);
         next.delete(tabId);
@@ -119,6 +129,7 @@ export function TabContentPortalProvider({
 
   const value: TabContentPortalContextValue = {
     attachPanel,
+    showTabIn,
     previewTab,
     isTabInPreview,
     panelSize,

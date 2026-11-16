@@ -1,4 +1,8 @@
-import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
+import {
+  activeTabIdAtom,
+  stripTabsAtom,
+  tabsAtom,
+} from "@features/workbench/client/atoms";
 import type { LayoutNode, Pane, Tab } from "@features/workbench/model";
 import type { TerminalPane as SharedTerminalPane } from "@shared/types/panes";
 import type { Workspace } from "../model";
@@ -49,7 +53,7 @@ export async function restoreAtLaunch() {
         .join("\n"),
     });
   }
-  if (tabsAtom.get().length === 0) await openTab();
+  if (stripTabsAtom.get().length === 0) await openTab();
 }
 
 function recoverLastSession() {

@@ -19,10 +19,16 @@ import { ContextKey } from "./ContextKey";
 export const hasWorkspace = new ContextKey<boolean>("hasWorkspace", false);
 
 /**
- * Number of open tabs
+ * Number of tabs in the strip, which leaves out quick panes
  * Used by: tab.close (only show when > 1)
  */
 export const tabCount = new ContextKey<number>("tabCount", 1);
+
+/**
+ * Whether a quick pane is open, which leaves the workspace behind it inert
+ * Used by: tab.new, tab.close, workspace.open, workspace.close
+ */
+export const quickPaneOpen = new ContextKey<boolean>("quickPaneOpen", false);
 
 /**
  * Whether the targeted tab is locked
