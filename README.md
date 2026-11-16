@@ -1,47 +1,132 @@
-> [!TIP]
-> To install Conduit, grab the latest build from this repo's [releases](https://github.com/lostintangent/conduit/releases).
+# What is Conduit?
 
-## ⚙️ Developer setup
+Conduit is a "workspace manager" for parallelizing coding tasks with agents, across both local and cloud compute. It allows you to design bespoke development workflows, which are organized as arbitrarily-flexible tabs of terminals, editors, and browsers.
 
-1. Install Node 22.17 or newer, which Electron Forge needs
-1. Install [Bun](https://bun.sh) canary (`bun upgrade --canary`), which builds and tests the app
-1. Clone this repo
-1. Run `bun install`
-1. Run `bun start`
+Why is this interesting? Because CLIs and coding agents are getting increasingly powerful, and so the aforementioned primitives may eventually be all that you need? 🤔 Or maybe not! It's just an exploration, and meant to be fun.
 
-Run the tests with `bun run test`. Each test file needs a fresh global, so plain `bun test`, which shares one across files, stops and says so. `bun test --isolate` works too, just slower. `bun lint` lints, `bun fmt` formats, `bun check` typechecks the app, and `bun check -p build` typechecks the files that run under Bun. `bun install` sets up a pre-commit hook that fixes lint problems in your staged files and formats them.
+### 🏃 Getting Started
 
-The end-to-end tests in `e2e/` drive the packaged app, so run `bun run package` and then `bun run e2e`. Each launch gets its own temporary home and user data directory, so it never touches your own Conduit's settings, workspaces or shell history. Set `CONDUIT_E2E_KEEP=1` to keep those homes for debugging, or `CONDUIT_E2E_APP` to test another build of `Conduit.app`. Set `CONDUIT_E2E_ARTIFACTS` to a folder to save each launch's last screenshot, its app log with the window's console, and a Playwright trace you can open at [trace.playwright.dev](https://trace.playwright.dev). CI uploads them when a run fails.
+- Grab the [latest release](https://github.com/lostintangent/conduit/releases/latest/download/Conduit.dmg) _(currently macOS-only)_
+- Learn more by reading the [feature reference](https://gistpad.dev/#/share/654a7ab37a00328334de5826588b124c) and/or checking out the screenshots below 👇
+- Follow along with our updates by subscribing to the Conduit [releases](https://github.com/lostintangent/conduit/releases)
+- File an issue with any feedback, questions, ideas, etc. 🚀
 
-## 🗺️ How the code is organized
+---
 
-Conduit is a thin core plus one folder per feature. The core finds each feature's files by path with `import.meta.glob`, so a feature contributes by putting a file in the right place.
+### Bespoke dev environments
 
-- `src/main.ts` creates the window, and `src/main/` holds the rest of the main process: lifecycle, the application and context menus, and the socket server for the CLI. `src/main/features.ts` loads every feature's service and startup.
-- `src/preload/window/` builds `window.conduit`, and `src/cli/` is the `conduit` command you run in Conduit's terminals (see [docs/cli.md](docs/cli.md)).
-- `src/renderer/` is the React core: the command, keybinding and menu engine in `commands/`, CLI request routing in `cli/`, UI primitives in `ui/`, the Query client in `query.ts` and Store atoms in `createAtom.ts`.
-- `src/shared/` holds what main and the renderer both use: the service contract in `rpc.ts`, command IDs, the CLI protocol, and types that three or more features share.
+Create information-dense tabs, each with a flexible grid of terminal, editor, and browser panes (that can be resized, organized, collapsed, and cloned)
 
-A feature lives in `src/features/<name>/` and has only the parts it needs:
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/679b6618-905b-488b-a0f4-b424735b1a9f" />
 
-- `model.ts` holds its types, shared by its main and renderer halves.
-- `main/service.ts` default-exports a plain object of methods. Main serves each one as `<name>:<method>`, the preload exposes it as `window.conduit.<name>.<method>()`, and merging `<name>: typeof service` into `Services` from `@shared/rpc` types it for the renderer. Events work the same way: merge them into `Events` in `model.ts`, send them with `emitter("<name>")` from `src/main/events.ts`, and listen with `window.conduit.<name>.on(event, listener)`.
-- `main/startup.ts` runs before the window loads, and may return a disposer that quit awaits.
-- `client/` is renderer logic, `components/` is React, and `commands.ts` lists palette commands, keybindings and menu items.
-- `panes.tsx` renders the feature's pane, whose `type` is the folder name. `cli/command.ts` adds `conduit` subcommands, and `cli/handler.ts` answers them in the renderer. The browser also has `preload/`, which runs in its webviews.
+And once your tabs feel exactly like you want, you can then lock them, to prevent accidentally changes.
 
-Data that main owns belongs to TanStack Query, through the feature's `client/queries.ts`, and main's events and watchers keep it fresh. TanStack Store atoms hold only UI state, like tabs, layout and the sidebar, never a copy of something main owns.
+### Agent sessions
 
-To add a feature:
+Create isolated agent sandboxes, by simply spliting new terminals, or duplicating tabs, with automatic worktree management.
 
-1. Create `src/features/<name>/` with a `model.ts` for its types.
-2. If it needs the main process, add `main/service.ts`, merge its type into `Services`, and wrap its methods in queries and mutations in `client/queries.ts`.
-3. Add what it shows: `components/`, `commands.ts`, `cli/`, or `panes.tsx`, whose pane type also joins the `Pane` union in `src/features/workbench/model.ts`.
+<img width="3190" height="2442" alt="image" src="https://github.com/user-attachments/assets/4a8f6ed8-73a7-47d5-8549-754c96788110" />
 
-## 🚀 Releasing
+### Agent customizations
 
-1. `bun pm version patch && git push --follow-tags`
-1. Publish from CI with `gh workflow run release.yml`, or from your Mac with
-   `CONDUIT_APPLE_ID_PASSWORD=<app-specific password> GITHUB_TOKEN=$(gh auth token) bun run release`
+Define and configure all of the coding agents you use, so you can quickly recall them via a slash command from any terminal.
 
-Either way, Forge builds, signs, notarizes, and publishes the release for the new tag to this repo. Locally, the signing certificate has to be in your login keychain.
+<img width="2594" height="1978" alt="image" src="https://github.com/user-attachments/assets/cb50e29b-43c6-41ef-bb28-77f1456fc744" />
+
+### Design mode
+
+Organize your tabs by creating or removing panes, drag & dropping panes, splitting panes into new tabs, moving panes between tabs, etc. All with a fun and visual editing surface.
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/59e85f9b-0677-404a-8099-49da0da9ff17" />
+
+You can also configure the radial "quick actions", so its simple to create the exact panes and layouts you want.
+
+<img width="2272" height="1760" alt="image" src="https://github.com/user-attachments/assets/4f76f9aa-a6c5-4eb6-93c6-772724c2743d" />
+
+### Focus mode
+
+Zoom in and out of panes in a tab (w/`cmd+option+f`), so you can seamlessly transition between focusing and observing (with a really fun minimap!)
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/7d67d30a-aa43-4526-a387-5c0238ba05f7" />
+
+### Tab preview / overview
+
+Hover over any tab and see a **live preview** of its status. This is kind of like "peek definition" for tabs, and makes it easy to parallelize work, while keeping an eye on background tasks.
+
+<img width="2506" height="1806" alt="image" src="https://github.com/user-attachments/assets/b037fd8b-4ed9-4a6a-901f-bb43e1c58ada" />
+
+When you have multiple tabs, you can open a live "birds-eye view" of them all, which makes it easy to observe multiple tasks at once.
+
+<img width="3024" height="1898" alt="image" src="https://github.com/user-attachments/assets/2f645be7-2c38-4e7c-a183-b0ef93a011a6" />
+
+### Editor panes
+
+Add editor panes to any tab, which provide a file explorer + text editor, complete with real-time git status, diffs, and the ability to stage, commit, push and pull changes.
+
+<img width="2594" height="1978" alt="image" src="https://github.com/user-attachments/assets/dabb5b08-bc33-4568-bcd3-6d662b224624" />
+
+And because markdown is so central to most devs/projects, the editor pane includes an integrated markdown preview as well:
+
+<img width="1450" height="1023" alt="image" src="https://github.com/user-attachments/assets/4faecc4d-edbe-4aee-ae1a-46a614875976" />
+
+### Browser panes
+
+When you click a URL in your terminal, it will open a new browser pane, which allows you to navigate, test, debug, and favorite web pages, without needing to context switch.
+
+<img width="2646" height="2016" alt="image" src="https://github.com/user-attachments/assets/a1bb4d22-1f94-4df1-b7fb-6974a9a76c41" />
+
+### Quick actions
+
+Perform one-off actions without needing to disrupt your tab layouts, or switching to another tool.
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/72e7dc2e-8ae6-4168-993b-d460096888eb" />
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/0cafd2d2-a581-461a-8fb1-a1c590d856c2" />
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/5363b5a6-8ab8-4124-864c-865f3ae9f0f5" />
+
+### Conduit CLI
+
+Using the `conduit` CLI, you (and your coding agents!) can design, interact, and automate every part of your dev environment (including terminals and browsers!).
+
+<img width="2594" height="1978" alt="image" src="https://github.com/user-attachments/assets/9e98cb67-cddb-433c-8d79-b9df38d87e70" />
+
+### Synchronized panes
+
+Create multiple terminal panes, that can be synchronized, so that as you type, you can orchestrate/steer them all at once.
+
+<img width="2594" height="1978" alt="image" src="https://github.com/user-attachments/assets/4664b682-accb-42e9-b0c6-4bcd63fc79e8" />
+
+### Workspaces
+
+Save and restore sets of tabs, so you can jump in and out of projects with ease.
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/f44c3317-e1ed-4c8d-8d40-c51a3016f660" />
+
+### Customizable keybindings
+
+Configure the keybindings that are used for common actions, so you can maximize your flow state exactly as you want it.
+
+<img width="2412" height="1844" alt="image" src="https://github.com/user-attachments/assets/f93823ac-f2b8-40d5-b557-62a39b9a2e63" />
+
+### Command palette
+
+Run global commands at any time (`cmd+shift+p`), including spinning up quick terminal instances (w/an MRU list).
+
+<img width="3260" height="2166" alt="image" src="https://github.com/user-attachments/assets/797a1483-3169-46fe-b35a-3f5402e8044d" />
+
+## 🧠 Fundamental assumptions
+
+Conduit was born out of the following key assumptions:
+
+1. Developers will continue to make use of _multiple different coding agents_, because no single agent will (ever?) serve all their needs. Therefore, it's critcal to have toolchains that allow a **"learn once, use any agent"** experience.
+
+1. Coding agents will continue to _evolve at a rapid pace_, and putting too many abstractions on top of them will creation friction in the availability of innovation. Therefore, developers want to be as **"close to the metal"** as possible with their agents.
+
+1. Coding agents will continue to _get more powerful over time_, and therefore, a CLI interface, along with supporting tools, will be sufficient for most users. Therefore, toolchains should embrace **terminals as being central vs. secondary**.
+
+1. Developers love hackable environments, but with smart defaults. That way they can get started quickly, but without compromising on their flow. Therefore, agentic surfaces must embrace **compsability and personalization at its core**.
+
+## 🛠️ Development
+
+To build, test or release Conduit, see [docs/development.md](docs/development.md).
