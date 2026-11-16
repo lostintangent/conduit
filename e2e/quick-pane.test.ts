@@ -65,7 +65,6 @@ describe("a quick pane", () => {
 
   const quickPanes = () => app.page.locator("[data-quick-pane]");
   const front = () => quickPanes().last();
-  // An editor's header has its own Close, which closes its pane
   const control = (name: string) =>
     front()
       .getByRole("toolbar", { name: "Quick Pane" })
@@ -413,10 +412,12 @@ describe("a quick pane", () => {
     await until(() => shell.focused(), "focus back in the strip's terminal");
   });
 
-  it("opens in a tab with its unsaved text, and git still waits for it", async () => {
+  it("opens in a tab with its unsaved text and its own Close, and git still waits for it", async () => {
     await shell.type("git commit --allow-empty\n");
     await quickPaneCount(1);
     const message = await quickEditorWith("# Please enter the commit message");
+    // The quick pane's Close is the only one
+    expect(await front().getByTestId("close-button").count()).toBe(0);
     // The last commit's message shows for a moment, until its cached model
     // finds that git rewrote the file
     await until(
@@ -438,6 +439,11 @@ describe("a quick pane", () => {
     await until(() => editorFocused(editor), "focus in the editor's tab");
     expect(await textOf(editor)).toContain("Commit from a tab");
     expect(lastCommit()).not.toBe("Commit from a tab");
+    await app.page
+      .locator("[data-editor-pane-anchor]")
+      .filter({ has: editor })
+      .getByTestId("close-button")
+      .waitFor();
 
     await app.page.keyboard.press("Meta+s");
     await until(() => lastCommit() === "Commit from a tab", "the commit");

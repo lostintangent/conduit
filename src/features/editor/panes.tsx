@@ -42,7 +42,8 @@ export default function EditorLayoutPane({
         tabId={tab.id}
         hideFileTree={pane.closeOnSave}
         onSave={pane.closeOnSave ? () => closePane(tab.id, pane.id) : undefined}
-        onClose={() => closePane(tab.id, pane.id)}
+        // A quick pane has its own Close, which closes all of it
+        onClose={tab.quick ? undefined : () => closePane(tab.id, pane.id)}
         className="h-full w-full"
       />
     </div>

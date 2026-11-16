@@ -229,7 +229,7 @@ export function EditorPaneAnchor({
       callbacksRef.current.onChangesViewModeChange?.(mode),
     onSave: () => callbacksRef.current.onSave?.(),
     onHover: (isHovering) => callbacksRef.current.onHover?.(isHovering),
-    onClose: () => callbacksRef.current.onClose?.(),
+    onClose: onClose && (() => callbacksRef.current.onClose?.()),
     hideFileTree,
     hideIndividualSandboxIndicator,
     tabId,
@@ -255,6 +255,17 @@ export function EditorPaneAnchor({
       tabId,
     });
   }, [hideFileTree, hideIndividualSandboxIndicator, tabId, paneId, registry]);
+
+  // The toolbar shows a Close only while there's an onClose, which a quick
+  // pane's editor gains once it opens in a tab
+  const closable = onClose !== undefined;
+  useEffect(() => {
+    const config = {
+      onClose: closable ? () => callbacksRef.current.onClose?.() : undefined,
+    };
+    stableCallbacks.current.onClose = config.onClose;
+    registry.updateConfig(paneId, config);
+  }, [closable, paneId, registry]);
 
   // Register with registry and attach/detach. A tab and its preview share this
   // anchor, so moving between them mustn't re-attach. A detach right after an
