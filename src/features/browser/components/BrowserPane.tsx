@@ -7,6 +7,8 @@ import {
   takePageFocus,
   takePageRestore,
 } from "@features/browser/client/webview";
+import { loadPageIcon } from "@features/browser/client/pageIcon";
+import { siteOf } from "@features/browser/client/url";
 import { restoreAddress } from "@features/browser/model";
 import { activatePane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
@@ -21,6 +23,7 @@ import type {
   DidNavigateEvent,
   DidNavigateInPageEvent,
   IpcMessageEvent,
+  PageFaviconUpdatedEvent,
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
@@ -35,6 +38,7 @@ import {
   type BrowserToolbarHandle,
 } from "./toolbar/BrowserToolbar";
 import type { ConsoleMessage } from "./toolbar/ConsoleErrors";
+import type { PageIcon } from "@shared/types/panes";
 
 const { browser } = window.conduit;
 
@@ -65,6 +69,8 @@ type BrowserPaneProps = {
 
   onUrlChange: (url: string) => void;
   onTitleChange: (title: string) => void;
+  /** Reports the page's icon, or that it has none. Without it, none loads. */
+  onIconChange?: (icon: PageIcon | undefined) => void;
   /** Reports the page's web contents, which main saves its history from. */
   onAttach?: (webContentsId: number) => void;
   /** Opens a link the page meant for a new tab. Without it, the page loads it. */
@@ -91,6 +97,25 @@ type BrowserPaneProps = {
  */
 const attachedWebviews = new WeakSet<WebviewTag>();
 
+/**
+ * Where each page's icon is at. A pane lets go of its page's events while its
+ * tab is away, and takes them up again as it shows, so this lives as long as
+ * the page.
+ */
+const pageIcons = new WeakMap<
+  WebviewTag,
+  {
+    /** The site of the page the icon goes with, which a saved icon was saved with */
+    site: string | undefined;
+    /** The latest icon to load, which an earlier one gives way to */
+    request?: object;
+    /** The icons the webview last reported, which it doesn't report again */
+    reported?: { urls: string; icon: Promise<PageIcon | undefined> };
+    /** Whether the page came to a new site without the webview reporting icons */
+    unreported: boolean;
+  }
+>();
+
 /** The page's web contents, which a webview only has once Electron creates it */
 function getWebContentsId(webview: WebviewTag): number | undefined {
   try {
@@ -106,6 +131,7 @@ export function BrowserPane({
   tabId,
   onTitleChange,
   onUrlChange,
+  onIconChange,
   onAttach,
   onOpenPage,
   onContextMenu,
@@ -133,6 +159,10 @@ export function BrowserPane({
   onUrlChangeRef.current = onUrlChange;
   const onTitleChangeRef = useRef(onTitleChange);
   onTitleChangeRef.current = onTitleChange;
+  const showsIcon = useEffectEvent(() => onIconChange !== undefined);
+  const reportIcon = useEffectEvent((icon: PageIcon | undefined) => {
+    onIconChange?.(icon);
+  });
   const showContextMenu = useEffectEvent(onContextMenu);
   const reportAttach = useEffectEvent((webContentsId: number) => {
     onAttach?.(webContentsId);
@@ -462,6 +492,66 @@ export function BrowserPane({
 
     const handleStartLoading = () => setIsLoading(true);
 
+    const icons = pageIcons.get(webview) ?? {
+      site: siteOf(url),
+      unreported: false,
+    };
+    pageIcons.set(webview, icons);
+
+    // A page's icon loads a moment after the page, so one that loads for a
+    // page before the latest, or on a site the webview has left, is dropped.
+    // One that loads while its tab is away still shows on the tab.
+    const showIcon = async (icon: Promise<PageIcon | undefined>) => {
+      const request = {};
+      icons.request = request;
+      const shown = await icon;
+      if (request === icons.request) reportIcon(shown);
+    };
+
+    // The webview only reports icons that differ from the last ones it
+    // reported, even on another site, so once a page on a new site has loaded
+    // without a report, it has the last ones if it links to them, as Gist
+    // does to GitHub's. New ones are reported only after the page stops
+    // loading, so a page that stops without a report may still have new ones
+    // coming, and only its links tell the two apart.
+    const urlSet = (urls: string[]) => [...new Set(urls)].sort().join(" ");
+
+    const loadIcon = ({ favicons }: PageFaviconUpdatedEvent) => {
+      icons.unreported = false;
+      const webContentsId = getWebContentsId(webview);
+      if (!showsIcon() || webContentsId === undefined) return;
+
+      const icon = loadPageIcon(webContentsId, favicons).catch(() => undefined);
+      icons.reported = { urls: urlSet(favicons), icon };
+      void showIcon(icon);
+    };
+
+    /** Drops the icon as the page goes to another site, which has its own. */
+    const showSiteOf = (url: string) => {
+      const site = siteOf(url);
+      if (site === icons.site) return;
+      icons.site = site;
+      icons.request = undefined;
+      icons.unreported = true;
+      reportIcon(undefined);
+    };
+
+    const showUnreportedIcon = async () => {
+      const { reported } = icons;
+      const webContentsId = getWebContentsId(webview);
+      if (!icons.unreported || !reported || webContentsId === undefined) return;
+      icons.unreported = false;
+
+      const linked = await browser.linkedIcons(webContentsId).catch(() => []);
+      if (
+        urlSet(linked) === reported.urls &&
+        reported === icons.reported &&
+        !icons.unreported
+      ) {
+        void showIcon(reported.icon);
+      }
+    };
+
     const handleDidNavigate = ({
       url,
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
@@ -477,6 +567,7 @@ export function BrowserPane({
       loadFailures.delete(webview);
       setLoadFailure(undefined);
       setConsoleErrors([]);
+      showSiteOf(url);
       onUrlChangeRef.current(url);
     };
 
@@ -498,6 +589,7 @@ export function BrowserPane({
       loadFailures.set(webview, failure);
       setLoadFailure(failure);
       setCurrentUrl(validatedURL);
+      showSiteOf(validatedURL);
       onUrlChangeRef.current(validatedURL);
     };
 
@@ -630,6 +722,8 @@ export function BrowserPane({
     webview.addEventListener("did-fail-load", handleDidFailLoad);
 
     webview.addEventListener("page-title-updated", notifyTitleChange);
+    webview.addEventListener("page-favicon-updated", loadIcon);
+    webview.addEventListener("did-stop-loading", showUnreportedIcon);
     webview.addEventListener("context-menu", handleWebViewContextMenu);
 
     webview.addEventListener("mouseenter", handleWebViewMouseEnter);
@@ -661,6 +755,8 @@ export function BrowserPane({
       webview.removeEventListener("did-fail-load", handleDidFailLoad);
 
       webview.removeEventListener("page-title-updated", notifyTitleChange);
+      webview.removeEventListener("page-favicon-updated", loadIcon);
+      webview.removeEventListener("did-stop-loading", showUnreportedIcon);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
 
       webview.removeEventListener("mouseenter", handleWebViewMouseEnter);

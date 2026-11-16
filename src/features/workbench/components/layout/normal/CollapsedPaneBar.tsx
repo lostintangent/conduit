@@ -1,5 +1,6 @@
 import { useSettings } from "@features/settings/client/queries";
 import { describePane } from "@features/workbench/client/tabLabels";
+import { LabelIcon } from "@features/workbench/components/tabs/LabelIcon";
 import { PaneTooltip } from "@features/workbench/components/tabs/TabButton";
 import type { Pane, SplitDirection } from "@features/workbench/model";
 import { cn } from "@/utils";
@@ -21,7 +22,7 @@ export function CollapsedPaneBar({
   onExpand: () => void;
 }) {
   const homeDirectory = useSettings((settings) => settings.homeDirectory);
-  const { label, tooltip } = describePane(pane, homeDirectory);
+  const { label, tooltip, icon } = describePane(pane, homeDirectory);
 
   // Bars between columns are too narrow for a line of text, so theirs runs down
   const isVertical = splitDirection === "row";
@@ -49,6 +50,8 @@ export function CollapsedPaneBar({
         onClick={onExpand}
       >
         <Icon className="w-3.5 h-3.5 flex-none" />
+        {/* Upright, even in a bar whose label runs down */}
+        {icon && <LabelIcon icon={icon} />}
         <span
           className={cn(
             "min-w-0 min-h-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.85rem] leading-none",

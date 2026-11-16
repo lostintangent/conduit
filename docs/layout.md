@@ -170,6 +170,7 @@ type BrowserPane = {
   id: string;
   url: string; // Current URL
   title?: string; // Page title
+  icon?: PageIcon; // Site's icon, shown before an unnamed tab's label
   devToolsFor?: string; // Parent pane if devtools
 };
 ```

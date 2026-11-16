@@ -69,6 +69,16 @@ export default function BrowserLayoutPane({
         onTitleChange={(title) =>
           updatePaneProperty(tab.id, pane.id, { title })
         }
+        // A DevTools pane shows DevTools, not a site with an icon
+        onIconChange={
+          pane.devToolsFor
+            ? undefined
+            : (icon) => {
+                if (icon?.src !== pane.icon?.src) {
+                  updatePaneProperty(tab.id, pane.id, { icon });
+                }
+              }
+        }
         onAttach={(webContentsId) => {
           if (webContentsId !== pane.webContentsId) {
             updatePaneProperty(tab.id, pane.id, { webContentsId });

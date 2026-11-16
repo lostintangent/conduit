@@ -12,10 +12,12 @@ import { formatHomePath } from "@/utils/pathUtils";
 import { createAtom } from "@/createAtom";
 import { getSettings } from "@features/settings/client/queries";
 import { shallow } from "@tanstack/react-store";
+import type { PageIcon } from "@shared/types/panes";
 
 export type PaneLabel = {
   label: string;
   tooltip: Record<string, string>;
+  icon?: PageIcon;
 };
 
 /**
@@ -56,7 +58,11 @@ export function describePane(pane: Pane, homeDirectory: string): PaneLabel {
       }
       tooltip["URL"] = pane.url;
 
-      return { label: title ?? pane.url ?? "Browser", tooltip };
+      return {
+        label: title ?? pane.url ?? "Browser",
+        tooltip,
+        icon: pane.icon,
+      };
     }
 
     case "editor": {
@@ -85,6 +91,8 @@ export type TabDescriptor = {
   label: string | undefined;
   tooltip: Record<string, string>;
   name?: string;
+  // A name is the user's own label, which shows without its pane's icon
+  icon?: PageIcon;
   isActive: boolean;
   locked?: boolean;
   tabState: TabState;
@@ -131,6 +139,7 @@ export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
       id: tab.id,
       label: name || paneLabel?.label,
       name,
+      icon: name ? undefined : paneLabel?.icon,
       tooltip: paneLabel?.tooltip ?? {},
       isActive,
       locked: tab.locked,

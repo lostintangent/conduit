@@ -9,6 +9,7 @@ import {
 import { applicationModeAtom } from "@features/workbench/client/atoms";
 import { useSettings } from "@features/settings/client/queries";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
+import { LabelIcon } from "@features/workbench/components/tabs/LabelIcon";
 import { useSelector } from "@tanstack/react-store";
 import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -52,6 +53,7 @@ export function TabsOverview() {
                 title={tab.label}
               >
                 {showTabState && <IdleIndicator tabState={tab.tabState} />}
+                {tab.icon && <LabelIcon icon={tab.icon} />}
                 {showTabState && tab.tabState === "running" ? (
                   <AnimatedShinyText>{tab.label}</AnimatedShinyText>
                 ) : (

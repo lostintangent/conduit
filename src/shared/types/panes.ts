@@ -23,8 +23,18 @@ export type BrowserPane = {
   url?: string;
   devToolsFor?: string;
   chromeless?: boolean;
+  // Saved, so a reopened tab shows it before its page loads
+  icon?: PageIcon;
   // Only main has it, since only main restores it
   navigation?: BrowserNavigation;
+};
+
+/** A page's icon, drawn small enough to save with its workspace */
+export type PageIcon = {
+  /** A 32px PNG, as a data URL */
+  src: string;
+  /** A single shade on a clear ground, drawn in its label's color */
+  template: boolean;
 };
 
 /**

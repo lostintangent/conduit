@@ -42,12 +42,83 @@ async function inspectAgain(page: WebContents, x: number, y: number) {
   );
 }
 
+/** How many of a page's icons to fetch, and how long and large each may be */
+const ICON_LIMITS = { count: 8, timeoutMs: 5000, bytes: 512 * 1024 };
+
+/** Whether the address is on the page's site, which is its origin */
+const onPageSite = (page: WebContents, url: string) =>
+  new URL(url).origin === new URL(page.getURL()).origin;
+
+/**
+ * Fetches an icon through its page's session, as the page would. Only an icon
+ * on the page's own site goes with the site's cookies, since a page can name
+ * any address as its icon. Skips one that didn't load or isn't an image, like
+ * the page that says a site has no favicon.ico.
+ */
+async function fetchIcon(page: WebContents, url: string) {
+  try {
+    const response = await page.session.fetch(url, {
+      credentials: onPageSite(page, url) ? "include" : "omit",
+      signal: AbortSignal.timeout(ICON_LIMITS.timeoutMs),
+    });
+    const type = response.headers.get("content-type")?.split(";")[0].trim();
+    if (!response.ok || !type?.startsWith("image/")) return;
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > ICON_LIMITS.bytes) return;
+    return `data:${type};base64,${bytes.toString("base64")}`;
+  } catch {
+    return;
+  }
+}
+
 const service = {
   getLibrary: () => library.get(),
   addFavorite: (page: BrowserPage) => library.addFavorite(page),
   removeFavorite: (url: string) => library.removeFavorite(url),
   removeFromHistory: (url: string) => library.removeFromHistory(url),
   clearHistory: () => library.clearHistory(),
+
+  /**
+   * The icons a page links to, as data URLs, which the app's own pages can
+   * show. Main fetches them, since only the page's session has its cookies.
+   */
+  async fetchIcons(webContentsId: number, urls: string[]): Promise<string[]> {
+    const page = getWebContents(webContentsId);
+    const icons = await Promise.all(
+      urls
+        .filter((url) => /^https?:/.test(url))
+        .slice(0, ICON_LIMITS.count)
+        .map((url) => fetchIcon(page, url)),
+    );
+    return icons.filter((icon) => icon !== undefined);
+  },
+
+  /**
+   * The icons a page links to now, by the rules its webview reports them by:
+   * the links in its head whose last icon type is `icon`, for media that
+   * matches, or else its site's favicon.ico.
+   */
+  async linkedIcons(webContentsId: number): Promise<string[]> {
+    const icons = await inOwnWorld(
+      getWebContents(webContentsId),
+      `(() => {
+        const isIcon = (link) =>
+          link.rel.toLowerCase().split(/[\\t\\n\\f\\r ]+/)
+            .findLast((type) => /^(icon|apple-touch-icon(-precomposed)?)$/.test(type)) === "icon";
+        const icons = [...(document.head?.children ?? [])]
+          .filter((link) =>
+            link instanceof HTMLLinkElement && isIcon(link) &&
+            link.getAttribute("href")?.trim() &&
+            (!link.media || matchMedia(link.media).matches))
+          .map((link) => link.href);
+        return icons.length > 0 || !/^https?:$/.test(location.protocol)
+          ? icons
+          : [location.origin + "/favicon.ico"];
+      })()`,
+    );
+    return Array.isArray(icons) ? icons : [];
+  },
 
   /** Copies a screenshot of the page to the clipboard. */
   async captureScreenshot(webContentsId: number): Promise<void> {

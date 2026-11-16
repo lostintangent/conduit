@@ -65,4 +65,23 @@ describe("tabLabelsAtom", () => {
 
     expect(tabLabelsAtom.get()[0].label).toBe("~/proj");
   });
+
+  it("shows its page's icon, unless the tab has a name of its own", () => {
+    const icon = { src: "data:image/png;base64,AAAA", template: false };
+    const tab = (name?: string) => ({
+      id: "tab-1",
+      name,
+      panes: { page: { id: "page", type: "browser" as const, url: "", icon } },
+      layout: { id: "node-page", type: "pane" as const, paneId: "page" },
+      activePaneId: "page",
+    });
+    tabsAtom.set([tab()]);
+    activeTabIdAtom.set("tab-1");
+
+    expect(tabLabelsAtom.get()[0].icon).toBe(icon);
+
+    tabsAtom.set([tab("Docs")]);
+
+    expect(tabLabelsAtom.get()[0].icon).toBeUndefined();
+  });
 });

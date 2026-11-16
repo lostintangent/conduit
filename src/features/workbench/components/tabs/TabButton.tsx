@@ -9,6 +9,7 @@ import {
   updateTabProperty,
 } from "@features/workbench/client/actions/tab";
 import { useSettings } from "@features/settings/client/queries";
+import { LabelIcon } from "./LabelIcon";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import { useSelector } from "@tanstack/react-store";
 import { cn } from "@/utils";
@@ -175,9 +176,10 @@ export function TabButton({
       onDragEnd={onDragEnd}
     >
       <span
-        className="flex items-center gap-1 max-w-[150px] min-w-0"
+        className="flex items-center gap-1.5 max-w-[150px] min-w-0"
         onDoubleClick={handleDoubleClick}
       >
+        {tab.icon && !isEditing && <LabelIcon icon={tab.icon} />}
         {isEditing ? (
           <input
             ref={inputRef}

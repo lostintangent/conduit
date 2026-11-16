@@ -22,6 +22,10 @@ function fakeContents() {
       ): Promise<unknown> => [0, 0],
     ),
     getZoomFactor: () => 2,
+    getURL: () => "https://site.test/",
+    session: {
+      fetch: vi.fn(async (_url: string, _init?: RequestInit) => new Response()),
+    },
   });
 }
 const contents = new Map<number, ReturnType<typeof fakeContents>>();
@@ -115,5 +119,32 @@ describe("browser service", () => {
 
     await service.inspectElement(5, 10, 20, { x: 5, y: 10 });
     expect(page.inspectElement).toHaveBeenCalledExactlyOnceWith(10, 20);
+  });
+
+  it("fetches a page's icons through its session, as data URLs, keeping only the images", async () => {
+    const page = contentsOf(6);
+    const responses: Record<string, () => Promise<Response>> = {
+      "https://site.test/icon.svg": async () =>
+        new Response("<svg/>", {
+          headers: { "content-type": "image/svg+xml; charset=utf-8" },
+        }),
+      "https://site.test/gone.png": async () =>
+        new Response("", { status: 404 }),
+      // A site without a favicon.ico can answer with a page
+      "https://site.test/favicon.ico": async () =>
+        new Response("<html>", { headers: { "content-type": "text/html" } }),
+      "https://down.test/icon.png": () => Promise.reject(new Error("offline")),
+    };
+    page.session.fetch.mockImplementation((url) => responses[url]());
+
+    const icons = await service.fetchIcons(6, [
+      ...Object.keys(responses),
+      "data:image/png;base64,AAAA",
+    ]);
+
+    expect(icons).toEqual([
+      `data:image/svg+xml;base64,${Buffer.from("<svg/>").toString("base64")}`,
+    ]);
+    expect(page.session.fetch).toHaveBeenCalledTimes(4);
   });
 });

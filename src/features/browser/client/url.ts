@@ -26,3 +26,12 @@ export function normalizeUrl(input: string): string {
   const host = text.toLowerCase().split("/")[0].replace(/:\d*$/, "");
   return `${isLocalHost(host) ? "http" : "https"}://${text}`;
 }
+
+/** The site an address is on, e.g. the one a page's icon goes with */
+export function siteOf(url: string | undefined): string | undefined {
+  try {
+    return url ? new URL(url).origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
