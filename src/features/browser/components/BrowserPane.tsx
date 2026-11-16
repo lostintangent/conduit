@@ -185,11 +185,16 @@ export function BrowserPane({
       webview.style.overflow = "hidden";
 
       document.body.appendChild(webview);
+    }
+
+    if (getWebContentsId(webview) === undefined) {
+      // A page can't be asked where it is until it attaches, which can come
+      // after its pane runs this again, like when a preview of its tab made
+      // it and then the tab opened. Until then it's on its way to the url prop.
       setIsLoading(true);
       setCurrentUrl(url);
     } else {
-      // Attach to existing webview - it's already initialized, and its page
-      // may have moved on from the url prop while the pane was away
+      // Its page may have moved on from the url prop while the pane was away
       setCurrentUrl(webview.getURL());
       setIsLoading(webview.isLoading ? webview.isLoading() : false);
       setCanGoBack(webview.canGoBack());

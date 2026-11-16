@@ -90,6 +90,70 @@ describe("a page reopened at launch", () => {
   });
 });
 
+describe("a page in a tab behind the one that opens", () => {
+  let app: Conduit;
+
+  beforeAll(async () => {
+    const tab = (id: string, pane: object) => ({
+      id,
+      name: id,
+      activePaneId: `${id}-pane`,
+      panes: [{ id: `${id}-pane`, ...pane }],
+      layout: { id: `${id}-layout`, type: "pane", paneId: `${id}-pane` },
+    });
+    const state = {
+      workspaces: [],
+      untitled: {
+        lastModified: 0,
+        activeTabId: "Shell",
+        tabs: [
+          tab("Shell", { type: "terminal", cwd: null }),
+          tab("Page", { type: "browser", url: `${origin}/first` }),
+        ],
+      },
+    };
+    app = await launch({
+      name: "background-page",
+      files: { ".conduit/workspaces.json": JSON.stringify(state) },
+    });
+  });
+
+  afterAll(() => app?.close());
+
+  it("shows when its tab is clicked before the page its preview made attaches", async () => {
+    const tab = app.page.getByRole("tab", { name: /^Page/ });
+    // Hovering the tab previews it, which makes its page. A click that
+    // follows sooner than the page can attach shows the tab without it.
+    await tab.evaluate((tab: HTMLElement) => {
+      new MutationObserver((_, observer) => {
+        if (!document.getElementById("Page-pane")) return;
+        observer.disconnect();
+        tab.click();
+      }).observe(document.body, { childList: true });
+    });
+    await tab.hover();
+
+    await tab.and(app.page.getByRole("tab", { selected: true })).waitFor();
+    const page = app.page.locator("webview#Page-pane");
+    const crashed = app.page.getByText("This pane crashed");
+    const shows = async () =>
+      ((await page.boundingBox())?.x ?? -1) >= 0 &&
+      (await inWebview(app, "webview#Page-pane", "document.title")) === "First";
+    await until(
+      async () => (await crashed.count()) > 0 || (await shows()),
+      "the page to show, or its pane to crash",
+    );
+    expect(await crashed.count()).toBe(0);
+
+    // Its toolbar catches up once the page attaches
+    const toolbar = app.page.getByRole("tabpanel").filter({ visible: true });
+    await toolbar.getByRole("button", { name: "Refresh" }).waitFor();
+    expect(
+      await toolbar.getByPlaceholder("Search or enter address").inputValue(),
+    ).toBe(`${origin}/first`);
+  });
+});
+
 describe("the sidebar's page", () => {
   let app: Conduit;
   const terminalTab = (id: string) => ({
