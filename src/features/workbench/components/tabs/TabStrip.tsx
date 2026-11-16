@@ -35,7 +35,6 @@ import {
   hyperTerminalsAtom,
   tabsAtom,
 } from "@features/workbench/client/atoms";
-import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import type { TabPosition } from "@features/settings/model";
 import { shallow, useAtom, useSelector } from "@tanstack/react-store";
 import {
@@ -105,12 +104,6 @@ export const TabStrip = ({
     compare: shallow,
   });
   const hasMultipleTabs = tabIds.length > 1;
-  // Only to measure overflow again, since buttons resize with their labels
-  const tabLabels = useSelector(
-    tabLabelsAtom,
-    (tabs) => tabs.map((tab) => tab.label),
-    { compare: shallow },
-  );
   const activeTabId = useSelector(activeTabIdAtom);
   const hasActiveTab = useSelector(activeTabAtom, (tab) => tab !== null);
   const hyperTerminals = useSelector(hyperTerminalsAtom);
@@ -178,37 +171,7 @@ export const TabStrip = ({
 
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
 
-  // Track scroll position for gradient overlays
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
-
-  // Detect scroll position to show/hide gradient overlays
-  useEffect(() => {
-    const container = tabsContainerRef.current;
-    if (!container) return;
-
-    const updateScrollState = () => {
-      const hasOverflow = container.scrollWidth > container.clientWidth;
-      setCanScrollLeft(hasOverflow && container.scrollLeft > 0);
-      setCanScrollRight(
-        hasOverflow &&
-          container.scrollLeft <
-            container.scrollWidth - container.clientWidth - 1,
-      );
-    };
-
-    updateScrollState();
-
-    container.addEventListener("scroll", updateScrollState);
-    const resizeObserver = new ResizeObserver(updateScrollState);
-    resizeObserver.observe(container);
-
-    return () => {
-      container.removeEventListener("scroll", updateScrollState);
-      resizeObserver.disconnect();
-    };
-  }, [tabLabels]);
 
   // Track pane drag hover for tab switching
   const paneDragHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -565,22 +528,13 @@ export const TabStrip = ({
             setDropTargetIndex(null);
           }}
         >
-          <div className="relative min-w-0 overflow-hidden">
-            <div
-              ref={tabsContainerRef}
-              className="flex items-stretch align-middle content-center gap-1 overflow-x-auto scrollbar-hide min-w-0 min-h-8"
-              role="tablist"
-            >
-              {tabsWithPlaceholders}
-            </div>
-
-            {/* Gradient fade overlays for truncated tabs */}
-            {canScrollLeft && (
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-elevated to-transparent" />
-            )}
-            {canScrollRight && (
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-elevated to-transparent" />
-            )}
+          {/* Each end fades while there are tabs past it */}
+          <div
+            ref={tabsContainerRef}
+            className="flex items-stretch align-middle content-center gap-1 overflow-x-auto scrollbar-hide min-w-0 min-h-8 scroll-fade-x scroll-fade-12 [--scroll-fade-reveal:3rem] [animation-timing-function:linear]"
+            role="tablist"
+          >
+            {tabsWithPlaceholders}
           </div>
 
           <Separator
