@@ -67,7 +67,12 @@ export default {
 
         return pane.type === args?.paneType;
       })
-      .map((pane) => ({ ...pane }));
+      .map((pane) => {
+        const listed = { ...pane };
+        // A page's icon is an image, which is no use as text
+        if (listed.type === "browser") delete listed.icon;
+        return listed;
+      });
 
     return panes;
   },
