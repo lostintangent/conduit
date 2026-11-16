@@ -295,6 +295,25 @@ describe("a page's icon", () => {
     await iconIn(tab(/^Mark/)).waitFor();
   });
 
+  it("follows its page to another site while its tab is away", async () => {
+    await showTab(1);
+    holdIcons = true;
+    await go(`${site}/square`, /^Square/);
+    await until(
+      () => heldIcons.length > 0,
+      "the next site's icon to be asked for",
+    );
+    await app.page.evaluate(() => new Promise(requestAnimationFrame));
+    expect(await iconIn(tab(/^Square/)).count()).toBe(0);
+
+    answerHeldIcons();
+    const icon = iconIn(tab(/^Square/));
+    await until(
+      async () => (await icon.getAttribute("data-page-icon")) === "color",
+      "the next site's icon to show",
+    );
+  });
+
   it("shows on a reopened tab before its page has loaded it", async () => {
     const pageTab = () => app.page.getByRole("tab").first();
     await pageTab().click();

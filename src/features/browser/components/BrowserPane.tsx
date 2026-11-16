@@ -1,14 +1,15 @@
 import { useFocusWhenActive } from "@/hooks/useFocusWhenActive";
 import { registerBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import {
+  getWebContentsId,
   getWebview,
   loadFailures,
   loadPage,
+  type PageReports,
+  reportPage,
   takePageFocus,
   takePageRestore,
 } from "@features/browser/client/webview";
-import { loadPageIcon } from "@features/browser/client/pageIcon";
-import { siteOf } from "@features/browser/client/url";
 import { restoreAddress } from "@features/browser/model";
 import { activatePane } from "@features/workbench/client/actions/pane";
 import { applicationModeAtom } from "@features/workbench/client/atoms";
@@ -23,7 +24,6 @@ import type {
   DidNavigateEvent,
   DidNavigateInPageEvent,
   IpcMessageEvent,
-  PageFaviconUpdatedEvent,
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
@@ -97,34 +97,6 @@ type BrowserPaneProps = {
  */
 const attachedWebviews = new WeakSet<WebviewTag>();
 
-/**
- * Where each page's icon is at. A pane lets go of its page's events while its
- * tab is away, and takes them up again as it shows, so this lives as long as
- * the page.
- */
-const pageIcons = new WeakMap<
-  WebviewTag,
-  {
-    /** The site of the page the icon goes with, which a saved icon was saved with */
-    site: string | undefined;
-    /** The latest icon to load, which an earlier one gives way to */
-    request?: object;
-    /** The icons the webview last reported, which it doesn't report again */
-    reported?: { urls: string; icon: Promise<PageIcon | undefined> };
-    /** Whether the page came to a new site without the webview reporting icons */
-    unreported: boolean;
-  }
->();
-
-/** The page's web contents, which a webview only has once Electron creates it */
-function getWebContentsId(webview: WebviewTag): number | undefined {
-  try {
-    return webview.getWebContentsId();
-  } catch {
-    return undefined;
-  }
-}
-
 export function BrowserPane({
   url,
   paneId,
@@ -154,15 +126,14 @@ export function BrowserPane({
   const previewOverlayRef = useRef<HTMLDivElement | null>(null);
   const isPreviewHoveredRef = useRef(false);
 
-  // Refs for callbacks to avoid stale closures in event listeners
-  const onUrlChangeRef = useRef(onUrlChange);
-  onUrlChangeRef.current = onUrlChange;
-  const onTitleChangeRef = useRef(onTitleChange);
-  onTitleChangeRef.current = onTitleChange;
-  const showsIcon = useEffectEvent(() => onIconChange !== undefined);
-  const reportIcon = useEffectEvent((icon: PageIcon | undefined) => {
-    onIconChange?.(icon);
+  // The page reports to the pane's latest callbacks, which it gets as it
+  // renders, even while its tab is hidden
+  const pageReports = useRef<PageReports>({
+    onUrlChange,
+    onTitleChange,
+    onIconChange,
   });
+  pageReports.current = { onUrlChange, onTitleChange, onIconChange };
   const showContextMenu = useEffectEvent(onContextMenu);
   const reportAttach = useEffectEvent((webContentsId: number) => {
     onAttach?.(webContentsId);
@@ -236,6 +207,7 @@ export function BrowserPane({
     }
 
     webviewRef.current = webview;
+    reportPage(webview, url, pageReports);
 
     // Because the webview is absolutely positioned and scaled
     // while in preview mode, we unfortunately need to implement
@@ -492,66 +464,6 @@ export function BrowserPane({
 
     const handleStartLoading = () => setIsLoading(true);
 
-    const icons = pageIcons.get(webview) ?? {
-      site: siteOf(url),
-      unreported: false,
-    };
-    pageIcons.set(webview, icons);
-
-    // A page's icon loads a moment after the page, so one that loads for a
-    // page before the latest, or on a site the webview has left, is dropped.
-    // One that loads while its tab is away still shows on the tab.
-    const showIcon = async (icon: Promise<PageIcon | undefined>) => {
-      const request = {};
-      icons.request = request;
-      const shown = await icon;
-      if (request === icons.request) reportIcon(shown);
-    };
-
-    // The webview only reports icons that differ from the last ones it
-    // reported, even on another site, so once a page on a new site has loaded
-    // without a report, it has the last ones if it links to them, as Gist
-    // does to GitHub's. New ones are reported only after the page stops
-    // loading, so a page that stops without a report may still have new ones
-    // coming, and only its links tell the two apart.
-    const urlSet = (urls: string[]) => [...new Set(urls)].sort().join(" ");
-
-    const loadIcon = ({ favicons }: PageFaviconUpdatedEvent) => {
-      icons.unreported = false;
-      const webContentsId = getWebContentsId(webview);
-      if (!showsIcon() || webContentsId === undefined) return;
-
-      const icon = loadPageIcon(webContentsId, favicons).catch(() => undefined);
-      icons.reported = { urls: urlSet(favicons), icon };
-      void showIcon(icon);
-    };
-
-    /** Drops the icon as the page goes to another site, which has its own. */
-    const showSiteOf = (url: string) => {
-      const site = siteOf(url);
-      if (site === icons.site) return;
-      icons.site = site;
-      icons.request = undefined;
-      icons.unreported = true;
-      reportIcon(undefined);
-    };
-
-    const showUnreportedIcon = async () => {
-      const { reported } = icons;
-      const webContentsId = getWebContentsId(webview);
-      if (!icons.unreported || !reported || webContentsId === undefined) return;
-      icons.unreported = false;
-
-      const linked = await browser.linkedIcons(webContentsId).catch(() => []);
-      if (
-        urlSet(linked) === reported.urls &&
-        reported === icons.reported &&
-        !icons.unreported
-      ) {
-        void showIcon(reported.icon);
-      }
-    };
-
     const handleDidNavigate = ({
       url,
     }: DidNavigateEvent | DidNavigateInPageEvent) => {
@@ -567,8 +479,6 @@ export function BrowserPane({
       loadFailures.delete(webview);
       setLoadFailure(undefined);
       setConsoleErrors([]);
-      showSiteOf(url);
-      onUrlChangeRef.current(url);
     };
 
     // A stopped load leaves the page as it was, and a frame in the page that
@@ -589,8 +499,6 @@ export function BrowserPane({
       loadFailures.set(webview, failure);
       setLoadFailure(failure);
       setCurrentUrl(validatedURL);
-      showSiteOf(validatedURL);
-      onUrlChangeRef.current(validatedURL);
     };
 
     // A frame in the page moving within itself leaves the page where it was
@@ -601,7 +509,6 @@ export function BrowserPane({
     const notifyTitleChange = ({ title }: PageTitleUpdatedEvent) => {
       const normalizedTitle = typeof title === "string" ? title.trim() : "";
       setPageTitle(normalizedTitle);
-      onTitleChangeRef.current(title);
     };
 
     const handleWebViewContextMenu = (
@@ -722,8 +629,6 @@ export function BrowserPane({
     webview.addEventListener("did-fail-load", handleDidFailLoad);
 
     webview.addEventListener("page-title-updated", notifyTitleChange);
-    webview.addEventListener("page-favicon-updated", loadIcon);
-    webview.addEventListener("did-stop-loading", showUnreportedIcon);
     webview.addEventListener("context-menu", handleWebViewContextMenu);
 
     webview.addEventListener("mouseenter", handleWebViewMouseEnter);
@@ -755,8 +660,6 @@ export function BrowserPane({
       webview.removeEventListener("did-fail-load", handleDidFailLoad);
 
       webview.removeEventListener("page-title-updated", notifyTitleChange);
-      webview.removeEventListener("page-favicon-updated", loadIcon);
-      webview.removeEventListener("did-stop-loading", showUnreportedIcon);
       webview.removeEventListener("context-menu", handleWebViewContextMenu);
 
       webview.removeEventListener("mouseenter", handleWebViewMouseEnter);

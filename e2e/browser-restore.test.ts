@@ -41,6 +41,13 @@ function inWebview<T>(app: Conduit, selector: string, script: string) {
     ) as Promise<T>;
 }
 
+/** The workspaces as the app last saved them */
+function saved(app: Conduit): WorkspaceState {
+  return JSON.parse(
+    fs.readFileSync(path.join(app.home, ".conduit/workspaces.json"), "utf8"),
+  );
+}
+
 /** A saved tab with a single pane, which the tab is named after. */
 const tab = (id: string, pane: object) => ({
   id,
@@ -166,7 +173,11 @@ describe("a page whose tab goes to the background", () => {
         lastModified: 0,
         activeTabId: "Page",
         tabs: [
-          tab("Page", { type: "browser", url: `${origin}/first` }),
+          // Without a name, so its page names it
+          {
+            ...tab("Page", { type: "browser", url: `${origin}/first` }),
+            name: undefined,
+          },
           tab("Shell", { type: "terminal", cwd: null }),
         ],
       },
@@ -181,15 +192,23 @@ describe("a page whose tab goes to the background", () => {
 
   afterAll(() => app?.close());
 
-  // A covered window hides all of its pages and stops drawing, so this can't
-  // expect the page to be visible while its tab shows, and clicks without
+  const inPage = <T>(script: string) =>
+    inWebview<T>(app, "webview#Page-pane", script);
+
+  // A covered window hides all of its pages and stops drawing, so these can't
+  // expect the page to be visible while its tab shows, and click without
   // waiting for a frame
+  async function showShell() {
+    await app.page.getByRole("tab", { name: /^Shell/ }).dispatchEvent("click");
+    await app.page
+      .getByRole("tab", { name: /^Shell/, selected: true })
+      .waitFor();
+  }
+
   it("is hidden from Chromium, so it stops drawing", async () => {
-    const inPage = <T>(script: string) =>
-      inWebview<T>(app, "webview#Page-pane", script);
     await until(() => inPage("document.title === 'First'"), "the page");
 
-    await app.page.getByRole("tab", { name: /^Shell/ }).dispatchEvent("click");
+    await showShell();
     await until(
       () => inPage("document.visibilityState === 'hidden'"),
       "the page to be hidden",
@@ -201,6 +220,20 @@ describe("a page whose tab goes to the background", () => {
       setTimeout(() => resolve(frames), 500);
     })`;
     expect(await inPage(framesInHalfASecond)).toBe(0);
+  });
+
+  it("still names its tab, and saves where it goes", async () => {
+    await showShell();
+    await inPage("document.title = 'Retitled'");
+    await app.page.getByRole("tab", { name: /^Retitled/ }).waitFor();
+
+    await inPage(`location.href = ${JSON.stringify(`${origin}/second`)}`);
+    await app.page.getByRole("tab", { name: /^Second/ }).waitFor();
+    await until(() => {
+      const [pane] =
+        saved(app).untitled?.tabs.find(({ id }) => id === "Page")?.panes ?? [];
+      return pane?.type === "browser" && pane.url === `${origin}/second`;
+    }, "its new address to save");
   });
 });
 
@@ -411,10 +444,6 @@ describe("the sidebar's page", () => {
   const sidebarPage = () => app.page.locator("webview#sidebar-browser");
   const inSidebar = <T>(script: string) =>
     inWebview<T>(app, "webview#sidebar-browser", script);
-  const saved = (): WorkspaceState =>
-    JSON.parse(
-      fs.readFileSync(path.join(app.home, ".conduit/workspaces.json"), "utf8"),
-    );
   /** Its webview outlives the sidebar, off screen while it's closed. */
   const sidebarIsOpen = async () => {
     const box = await sidebarPage().boundingBox();
@@ -443,11 +472,11 @@ describe("the sidebar's page", () => {
     ).toBe(0);
     await sidebarShows("Second");
     await until(
-      () => saved().untitled?.sidebarPage?.url === `${origin}/second`,
+      () => saved(app).untitled?.sidebarPage?.url === `${origin}/second`,
       "the sidebar's new page to save",
       10_000,
     );
-    expect(saved().untitled?.sidebarPage?.isOpen).toBe(true);
+    expect(saved(app).untitled?.sidebarPage?.isOpen).toBe(true);
   });
 
   it("goes with its workspace, and comes back without the other's history", async () => {

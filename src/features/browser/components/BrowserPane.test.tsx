@@ -31,6 +31,7 @@ import { BrowserPane } from "@features/browser/components/BrowserPane";
 import { getBrowserPaneHandlers } from "@features/browser/client/paneHandlers";
 import { focusPageOnOpen } from "@features/browser/client/webview";
 import { TooltipProvider } from "@/ui/tooltip";
+import { Activity } from "react";
 import { render } from "../../../../tests/renderer/queryRender";
 
 const nextFrames = async (count: number) => {
@@ -420,6 +421,50 @@ describe("BrowserPane", () => {
 
     expect(screen.queryByRole("heading")).toBeNull();
     expect(webview.style.visibility).toBe("");
+  });
+
+  it("tells its pane where its page goes and what it's called while its tab is hidden, once each", () => {
+    const onUrlChange = vi.fn();
+    const onTitleChange = vi.fn();
+    const tab = (mode: "visible" | "hidden") => (
+      <TooltipProvider>
+        <Activity mode={mode}>
+          <BrowserPane
+            url="https://example.com"
+            paneId="browser-1"
+            tabId="tab-1"
+            onUrlChange={onUrlChange}
+            onTitleChange={onTitleChange}
+            onContextMenu={vi.fn()}
+            onHover={vi.fn()}
+            disableInteraction={false}
+            isInPreview={false}
+            isDevToolsOpen={false}
+            onToggleDevTools={vi.fn()}
+            onHideToolbar={vi.fn()}
+          />
+        </Activity>
+      </TooltipProvider>
+    );
+    const { rerender } = render(tab("visible"));
+    // Hidden after it's shown again, which it was each time it ran
+    rerender(tab("hidden"));
+    rerender(tab("visible"));
+    rerender(tab("hidden"));
+
+    act(() => {
+      webview.dispatchEvent(
+        Object.assign(new Event("did-navigate"), {
+          url: "https://example.com/next",
+        }),
+      );
+      webview.dispatchEvent(
+        Object.assign(new Event("page-title-updated"), { title: "Next" }),
+      );
+    });
+
+    expect(onUrlChange.mock.calls).toEqual([["https://example.com/next"]]);
+    expect(onTitleChange.mock.calls).toEqual([["Next"]]);
   });
 
   it("finds in its page from its commands, and keeps focus where find left it", async () => {
