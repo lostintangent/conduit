@@ -56,7 +56,11 @@ hydrateEnvFromLoginShell();
 
 async function createWindow() {
   const mainWindow = new BrowserWindow({
+    // The size for a first launch. After that, Electron reopens the window
+    // where it was left, before its first shells start.
     ...fitScreen(1024, 768),
+    name: "main",
+    windowStatePersistence: true,
     // hiddenInset keeps the traffic lights inside the custom titlebar area
     titleBarStyle: "hiddenInset",
     webPreferences: {
