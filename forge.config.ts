@@ -6,6 +6,7 @@ import type { ForgeConfig } from "@electron-forge/shared-types";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { removeUnusedLocales } from "./build/scripts/macOS/remove-locales";
 
@@ -18,6 +19,48 @@ function lockedNativeModuleSpecs(): string[] {
     const manifest = path.join(__dirname, "node_modules", name, "package.json");
     return `${name}@${JSON.parse(fs.readFileSync(manifest, "utf8")).version}`;
   });
+}
+
+// @parcel/watcher 2.6.0 starts its FSEvents stream before it creates the tree
+// that the stream's callback reads, so a file change in that gap crashes the
+// app. Ship a build with the fix from parcel-bundler/watcher#275 instead of the
+// prebuilt binary. Each step throws if it fails, so the unpatched binary can't
+// ship by accident.
+// TODO: Delete this and build/patches once a release includes that fix.
+function buildPatchedWatcher(
+  buildPath: string,
+  electronVersion: string,
+  arch: string,
+) {
+  const watcher = path.join(buildPath, "node_modules", "@parcel", "watcher");
+  const patch = path.resolve(
+    __dirname,
+    "build/patches/parcel-watcher-fsevents-race.patch",
+  );
+  execFileSync(
+    "patch",
+    ["-p1", "--forward", "--batch", "--fuzz=0", "-i", patch],
+    { cwd: watcher },
+  );
+  const nodeGyp = createRequire(__filename).resolve("node-gyp/bin/node-gyp.js");
+  execFileSync(
+    "node",
+    [
+      nodeGyp,
+      "rebuild",
+      `--target=${electronVersion}`,
+      `--arch=${arch}`,
+      "--dist-url=https://electronjs.org/headers",
+      "--loglevel=error",
+    ],
+    // Compiler warnings stay quiet, and a failure's error includes them.
+    { cwd: watcher, stdio: "pipe" },
+  );
+  // Overwrite the binary that @parcel/watcher's loader resolves first.
+  const prebuilt = createRequire(path.join(watcher, "index.js")).resolve(
+    `@parcel/watcher-darwin-${arch}`,
+  );
+  fs.copyFileSync(path.join(watcher, "build/Release/watcher.node"), prebuilt);
 }
 
 // node-pty ships prebuilds for every platform, about 60 MB of Windows binaries
@@ -35,6 +78,7 @@ function pruneNativeModules(buildPath: string, arch: string) {
     "node-pty/src",
     "node-pty/third_party",
     "@parcel/watcher/src",
+    "@parcel/watcher/build",
     "node-addon-api",
   ]) {
     fs.rmSync(path.join(modules, dir), { recursive: true, force: true });
@@ -91,7 +135,7 @@ const config: ForgeConfig = {
     packageAfterCopy: async (
       _,
       buildPath,
-      _electronVersion,
+      electronVersion,
       _platform,
       arch,
     ) => {
@@ -99,6 +143,7 @@ const config: ForgeConfig = {
         cwd: buildPath,
         stdio: "inherit",
       });
+      buildPatchedWatcher(buildPath, electronVersion, arch);
       pruneNativeModules(buildPath, arch);
       // Electron reads name, version and main from the app's package.json.
       fs.copyFileSync(
