@@ -204,6 +204,176 @@ describe("a page whose tab goes to the background", () => {
   });
 });
 
+describe("a page in a tab that's previewed", () => {
+  let app: Conduit;
+
+  beforeAll(async () => {
+    const page = { type: "browser", url: `${origin}/first` };
+    // Its page is on the right, past the split's divider
+    const split = {
+      id: "Split",
+      name: "Split",
+      activePaneId: "Split-canvas",
+      panes: [
+        { id: "Split-canvas", type: "canvas" },
+        { id: "Split-pane", ...page },
+      ],
+      layout: {
+        id: "Split-layout",
+        type: "split",
+        direction: "row",
+        children: [
+          { id: "Split-canvas-node", type: "pane", paneId: "Split-canvas" },
+          { id: "Split-pane-node", type: "pane", paneId: "Split-pane" },
+        ],
+      },
+    };
+    const state = {
+      workspaces: [],
+      untitled: {
+        lastModified: 0,
+        activeTabId: "Shell",
+        tabs: [
+          tab("Shell", { type: "terminal", cwd: null }),
+          tab("Page", page),
+          split,
+        ],
+      },
+    };
+    app = await launch({
+      name: "previewed-page",
+      files: { ".conduit/workspaces.json": JSON.stringify(state) },
+    });
+  });
+
+  afterAll(() => app?.close());
+
+  for (const [name, paneId, nodeId] of [
+    ["Page", "Page-pane", "Page-layout"],
+    ["Split", "Split-pane", "Split-pane-node"],
+  ]) {
+    const tabButton = () =>
+      app.page.getByRole("tab", { name: new RegExp(`^${name}`) });
+    const inPage = <T>(script: string) =>
+      inWebview<T>(app, `webview#${paneId}`, script);
+    const drawn = () =>
+      inPage(
+        "new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)))",
+      );
+    const size = () =>
+      app.page
+        .locator(`webview#${paneId}`)
+        .evaluate((webview: HTMLElement) => ({
+          width: webview.offsetWidth,
+          height: webview.offsetHeight,
+          scaled: webview.style.transform !== "",
+          parked: webview.style.left === "-10000px",
+        }));
+    const preview = async () => {
+      await app.page.getByRole("tab", { name: /^Shell/ }).click();
+      await until(async () => (await size()).parked, "the page to be put away");
+      await tabButton().hover();
+      await until(async () => (await size()).scaled, "the tab's preview");
+    };
+
+    // Laying a page out again for a different size takes long enough on a
+    // big page, like GitHub's, to hold up the frame that shows its tab
+    it(`keeps its page's size as the ${name} tab is previewed, then shown`, async () => {
+      await tabButton().click();
+      await until(
+        async () =>
+          !(await size()).parked &&
+          (await inPage("document.title")) === "First",
+        "the page to show",
+      );
+      const shown = await size();
+      await until(
+        async () =>
+          JSON.stringify(await inPage("[innerWidth, innerHeight]")) ===
+          JSON.stringify([shown.width, shown.height]),
+        "the page to be laid out at its pane's size",
+      );
+      await inPage(
+        `window.sizes = [];
+        addEventListener("resize", () => sizes.push([innerWidth, innerHeight]));`,
+      );
+
+      await preview();
+      expect(await size()).toEqual({ ...shown, scaled: true });
+
+      await tabButton().click();
+      await until(async () => {
+        const now = await size();
+        return !now.parked && !now.scaled;
+      }, "the tab to show");
+      expect(await size()).toEqual(shown);
+      await drawn();
+      expect(await inPage("sizes")).toEqual([]);
+    });
+
+    it(`shows the ${name} tab's preview with its border around its page`, async () => {
+      await inPage(`document.body.style.background = "rgb(255, 0, 255)"`);
+      await preview();
+      await drawn();
+
+      // Just inside and just outside the right and bottom of the box the
+      // preview clips its content to, which is in its wrapper on the body
+      const places = await app.page
+        .locator(`webview#${paneId}`)
+        .evaluate((webview: HTMLElement, node) => {
+          let wrapper = document.querySelector(`[data-node-id="${node}"]`)!;
+          while (wrapper.parentElement !== document.body) {
+            wrapper = wrapper.parentElement!;
+          }
+          const box = wrapper.firstElementChild!;
+          const outer = box.getBoundingClientRect();
+          const right = outer.left + box.clientLeft + box.clientWidth;
+          const bottom = outer.top + box.clientTop + box.clientHeight;
+          const page = webview.getBoundingClientRect();
+          const x = (page.left + Math.min(page.right, right)) / 2;
+          const y = (page.top + Math.min(page.bottom, bottom)) / 2;
+          return {
+            insideRight: [Math.floor(right) - 2, y],
+            outsideRight: [Math.ceil(right), y],
+            insideBottom: [x, Math.floor(bottom) - 2],
+            outsideBottom: [x, Math.ceil(bottom)],
+            // Outside the round inside of the preview's border
+            corner: [Math.floor(right) - 1, Math.floor(bottom) - 1],
+          };
+        }, nodeId);
+      const png = await app.page.screenshot();
+      const isPage = await app.page.evaluate(
+        async ({ base64, places }) => {
+          const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+          const image = await createImageBitmap(new Blob([bytes]));
+          const canvas = new OffscreenCanvas(image.width, image.height);
+          const context = canvas.getContext("2d")!;
+          context.drawImage(image, 0, 0);
+          return Object.fromEntries(
+            Object.entries(places).map(([place, [x, y]]) => {
+              const [r, g, b] = context.getImageData(
+                Math.floor(x * devicePixelRatio),
+                Math.floor(y * devicePixelRatio),
+                1,
+                1,
+              ).data;
+              return [place, r > 200 && g < 60 && b > 200];
+            }),
+          );
+        },
+        { base64: png.toString("base64"), places },
+      );
+      expect(isPage).toEqual({
+        insideRight: true,
+        outsideRight: false,
+        insideBottom: true,
+        outsideBottom: false,
+        corner: false,
+      });
+    });
+  }
+});
+
 describe("the sidebar's page", () => {
   let app: Conduit;
   const terminalTab = (id: string) => ({

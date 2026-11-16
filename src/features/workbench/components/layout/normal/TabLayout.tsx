@@ -581,7 +581,6 @@ export function TabLayout({
   ): React.ReactNode => {
     const isInFocusMode = applicationMode === "focus";
     const isLocked = tab.locked;
-    const isInPreview = isTabInPreview(tab.id);
 
     // Generate the grid template for this split
     const gridTemplate = buildGridTemplateStyles(
@@ -591,10 +590,11 @@ export function TabLayout({
       isInFocusMode,
     );
 
-    // Use grid gap to create spaces that reveal the overlay underneath
-    // Hide gaps in focus mode, design mode, and preview mode (use borders instead in preview)
+    // Use grid gap to create spaces that reveal the overlay underneath.
+    // Hide gaps in focus mode and design mode. A preview keeps them, so its
+    // panes are the size they are in the tab and don't resize as it shows.
     const gridGapClass =
-      applicationMode === "focus" || applicationMode === "design" || isInPreview
+      applicationMode === "focus" || applicationMode === "design"
         ? "gap-0"
         : "gap-[1px]";
 
@@ -614,18 +614,9 @@ export function TabLayout({
           const isBeingResized = resizingNode === child.id;
 
           // In design mode, add dashed borders as visual indicators (overlaid on content)
-          // In preview mode, add solid borders to replace grid gaps
-          const designModeBorderClass = isInDesignMode
-            ? `${node.direction === "row" ? "border-l" : "border-t"} border-accent border-dashed`
-            : "";
-          const previewBorderClass = isInPreview
-            ? `${node.direction === "row" ? "border-l" : "border-t"} border-border`
-            : "";
           const splitBorderClass =
-            index !== 0 && (isInDesignMode || isInPreview)
-              ? isInDesignMode
-                ? designModeBorderClass
-                : previewBorderClass
+            index !== 0 && isInDesignMode
+              ? `${node.direction === "row" ? "border-l" : "border-t"} border-accent border-dashed`
               : "";
 
           const primaryAxis: LayoutResizeAxis | null = previousSibling

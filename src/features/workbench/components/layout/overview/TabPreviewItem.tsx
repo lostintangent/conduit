@@ -50,7 +50,11 @@ export function TabPreviewItem({
 
   return (
     <div
-      className={`flex overflow-hidden rounded border ${borderClass} ${interactivityClass}`}
+      // Pages show over the preview rather than in it, so they round their
+      // corners to this box themselves, see clipToPreview. Its border goes
+      // around the scaled tab, rather than over the tab's edges.
+      data-tab-preview
+      className={`box-content flex overflow-hidden rounded border ${borderClass} ${interactivityClass}`}
       style={{
         width: content.width * scale,
         height: content.height * scale,

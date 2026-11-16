@@ -13,6 +13,7 @@ import { applicationModeAtom } from "@features/workbench/client/atoms";
 import {
   applyWebviewScaling,
   calculateWebviewScale,
+  clipToPreview,
 } from "@features/browser/client/previewScaling";
 import type {
   ContextMenuParams,
@@ -279,14 +280,18 @@ export function BrowserPane({
 
       applyWebviewScaling(currentWebview, scaling);
 
+      const preview = isInPreview && anchor.closest("[data-tab-preview]");
+      currentWebview.style.clipPath = preview
+        ? clipToPreview(rect, preview, scaling.scaleX, scaling.scaleY)
+        : "";
+
       const overlay = previewOverlayRef.current;
       if (overlay) {
         overlay.style.top = `${top}px`;
         overlay.style.left = `${left}px`;
         overlay.style.width = `${rect.width}px`;
         overlay.style.height = `${rect.height}px`;
-        overlay.style.borderRadius =
-          getComputedStyle(anchor).borderRadius ?? "";
+        overlay.style.clipPath = preview ? clipToPreview(rect, preview) : "";
       }
 
       // Continue the RAF loop only if on-screen to avoid wasting cycles
@@ -337,6 +342,7 @@ export function BrowserPane({
         webview.style.zIndex = "1";
         webview.style.transform = "";
         webview.style.transformOrigin = "";
+        webview.style.clipPath = "";
         webview.style.left = "-10000px";
         // Off screen, its page would keep the keyboard, and the app's keys
         // it hands over would have no pane to run them
