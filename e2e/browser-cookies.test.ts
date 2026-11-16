@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, until } from "./app";
+import { type Conduit, inWebview, launch, until } from "./app";
 
 describe("a page's cookies", () => {
   let server: http.Server;
@@ -40,11 +40,7 @@ describe("a page's cookies", () => {
       await terminal.run(`conduit browser-navigate ${origin}${pathname}`),
     ).toBe(0);
     const webview = app.page.locator("webview").last();
-    const run = (code: string) =>
-      webview.evaluate(
-        (element: Electron.WebviewTag, code) => element.executeJavaScript(code),
-        code,
-      );
+    const run = (code: string) => inWebview(webview, code);
     await until(
       () => run(`location.pathname === ${JSON.stringify(pathname)}`),
       `the page at ${pathname}`,

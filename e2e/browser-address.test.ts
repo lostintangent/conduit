@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, type Terminal, until } from "./app";
+import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
 
 describe("the browser's address bar", () => {
   let server: http.Server;
@@ -189,15 +189,11 @@ describe("the browser's address bar", () => {
   });
 
   const typedInPage = () =>
-    webview().evaluate((webview: Electron.WebviewTag) =>
-      webview.executeJavaScript("document.querySelector('input')?.value"),
-    );
+    inWebview(webview(), "document.querySelector('input')?.value");
   const appFocus = () =>
     app.page.evaluate(() => document.activeElement?.tagName);
   const pageFocusedItsField = () =>
-    webview().evaluate((webview: Electron.WebviewTag) =>
-      webview.executeJavaScript("document.activeElement?.tagName === 'INPUT'"),
-    );
+    inWebview(webview(), "document.activeElement?.tagName === 'INPUT'");
 
   it("gives the keys to the page it goes to on Enter, from a page that didn't load or another site's page", async () => {
     // Each on another site than the last, so another process has the page

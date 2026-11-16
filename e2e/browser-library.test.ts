@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, type Terminal, until } from "./app";
+import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
 
 describe("the browser's history and favorites", () => {
   let server: http.Server;
@@ -55,10 +55,7 @@ describe("the browser's history and favorites", () => {
 
   /** Runs a script in the page, returning what it evaluates to. */
   function inPage<T>(script: string): Promise<T> {
-    return webview().evaluate(
-      (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
-      script,
-    );
+    return inWebview(webview(), script);
   }
 
   /** Waits for the page to fire the event, once a test has started it. */

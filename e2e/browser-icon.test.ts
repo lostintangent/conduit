@@ -2,7 +2,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, until } from "./app";
+import { type Conduit, inWebview, launch, until } from "./app";
 
 /** A red square, which keeps its own color */
 const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#e11d48"/></svg>`;
@@ -145,11 +145,7 @@ describe("a page's icon", () => {
    */
   async function go(url: string, label?: RegExp) {
     const webview = app.page.locator("webview#Page-pane");
-    await webview.evaluate(
-      (webview: Electron.WebviewTag, url) =>
-        webview.executeJavaScript(`location.href = ${JSON.stringify(url)}`),
-      url,
-    );
+    await inWebview(webview, `location.href = ${JSON.stringify(url)}`);
     await until(
       async () =>
         (await webview.evaluate((webview: Electron.WebviewTag) =>

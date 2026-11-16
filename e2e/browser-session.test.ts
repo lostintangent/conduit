@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, type Terminal, until } from "./app";
+import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
 
 // Records the keys a page gets, to tell which page has the keyboard
 const recordKeys = `<script>
@@ -112,13 +112,7 @@ describe("a page's new tabs and popups", () => {
 
   /** Runs a script in the first page, returning what it evaluates to. */
   function inPage<T>(script: string): Promise<T> {
-    return app.page
-      .locator("webview")
-      .first()
-      .evaluate(
-        (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
-        script,
-      );
+    return inWebview(app.page.locator("webview").first(), script);
   }
 
   /** Clicks an element in the first page the way the user would. */

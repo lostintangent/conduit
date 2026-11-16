@@ -11,9 +11,9 @@ Install Node 22.13 or newer, which Electron Forge needs, and [Bun](https://bun.s
 - `bun check` typechecks the app, and `bun check -p build` typechecks the build scripts, which run under Bun.
 - `bun run package`, then `bun run e2e`, runs the end-to-end tests against the packaged app.
 
-Each e2e launch gets its own temporary home and user data directory. `CONDUIT_E2E_KEEP=1` keeps them, and `CONDUIT_E2E_APP` points at another `Conduit.app`. `CONDUIT_E2E_ARTIFACTS=<dir>` saves each launch's last screenshot, app log and Playwright trace, and CI uploads these when a run fails.
+Each e2e launch gets its own temporary home and user data directory, and its app stops when the test run does, even one that times out or is stopped with Ctrl-C. `CONDUIT_E2E_KEEP=1` keeps them, and `CONDUIT_E2E_APP` points at another `Conduit.app`. `CONDUIT_E2E_ARTIFACTS=<dir>` saves each launch's last screenshot, app log and Playwright trace, and CI uploads these when a run fails.
 
-`bun run profile` profiles a realistic session in the packaged app: tab switches, a splitter drag, terminal echo and throughput, scrolling a browser pane, and idle CPU and memory per process. CI doesn't run it. Run it before and after a change and compare the summaries. It writes a summary, the raw results and CPU profiles for DevTools to a temporary folder, or to `CONDUIT_PROFILE_OUT`, and `CONDUIT_PROFILE_IDLE_SECONDS` sets how long each idle phase lasts. Its browser panes load real sites, so expect some noise.
+`bun run profile` profiles a realistic session in the packaged app: tab switches, a splitter drag, terminal echo and throughput, scrolling a browser pane, and idle CPU and memory per process. CI doesn't run it. Run it before and after a change and compare the summaries. It writes a summary, the raw results and CPU profiles of the tab switches and the splitter drag for DevTools to a temporary folder, or to `CONDUIT_PROFILE_OUT`. Its browser panes load real sites, so expect some noise.
 
 ## How the code is organized
 

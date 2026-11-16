@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { WorkspaceState } from "@features/workspaces/model";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, until } from "./app";
+import { type Conduit, inWebview, launch, until } from "./app";
 
 const pages: Record<string, string> = {
   "/first": "<!doctype html><title>First</title>",
@@ -29,17 +29,6 @@ beforeAll(async () => {
 });
 
 afterAll(() => server?.close());
-
-/** Runs a script in a page, returning what it evaluates to. */
-function inWebview<T>(app: Conduit, selector: string, script: string) {
-  return app.page
-    .locator(selector)
-    .first()
-    .evaluate(
-      (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
-      script,
-    ) as Promise<T>;
-}
 
 /** The workspaces as the app last saved them */
 function saved(app: Conduit): WorkspaceState {
@@ -66,7 +55,8 @@ describe("a page reopened at launch", () => {
 
   afterAll(() => app?.close());
 
-  const inPage = <T>(script: string) => inWebview<T>(app, "webview", script);
+  const inPage = <T>(script: string) =>
+    inWebview<T>(app.page.locator("webview").first(), script);
 
   it("comes back where it was scrolled, with its typed text and its history", async () => {
     const terminal = await app.terminal();
@@ -147,7 +137,7 @@ describe("a page in a tab behind the one that opens", () => {
     const crashed = app.page.getByText("This pane crashed");
     const shows = async () =>
       ((await page.boundingBox())?.x ?? -1) >= 0 &&
-      (await inWebview(app, "webview#Page-pane", "document.title")) === "First";
+      (await inWebview(page, "document.title")) === "First";
     await until(
       async () => (await crashed.count()) > 0 || (await shows()),
       "the page to show, or its pane to crash",
@@ -193,7 +183,7 @@ describe("a page whose tab goes to the background", () => {
   afterAll(() => app?.close());
 
   const inPage = <T>(script: string) =>
-    inWebview<T>(app, "webview#Page-pane", script);
+    inWebview<T>(app.page.locator("webview#Page-pane"), script);
 
   // A covered window hides all of its pages and stops drawing, so these can't
   // expect the page to be visible while its tab shows, and click without
@@ -288,7 +278,7 @@ describe("a page in a tab that's previewed", () => {
     const tabButton = () =>
       app.page.getByRole("tab", { name: new RegExp(`^${name}`) });
     const inPage = <T>(script: string) =>
-      inWebview<T>(app, `webview#${paneId}`, script);
+      inWebview<T>(app.page.locator(`webview#${paneId}`), script);
     const drawn = () =>
       inPage(
         "new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)))",
@@ -442,8 +432,7 @@ describe("the sidebar's page", () => {
   afterAll(() => app?.close());
 
   const sidebarPage = () => app.page.locator("webview#sidebar-browser");
-  const inSidebar = <T>(script: string) =>
-    inWebview<T>(app, "webview#sidebar-browser", script);
+  const inSidebar = <T>(script: string) => inWebview<T>(sidebarPage(), script);
   /** Its webview outlives the sidebar, off screen while it's closed. */
   const sidebarIsOpen = async () => {
     const box = await sidebarPage().boundingBox();

@@ -1,7 +1,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, type Terminal, until } from "./app";
+import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
 
 describe("find in a browser page", () => {
   let server: http.Server;
@@ -49,10 +49,7 @@ describe("find in a browser page", () => {
 
   /** Runs a script in the page, returning what it evaluates to. */
   function inPage<T>(script: string): Promise<T> {
-    return webview().evaluate(
-      (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
-      script,
-    );
+    return inWebview(webview(), script);
   }
 
   /** Loads the page at the path, once its title says it's there. */

@@ -12,7 +12,7 @@ import {
   expect,
   it,
 } from "vitest";
-import { type Conduit, launch, type Terminal, until } from "./app";
+import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
 
 const page = `<!doctype html>
 <title>E2E Page</title>
@@ -120,13 +120,7 @@ describe("browser automation from the CLI", () => {
 
   /** Runs a script in the nth webview's page, returning what it evaluates to. */
   function inPage<T>(index: number, script: string): Promise<T> {
-    return app.page
-      .locator("webview")
-      .nth(index)
-      .evaluate(
-        (webview: Electron.WebviewTag, code) => webview.executeJavaScript(code),
-        script,
-      );
+    return inWebview(app.page.locator("webview").nth(index), script);
   }
 
   /**
@@ -948,10 +942,9 @@ describe("browser automation from the CLI", () => {
             await page.emulateMedia({ colorScheme: null });
         }
       }
-      await webview.evaluate((webview: Electron.WebviewTag) =>
-        webview.executeJavaScript(
-          "new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)))",
-        ),
+      await inWebview(
+        webview,
+        "new Promise((drawn) => requestAnimationFrame(() => requestAnimationFrame(drawn)))",
       );
       const png = await webview.screenshot();
       return app.page.evaluate(async (base64) => {

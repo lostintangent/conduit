@@ -45,7 +45,10 @@ export interface LaunchOptions {
   files?: Record<string, string>;
   /** Written to ~/.conduit/settings.json before launch. */
   settings?: Record<string, unknown>;
-  /** The home of a launch that crashed or quit, to start the app in again. */
+  /**
+   * A home to start the app in, either one from `newHome()` that a run set up
+   * first, or the home of a launch that crashed or quit.
+   */
   home?: string;
   /**
    * Connects without Playwright's focus emulation, which tells the window it
@@ -78,6 +81,22 @@ export async function until<T>(
   }
   throw new Error(
     `Timed out after ${timeout}ms waiting for ${what} (last: ${last})`,
+  );
+}
+
+/**
+ * A new temporary home. It's under /tmp so the CLI's socket path stays short,
+ * and resolved because macOS reports /tmp paths as /private/tmp.
+ */
+export function newHome(): string {
+  return fs.realpathSync(fs.mkdtempSync("/tmp/conduit-e2e-"));
+}
+
+/** Runs a script in a browser pane's page, and returns what it evaluates to. */
+export function inWebview<T>(webview: Locator, script: string): Promise<T> {
+  return webview.evaluate(
+    (webview: Electron.WebviewTag, script) => webview.executeJavaScript(script),
+    script,
   );
 }
 
@@ -204,6 +223,8 @@ export class Terminal {
 export interface Conduit {
   /** The isolated home, with symlinks resolved. */
   home: string;
+  /** The app's main process, which every other process it starts descends from. */
+  pid: number;
   /** The window's page, which is a new object after `reconnect()`. */
   readonly page: Page;
   /** The nth visible terminal in the active tab, once its shell is ready. */
@@ -231,9 +252,32 @@ export interface Conduit {
 }
 
 /**
- * Every process whose environment has this home, including shells, which
- * node-pty starts in their own sessions outside the app's process group.
+ * `pid` and every process under it. Shells are among them, in sessions of
+ * their own outside the app's process group, and only their parentage ties
+ * them to the app, since macOS hides a system binary's environment from ps.
  */
+export function processTree(pid: number): number[] {
+  const pairs = execFileSync("ps", ["-axo", "pid=,ppid="], { encoding: "utf8" })
+    .trim()
+    .split("\n")
+    .map((line) => line.trim().split(/\s+/).map(Number));
+  const tree = [pid];
+  for (const parent of tree) {
+    for (const [child, ppid] of pairs) if (ppid === parent) tree.push(child!);
+  }
+  return tree;
+}
+
+export function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Every process whose environment has this home, wherever it's parented. */
 function processesUsing(home: string): number[] {
   const ps = execFileSync("ps", ["-axwwE", "-o", "pid=,command="], {
     encoding: "utf8",
@@ -255,10 +299,7 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
     );
   }
 
-  // Under /tmp so the CLI's socket path stays short, and resolved because
-  // macOS reports /tmp paths as /private/tmp.
-  const home =
-    options.home ?? fs.realpathSync(fs.mkdtempSync("/tmp/conduit-e2e-"));
+  const home = options.home ?? newHome();
   if (home === fs.realpathSync(os.homedir())) {
     throw new Error("Refusing to launch Conduit with your own home");
   }
@@ -311,6 +352,21 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
     { cwd: home, detached: true, env, stdio: ["ignore", log, log] },
   );
   fs.closeSync(log);
+  // Its group is out of reach of a Ctrl-C, and nothing stops it when this
+  // process ends without closing it, after a timeout, a throw or a kill. So
+  // a watchdog holds a pipe from this process, and kills the group when the
+  // pipe closes, which happens however this process ends. The shells, in
+  // sessions of their own, hang up with the app. The watchdog stops with the
+  // app, so it can't kill a group that has since reused the app's pid.
+  const watchdog = spawn(
+    "/bin/sh",
+    ["-c", `read _; kill -KILL -- -${child.pid}`],
+    {
+      detached: true,
+      stdio: ["pipe", "ignore", "ignore"],
+    },
+  );
+  child.once("exit", () => watchdog.kill());
 
   let browser: Browser | undefined;
   let page: Page | undefined;
@@ -319,15 +375,22 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   /** Set once the app crashed or quit, which leaves its home for a relaunch. */
   let stopped = false;
 
-  /** Waits for every process with the home to exit, and kills any that don't. */
-  async function waitForExit() {
+  /**
+   * Waits for the app's processes to exit, and kills any that don't. Takes
+   * its tree from before it stopped, since a process leaves the tree once
+   * its parent exits.
+   */
+  async function waitForExit(tree: number[]) {
+    const running = () => [
+      ...new Set([...tree.filter(isRunning), ...processesUsing(home)]),
+    ];
     const exited = await until(
-      () => processesUsing(home).length === 0,
+      () => running().length === 0,
       "the app's processes to exit",
       5_000,
     ).catch(() => false);
     if (!exited) {
-      const leftovers = processesUsing(home);
+      const leftovers = running();
       for (const pid of leftovers) process.kill(pid, "SIGKILL");
       throw new Error(`Processes outlived the app: ${leftovers.join(", ")}`);
     }
@@ -336,12 +399,14 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
   async function crash() {
     stopped = true;
     await browser?.close().catch(() => {});
+    const tree = processTree(child.pid!);
     process.kill(-child.pid!, "SIGKILL");
-    await waitForExit();
+    await waitForExit(tree);
   }
 
   async function quit() {
     stopped = true;
+    const tree = processTree(child.pid!);
     child.kill("SIGTERM");
     await until(
       () => child.exitCode !== null || child.signalCode !== null,
@@ -350,7 +415,7 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
     );
     // Only once it has exited, so the page closes because its window did.
     await browser?.close().catch(() => {});
-    await waitForExit();
+    await waitForExit(tree);
   }
 
   async function close() {
@@ -377,13 +442,14 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
         process.kill(-child.pid!, signal);
       } catch {}
     };
+    const tree = processTree(child.pid!);
     signalGroup("SIGTERM");
     await until(
       () => child.exitCode !== null || child.signalCode !== null,
       "app exit",
       5_000,
     ).catch(() => signalGroup("SIGKILL"));
-    await waitForExit();
+    await waitForExit(tree);
     if (!process.env.CONDUIT_E2E_KEEP)
       fs.rmSync(home, { recursive: true, force: true });
   }
@@ -466,6 +532,7 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
     }
     return {
       home,
+      pid: child.pid!,
       get page() {
         return page!;
       },
