@@ -58,7 +58,7 @@ function browserPane(
         onTitleChange={vi.fn()}
         onContextMenu={onContextMenu}
         onHover={vi.fn()}
-        isResizing={false}
+        disableInteraction={false}
         isInPreview={isInPreview}
         isDevToolsOpen={false}
         onToggleDevTools={vi.fn()}
@@ -79,7 +79,7 @@ const attachingPane = (onAttach: (webContentsId: number) => void) => (
       onTitleChange={vi.fn()}
       onContextMenu={vi.fn()}
       onHover={vi.fn()}
-      isResizing={false}
+      disableInteraction={false}
       isInPreview={false}
       isDevToolsOpen={false}
       onToggleDevTools={vi.fn()}

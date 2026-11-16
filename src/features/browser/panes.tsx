@@ -40,7 +40,7 @@ export default function BrowserLayoutPane({
         url={pane.url}
         paneId={pane.id}
         tabId={tab.id}
-        isResizing={isResizing}
+        disableInteraction={isResizing}
         isActive={isActive}
         // The page reports its context menu itself, not as a DOM event
         onContextMenu={(params) => {
