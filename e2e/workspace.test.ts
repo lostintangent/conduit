@@ -149,6 +149,22 @@ describe("workspaces", () => {
   const title = () =>
     app.page.locator(":has(> svg.lucide-cable)").first().textContent();
 
+  /**
+   * The window's tabs swap only once the ones it had have saved, which can
+   * take longer than the menu takes to close, and the title changes after
+   * that. A terminal found any sooner could be one that's about to close.
+   */
+  async function switchWorkspace(item: string, shown: string) {
+    await choose(item);
+    await until(
+      async () => (await title()) === shown,
+      `the title to read "${shown}"`,
+    );
+  }
+  const openWorkspace = (name: string) =>
+    switchWorkspace(name, `Conduit (${name})`);
+  const closeWorkspace = () => switchWorkspace("Close Workspace", "Conduit");
+
   const saved = () =>
     JSON.parse(
       fs.readFileSync(path.join(app.home, ".conduit/workspaces.json"), "utf8"),
@@ -213,7 +229,7 @@ describe("workspaces", () => {
   });
 
   it("closes the workspace into a fresh window", async () => {
-    await choose("Close Workspace");
+    await closeWorkspace();
     // Every terminal the test has used is tagged.
     await until(
       async () =>
@@ -223,7 +239,6 @@ describe("workspaces", () => {
     await expectTerminalFocused("closing the workspace");
     expect(await pwd()).toBe(app.home);
     expect(await tabs().count()).toBe(1);
-    expect(await title()).toBe("Conduit");
   });
 
   it("saves the window's tabs as they change, without a name", async () => {
@@ -238,7 +253,7 @@ describe("workspaces", () => {
   });
 
   it("reopens the workspace's tabs in their directories", async () => {
-    await choose("E2E Renamed");
+    await openWorkspace("E2E Renamed");
     await tabs()
       .nth(1)
       .and(app.page.getByRole("tab", { selected: true }))
@@ -258,7 +273,7 @@ describe("workspaces", () => {
   });
 
   it("shows a tab running while its command prints, before it's been opened", async () => {
-    await choose("E2E Agents");
+    await openWorkspace("E2E Agents");
     const agent = tabs().nth(0);
     await tabs()
       .nth(1)
@@ -292,7 +307,7 @@ describe("workspaces", () => {
   });
 
   it("keeps a collapsed pane's output out of its tab's state", async () => {
-    await choose("E2E Collapsed");
+    await openWorkspace("E2E Collapsed");
     const [split, open] = [tabs().nth(0), tabs().nth(1)];
     await tabs()
       .nth(2)
@@ -315,7 +330,7 @@ describe("workspaces", () => {
   });
 
   it("opens a pane whose folder is gone at home, and says why", async () => {
-    await choose("E2E Gone");
+    await openWorkspace("E2E Gone");
     await expectTerminalFocused("opening the workspace");
     // The rest of the line wraps at this font size.
     const terminal = await app.terminal();
@@ -325,11 +340,10 @@ describe("workspaces", () => {
   });
 
   it("goes back to the window's own tabs when the workspace closes", async () => {
-    await choose("Close Workspace");
+    await closeWorkspace();
     await expectTerminalFocused("closing the workspace");
     expect(await tabs().count()).toBe(1);
     expect(await pwd()).toBe(path.join(app.home, "two"));
-    expect(await title()).toBe("Conduit");
   });
 
   it("lists only named workspaces in the picker", async () => {
@@ -389,7 +403,7 @@ describe("workspaces", () => {
   });
 
   it("reopens the named workspace that was open as it starts again", async () => {
-    await choose("E2E Renamed");
+    await openWorkspace("E2E Renamed");
     await expectTerminalFocused("opening the workspace");
     await app.quit();
     await relaunch("workspace-relaunched-named");
@@ -405,7 +419,7 @@ describe("workspaces", () => {
   });
 
   it("keeps the window's tabs in the picker when they can't reopen, rather than saving over them", async () => {
-    await choose("Close Workspace");
+    await closeWorkspace();
     await expectTerminalFocused("closing the workspace");
     await app.quit();
     // Hand-edited to a size its shell can't start at.
