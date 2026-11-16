@@ -37,18 +37,26 @@ describe("the window", () => {
       };
     });
 
+  /** Checks the window is at `target`, saying where it is if it isn't. */
+  const isAt = (target: Bounds) => async () => {
+    const now = await bounds();
+    if (JSON.stringify(now) !== JSON.stringify(target)) {
+      throw new Error(`it's at ${JSON.stringify(now)}`);
+    }
+    return true;
+  };
+
   /** Moves and resizes the window, then quits and relaunches Conduit. */
   async function leaveAt(left: Bounds, name: string) {
     const rows = () => app.page.locator(".xterm-rows > div").count();
     const rowsBefore = await rows();
     await app.page.evaluate((target) => {
-      window.moveTo(target.x, target.y);
+      // Chromium keeps a move from taking any of the window off the screen, so
+      // it resizes first to fit where it's going.
       window.resizeTo(target.width, target.height);
+      window.moveTo(target.x, target.y);
     }, left);
-    await until(
-      async () => JSON.stringify(await bounds()) === JSON.stringify(left),
-      "the window to move and resize",
-    );
+    await until(isAt(left), "the window to move and resize");
     // The terminal sizes its shell as it fits, so the size its workspace saves
     // on quit is the new one, which it restarts at.
     await until(
@@ -62,13 +70,15 @@ describe("the window", () => {
   it("reopens at the size and place it was left at", async () => {
     app = await launch({ name: "window", files: { ".zshenv": zshenv } });
     const area = await workArea();
+    const width = Math.min(800, area.width - 80);
+    const height = Math.min(500, area.height - 40);
     // Smaller than it opens at, and in the screen's corner rather than its
     // middle.
     const left: Bounds = {
-      x: area.x + 40,
-      y: area.y + 20,
-      width: Math.min(800, area.width - 80),
-      height: Math.min(500, area.height - 40),
+      x: area.x + area.width - width - 40,
+      y: area.y + area.height - height - 20,
+      width,
+      height,
     };
     await leaveAt(left, "window-reopened");
 
@@ -84,10 +94,7 @@ describe("the window", () => {
     await leaveAt(area, "window-reopened-filled");
 
     // macOS counts it as zoomed, which Electron restores as the window shows.
-    await until(
-      async () => JSON.stringify(await bounds()) === JSON.stringify(area),
-      "the window to fill the screen",
-    );
+    await until(isAt(area), "the window to fill the screen");
     expect(await bounds()).toEqual(area);
   });
 
