@@ -6,6 +6,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { SerializeAddon, type ISerializeOptions } from "@xterm/addon-serialize";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { Terminal } from "@xterm/xterm";
+import { cursorBlink } from "./cursorBlink";
 import { claimLinkClicks, handleLinks, type LinkHandler } from "./links";
 import * as stateTracker from "./stateTracker";
 import { broadcastTerminalInput } from "./synchronizeInput";
@@ -379,7 +380,10 @@ export function attach(paneId: string, container: HTMLElement) {
     container.appendChild(element);
   } else {
     instance.terminal.open(container);
-    if (!element) claimLinkClicks(instance.terminal);
+    if (!element) {
+      claimLinkClicks(instance.terminal);
+      instance.terminal.loadAddon(cursorBlink());
+    }
     if (instance.terminal.element) {
       observeVisibility(paneId, instance.terminal.element);
     }

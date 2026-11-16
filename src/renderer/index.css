@@ -231,6 +231,15 @@
   cursor: inherit;
 }
 
+/* A focused cursor holds a keyframe of xterm's blink, flipped by a timer
+   rather than animated every frame (cursorBlink.ts) */
+.xterm .xterm-cursor.xterm-cursor-blink {
+  animation-play-state: paused !important;
+}
+.xterm.xterm-cursor-blink-hidden .xterm-cursor.xterm-cursor-blink {
+  animation-delay: -0.75s !important;
+}
+
 /* Base styles */
 
 @layer base {

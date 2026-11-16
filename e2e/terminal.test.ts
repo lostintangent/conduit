@@ -42,6 +42,18 @@ interface Closing {
   conduit: { terminal: { close(sessionId: string): Promise<void> } };
 }
 
+/** Each time the cursor showed or hid, or the typed key reached its row. */
+interface CursorFrame {
+  /** From the first frame, in ms. */
+  at: number;
+  shown: boolean;
+  typed: boolean;
+}
+interface Blinking {
+  cursorFrames?: CursorFrame[];
+  cursorWatched?: Promise<CursorFrame[]>;
+}
+
 describe("terminal and CLI", () => {
   let app: Conduit;
   let terminal: Terminal;
@@ -78,6 +90,90 @@ describe("terminal and CLI", () => {
   it("runs its shell in the isolated home", async () => {
     expect(await terminal.run('echo "home is $HOME"')).toBe(0);
     expect(await terminal.text()).toContain(`home is ${app.home}\n`);
+  });
+
+  it("blinks a focused cursor without running an animation every frame", async () => {
+    await terminal.type("");
+    await until(
+      () =>
+        terminal.locator
+          .locator(".xterm-rows.xterm-focus .xterm-cursor.xterm-cursor-blink")
+          .count(),
+      "a blinking cursor",
+    );
+    const running = await terminal.locator.evaluate((xterm) =>
+      xterm
+        .getAnimations({ subtree: true })
+        .filter((animation) => animation.playState === "running")
+        .map((animation) => (animation as CSSAnimation).animationName),
+    );
+    expect(running).toEqual([]);
+  });
+
+  it("blinks a focused cursor every half second, and shows it on each keystroke", async () => {
+    await terminal.type("");
+    // Records each frame the cursor shows or hides, until a second after the
+    // typed key reaches its row.
+    await terminal.locator.evaluate((xterm) => {
+      const scope = window as unknown as Blinking;
+      const pixel = document
+        .createElement("canvas")
+        .getContext("2d", { willReadFrequently: true })!;
+      const opaque = (color: string) => {
+        pixel.clearRect(0, 0, 1, 1);
+        pixel.fillStyle = color;
+        pixel.fillRect(0, 0, 1, 1);
+        return pixel.getImageData(0, 0, 1, 1).data[3] > 0;
+      };
+      const frames: CursorFrame[] = (scope.cursorFrames = []);
+      const start = performance.now();
+      scope.cursorWatched = new Promise((resolve) => {
+        const frame = () => {
+          const at = performance.now() - start;
+          const cursor = xterm.querySelector(".xterm-rows .xterm-cursor");
+          const shown =
+            !!cursor && opaque(getComputedStyle(cursor).backgroundColor);
+          const typed = !!cursor?.parentElement?.textContent.includes("@");
+          const last = frames.at(-1);
+          if (last?.shown !== shown || last.typed !== typed) {
+            frames.push({ at, shown, typed });
+          }
+          const typedAt = frames.find((frame) => frame.typed)?.at;
+          if (typedAt === undefined ? at < 15_000 : at < typedAt + 1000) {
+            requestAnimationFrame(frame);
+          } else resolve(frames);
+        };
+        requestAnimationFrame(frame);
+      });
+    });
+    await until(
+      () =>
+        app.page.evaluate(
+          () => (window as unknown as Blinking).cursorFrames!.length > 4,
+        ),
+      "the cursor to blink a few times",
+    );
+    await app.page.keyboard.type("@");
+    const frames = await app.page.evaluate(
+      () => (window as unknown as Blinking).cursorWatched!,
+    );
+    await app.page.keyboard.press("Backspace");
+
+    const typed = frames.findIndex((frame) => frame.typed);
+    expect(typed).toBeGreaterThan(4);
+    const blinks = frames.slice(1, typed);
+    for (const [index, blink] of blinks.entries()) {
+      if (index === 0) continue;
+      expect(blink.shown).toBe(!blinks[index - 1].shown);
+      expect(blink.at - blinks[index - 1].at).toBeGreaterThan(350);
+      expect(blink.at - blinks[index - 1].at).toBeLessThan(650);
+    }
+    // Shown as the key lands, and for a full half second after it.
+    expect(frames[typed].shown).toBe(true);
+    const hidden = frames.slice(typed).find((frame) => !frame.shown);
+    expect(hidden).toBeDefined();
+    expect(hidden!.at - frames[typed].at).toBeGreaterThan(400);
+    expect(hidden!.at - frames[typed].at).toBeLessThan(650);
   });
 
   it("pauses a shell while the page falls behind its output", async () => {
