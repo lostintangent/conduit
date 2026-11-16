@@ -135,12 +135,15 @@ export function HyperTerminal({
   // was in it goes back to the active pane
   useEffect(() => () => focusActivePane(), []);
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Don't start dragging if clicking on buttons
-    if ((e.target as HTMLElement).closest("button")) {
+  // The pointer gets ahead of the title bar until the hyper terminal catches
+  // up, so capturing it keeps every move with the title bar, rather than
+  // selecting or hovering what's behind
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || (e.target as HTMLElement).closest("button")) {
       return;
     }
 
+    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDragging(true);
     dragOffset.current = {
       x: e.clientX - position.x,
@@ -148,35 +151,24 @@ export function HyperTerminal({
     };
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
 
-    const newX = e.clientX - dragOffset.current.x;
-    const newY = e.clientY - dragOffset.current.y;
-
-    const newPosition = constrainPosition({ x: newX, y: newY });
-    setPosition(newPosition);
+    setPosition(
+      constrainPosition({
+        x: e.clientX - dragOffset.current.x,
+        y: e.clientY - dragOffset.current.y,
+      }),
+    );
   };
 
-  const handleMouseUp = () => {
+  // Releasing the pointer ends the capture, and so does anything that takes it
+  const handleLostPointerCapture = () => {
     setIsDragging(false);
     // Save the latest position from ref to avoid stale closure
     savePosition(positionRef.current);
     onPositionChange(positionRef.current);
   };
-
-  // Set up global mouse event listeners
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-
-      return () => {
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   return (
     <div
@@ -192,7 +184,9 @@ export function HyperTerminal({
       <div className="flex flex-col w-full h-full">
         <div
           className="flex items-center justify-between bg-elevated backdrop-blur px-3 py-2 border-b border-border cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onLostPointerCapture={handleLostPointerCapture}
         >
           <div className="flex items-center">
             <div className="flex items-center gap-2 group/buttons">
@@ -256,6 +250,9 @@ export function HyperTerminal({
           </ErrorBoundary>
         </div>
       </div>
+      {/* A page still gets the pointer over it while the title bar has it
+          captured, so this covers the window for the drag */}
+      {isDragging && <div className="fixed inset-0 cursor-grabbing" />}
     </div>
   );
 }
