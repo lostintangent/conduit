@@ -166,6 +166,43 @@ describe("EditorPaneRegistry", () => {
       );
       expect(offscreenContainer?.contains(entry.wrapperElement)).toBe(true);
     });
+
+    it("keeps a detached pane at the size it was shown at", () => {
+      let resized: (target: Element, width: number, height: number) => void;
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(callback: ResizeObserverCallback) {
+            resized = (target, width, height) =>
+              callback(
+                [{ target, contentRect: { width, height } }] as never,
+                this as unknown as ResizeObserver,
+              );
+          }
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        },
+      );
+      try {
+        const { wrapperElement } = attached(mockContainer);
+        const size = () => [
+          wrapperElement.style.width,
+          wrapperElement.style.height,
+        ];
+        resized!(wrapperElement, 800, 600);
+        // A hidden tab's content measures 0x0 before its panes detach
+        resized!(wrapperElement, 0, 0);
+
+        registry.detach("pane-1");
+        expect(size()).toEqual(["800px", "600px"]);
+
+        registry.attach("pane-1", mockContainer);
+        expect(size()).toEqual(["100%", "100%"]);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 
   describe("Lifecycle - Dispose", () => {

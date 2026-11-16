@@ -140,6 +140,13 @@ interface EditorPaneEntry {
    * in the anchor, which remounts on every tab switch.
    */
   lastFocused: HTMLElement | null;
+
+  /**
+   * The size the pane was last shown at, which it keeps while detached. It's
+   * tracked as it changes, because a hidden tab's content already measures
+   * 0x0 by the time its panes detach.
+   */
+  shownSize: { width: number; height: number } | null;
 }
 
 /**
@@ -207,6 +214,9 @@ export class EditorPaneRegistry {
   /** Off-screen container for detached editors */
   private offscreenContainer: HTMLDivElement | null = null;
 
+  /** Tracks each pane's `shownSize` */
+  private sizeObserver: ResizeObserver | null = null;
+
   /** Private constructor - use getInstance() */
   private constructor() {
     // Create off-screen container lazily when needed
@@ -226,8 +236,9 @@ export class EditorPaneRegistry {
       this.offscreenContainer.id = "editor-pane-offscreen-container";
       this.offscreenContainer.setAttribute("aria-hidden", "true");
       // Position off-screen but keep in DOM for Monaco to function. Zero size
-      // lets size observers tell "detached" apart from "narrow" (a hidden tab
-      // detaches its editors, and 1px would flip them to the single layout).
+      // lets size observers tell "not shown yet" apart from "narrow" (1px
+      // would flip a pane to the single layout). A pane that has been shown
+      // keeps its size here instead, see detach().
       Object.assign(this.offscreenContainer.style, {
         position: "absolute",
         left: "-10000px",
@@ -241,6 +252,23 @@ export class EditorPaneRegistry {
       document.body.appendChild(this.offscreenContainer);
     }
     return this.offscreenContainer;
+  }
+
+  private getSizeObserver(): ResizeObserver {
+    this.sizeObserver ??= new ResizeObserver((observed) => {
+      for (const { target, contentRect } of observed) {
+        const entry = this.panes.get(
+          target.getAttribute("data-editor-pane-wrapper") ?? "",
+        );
+        if (entry && contentRect.width > 0 && contentRect.height > 0) {
+          entry.shownSize = {
+            width: contentRect.width,
+            height: contentRect.height,
+          };
+        }
+      }
+    });
+    return this.sizeObserver;
   }
 
   // ---------------------------------------------------------------------------
@@ -300,7 +328,9 @@ export class EditorPaneRegistry {
       isReady: false,
       scrollContainers: new Map(),
       lastFocused: null,
+      shownSize: null,
     };
+    this.getSizeObserver().observe(wrapperElement);
 
     wrapperElement.addEventListener("focusin", (event) => {
       created.lastFocused = event.target as HTMLElement;
@@ -363,13 +393,7 @@ export class EditorPaneRegistry {
     if (entry.pendingContainer) {
       const container = entry.pendingContainer;
       entry.pendingContainer = null;
-
-      // Complete the attachment
-      container.appendChild(entry.wrapperElement);
-      entry.currentContainer = container;
-
-      // Restore scroll positions after DOM move
-      this.restoreScrollPositions(paneId);
+      this.placeIn(entry, container);
     }
   }
 
@@ -400,6 +424,8 @@ export class EditorPaneRegistry {
     const entry = this.panes.get(paneId);
     if (!entry) return;
 
+    this.sizeObserver?.unobserve(entry.wrapperElement);
+
     // Remove wrapper element from DOM (registry owns it)
     if (entry.wrapperElement.parentElement) {
       entry.wrapperElement.parentElement.removeChild(entry.wrapperElement);
@@ -420,6 +446,9 @@ export class EditorPaneRegistry {
     for (const paneId of this.panes.keys()) {
       this.dispose(paneId);
     }
+
+    this.sizeObserver?.disconnect();
+    this.sizeObserver = null;
 
     // Clean up off-screen container
     if (this.offscreenContainer?.parentElement) {
@@ -602,12 +631,18 @@ export class EditorPaneRegistry {
       return;
     }
 
-    // Move wrapper to new container
+    this.placeIn(entry, container);
+  }
+
+  /** Moves a pane into `container`, which it fills. */
+  private placeIn(entry: EditorPaneEntry, container: HTMLElement): void {
+    entry.wrapperElement.style.width = "100%";
+    entry.wrapperElement.style.height = "100%";
     container.appendChild(entry.wrapperElement);
     entry.currentContainer = container;
 
     // Restore scroll positions after DOM move
-    this.restoreScrollPositions(paneId);
+    this.restoreScrollPositions(entry.paneId);
   }
 
   /**
@@ -625,6 +660,14 @@ export class EditorPaneRegistry {
 
     // Save scroll positions BEFORE moving (DOM move resets scroll)
     this.saveScrollPositions(paneId);
+
+    // Keeping the size it was shown at means Monaco and the pane's size
+    // observers have nothing to redo, here or when it returns at that size.
+    // At 0x0, word wrap would re-wrap every line of the file both times.
+    if (entry.shownSize) {
+      entry.wrapperElement.style.width = `${entry.shownSize.width}px`;
+      entry.wrapperElement.style.height = `${entry.shownSize.height}px`;
+    }
 
     // Move wrapper to off-screen container
     this.getOffscreenContainer().appendChild(entry.wrapperElement);
