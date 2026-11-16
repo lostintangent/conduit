@@ -14,6 +14,9 @@ import { disposeSession } from "@features/terminal/client/xtermCache";
 import {
   detachPane,
   inheritAgentSession,
+  newBrowserPane,
+  newCanvasPane,
+  newEditorPane,
   removePane,
   updateTerminalSessionProperty,
 } from "@features/workbench/client/actions/pane";
@@ -41,6 +44,8 @@ import type {
 import { walkLayout } from "@features/workbench/client/layout";
 import type { AgentSessionInfo } from "@features/agents/model";
 import { generateElementId } from "@features/canvas/model";
+import { getSettings } from "@features/settings/client/queries";
+import type { PaneType } from "@shared/types/panes";
 import { generateId } from "@shared/utils";
 import path from "path-browserify";
 import { produce } from "immer";
@@ -167,6 +172,32 @@ export async function openTab(
   );
 
   return { tabId, paneId, sessionId: result.sessionId };
+}
+
+/**
+ * Opens a tab whose only pane is a new one of the type, which starts like a
+ * split of that type: a blank page, or the active pane's folder for a
+ * terminal or editor.
+ */
+export async function openTabWithPane(type: PaneType): Promise<void> {
+  switch (type) {
+    case "terminal":
+      await openTab();
+      return;
+    case "browser":
+      createTabWithPane(newBrowserPane("about:blank"));
+      return;
+    case "editor":
+      createTabWithPane(
+        newEditorPane(
+          getActiveTabCwd(activeTabAtom.get(), getSettings().homeDirectory),
+        ),
+      );
+      return;
+    case "canvas":
+      createTabWithPane(newCanvasPane());
+      return;
+  }
 }
 
 // Helper function to create a tab with a pane

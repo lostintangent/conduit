@@ -818,6 +818,23 @@ export async function splitPaneWithAgentSession(
   }
 }
 
+/**
+ * A new browser pane, for a split or a tab of its own. Its page takes the
+ * keys once it opens.
+ */
+export function newBrowserPane(url: string, devToolsFor?: string): Pane {
+  const pane: Pane = {
+    id: generateId(),
+    type: "browser",
+    url,
+    ...(devToolsFor && { devToolsFor }),
+  };
+
+  // A blank page's toolbar focuses its address bar instead
+  if (url && url !== "about:blank") focusPageOnOpen(pane.id);
+  return pane;
+}
+
 export function openBrowserPane(
   tabId: string,
   paneId: string,
@@ -826,24 +843,29 @@ export function openBrowserPane(
   insertBefore = false,
   devTools = false,
 ) {
-  const newPaneId = generateId();
-  const newPaneState: Pane = {
-    id: newPaneId,
-    type: "browser",
-    url,
-    ...(devTools && { devToolsFor: paneId }),
-  };
-
-  // A blank page's toolbar focuses its address bar instead
-  if (url && url !== "about:blank") focusPageOnOpen(newPaneId);
-  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
-  return newPaneId;
+  const pane = newBrowserPane(url, devTools ? paneId : undefined);
+  insertPaneNextTo(tabId, paneId, pane, direction, insertBefore);
+  return pane.id;
 }
 
-type OpenEditorPaneOptions = {
+type NewEditorPaneOptions = {
   file?: string;
   preview?: boolean;
 };
+
+/** A new editor pane, for a split or a tab of its own */
+export function newEditorPane(
+  cwd: string,
+  options: NewEditorPaneOptions = {},
+): Pane {
+  return {
+    id: generateId(),
+    type: "editor",
+    cwd,
+    file: options.file,
+    preview: options.preview,
+  };
+}
 
 export function openEditorPane(
   tabId: string,
@@ -851,20 +873,16 @@ export function openEditorPane(
   cwd: string,
   direction: SplitDirection = "row",
   insertBefore = false,
-  options: OpenEditorPaneOptions = {},
+  options: NewEditorPaneOptions = {},
 ) {
-  const newPaneId = generateId();
-  const newPaneState: Pane = {
-    id: newPaneId,
-    type: "editor",
-    cwd,
-    file: options.file,
-    preview: options.preview,
-  };
+  const pane = newEditorPane(cwd, options);
+  insertPaneNextTo(tabId, paneId, pane, direction, insertBefore);
+  return pane.id;
+}
 
-  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
-
-  return newPaneId;
+/** A new canvas pane, for a split or a tab of its own */
+export function newCanvasPane(): Pane {
+  return { id: generateId(), type: "canvas" };
 }
 
 export function openCanvasPane(
@@ -873,15 +891,9 @@ export function openCanvasPane(
   direction: SplitDirection = "row",
   insertBefore = false,
 ) {
-  const newPaneId = generateId();
-  const newPaneState: Pane = {
-    id: newPaneId,
-    type: "canvas",
-  };
-
-  insertPaneNextTo(tabId, paneId, newPaneState, direction, insertBefore);
-
-  return newPaneId;
+  const pane = newCanvasPane();
+  insertPaneNextTo(tabId, paneId, pane, direction, insertBefore);
+  return pane.id;
 }
 
 export function cloneTerminalPane(

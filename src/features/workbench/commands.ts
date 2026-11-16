@@ -33,6 +33,7 @@ import {
   lockTab,
   movePaneToTab,
   openTab,
+  openTabWithPane,
   unlockTab,
   updateTabProperty,
 } from "@features/workbench/client/actions/tab";
@@ -124,6 +125,29 @@ export default [
     run: () => {
       void openTab();
     },
+  },
+
+  // Tab: New with Browser, Editor or Canvas (New Tab has a terminal)
+  {
+    id: ApplicationCommands.TAB_NEW_WITH_BROWSER,
+    title: "New Tab with Browser",
+    description: "Create a new tab with a blank browser page",
+    category: "Tab",
+    run: () => openTabWithPane("browser"),
+  },
+  {
+    id: ApplicationCommands.TAB_NEW_WITH_EDITOR,
+    title: "New Tab with Editor",
+    description: "Create a new editor tab",
+    category: "Tab",
+    run: () => openTabWithPane("editor"),
+  },
+  {
+    id: ApplicationCommands.TAB_NEW_WITH_CANVAS,
+    title: "New Tab with Canvas",
+    description: "Create a new canvas tab",
+    category: "Tab",
+    run: () => openTabWithPane("canvas"),
   },
 
   // Tab: Close

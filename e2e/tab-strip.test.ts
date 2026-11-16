@@ -175,4 +175,119 @@ describe("the tab strip", () => {
     );
     expect((await scrollThrough(["start"])).fades).toEqual([["0px", "0px"]]);
   });
+
+  /** Opens a tab one way, and waits for it to be the selected one. */
+  async function openTab(open: () => Promise<void>) {
+    const tabs = app.page.getByRole("tab");
+    const count = await tabs.count();
+    await open();
+    await tabs
+      .nth(count)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+  }
+
+  /** Picks the item from the menu next to New Tab. */
+  async function chooseNewTab(item: string) {
+    await app.page
+      .getByRole("button", { name: "More new tab options" })
+      .click();
+    await app.page.getByRole("menuitem", { name: item }).click();
+    await app.page.getByRole("menu").waitFor({ state: "detached" });
+  }
+
+  async function runCommand(title: string) {
+    await app.page.keyboard.press("Meta+Shift+p");
+    const palette = app.page.getByTestId("command-palette");
+    await palette.getByRole("textbox").fill(`>${title}`);
+    await palette
+      .locator('[data-index="0"]')
+      .filter({ hasText: title })
+      .waitFor();
+    await app.page.keyboard.press("Enter");
+    await palette.waitFor({ state: "hidden" });
+  }
+
+  /**
+   * How each kind of pane shows in its tab, and what takes the keys when it
+   * opens: the address bar, the file tree, the canvas or the shell. A page's
+   * webview lives outside its tab, on the body.
+   */
+  const panes = {
+    Browser: {
+      shows: '[placeholder="Search or enter address"]',
+      focuses: '[placeholder="Search or enter address"]',
+    },
+    Editor: {
+      shows: '[data-testid="tree-container"]',
+      focuses:
+        '[data-testid="tree-container"], [data-testid="tree-container"] *',
+    },
+    Canvas: { shows: 'canvas[id^="canvas-"]', focuses: ":has(> div > canvas)" },
+    Terminal: { shows: ".xterm", focuses: ".xterm-helper-textarea" },
+  };
+  type Kind = keyof typeof panes;
+
+  /**
+   * The selected tab's panes and splits, how many of them show as the kind,
+   * and whether the kind has the keys.
+   */
+  const shown = (kind: Kind) =>
+    app.page.evaluate(({ shows, focuses }) => {
+      const panel = [...document.querySelectorAll('[role="tabpanel"]')].find(
+        (panel) => panel.checkVisibility(),
+      )!;
+      const focused = document.activeElement;
+      return {
+        nodes: panel.querySelectorAll("[data-node-id]").length,
+        shown: panel.querySelectorAll(shows).length,
+        focused:
+          !!focused && panel.contains(focused) && focused.matches(focuses),
+      };
+    }, panes[kind]);
+
+  /** Waits for the selected tab to have only a pane of the kind, with the keys. */
+  async function expectOnly(kind: Kind) {
+    await until(
+      async () => (await shown(kind)).focused,
+      `the ${kind.toLowerCase()} to take the keys`,
+    );
+    expect(await shown(kind)).toEqual({ nodes: 1, shown: 1, focused: true });
+  }
+
+  it("opens a tab with only a terminal from New Tab", async () => {
+    await openTab(() =>
+      app.page.getByRole("button", { name: "New Tab", exact: true }).click(),
+    );
+    await expectOnly("Terminal");
+  });
+
+  it("offers a tab with each kind of pane next to New Tab, a page first", async () => {
+    await app.page
+      .getByRole("button", { name: "More new tab options" })
+      .click();
+    expect(await app.page.getByRole("menuitem").allTextContents()).toEqual([
+      "New Tab with Browser",
+      "New Tab with Editor",
+      "New Tab with Canvas",
+      "New Tab with Terminal",
+    ]);
+    await app.page.keyboard.press("Escape");
+    await app.page.getByRole("menu").waitFor({ state: "detached" });
+  });
+
+  for (const kind of Object.keys(panes) as Kind[]) {
+    it(`opens New Tab with ${kind} from the menu next to New Tab, with only that pane, which takes the keys`, async () => {
+      await openTab(() => chooseNewTab(`New Tab with ${kind}`));
+      await expectOnly(kind);
+    });
+  }
+
+  // New Tab is the terminal's command
+  for (const kind of ["Browser", "Editor", "Canvas"] as const) {
+    it(`opens New Tab with ${kind} from the command palette, with only that pane, which takes the keys`, async () => {
+      await openTab(() => runCommand(`New Tab with ${kind}`));
+      await expectOnly(kind);
+    });
+  }
 });

@@ -179,7 +179,9 @@ describe("workspaces", () => {
   it("saves the window's tabs as a named workspace", async () => {
     expect(await title()).toBe("Conduit");
     expect(await (await app.terminal()).run("cd ~/one")).toBe(0);
-    await app.page.getByRole("button", { name: "New Tab" }).click();
+    await app.page
+      .getByRole("button", { name: "New Tab", exact: true })
+      .click();
     await tabs()
       .nth(1)
       .and(app.page.getByRole("tab", { selected: true }))
@@ -367,7 +369,9 @@ describe("workspaces", () => {
   });
 
   it("saves the window's tabs as it quits", async () => {
-    await app.page.getByRole("button", { name: "New Tab" }).click();
+    await app.page
+      .getByRole("button", { name: "New Tab", exact: true })
+      .click();
     await tabs()
       .nth(1)
       .and(app.page.getByRole("tab", { selected: true }))

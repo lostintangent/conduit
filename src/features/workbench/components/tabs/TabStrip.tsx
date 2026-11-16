@@ -8,13 +8,8 @@ import { TabPreviewOverlay } from "@features/workbench/components/layout/overvie
 import { LaunchAgentsButton } from "@features/agents/components/LaunchAgentsButton";
 import { TabButton } from "@features/workbench/components/tabs/TabButton";
 import { TabPlaceholder } from "@features/workbench/components/tabs/TabPlaceholder";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/ui/dropdown-menu";
+import { SplitButton } from "@features/workbench/components/tabs/SplitButton";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/ui/dropdown-menu";
 import { Separator } from "@/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import {
@@ -27,6 +22,7 @@ import {
   getActiveTabCwd,
   moveTab,
   openTab,
+  openTabWithPane,
 } from "@features/workbench/client/actions/tab";
 import {
   activeTabAtom,
@@ -38,10 +34,12 @@ import {
 import type { TabPosition } from "@features/settings/model";
 import { shallow, useAtom, useSelector } from "@tanstack/react-store";
 import {
-  ChevronDown,
+  Code,
   Fullscreen,
+  Globe,
   LayoutGrid,
   MoreHorizontal,
+  Palette,
   PanelRightOpen,
   PlusSquare,
   SquareDashedMousePointer,
@@ -50,6 +48,14 @@ import {
   Zap,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
+
+// What a new tab can start with, a page first since New Tab's own is a terminal
+const NEW_TAB_PANES = [
+  { type: "browser", name: "Browser", Icon: Globe },
+  { type: "editor", name: "Editor", Icon: Code },
+  { type: "canvas", name: "Canvas", Icon: Palette },
+  { type: "terminal", name: "Terminal", Icon: Terminal },
+] as const;
 
 type TabStripProps = {
   onTabContextMenu?: (event: React.MouseEvent, tabId: string) => void;
@@ -543,23 +549,25 @@ export const TabStrip = ({
           />
 
           {/* New tab button - after divider */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="border-0 text-inherit rounded-lg w-8 h-8 text-lg inline-flex items-center justify-center cursor-pointer transition-colors duration-150 hover:bg-white/15 shrink-0"
-                aria-label={newTabCmd.title}
-                onClick={() => {
-                  void openTab();
-                }}
+          <SplitButton
+            label={newTabCmd.title}
+            tooltip={getCommandDisplayTitle(newTabCmd)}
+            icon={<PlusSquare size={18} />}
+            onClick={() => {
+              void openTab();
+            }}
+            menuLabel="More new tab options"
+          >
+            {NEW_TAB_PANES.map(({ type, name, Icon }) => (
+              <DropdownMenuItem
+                key={type}
+                onClick={() => void openTabWithPane(type)}
               >
-                <PlusSquare size={18} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {getCommandDisplayTitle(newTabCmd)}
-            </TooltipContent>
-          </Tooltip>
+                <Icon size={16} className="mr-3" />
+                {`New Tab with ${name}`}
+              </DropdownMenuItem>
+            ))}
+          </SplitButton>
 
           {/* Overview button - only when multiple tabs */}
           {hasMultipleTabs && (
@@ -598,60 +606,33 @@ export const TabStrip = ({
           </Tooltip>
 
           {/* Quick pane split button */}
-          <div className="group flex items-stretch transition-colors duration-150 hover:bg-foreground/15 focus-within:bg-foreground/15 rounded-lg overflow-hidden">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="w-6 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10 relative"
-                  aria-label={
-                    hasMinimizedTerminals
-                      ? "Restore hyper terminal"
-                      : "Open hyper terminal"
-                  }
-                  onClick={handleOpenHyperTerminal}
-                >
-                  <SquareTerminal size={18} />
-                  {hasMinimizedTerminals && (
-                    <span className="absolute top-1 right-0.5 w-2 h-2 rounded-full bg-[#FFBD2E]" />
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {hasMinimizedTerminals
-                  ? "Restore hyper terminal"
-                  : "Open hyper terminal"}
-              </TooltipContent>
-            </Tooltip>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="w-4 h-8 inline-flex items-center justify-center transition-colors duration-150 hover:bg-foreground/10"
-                  aria-label="More quick terminal options"
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" focusPaneOnSelect>
-                <DropdownMenuItem onClick={handleNewHyperTerminal}>
-                  <Zap size={16} className="mr-3" />
-                  Hyper Terminal
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleOpenQuickTerminal}>
-                  <Terminal size={16} className="mr-3" />
-                  Quick Terminal (Local)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {/*<DropdownMenuItem onClick={handleOpenQuickFileExplorer}>
-                  <FolderTree size={16} className="mr-3" />
-                  File Explorer
-                </DropdownMenuItem>*/}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <SplitButton
+            label={
+              hasMinimizedTerminals
+                ? "Restore hyper terminal"
+                : "Open hyper terminal"
+            }
+            icon={
+              <>
+                <SquareTerminal size={18} />
+                {hasMinimizedTerminals && (
+                  <span className="absolute top-1 right-0.5 w-2 h-2 rounded-full bg-[#FFBD2E]" />
+                )}
+              </>
+            }
+            onClick={handleOpenHyperTerminal}
+            menuLabel="More quick terminal options"
+          >
+            <DropdownMenuItem onClick={handleNewHyperTerminal}>
+              <Zap size={16} className="mr-3" />
+              Hyper Terminal
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleOpenQuickTerminal}>
+              <Terminal size={16} className="mr-3" />
+              Quick Terminal (Local)
+            </DropdownMenuItem>
+          </SplitButton>
 
           <Separator
             orientation="vertical"

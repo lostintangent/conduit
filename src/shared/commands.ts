@@ -18,6 +18,9 @@ export const ApplicationCommands = {
 
   // Tab commands
   TAB_NEW: "tab.new",
+  TAB_NEW_WITH_BROWSER: "tab.newWithBrowser",
+  TAB_NEW_WITH_EDITOR: "tab.newWithEditor",
+  TAB_NEW_WITH_CANVAS: "tab.newWithCanvas",
   TAB_CLOSE: "tab.close",
   TAB_DUPLICATE: "tab.duplicate",
   TAB_DUPLICATE_WITH_CWD: "tab.duplicateWithCwd",

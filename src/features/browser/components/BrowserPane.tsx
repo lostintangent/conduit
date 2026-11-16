@@ -386,8 +386,9 @@ export function BrowserPane({
   const isPageFocusPendingRef = useRef(false);
 
   // Focus goes to a page the user just opened, back to the page if it had
-  // focus last, see handleWebViewFocus, and to the pane otherwise. The
-  // webview lives on document.body, outside this pane's DOM.
+  // focus last, see handleWebViewFocus, to a blank page's address bar, and to
+  // the pane otherwise. The webview lives on document.body, outside this
+  // pane's DOM.
   const focusedOutside = useFocusWhenActive(isActive, paneRef, () => {
     const webview = webviewRef.current;
     if (document.activeElement === webview) return;
@@ -401,6 +402,12 @@ export function BrowserPane({
       }
       webview.focus();
       return webview;
+    }
+    // A blank page has nothing to take the keys, so its address bar does,
+    // like after a menu that opened it held focus as its toolbar first showed
+    const address = goingTo ?? currentUrl;
+    if (!address || address === "about:blank") {
+      toolbarRef.current?.focusAddressBar();
     }
   });
 
