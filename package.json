@@ -12,6 +12,7 @@
     "release": ": ${CONDUIT_APPLE_ID_PASSWORD:?is required to sign and notarize} && electron-forge release",
     "test": "bun test --parallel",
     "e2e": "bun --cwd=e2e test --timeout=60000",
+    "profile": "bun e2e/profile.ts",
     "prepare": "git config core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
