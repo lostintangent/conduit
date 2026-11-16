@@ -25,6 +25,7 @@ import {
   activatePane,
   closePane,
   setPaneCollapsed,
+  setPaneMuted,
 } from "@features/workbench/client/actions/pane";
 import { hasNeighborPane } from "@features/workbench/client/actions/paneNavigation";
 import { focusTab } from "@features/workbench/client/actions/tab";
@@ -429,6 +430,7 @@ export function TabLayout({
             splitDirection={placement.direction}
             isLastChild={placement.isLastChild}
             onExpand={() => setPaneCollapsed(tab.id, pane.id, false)}
+            onMute={(muted) => setPaneMuted(tab.id, pane.id, muted)}
           />
         </div>
       );

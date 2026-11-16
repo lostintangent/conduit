@@ -18,6 +18,7 @@ import {
   newCanvasPane,
   newEditorPane,
   removePane,
+  setPaneMuted,
   updateTerminalSessionProperty,
 } from "@features/workbench/client/actions/pane";
 import {
@@ -364,6 +365,16 @@ export function lockTab(tabId: string) {
 
 export function unlockTab(tabId: string) {
   updateTabProperty(tabId, { locked: false });
+}
+
+/** Mutes or unmutes every page in the tab, which DevTools panes aren't */
+export function setTabMuted(tabId: string, muted: boolean) {
+  const tab = tabsAtom.get().find(({ id }) => id === tabId);
+  for (const pane of Object.values(tab?.panes ?? {})) {
+    if (pane.type === "browser" && !pane.devToolsFor) {
+      setPaneMuted(tabId, pane.id, muted);
+    }
+  }
 }
 
 type CloseTabOptions = {

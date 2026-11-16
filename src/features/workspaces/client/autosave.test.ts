@@ -1,4 +1,4 @@
-import type { PaneIcon, Tab } from "@features/workbench/model";
+import type { BrowserPane, Tab } from "@features/workbench/model";
 import type { WorkspaceState } from "../model";
 import { waitFor } from "@testing-library/react";
 import {
@@ -40,7 +40,7 @@ function tab(id: string, title = "zsh"): Tab {
   };
 }
 
-function page(icon?: PaneIcon): Tab {
+function page(fields: Partial<BrowserPane> = {}): Tab {
   return {
     id: "page",
     panes: {
@@ -48,7 +48,7 @@ function page(icon?: PaneIcon): Tab {
         id: "page-pane",
         type: "browser",
         url: "https://a.com/",
-        ...(icon && { icon }),
+        ...fields,
       },
     },
     layout: { id: "page-node", type: "pane", paneId: "page-pane" },
@@ -195,10 +195,25 @@ describe("autosave", () => {
     saveWorkspace.mockClear();
 
     vi.useFakeTimers();
-    tabsAtom.set([page("loading")]);
+    tabsAtom.set([page({ icon: "loading" })]);
     vi.advanceTimersByTime(AUTOSAVE_DELAY_MS);
     tabsAtom.set([page()]);
     vi.useRealTimers();
+
+    // The save it's asked for is the only one
+    await flush();
+    expect(saveWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't save when a page plays sound or is muted", async () => {
+    tabsAtom.set([page()]);
+    await flush();
+    saveWorkspace.mockClear();
+
+    vi.useFakeTimers();
+    tabsAtom.set([page({ audible: true })]);
+    tabsAtom.set([page({ audible: true, muted: true })]);
+    waitOutDelay();
 
     // The save it's asked for is the only one
     await flush();

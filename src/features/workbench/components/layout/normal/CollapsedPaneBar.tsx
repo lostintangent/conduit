@@ -1,6 +1,7 @@
 import { useSettings } from "@features/settings/client/queries";
 import { describePane } from "@features/workbench/client/tabLabels";
 import { LabelIcon } from "@features/workbench/components/tabs/LabelIcon";
+import { SoundButton } from "@features/workbench/components/tabs/SoundButton";
 import { PaneTooltip } from "@features/workbench/components/tabs/TabButton";
 import type { Pane, SplitDirection } from "@features/workbench/model";
 import { cn } from "@/utils";
@@ -8,21 +9,24 @@ import { UnfoldHorizontal, UnfoldVertical } from "lucide-react";
 
 /**
  * A collapsed pane, shown as a bar across its split with the label its tab
- * would show. Clicking it expands the pane.
+ * would show. Clicking it expands the pane, and clicking its speaker, while
+ * its page makes sound, mutes or unmutes the page.
  */
 export function CollapsedPaneBar({
   pane,
   splitDirection,
   isLastChild,
   onExpand,
+  onMute,
 }: {
   pane: Pane;
   splitDirection: SplitDirection;
   isLastChild: boolean;
   onExpand: () => void;
+  onMute: (muted: boolean) => void;
 }) {
   const homeDirectory = useSettings((settings) => settings.homeDirectory);
-  const { label, tooltip, icon } = describePane(pane, homeDirectory);
+  const { label, tooltip, icon, sound } = describePane(pane, homeDirectory);
 
   // Bars between columns are too narrow for a line of text, so theirs runs down
   const isVertical = splitDirection === "row";
@@ -60,6 +64,7 @@ export function CollapsedPaneBar({
         >
           {label}
         </span>
+        {sound && <SoundButton sound={sound} onMute={onMute} />}
       </button>
     </PaneTooltip>
   );

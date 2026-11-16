@@ -66,7 +66,20 @@ export type BrowserPane = Omit<
   icon?: PaneIcon;
   /** The page's web contents, once it attaches, which main saves its history from */
   webContentsId?: number;
+  /**
+   * Whether the page has made sound in the last two seconds, even muted, which
+   * only lasts while the app runs
+   */
+  audible?: boolean;
+  /** Whether the user muted the page, which only lasts while the app runs */
+  muted?: boolean;
 };
+
+/**
+ * What a label shows of the sound its pages make: that they're playing it, or
+ * that the user muted them, which shows until they unmute
+ */
+export type PaneSound = "playing" | "muted";
 
 export type EditorPane = Omit<SharedEditorPane, "cwd"> &
   AgentPaneMetadata & {

@@ -87,6 +87,9 @@ export default function BrowserLayoutPane({
                 }
               }
         }
+        onAudibleChange={(audible) =>
+          updatePaneProperty(tab.id, pane.id, { audible })
+        }
         onAttach={(webContentsId) => {
           if (webContentsId !== pane.webContentsId) {
             updatePaneProperty(tab.id, pane.id, { webContentsId });

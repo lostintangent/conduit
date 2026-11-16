@@ -10,6 +10,7 @@ import { applicationModeAtom } from "@features/workbench/client/atoms";
 import { useSettings } from "@features/settings/client/queries";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import { LabelIcon } from "@features/workbench/components/tabs/LabelIcon";
+import { SoundIcon } from "@features/workbench/components/tabs/SoundButton";
 import { useSelector } from "@tanstack/react-store";
 import { Lock, Minimize2, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -58,6 +59,16 @@ export function TabsOverview() {
                   <AnimatedShinyText>{tab.label}</AnimatedShinyText>
                 ) : (
                   tab.label
+                )}
+                {tab.sound && (
+                  <span
+                    role="img"
+                    aria-label={tab.sound === "muted" ? "Muted" : "Playing"}
+                    data-sound={tab.sound}
+                    className="flex flex-none opacity-60"
+                  >
+                    <SoundIcon sound={tab.sound} />
+                  </span>
                 )}
               </button>
               {tab.locked ? (

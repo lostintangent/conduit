@@ -82,6 +82,8 @@ export type PageReports = {
    * none. Without it, none loads.
    */
   onIconChange?: (icon: PaneIcon | undefined) => void;
+  /** Reports that the page started or stopped making sound, muted or not */
+  onAudibleChange?: (audible: boolean) => void;
 };
 
 /** The pane each page reports to, which is the one that showed it last */
@@ -106,6 +108,7 @@ export function reportPage(
   const isReporting = pageReports.has(webview);
   pageReports.set(webview, reports);
   if (isReporting) return;
+  reportSound();
 
   const report = () => pageReports.get(webview)?.current;
   const icon = followIcon(webview, iconUrl, report);
@@ -133,6 +136,41 @@ export function reportPage(
     icon.load(favicons),
   );
   webview.addEventListener("did-stop-loading", () => icon.showUnreported());
+}
+
+let soundSubscription: (() => void) | undefined;
+
+/**
+ * Has every page report when it starts or stops making sound, which only main
+ * hears of, by its web contents. One listener serves them all, and finds each
+ * page among the webviews, so a closed pane's page leaves nothing behind.
+ */
+function reportSound() {
+  soundSubscription ??= window.conduit.browser.on(
+    "audibleChanged",
+    ({ webContentsId, audible }) => {
+      for (const webview of document.querySelectorAll<WebviewTag>("webview")) {
+        if (getWebContentsId(webview) === webContentsId) {
+          pageReports.get(webview)?.current.onAudibleChange?.(audible);
+        }
+      }
+    },
+  );
+}
+
+/**
+ * Mutes or unmutes the pane's page, which stays that way from page to page.
+ * Says whether it could, which it can't until the page has attached.
+ */
+export function mutePage(paneId: string, muted: boolean): boolean {
+  const webview = getWebview(paneId);
+  if (!webview) return false;
+  try {
+    webview.setAudioMuted(muted);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -84,4 +84,36 @@ describe("tabLabelsAtom", () => {
 
     expect(tabLabelsAtom.get()[0].icon).toBeUndefined();
   });
+
+  it("plays while any of its pages plays unmuted, or else shows that they're muted", () => {
+    const page = (id: string, sound: { audible?: boolean; muted?: boolean }) =>
+      ({ id, type: "browser", url: "", ...sound }) as const;
+    // Its terminal shows, so its pages' sound shows from behind it
+    const tab = (...pages: ReturnType<typeof page>[]) => ({
+      id: "tab-1",
+      panes: {
+        term: terminal(),
+        ...Object.fromEntries(pages.map((pane) => [pane.id, pane])),
+      },
+      layout: { id: "node-term", type: "pane" as const, paneId: "term" },
+      activePaneId: "term",
+    });
+    const soundOf = (...pages: ReturnType<typeof page>[]) => {
+      tabsAtom.set([tab(...pages)]);
+      return tabLabelsAtom.get()[0].sound;
+    };
+    activeTabIdAtom.set("tab-1");
+
+    expect(soundOf(page("a", {}))).toBeUndefined();
+    expect(soundOf(page("a", { audible: true }))).toBe("playing");
+    expect(
+      soundOf(
+        page("a", { audible: true, muted: true }),
+        page("b", { audible: true }),
+      ),
+    ).toBe("playing");
+    expect(soundOf(page("a", { audible: true, muted: true }))).toBe("muted");
+    // Muted stays after the page goes quiet, until the user unmutes it
+    expect(soundOf(page("a", { muted: true }), page("b", {}))).toBe("muted");
+  });
 });

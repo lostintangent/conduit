@@ -115,6 +115,8 @@ function withoutRuntimeFields(pane: Pane) {
     const {
       title: _title,
       webContentsId: _webContentsId,
+      audible: _audible,
+      muted: _muted,
       icon,
       ...saved
     } = pane;

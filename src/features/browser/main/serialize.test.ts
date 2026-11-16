@@ -101,6 +101,12 @@ describe("serializeBrowserPane", () => {
     ).not.toHaveProperty("icon");
   });
 
+  it("doesn't save the page's sound, which only lasts while the app runs", () => {
+    expect(
+      serializeBrowserPane({ ...pane(), audible: true, muted: true }),
+    ).toEqual(serializeBrowserPane(pane()));
+  });
+
   it("saves only which page a DevTools pane inspects", () => {
     pages.set(7, { entries: [entry("devtools://devtools/")], active: 0 });
 

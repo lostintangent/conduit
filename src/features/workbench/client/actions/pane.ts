@@ -1,4 +1,4 @@
-import { focusPageOnOpen } from "@features/browser/client/webview";
+import { focusPageOnOpen, mutePage } from "@features/browser/client/webview";
 import { deleteCanvasState } from "@features/canvas/client/canvasStore";
 import { disposeEditorPane } from "@features/editor/components/EditorPaneAnchor";
 import { disposeSession } from "@features/terminal/client/xtermCache";
@@ -10,6 +10,7 @@ import { enqueueNotification } from "@features/workbench/client/actions/notifica
 import { closeTab } from "@features/workbench/client/actions/tab";
 import { activeTabIdAtom, tabsAtom } from "@features/workbench/client/atoms";
 import type {
+  BrowserPane,
   LayoutNode,
   LayoutPaneNode,
   LayoutSplitNode,
@@ -266,6 +267,16 @@ export function updatePaneProperty<T extends Pane>(
       Object.assign(pane, updates);
     }),
   );
+}
+
+/**
+ * Mutes or unmutes the pane's page, once it has one, and has the pane say so
+ * until the app quits.
+ */
+export function setPaneMuted(tabId: string, paneId: string, muted: boolean) {
+  if (mutePage(paneId, muted)) {
+    updatePaneProperty<BrowserPane>(tabId, paneId, { muted });
+  }
 }
 
 export function updateTerminalSessionProperty(

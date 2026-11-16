@@ -6,7 +6,7 @@ import {
   type TabProgressState,
   type TabState,
 } from "@features/workbench/client/atoms";
-import type { Pane, PaneIcon, Tab } from "@features/workbench/model";
+import type { Pane, PaneIcon, PaneSound, Tab } from "@features/workbench/model";
 import { isShellName } from "@features/terminal/model";
 import { formatHomePath } from "@/utils/pathUtils";
 import { createAtom } from "@/createAtom";
@@ -17,6 +17,7 @@ export type PaneLabel = {
   label: string;
   tooltip: Record<string, string>;
   icon?: PaneIcon;
+  sound?: PaneSound;
 };
 
 /**
@@ -61,6 +62,7 @@ export function describePane(pane: Pane, homeDirectory: string): PaneLabel {
         label: title ?? pane.url ?? "Browser",
         tooltip,
         icon: pane.icon,
+        sound: paneSound(pane),
       };
     }
 
@@ -92,6 +94,7 @@ export type TabDescriptor = {
   name?: string;
   // A name is the user's own label, which shows without its pane's icon
   icon?: PaneIcon;
+  sound?: PaneSound;
   isActive: boolean;
   locked?: boolean;
   tabState: TabState;
@@ -107,6 +110,23 @@ function resolveActivePane(tab: Tab): Pane | undefined {
 
   const firstPane = Object.values(tab.panes)[0];
   return firstPane;
+}
+
+/** The sound a pane's page makes, which a muted page shows until it's unmuted */
+function paneSound(pane: Pane): PaneSound | undefined {
+  if (pane.type !== "browser") return;
+  if (pane.muted) return "muted";
+  if (pane.audible) return "playing";
+}
+
+/**
+ * The sound a tab's pages make, whichever pane shows: playing while any page
+ * that isn't muted plays, or else muted while the user has muted any.
+ */
+function tabSound(tab: Tab): PaneSound | undefined {
+  const sounds = Object.values(tab.panes).map(paneSound);
+  if (sounds.includes("playing")) return "playing";
+  if (sounds.includes("muted")) return "muted";
 }
 
 function isSameDescriptor(
@@ -139,6 +159,7 @@ export const tabLabelsAtom = createAtom((previous?: TabDescriptor[]) => {
       label: name || paneLabel?.label,
       name,
       icon: name ? undefined : paneLabel?.icon,
+      sound: tabSound(tab),
       tooltip: paneLabel?.tooltip ?? {},
       isActive,
       locked: tab.locked,

@@ -76,6 +76,8 @@ type BrowserPaneProps = {
    * none. Without it, none loads.
    */
   onIconChange?: (icon: PaneIcon | undefined) => void;
+  /** Reports that the page started or stopped making sound, muted or not */
+  onAudibleChange?: (audible: boolean) => void;
   /** Reports the page's web contents, which main saves its history from. */
   onAttach?: (webContentsId: number) => void;
   /** Opens a link the page meant for a new tab. Without it, the page loads it. */
@@ -110,6 +112,7 @@ export function BrowserPane({
   onTitleChange,
   onUrlChange,
   onIconChange,
+  onAudibleChange,
   onAttach,
   onOpenPage,
   onContextMenu,
@@ -138,8 +141,14 @@ export function BrowserPane({
     onUrlChange,
     onTitleChange,
     onIconChange,
+    onAudibleChange,
   });
-  pageReports.current = { onUrlChange, onTitleChange, onIconChange };
+  pageReports.current = {
+    onUrlChange,
+    onTitleChange,
+    onIconChange,
+    onAudibleChange,
+  };
   const showContextMenu = useEffectEvent(onContextMenu);
   const reportAttach = useEffectEvent((webContentsId: number) => {
     onAttach?.(webContentsId);

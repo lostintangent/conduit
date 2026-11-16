@@ -6,10 +6,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import {
   closeTab,
   focusTab,
+  setTabMuted,
   updateTabProperty,
 } from "@features/workbench/client/actions/tab";
 import { useSettings } from "@features/settings/client/queries";
 import { LabelIcon } from "./LabelIcon";
+import { SoundButton } from "./SoundButton";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import { useSelector } from "@tanstack/react-store";
 import { cn } from "@/utils";
@@ -206,6 +208,14 @@ export function TabButton({
           <span className="overflow-hidden text-ellipsis whitespace-nowrap">
             {tab.label}
           </span>
+        )}
+        {tab.sound && !isEditing && (
+          <SoundButton
+            sound={tab.sound}
+            onMute={(muted) => {
+              if (!disableClick) setTabMuted(tab.id, muted);
+            }}
+          />
         )}
       </span>
 

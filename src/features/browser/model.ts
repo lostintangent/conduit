@@ -487,6 +487,11 @@ declare module "@shared/rpc" {
         /** Whether the page stays focused, as after a Cmd-click */
         background: boolean;
       };
+      /**
+       * A page started making sound, or has stopped for two seconds. A muted
+       * page that plays still counts as making it.
+       */
+      audibleChanged: { webContentsId: number; audible: boolean };
       /** A download started, made progress or finished. */
       downloadUpdated: Download;
       /** The user visited a page, or a visited page got its title. */

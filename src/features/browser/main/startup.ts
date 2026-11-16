@@ -44,6 +44,11 @@ const POPUP_SIZE = { width: 500, height: 640 };
 // user out of a site they just signed into. Conduit saves them sooner.
 const COOKIE_SAVE_DELAY_MS = 1000;
 
+// A page counts as making sound until it's been quiet this long, as in
+// Chrome, so a pause between songs doesn't take its tab's speaker away and
+// bring it back
+const QUIET_MS = 2000;
+
 /**
  * Pages open links meant for a new tab in a pane next to theirs, and sized
  * popups, like "Sign in with…", in a window of their own.
@@ -215,6 +220,31 @@ function recordHistory(contents: WebContents) {
 }
 
 /**
+ * Tells Conduit's window when a page starts making sound, and when it's been
+ * quiet for a while, which its webview doesn't report.
+ */
+function reportSound(contents: WebContents) {
+  const webContentsId = contents.id;
+  let quieting: NodeJS.Timeout | undefined;
+  contents.on("audio-state-changed", ({ audible }) => {
+    if (!audible) {
+      clearTimeout(quieting);
+      quieting = setTimeout(() => {
+        quieting = undefined;
+        emit("audibleChanged", { webContentsId, audible: false });
+      }, QUIET_MS);
+    } else if (quieting) {
+      // Sound that comes back while the page is quieting was never reported gone
+      clearTimeout(quieting);
+      quieting = undefined;
+    } else {
+      emit("audibleChanged", { webContentsId, audible: true });
+    }
+  });
+  contents.once("destroyed", () => clearTimeout(quieting));
+}
+
+/**
  * Where to save a file with this name in the folder, numbering it like
  * "report 2.csv" when the name is taken.
  */
@@ -251,7 +281,10 @@ export default async function startBrowserSession() {
   // from here on is a page or one of its popups
   app.on("web-contents-created", (_event, contents) => {
     handleWindowOpen(contents);
-    if (contents.getType() === "webview") recordHistory(contents);
+    if (contents.getType() === "webview") {
+      recordHistory(contents);
+      reportSound(contents);
+    }
   });
 
   await moveFromSettings(library, settings).catch((error) =>
