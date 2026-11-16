@@ -693,6 +693,9 @@ describe("browser automation from the CLI", () => {
         .first()
         .click();
       await app.page.getByRole("menuitem", { name: item }).click();
+      // The menu gives its button focus back as it finishes closing, which
+      // would take the keys from whatever the next test clicks
+      await app.page.getByRole("menu").waitFor({ state: "detached" });
     };
     // The dev tools' page is the newest webview. Its Elements panel draws the
     // page's tree in shadow roots, so this gathers every text node.
