@@ -46,6 +46,20 @@ const tab = (id: string, pane: object) => ({
   layout: { id: `${id}-layout`, type: "pane", paneId: `${id}-pane` },
 });
 
+/** Whether a tab shows, and where its page is, in a frame the window drew */
+interface Drawn {
+  tabShows: boolean;
+  box: number[];
+  parked: boolean;
+  scaled: boolean;
+}
+
+declare global {
+  interface Window {
+    drawnAfterInput?: Promise<{ first: Drawn; settled: Drawn }>;
+  }
+}
+
 describe("a page reopened at launch", () => {
   let app: Conduit;
 
@@ -271,9 +285,9 @@ describe("a page in a tab that's previewed", () => {
 
   afterAll(() => app?.close());
 
-  for (const [name, paneId, nodeId] of [
-    ["Page", "Page-pane", "Page-layout"],
-    ["Split", "Split-pane", "Split-pane-node"],
+  for (const [name, paneId, nodeId, digit] of [
+    ["Page", "Page-pane", "Page-layout", "2"],
+    ["Split", "Split-pane", "Split-pane-node", "3"],
   ]) {
     const tabButton = () =>
       app.page.getByRole("tab", { name: new RegExp(`^${name}`) });
@@ -297,6 +311,65 @@ describe("a page in a tab that's previewed", () => {
       await until(async () => (await size()).parked, "the page to be put away");
       await tabButton().hover();
       await until(async () => (await size()).scaled, "the tab's preview");
+    };
+
+    /**
+     * Arms the window to note whether the tab shows and where its page is, in
+     * the first frame drawn after the next `event`, and 10 frames later. It
+     * looks as late in the frame as it can, after the app's own resize
+     * observers have run. Returns a function that waits for the notes.
+     */
+    const drawnAfter = async (event: "click" | "keydown", key?: string) => {
+      await app.page.evaluate(
+        ({ event, key, paneId, nodeId }) => {
+          const webview = document.getElementById(paneId)!;
+          const note = (): Drawn => {
+            const { x, y, width, height } = webview.getBoundingClientRect();
+            return {
+              tabShows: [
+                ...document.querySelectorAll(`[data-node-id="${nodeId}"]`),
+              ].some(
+                (node) =>
+                  node.getBoundingClientRect().width > 0 &&
+                  !node.closest("[data-tab-preview]"),
+              ),
+              box: [x, y, width, height].map(Math.round),
+              parked: webview.style.left === "-10000px",
+              scaled: webview.style.transform !== "",
+            };
+          };
+          const nextFrame = () =>
+            new Promise<Drawn>((resolve) =>
+              requestAnimationFrame(() => {
+                // A new observer's first callback comes after layout, and
+                // after every older observer's
+                const probe = document.createElement("div");
+                probe.style.cssText =
+                  "position: fixed; width: 1px; height: 1px";
+                document.body.append(probe);
+                const observer = new ResizeObserver(() => {
+                  observer.disconnect();
+                  probe.remove();
+                  resolve(note());
+                });
+                observer.observe(probe);
+              }),
+            );
+          window.drawnAfterInput = new Promise((resolve) => {
+            const onInput = async (input: Event) => {
+              if (key && (input as KeyboardEvent).key !== key) return;
+              removeEventListener(event, onInput, true);
+              const first = await nextFrame();
+              let settled = first;
+              for (let i = 0; i < 10; i++) settled = await nextFrame();
+              resolve({ first, settled });
+            };
+            addEventListener(event, onInput, true);
+          });
+        },
+        { event, key, paneId, nodeId },
+      );
+      return () => app.page.evaluate(() => window.drawnAfterInput!);
     };
 
     // Laying a page out again for a different size takes long enough on a
@@ -393,6 +466,40 @@ describe("a page in a tab that's previewed", () => {
         outsideBottom: false,
         corner: false,
       });
+    });
+
+    // What a hand does: the pointer on its way to the tab shows its preview
+    it(`shows the ${name} tab's page in the frame it shows the tab, from its preview`, async () => {
+      await tabButton().click();
+      await until(async () => !(await size()).parked, "the page to show");
+      await preview();
+      const frames = await drawnAfter("click");
+      await tabButton().click();
+
+      const { first, settled } = await frames();
+      expect(settled).toMatchObject({
+        tabShows: true,
+        parked: false,
+        scaled: false,
+      });
+      expect(first).toEqual(settled);
+    });
+
+    it(`shows the ${name} tab's page in the frame it shows the tab, from Command-${digit}`, async () => {
+      await tabButton().click();
+      await until(async () => !(await size()).parked, "the page to show");
+      await app.page.getByRole("tab", { name: /^Shell/ }).click();
+      await until(async () => (await size()).parked, "the page to be put away");
+      const frames = await drawnAfter("keydown", digit);
+      await app.page.keyboard.press(`Meta+${digit}`);
+
+      const { first, settled } = await frames();
+      expect(settled).toMatchObject({
+        tabShows: true,
+        parked: false,
+        scaled: false,
+      });
+      expect(first).toEqual(settled);
     });
   }
 });
