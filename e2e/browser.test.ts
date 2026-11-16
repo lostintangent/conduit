@@ -360,7 +360,8 @@ describe("browser automation from the CLI", () => {
   // A background tab parks its pages off screen rather than closing them, and
   // Chromium hides and throttles a page only once none of it is on screen.
   // Playwright's focus emulation keeps every page visible to Chromium, so this
-  // checks the parking rather than the page's visibilityState.
+  // checks the parking, and browser-restore.test.ts checks that a parked page
+  // is hidden in a launch without it.
   it("moves a background tab's pages fully off screen, and brings the same pages back", async () => {
     const pagesOnScreen = () =>
       app.page.locator("webview").evaluateAll((webviews) =>

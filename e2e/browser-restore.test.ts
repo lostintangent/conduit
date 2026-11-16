@@ -41,6 +41,15 @@ function inWebview<T>(app: Conduit, selector: string, script: string) {
     ) as Promise<T>;
 }
 
+/** A saved tab with a single pane, which the tab is named after. */
+const tab = (id: string, pane: object) => ({
+  id,
+  name: id,
+  activePaneId: `${id}-pane`,
+  panes: [{ id: `${id}-pane`, ...pane }],
+  layout: { id: `${id}-layout`, type: "pane", paneId: `${id}-pane` },
+});
+
 describe("a page reopened at launch", () => {
   let app: Conduit;
 
@@ -94,13 +103,6 @@ describe("a page in a tab behind the one that opens", () => {
   let app: Conduit;
 
   beforeAll(async () => {
-    const tab = (id: string, pane: object) => ({
-      id,
-      name: id,
-      activePaneId: `${id}-pane`,
-      panes: [{ id: `${id}-pane`, ...pane }],
-      layout: { id: `${id}-layout`, type: "pane", paneId: `${id}-pane` },
-    });
     const state = {
       workspaces: [],
       untitled: {
@@ -151,6 +153,54 @@ describe("a page in a tab behind the one that opens", () => {
     expect(
       await toolbar.getByPlaceholder("Search or enter address").inputValue(),
     ).toBe(`${origin}/first`);
+  });
+});
+
+describe("a page whose tab goes to the background", () => {
+  let app: Conduit;
+
+  beforeAll(async () => {
+    const state = {
+      workspaces: [],
+      untitled: {
+        lastModified: 0,
+        activeTabId: "Page",
+        tabs: [
+          tab("Page", { type: "browser", url: `${origin}/first` }),
+          tab("Shell", { type: "terminal", cwd: null }),
+        ],
+      },
+    };
+    // Playwright's focus emulation keeps every page visible to Chromium
+    app = await launch({
+      name: "hidden-page",
+      noDefaults: true,
+      files: { ".conduit/workspaces.json": JSON.stringify(state) },
+    });
+  });
+
+  afterAll(() => app?.close());
+
+  // A covered window hides all of its pages and stops drawing, so this can't
+  // expect the page to be visible while its tab shows, and clicks without
+  // waiting for a frame
+  it("is hidden from Chromium, so it stops drawing", async () => {
+    const inPage = <T>(script: string) =>
+      inWebview<T>(app, "webview#Page-pane", script);
+    await until(() => inPage("document.title === 'First'"), "the page");
+
+    await app.page.getByRole("tab", { name: /^Shell/ }).dispatchEvent("click");
+    await until(
+      () => inPage("document.visibilityState === 'hidden'"),
+      "the page to be hidden",
+    );
+    const framesInHalfASecond = `new Promise((resolve) => {
+      let frames = 0;
+      const count = () => { frames++; requestAnimationFrame(count); };
+      requestAnimationFrame(count);
+      setTimeout(() => resolve(frames), 500);
+    })`;
+    expect(await inPage(framesInHalfASecond)).toBe(0);
   });
 });
 

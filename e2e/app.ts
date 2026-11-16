@@ -47,6 +47,13 @@ export interface LaunchOptions {
   settings?: Record<string, unknown>;
   /** The home of a launch that crashed or quit, to start the app in again. */
   home?: string;
+  /**
+   * Connects without Playwright's focus emulation, which tells the window it
+   * has focus and keeps every page visible to Chromium, browser panes' too,
+   * even parked off screen. Without it, a covered window hides its pages and
+   * stops their animation frames, which Playwright's clicks wait for.
+   */
+  noDefaults?: boolean;
 }
 
 type Truthy<T> = Exclude<T, false | 0 | "" | null | undefined>;
@@ -421,7 +428,9 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
     );
     const connect = async () => {
       await browser?.close().catch(() => {});
-      browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+      browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, {
+        noDefaults: options.noDefaults,
+      });
       const found = browser
         .contexts()
         .flatMap((context) => context.pages())
