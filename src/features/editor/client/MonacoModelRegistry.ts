@@ -296,7 +296,8 @@ export class MonacoModelRegistry {
    * Add a reference to a model from an editor.
    *
    * Call this when an editor starts using a model.
-   * Cancels any pending disposal timer.
+   * Cancels any pending disposal timer, and checks a model loaded before
+   * this editor opened it for changes on disk.
    *
    * @param uri - The model URI (use pathToUri to convert)
    * @param editorId - The editor using this model
@@ -308,6 +309,15 @@ export class MonacoModelRegistry {
         `[MonacoModelRegistry] addReference: Model not found for URI ${uri}`,
       );
       return;
+    }
+
+    // An editor opening a model loaded before it checks it against disk, since
+    // watcher-ignored files (like .git/COMMIT_EDITMSG) change silently
+    if (
+      !entry.references.has(editorId) &&
+      (entry.references.size > 0 || entry.disposeTimer)
+    ) {
+      this.checkAndReloadIfStale(uri, entry);
     }
 
     // Cancel any pending disposal

@@ -284,6 +284,68 @@ describe("MonacoModelRegistry", () => {
   });
 
   // ===========================================================================
+  // Freshness When an Editor Opens a Loaded Model
+  // ===========================================================================
+
+  // The watcher ignores .git, so a second `git commit` rewrites
+  // COMMIT_EDITMSG without telling the registry
+  describe("freshness on open", () => {
+    const filePath = "/repo/.git/COMMIT_EDITMSG";
+    const uri = pathToUri(filePath);
+
+    it("reloads a model reopened during its grace period", async () => {
+      const registry = MonacoModelRegistry.getInstance();
+      files.readTextFile.mockResolvedValue("old message");
+      const model = await registry.getOrCreateModel(filePath, "/repo");
+      registry.addReference(uri, "editor-1");
+      registry.removeReference(uri, "editor-1");
+
+      files.readTextFile.mockResolvedValue("fresh template");
+      registry.addReference(uri, "editor-2");
+
+      await vi.waitFor(() => expect(model.getValue()).toBe("fresh template"));
+      expect(registry.getModelState(uri)?.isDirty).toBe(false);
+    });
+
+    it("reloads a model another editor still holds", async () => {
+      const registry = MonacoModelRegistry.getInstance();
+      files.readTextFile.mockResolvedValue("old message");
+      const model = await registry.getOrCreateModel(filePath, "/repo");
+      registry.addReference(uri, "editor-1");
+
+      files.readTextFile.mockResolvedValue("fresh template");
+      registry.addReference(uri, "editor-2");
+
+      await vi.waitFor(() => expect(model.getValue()).toBe("fresh template"));
+    });
+
+    it("doesn't check a model its first editor just loaded, or one it already holds", async () => {
+      const registry = MonacoModelRegistry.getInstance();
+      await registry.getOrCreateModel(filePath, "/repo");
+      registry.addReference(uri, "editor-1");
+      registry.addReference(uri, "editor-1");
+
+      expect(files.stat).not.toHaveBeenCalled();
+    });
+
+    it("leaves unsaved edits alone when a second editor opens the model", async () => {
+      const registry = MonacoModelRegistry.getInstance();
+      files.readTextFile.mockResolvedValue("old message");
+      const model = await registry.getOrCreateModel(filePath, "/repo");
+      registry.addReference(uri, "editor-1");
+      model.setValue("unsaved edit");
+
+      files.readTextFile.mockResolvedValue("fresh template");
+      registry.addReference(uri, "editor-2");
+
+      // The check is skipped outright, so nothing reads the file to replace them
+      expect(files.stat).not.toHaveBeenCalled();
+      expect(model.getValue()).toBe("unsaved edit");
+      expect(registry.getModelState(uri)?.isDirty).toBe(true);
+    });
+  });
+
+  // ===========================================================================
   // Dirty Tracking (Version-Based)
   // ===========================================================================
 
