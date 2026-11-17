@@ -57,10 +57,9 @@ export function ViewAllButton({
         <Button
           variant="ghost"
           size="icon-sm"
-          onClick={(e) => {
-            e.stopPropagation(); // Don't trigger row expansion
-            onClick();
-          }}
+          // The row leaves a click on its buttons alone, and still needs to
+          // see it, so it can cancel its own tooltip
+          onClick={() => onClick()}
           disabled={disabled}
           className={cn(
             "h-6 w-6 flex-shrink-0",

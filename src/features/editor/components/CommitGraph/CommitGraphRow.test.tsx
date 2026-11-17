@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import { TooltipProvider } from "@/ui/tooltip";
 import { CommitGraphRow } from "@features/editor/components/CommitGraph/CommitGraphRow";
 import type {
@@ -228,6 +228,22 @@ describe("CommitGraphRow", () => {
 
       fireEvent.click(screen.getByTestId("view-all-button"));
       expect(onViewAll).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the commit's tooltip from opening over the list once it's clicked", () => {
+      renderWithProvider(
+        <CommitGraphRow
+          node={createNode()}
+          isExpanded={false}
+          config={GRAPH_CONFIG}
+          onViewAll={vi.fn()}
+        />,
+      );
+
+      fireEvent.pointerMove(screen.getByTestId("commit-summary-row"));
+      fireEvent.click(screen.getByTestId("view-all-button"));
+      act(() => vi.advanceTimersByTime(1_000));
+      expect(screen.queryByRole("tooltip")).toBeNull();
     });
 
     it("should not show view all button when onViewAll is not provided", () => {

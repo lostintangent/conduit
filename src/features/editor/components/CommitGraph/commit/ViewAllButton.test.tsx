@@ -34,21 +34,6 @@ describe("ViewAllButton", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("should stop event propagation on click", () => {
-    const onClick = vi.fn();
-    const parentClick = vi.fn();
-
-    renderWithProvider(
-      <div onClick={parentClick}>
-        <ViewAllButton onClick={onClick} />
-      </div>,
-    );
-
-    fireEvent.click(screen.getByTestId("view-all-button"));
-    expect(onClick).toHaveBeenCalledTimes(1);
-    expect(parentClick).not.toHaveBeenCalled();
-  });
-
   it("should have accessible aria-label", () => {
     const onClick = vi.fn();
     renderWithProvider(<ViewAllButton onClick={onClick} />);
