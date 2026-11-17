@@ -113,6 +113,24 @@ export function happens(
   );
 }
 
+/**
+ * Presses `keys`, like "Meta+w", and lets go once `done`, for keys that
+ * navigate or close a focused page, or give a page the keys as it navigates.
+ * Each takes away the frame with the keys, which never acknowledges a key let
+ * go as it goes, so a whole press would wait for that forever.
+ */
+export async function pressInPage(
+  page: Page,
+  keys: string,
+  done: () => Promise<boolean>,
+  what: string,
+): Promise<void> {
+  const held = keys.split("+");
+  for (const key of held) await page.keyboard.down(key);
+  await until(done, what);
+  for (const key of held.reverse()) await page.keyboard.up(key);
+}
+
 /** Runs the command with the title from the command palette. */
 export async function runCommand(page: Page, title: string): Promise<void> {
   await page.keyboard.press("Meta+Shift+p");

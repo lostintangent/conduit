@@ -10,6 +10,7 @@ import {
   happens,
   inWebview,
   launch,
+  pressInPage,
   runCommand,
   Terminal,
   until,
@@ -362,8 +363,9 @@ describe("a quick pane", () => {
     const address = front().getByPlaceholder("Search or enter address");
     for (const page of ["one", "two"]) {
       await address.fill(`${origin}/${page}`);
-      await address.press("Enter");
-      await until(
+      await pressInPage(
+        app.page,
+        "Enter",
         async () => (await pageUrl()) === `${origin}/${page}`,
         `page ${page} to load`,
       );
@@ -388,8 +390,9 @@ describe("a quick pane", () => {
     await quickPaneCount(1);
     const address = front().getByPlaceholder("Search or enter address");
     await address.fill(`${origin}/one`);
-    await address.press("Enter");
-    await until(
+    await pressInPage(
+      app.page,
+      "Enter",
       async () => (await pageUrl()) === `${origin}/one`,
       "page one to load",
     );
@@ -428,8 +431,13 @@ describe("a quick pane", () => {
     await find.waitFor({ state: "detached" });
     expect(await quickPanes().count()).toBe(1);
 
-    await app.page.keyboard.press("Meta+w");
-    await quickPaneCount(0);
+    // Closing the bar gives the page back the keys
+    await pressInPage(
+      app.page,
+      "Meta+w",
+      async () => (await quickPanes().count()) === 0,
+      "the Quick Browser to close",
+    );
   });
 
   it("uses a menu in a Quick Canvas, and stays open", async () => {

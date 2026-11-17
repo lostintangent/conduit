@@ -17,6 +17,7 @@ import {
   happens,
   inWebview,
   launch,
+  pressInPage,
   runCommand,
   type Terminal,
   until,
@@ -131,24 +132,6 @@ describe("browser automation from the CLI", () => {
     return inWebview(app.page.locator("webview").nth(index), script);
   }
 
-  /**
-   * Presses Cmd and the key in a focused page, and lets go once `done`, for
-   * a key that navigates or closes the page. Either takes away the frame with
-   * the keys, which never acknowledges a key let go as it goes, so a whole
-   * press would wait for that forever.
-   */
-  async function pressInPage(
-    key: string,
-    done: () => Promise<boolean>,
-    what: string,
-  ) {
-    await app.page.keyboard.down("Meta");
-    await app.page.keyboard.down(key);
-    await until(done, what);
-    await app.page.keyboard.up(key);
-    await app.page.keyboard.up("Meta");
-  }
-
   /** Presses Cmd and the key, which navigate the nth page. */
   async function navigateWith(index: number, key: string) {
     const webview = app.page.locator("webview").nth(index);
@@ -161,7 +144,8 @@ describe("browser automation from the CLI", () => {
       webview.addEventListener("did-navigate", navigated);
     });
     await pressInPage(
-      key,
+      app.page,
+      `Meta+${key}`,
       () =>
         webview.evaluate(
           (webview: Electron.WebviewTag) =>
@@ -180,7 +164,8 @@ describe("browser automation from the CLI", () => {
         (webview as HTMLElement).dataset.closing = "";
       });
     await pressInPage(
-      "w",
+      app.page,
+      "Meta+w",
       async () =>
         (await app.page.locator("webview[data-closing]").count()) === 0,
       "the page to close",
@@ -530,8 +515,14 @@ describe("browser automation from the CLI", () => {
     await until(selectedAddress, "the address to be selected");
     requested.length = 0;
     await app.page.keyboard.type(`${url}typed`);
-    await app.page.keyboard.press("Enter");
-    await until(() => requested.includes("/typed"), "the page to load");
+    await pressInPage(
+      app.page,
+      "Enter",
+      async () =>
+        requested.includes("/typed") &&
+        (await inPage(0, "location.pathname")) === "/typed",
+      "the page to load",
+    );
     await until(
       async () => (await addressBars(`${url}typed`)) === 0,
       "it to hide",
@@ -572,19 +563,18 @@ describe("browser automation from the CLI", () => {
     }
 
     /**
-     * Types `address` in the nth page's focused address bar, and lets go of
-     * Enter once the page is there. Enter gives the page the keys, and the
-     * page it replaces never acknowledges the key let go, see `pressInPage`.
+     * Types `address` in the nth page's focused address bar, and goes there
+     * with Enter, which gives the page the keys.
      */
     async function goTo(index: number, address: string) {
       await app.page.keyboard.type(address);
-      await app.page.keyboard.down("Enter");
       const { pathname } = new URL(address.replace(/^(?!http)/, "http://"));
-      await until(
+      await pressInPage(
+        app.page,
+        "Enter",
         async () => (await inPage(index, "location.pathname")) === pathname,
         `${pathname} to load`,
       );
-      await app.page.keyboard.up("Enter");
       await pageFocused(index);
     }
 
