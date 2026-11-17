@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import type { Locator } from "playwright-core";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, aroundEach, beforeAll, describe, expect, it } from "vitest";
 import {
   type Conduit,
   git,
@@ -111,6 +111,17 @@ describe("a quick pane", () => {
       async () => (await quickPanes().count()) === count,
       `${count} quick panes`,
     );
+
+  // Only after a case fails, as the first few hand their quick terminal on.
+  // Left open, its panes would fail every case after it.
+  aroundEach(async (runTest, { task }) => {
+    await runTest();
+    if (task.result.state !== "fail") return;
+    for (let open = await quickPanes().count(); open > 0; open--) {
+      await control("Close").click();
+      await quickPaneCount(open - 1);
+    }
+  });
 
   async function openQuickTerminal(): Promise<Terminal> {
     const before = await quickPanes().count();
