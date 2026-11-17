@@ -4,6 +4,7 @@ import {
 } from "@/commands/hooks/useCommand";
 import { type MenuEntry, useMenu } from "@/commands/hooks/useMenu";
 import { MenuId } from "@/commands/menus/types";
+import { focusActivePane } from "@/hooks/useFocusWhenActive";
 import { Dialog, DialogContent, DialogTitle } from "@/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { closeTab } from "@features/workbench/client/actions/tab";
@@ -74,7 +75,12 @@ function keepFocus(event: React.MouseEvent) {
   if (focused instanceof HTMLElement && focused.localName === "webview") {
     focused.blur();
     focused.focus();
+    return;
   }
+  // Chromium also tells the window to take focus on another pipe than the
+  // press's, which can win, leaving nothing focused by the time the press
+  // comes in. The pane remembers where focus was.
+  focusActivePane({ now: true });
 }
 
 function QuickPane({ tabId, isFront }: { tabId: string; isFront: boolean }) {

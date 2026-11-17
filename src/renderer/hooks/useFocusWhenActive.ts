@@ -11,7 +11,7 @@ const PRESSED_SELECTOR = 'button, [role="button"]';
 const SETTLE_MS = 500;
 
 /** The active pane's way to take focus back, see `focusActivePane` */
-const focusRequests = new Set<() => void>();
+const focusRequests = new Set<(isNow: boolean) => void>();
 
 /**
  * Moves focus into a pane when it becomes the active pane, whether by a tab
@@ -113,16 +113,17 @@ export function useFocusWhenActive(
       }
     };
 
-    const focusFrom = (element?: Element | null) => {
+    const focusFrom = (element?: Element | null, isNow = false) => {
       cancelAnimationFrame(frame);
       start = performance.now();
       from = element;
-      frame = requestAnimationFrame(tryFocus);
+      if (isNow) tryFocus();
+      else frame = requestAnimationFrame(tryFocus);
     };
 
     focusFrom();
     // A request only takes focus that was lost
-    const request = () => focusFrom(null);
+    const request = (isNow: boolean) => focusFrom(null, isNow);
     // Keeps the most recently focused pane last in line, see `focusActivePane`
     const moveToEnd = () => {
       focusRequests.delete(request);
@@ -149,9 +150,12 @@ export function useFocusWhenActive(
  *
  * A hyper terminal is active alongside the tab's pane, so the one that had
  * focus last takes it back, and the other takes it if that one can't.
+ *
+ * `now` makes the first try right away rather than on the next frame, for
+ * when a key could come in between.
  */
-export function focusActivePane() {
-  [...focusRequests].reverse().forEach((request) => request());
+export function focusActivePane({ now = false } = {}) {
+  [...focusRequests].reverse().forEach((request) => request(now));
 }
 
 /**

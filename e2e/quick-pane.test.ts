@@ -519,20 +519,42 @@ describe("a quick pane", () => {
       .boundingBox())!;
     const misses = {
       // The strip beside the toolbar, and the gap under it
-      b: { x: dialog.x + 100, y: toolbar.y + toolbar.height / 2 },
-      c: { x: dialog.x + 100, y: toolbar.y + toolbar.height + 4 },
+      strip: { x: dialog.x + 100, y: toolbar.y + toolbar.height / 2 },
+      gap: { x: dialog.x + 100, y: toolbar.y + toolbar.height + 4 },
     };
     let typed = "a";
-    for (const [key, { x, y }] of Object.entries(misses)) {
+    const missAndType = async ({ x, y }: { x: number; y: number }) => {
       await app.page.mouse.click(x, y);
+      const key = String.fromCharCode(97 + typed.length);
       await app.page.keyboard.type(key);
       typed += key;
       await until(
         async () => (await field()) === typed,
         `${typed} in the field`,
       );
+    };
+    for (const point of Object.values(misses)) {
+      await missAndType(point);
+      // Chromium takes the keys from the page as a press comes in, and tells
+      // the window to focus itself on another pipe than the press's, so the
+      // window can hear of it first, with nothing focused, then the press
+      await app.page.evaluate(() => window.focus());
+      expect(
+        await app.page.evaluate(() => document.activeElement === document.body),
+      ).toBe(true);
+      await missAndType(point);
     }
-    expect(await field()).toBe("abc");
+    expect(await field()).toBe("abcde");
+
+    // Then the race itself, which the window most often loses
+    const points = Object.values(misses);
+    for (let round = 0; round < 200; round++) {
+      const { x, y } = points[round % 2]!;
+      await app.page.mouse.click(x, y);
+      await app.page.keyboard.type("x");
+      typed += "x";
+    }
+    await until(async () => (await field()) === typed, "every x in the field");
 
     await pressInPage(
       app.page,
