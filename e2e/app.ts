@@ -9,6 +9,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import {
   type Browser,
   chromium,
+  type Keyboard,
   type Locator,
   type Page,
 } from "playwright-core";
@@ -117,7 +118,7 @@ export function happens(
  * Presses `keys`, like "Meta+w", and lets go once `done`, for keys that
  * navigate or close a focused page, or give a page the keys as it navigates.
  * Each takes away the frame with the keys, which never acknowledges a key let
- * go as it goes, so a whole press would wait for that forever.
+ * go as it goes, so a whole press would never get its answer.
  */
 export async function pressInPage(
   page: Page,
@@ -125,10 +126,61 @@ export async function pressInPage(
   done: () => Promise<boolean>,
   what: string,
 ): Promise<void> {
-  const held = keys.split("+");
-  for (const key of held) await page.keyboard.down(key);
-  await until(done, what);
-  for (const key of held.reverse()) await page.keyboard.up(key);
+  const held: string[] = [];
+  try {
+    for (const key of keys.split("+")) {
+      await page.keyboard.down(key);
+      held.push(key);
+    }
+    await until(done, what);
+  } finally {
+    for (const key of held.reverse()) await page.keyboard.up(key);
+  }
+}
+
+// Far longer than the window takes to answer a key, even on a busy runner.
+const keyAnswerTimeout = 10_000;
+
+/**
+ * Fails a press, or a key held or let go, that the window doesn't answer in
+ * time, which is what happens to one whose frame closes or navigates before
+ * it's let go. Playwright would wait for it forever, and time the test out
+ * with nothing to say why. Lets go of the keys it held too, as Playwright
+ * would otherwise hold a modifier like Meta down for every key after it.
+ */
+function answerKeys(keyboard: Keyboard): void {
+  const down = keyboard.down.bind(keyboard);
+  const up = keyboard.up.bind(keyboard);
+  const press = keyboard.press.bind(keyboard);
+  const answered = async (
+    call: Promise<void>,
+    what: string,
+    held: string[] = [],
+  ) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unanswered = new Promise<typeof STALLED>((resolve) => {
+      timer = setTimeout(() => resolve(STALLED), keyAnswerTimeout);
+    });
+    try {
+      if ((await Promise.race([call, unanswered])) !== STALLED) return;
+    } finally {
+      clearTimeout(timer);
+    }
+    call.catch(() => {});
+    for (const key of held.reverse()) void up(key).catch(() => {});
+    throw new Error(
+      `${what} got no answer in ${keyAnswerTimeout}ms, so the frame with the keys probably closed or navigated before they were let go. Press keys like that with pressInPage.`,
+    );
+  };
+  keyboard.down = (key) =>
+    answered(down(key), `keyboard.down("${key}")`, [key]);
+  keyboard.up = (key) => answered(up(key), `keyboard.up("${key}")`);
+  keyboard.press = (key, options) =>
+    answered(
+      press(key, options),
+      `keyboard.press("${key}")`,
+      key.split("+").slice(0, -1),
+    );
 }
 
 /** Runs the command with the title from the command palette. */
@@ -562,6 +614,7 @@ export async function launch(options: LaunchOptions): Promise<Conduit> {
         .flatMap((context) => context.pages())
         .find((candidate) => candidate.url().startsWith("file:"))!;
       found.setDefaultTimeout(15_000);
+      answerKeys(found.keyboard);
       found.on("pageerror", (error) =>
         pageErrors.push(String(error.stack ?? error)),
       );

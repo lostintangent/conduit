@@ -635,8 +635,12 @@ describe("browser automation from the CLI", () => {
       ).toBe(false);
 
       await inPage(index, "holding = false");
-      await app.page.keyboard.press("Escape");
-      await quickPaneCount(0);
+      await pressInPage(
+        app.page,
+        "Escape",
+        async () => (await quickPanes().count()) === 0,
+        "the Quick Browser to close",
+      );
       await until(() => terminal.focused(), "focus back in the terminal");
     });
 

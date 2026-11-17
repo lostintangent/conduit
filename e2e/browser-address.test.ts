@@ -3,7 +3,14 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
+import {
+  type Conduit,
+  inWebview,
+  launch,
+  pressInPage,
+  type Terminal,
+  until,
+} from "./app";
 
 describe("the browser's address bar", () => {
   let server: http.Server;
@@ -61,20 +68,22 @@ describe("the browser's address bar", () => {
   const address = () => app.page.getByPlaceholder("Search or enter address");
 
   /** Waits for the page to fire the event, once a test has started it. */
-  async function waitForPageEvent(event: string, start: () => Promise<void>) {
+  /** Runs `start`, which can wait for the event with `fired`, then waits for it. */
+  async function waitForPageEvent(
+    event: string,
+    start: (fired: () => Promise<boolean>) => Promise<void>,
+  ) {
     await webview().evaluate((webview: Electron.WebviewTag, event) => {
       webview.dataset.fired = "false";
       const fired = () => (webview.dataset.fired = "true");
       (webview as HTMLElement).addEventListener(event, fired, { once: true });
     }, event);
-    await start();
-    await until(
-      () =>
-        webview().evaluate(
-          (webview: Electron.WebviewTag) => webview.dataset.fired === "true",
-        ),
-      `the page's ${event}`,
-    );
+    const fired = () =>
+      webview().evaluate(
+        (webview: Electron.WebviewTag) => webview.dataset.fired === "true",
+      );
+    await start(fired);
+    await until(fired, `the page's ${event}`);
   }
 
   it("keeps the page's address when a frame in it moves", async () => {
@@ -99,10 +108,10 @@ describe("the browser's address bar", () => {
   const headline = () => app.page.getByRole("heading");
 
   it("says why a page didn't load in its place, and keeps the address", async () => {
-    await waitForPageEvent("did-fail-load", async () => {
+    await waitForPageEvent("did-fail-load", async (fired) => {
       await address().click();
       await address().fill("conduit-e2e.invalid");
-      await address().press("Enter");
+      await pressInPage(app.page, "Enter", fired, "the page's did-fail-load");
     });
 
     await expect(headline().textContent()).resolves.toBe(
@@ -134,10 +143,10 @@ describe("the browser's address bar", () => {
   it("tries a page again once something answers at its address, and gives it the keys back", async () => {
     // Like a dev server that hasn't started yet
     const port = await deadPort();
-    await waitForPageEvent("did-fail-load", async () => {
+    await waitForPageEvent("did-fail-load", async (fired) => {
       await address().click();
       await address().fill(`127.0.0.1:${port}/page`);
-      await address().press("Enter");
+      await pressInPage(app.page, "Enter", fired, "the page's did-fail-load");
     });
     await expect(headline().textContent()).resolves.toBe(
       "Can't Connect to the Server",
@@ -201,10 +210,10 @@ describe("the browser's address bar", () => {
       [origin.replace("127.0.0.1", "localhost"), "hello"],
       [origin, "again"],
     ]) {
-      await waitForPageEvent("did-navigate", async () => {
+      await waitForPageEvent("did-navigate", async (fired) => {
         await address().click();
         await address().fill(`${place.slice("http://".length)}/field`);
-        await address().press("Enter");
+        await pressInPage(app.page, "Enter", fired, "the page's did-navigate");
       });
       // Keys typed before the page has its field are lost, as in any browser
       await until(pageFocusedItsField, "the page to focus its field");
