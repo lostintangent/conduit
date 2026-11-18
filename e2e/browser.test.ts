@@ -67,6 +67,9 @@ describe("browser automation from the CLI", () => {
             '<meta name="color-scheme" content="light dark"><title>',
           ),
         );
+      } else if (request.url === "/app") {
+        // Changes within itself, like a single page app
+        response.end(`${page}<iframe src="/frame"></iframe>`);
       } else {
         response.end(page);
       }
@@ -1230,6 +1233,122 @@ describe("browser automation from the CLI", () => {
     try {
       expect(await color(url)).toBe("rgb(255, 255, 255)");
       expect(await color(`${url}dark-ready`)).not.toBe("rgb(255, 255, 255)");
+    } finally {
+      await terminal.run(`conduit pane-close -p ${pane.id}`);
+    }
+  });
+
+  // Single page apps change their address, and load frames in their page,
+  // all the time
+  it("shows nothing over a page, and Refresh rather than Stop, as it changes within itself", async () => {
+    const before = await conduit<Pane[]>("pane-list -t browser");
+    expect(await terminal.run("conduit split right -t browser")).toBe(0);
+    const [pane] = (await conduit<Pane[]>("pane-list -t browser")).filter(
+      ({ id }) => !before.some((pane) => pane.id === id),
+    );
+    const webview = app.page.locator(`webview[id="${pane.id}"]`);
+    const stopButtons = () =>
+      app.page.getByRole("button", { name: "Stop" }).count();
+    type Changes = { loads(): number; end(): object };
+    const loads = () =>
+      app.page.evaluate(() =>
+        (window as unknown as { e2eChanges: Changes }).e2eChanges.loads(),
+      );
+
+    try {
+      expect(
+        await terminal.run(`conduit browser-navigate -p ${pane.id} ${url}app`),
+      ).toBe(0);
+      await until(
+        async () =>
+          (await webview.evaluate(
+            (webview: Electron.WebviewTag, address) =>
+              webview.getURL() === address && !webview.isLoading(),
+            `${url}app`,
+          )) && (await stopButtons()) === 0,
+        "the page to load",
+      );
+
+      // Notes anything put over the page, and its toolbar ever showing Stop
+      await webview.evaluate((webview: Electron.WebviewTag, address) => {
+        let toolbar: HTMLElement = [
+          ...document.querySelectorAll<HTMLInputElement>(
+            'input[placeholder="Search or enter address"]',
+          ),
+        ].find((input) => input.value === address)!;
+        while (!toolbar.querySelector('[aria-label="Refresh"]')) {
+          toolbar = toolbar.parentElement!;
+        }
+        const page = webview.getBoundingClientRect();
+        const x = page.x + page.width / 2;
+        const y = page.y + page.height / 2;
+        const seen = { over: [] as string[], stop: false };
+        let loads = 0;
+        const countLoad = () => loads++;
+        const observer = new MutationObserver((records) => {
+          if (toolbar.querySelector('[aria-label="Stop"]')) seen.stop = true;
+          for (const node of records.flatMap((record) => [
+            ...record.addedNodes,
+          ])) {
+            if (!(node instanceof HTMLElement)) continue;
+            const box = node.getBoundingClientRect();
+            const isOver =
+              box.left <= x &&
+              x <= box.right &&
+              box.top <= y &&
+              y <= box.bottom;
+            if (isOver) seen.over.push(node.outerHTML.slice(0, 80));
+          }
+        });
+        observer.observe(document.body, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+        });
+        webview.addEventListener("did-stop-loading", countLoad);
+        Object.assign(window, {
+          e2eChanges: {
+            loads: () => loads,
+            end: () => {
+              observer.disconnect();
+              webview.removeEventListener("did-stop-loading", countLoad);
+              return seen;
+            },
+          },
+        });
+      }, `${url}app`);
+
+      // Chromium reports each one as loading, then done
+      for (const change of [
+        "history.pushState(null, '', '/app/next')",
+        "document.querySelector('iframe').contentWindow.location.reload()",
+        "location.hash = 'section'",
+        "document.querySelector('iframe').src = '/other-frame'",
+      ]) {
+        const before = await loads();
+        await inWebview(webview, `${change}; true`);
+        await until(
+          async () => (await loads()) > before,
+          `${change} to finish loading`,
+        );
+      }
+      expect(
+        await app.page.evaluate(() =>
+          (window as unknown as { e2eChanges: Changes }).e2eChanges.end(),
+        ),
+      ).toEqual({ over: [], stop: false });
+
+      // A new page is loading, though
+      await inWebview(webview, "location.assign('/stalled'); true");
+      await until(
+        async () => stalled.length > 0 && (await stopButtons()) === 1,
+        "the toolbar to show Stop",
+      );
+      for (const response of stalled.splice(0)) response.end();
+      await until(
+        async () => (await stopButtons()) === 0,
+        "the toolbar to show Refresh",
+      );
     } finally {
       await terminal.run(`conduit pane-close -p ${pane.id}`);
     }

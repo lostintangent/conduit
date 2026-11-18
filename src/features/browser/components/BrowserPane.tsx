@@ -26,12 +26,12 @@ import type {
   DidFailLoadEvent,
   DidNavigateEvent,
   DidNavigateInPageEvent,
+  DidStartNavigationEvent,
   IpcMessageEvent,
   PageTitleUpdatedEvent,
   WebviewTag,
 } from "electron";
 import { useSelector } from "@tanstack/react-store";
-import { Loader2 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { shareAppKeys } from "./appKeys";
 import { ErrorPage } from "./ErrorPage";
@@ -234,7 +234,7 @@ export function BrowserPane({
     } else {
       // Its page may have moved on from the url prop while the pane was away
       setCurrentUrl(webview.getURL());
-      setIsLoading(webview.isLoading ? webview.isLoading() : false);
+      setIsLoading(webview.isLoadingMainFrame());
       setCanGoBack(webview.canGoBack());
       setCanGoForward(webview.canGoForward());
 
@@ -515,7 +515,15 @@ export function BrowserPane({
       setCanGoForward(webview.canGoForward());
     };
 
-    const handleStartLoading = () => setIsLoading(true);
+    // Only a new document for the page is loading it, as in other browsers.
+    // A frame in the page loading, or the page changing its own address,
+    // which single page apps do all the time, isn't.
+    const handleStartNavigation = ({
+      isMainFrame,
+      isInPlace,
+    }: DidStartNavigationEvent) => {
+      if (isMainFrame && !isInPlace) setIsLoading(true);
+    };
 
     const handleDidNavigate = ({
       url,
@@ -673,7 +681,7 @@ export function BrowserPane({
     };
 
     webview.addEventListener("did-attach", handleDidAttach);
-    webview.addEventListener("did-start-loading", handleStartLoading);
+    webview.addEventListener("did-start-navigation", handleStartNavigation);
     webview.addEventListener("did-stop-loading", handleStopLoading);
     webview.addEventListener("did-finish-load", handleStopLoading);
 
@@ -701,7 +709,10 @@ export function BrowserPane({
       stopOpeningPages();
 
       webview.removeEventListener("did-attach", handleDidAttach);
-      webview.removeEventListener("did-start-loading", handleStartLoading);
+      webview.removeEventListener(
+        "did-start-navigation",
+        handleStartNavigation,
+      );
       webview.removeEventListener("did-stop-loading", handleStopLoading);
       webview.removeEventListener("did-finish-load", handleStopLoading);
 
@@ -824,11 +835,6 @@ export function BrowserPane({
             failure={loadFailure}
             onTryAgain={() => webviewRef.current?.reload()}
           />
-        )}
-        {isLoading && !loadFailure && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/20">
-            <Loader2 className="h-8 w-8 text-white/80 animate-spin" />
-          </div>
         )}
       </div>
     </div>

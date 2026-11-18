@@ -103,7 +103,7 @@ describe("BrowserPane", () => {
       getTitle: () => "",
       getURL: () => "https://example.com",
       getWebContentsId: () => 7,
-      isLoading: () => false,
+      isLoadingMainFrame: () => false,
       loadURL: vi.fn(async () => {}),
       reload: vi.fn(),
     });
@@ -414,17 +414,13 @@ describe("BrowserPane", () => {
     expect(webview.style.visibility).toBe("");
   });
 
-  it("tries the page again without dimming the message, and shows the page once it loads", () => {
+  it("tries the page again, and shows the page once it loads", () => {
     render(browserPane(false, true));
     failLoad(-102, "ERR_CONNECTION_REFUSED");
 
     fireEvent.click(screen.getByRole("button", { name: "Try Again" }));
-    act(() => {
-      webview.dispatchEvent(new Event("did-start-loading"));
-    });
 
     expect((webview as any).reload).toHaveBeenCalled();
-    expect(document.querySelector(".animate-spin")).toBeNull();
 
     act(() => {
       webview.dispatchEvent(
@@ -596,7 +592,12 @@ describe("BrowserPane", () => {
       fireEvent.change(field, { target: { value: address } });
       fireEvent.submit(field.form!);
       act(() => {
-        webview.dispatchEvent(new Event("did-start-loading"));
+        webview.dispatchEvent(
+          Object.assign(new Event("did-start-navigation"), {
+            isMainFrame: true,
+            isInPlace: false,
+          }),
+        );
       });
     };
     const stopLoading = () =>
