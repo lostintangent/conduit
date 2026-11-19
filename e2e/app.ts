@@ -212,6 +212,22 @@ export function inWebview<T>(webview: Locator, script: string): Promise<T> {
   );
 }
 
+/**
+ * Sends a browser pane's page to `url` from inside it, as a link would. The
+ * page goes after its script has replied, since a page that commits in
+ * another renderer, like another site's or an error page, would drop a reply
+ * still on its way.
+ */
+export async function navigateInWebview(
+  webview: Locator,
+  url: string,
+): Promise<void> {
+  await inWebview(
+    webview,
+    `setTimeout(() => { location.href = ${JSON.stringify(url)} })`,
+  );
+}
+
 /** Runs git in `cwd` without your global or system config. */
 export function git(cwd: string, ...args: string[]): string {
   return execFileSync(

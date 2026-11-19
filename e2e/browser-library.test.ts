@@ -3,7 +3,14 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, inWebview, launch, type Terminal, until } from "./app";
+import {
+  type Conduit,
+  inWebview,
+  launch,
+  navigateInWebview,
+  type Terminal,
+  until,
+} from "./app";
 
 describe("the browser's history and favorites", () => {
   let server: http.Server;
@@ -160,7 +167,7 @@ describe("the browser's history and favorites", () => {
 
   it("leaves a page that fails to load out of history", async () => {
     await waitForPageEvent("did-fail-load", () =>
-      inPage(`location.href = ${JSON.stringify(deadUrl)}`),
+      navigateInWebview(webview(), deadUrl),
     );
     await waitForPageEvent("did-stop-loading", async () => {
       expect(

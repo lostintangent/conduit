@@ -2,7 +2,13 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, inWebview, launch, runCommand, until } from "./app";
+import {
+  type Conduit,
+  launch,
+  navigateInWebview,
+  runCommand,
+  until,
+} from "./app";
 
 /** A red square, which keeps its own color */
 const square = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="#e11d48"/></svg>`;
@@ -218,7 +224,7 @@ describe("a page's icon", () => {
    */
   async function go(url: string, label?: RegExp) {
     const webview = pageWebview();
-    await inWebview(webview, `location.href = ${JSON.stringify(url)}`);
+    await navigateInWebview(webview, url);
     await until(
       async () =>
         (await webview.evaluate((webview: Electron.WebviewTag) =>
@@ -405,9 +411,9 @@ describe("a page's icon", () => {
 
   it("gives way to a spinner on its pane's bar too, while a new site's loads", async () => {
     holdIcons = true;
-    await inWebview(
+    await navigateInWebview(
       app.page.locator("webview#Split-page"),
-      `location.href = ${JSON.stringify(`${other}/square`)}`,
+      `${other}/square`,
     );
 
     await spinnerIn(bar()).waitFor();
