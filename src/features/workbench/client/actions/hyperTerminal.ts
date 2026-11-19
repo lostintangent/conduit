@@ -44,6 +44,11 @@ export function isHyperTerminal(sessionId: string): boolean {
   return hyperTerminalsAtom.get().some((t) => t.terminalId === sessionId);
 }
 
+/** Whether the keys are in a hyper terminal, over the active pane */
+export function hasHyperTerminalFocus(): boolean {
+  return !!document.activeElement?.closest("[data-hyper-terminal]");
+}
+
 /**
  * Opens a new hyper terminal (floating overlay).
  * Prevents duplicate terminals by checking if the terminal already exists.

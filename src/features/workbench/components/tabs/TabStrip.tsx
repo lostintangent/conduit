@@ -20,7 +20,6 @@ import {
   focusTab,
   getActiveTabCwd,
   moveTab,
-  openTab,
   openTabWithPane,
 } from "@features/workbench/client/actions/tab";
 import {
@@ -501,9 +500,7 @@ export const TabStrip = ({
             label={newTabCmd.title}
             tooltip={getCommandDisplayTitle(newTabCmd)}
             icon={<PlusSquare size={18} />}
-            onClick={() => {
-              void openTab();
-            }}
+            onClick={newTabCmd.execute}
             menuLabel="More new tab options"
           >
             {NEW_TAB_PANES.map(({ type, name, Icon }) => (

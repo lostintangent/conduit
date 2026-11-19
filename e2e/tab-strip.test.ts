@@ -297,13 +297,6 @@ describe("the tab strip", () => {
     expect(await shown(kind)).toEqual({ nodes: 1, shown: 1, focused: true });
   }
 
-  it("opens a tab with only a terminal from New Tab", async () => {
-    await openTab(() =>
-      app.page.getByRole("button", { name: "New Tab", exact: true }).click(),
-    );
-    await expectOnly("Terminal");
-  });
-
   it("offers a tab with each kind of pane next to New Tab, a page first", async () => {
     await app.page
       .getByRole("button", { name: "More new tab options" })
@@ -338,10 +331,22 @@ describe("the tab strip", () => {
     });
   }
 
-  // New Tab is the terminal's command
-  for (const kind of ["Browser", "Editor", "Canvas"] as const) {
+  for (const kind of Object.keys(panes) as Kind[]) {
     it(`opens New Tab with ${kind} from the command palette, with only that pane, which takes the keys`, async () => {
       await openTab(() => runCommand(app.page, `New Tab with ${kind}`));
+      await expectOnly(kind);
+    });
+  }
+
+  for (const kind of Object.keys(panes) as Kind[]) {
+    it(`opens New Tab with ${kind} from Cmd+T or New Tab in a tab with ${kind}, with only that pane, which takes the keys`, async () => {
+      await openTab(() => chooseNewTab(`New Tab with ${kind}`));
+      await expectOnly(kind);
+      await openTab(() => app.page.keyboard.press("Meta+t"));
+      await expectOnly(kind);
+      await openTab(() =>
+        app.page.getByRole("button", { name: "New Tab", exact: true }).click(),
+      );
       await expectOnly(kind);
     });
   }

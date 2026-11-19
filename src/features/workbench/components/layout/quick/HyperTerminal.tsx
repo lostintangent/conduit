@@ -174,6 +174,7 @@ export function HyperTerminal({
 
   return (
     <div
+      data-hyper-terminal=""
       className={`fixed z-[70] rounded-lg overflow-hidden shadow-2xl border border-border bg-background ${hidden ? "hidden" : ""}`}
       style={{
         width: `${OVERLAY_WIDTH}px`,

@@ -1,13 +1,11 @@
 import { AnimatedShinyText } from "@/ui/animated-shiny-text";
 import { IdleIndicator } from "@/ui/idle-indicator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
-import {
-  closeTab,
-  focusTab,
-  openTab,
-} from "@features/workbench/client/actions/tab";
+import { executeCommand } from "@/commands";
+import { closeTab, focusTab } from "@features/workbench/client/actions/tab";
 import { setApplicationMode } from "@features/workbench/client/atoms";
 import { useSettings } from "@features/settings/client/queries";
+import { ApplicationCommands } from "@shared/commands";
 import { tabLabelsAtom } from "@features/workbench/client/tabLabels";
 import { LabelIcon } from "@features/workbench/components/tabs/LabelIcon";
 import { SoundIcon } from "@features/workbench/components/tabs/SoundButton";
@@ -102,7 +100,7 @@ export function TabsOverview() {
               <button
                 type="button"
                 className="rounded-full bg-white/10 p-1.5 text-white/80 transition hover:bg-white/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                onClick={() => openTab()}
+                onClick={() => void executeCommand(ApplicationCommands.TAB_NEW)}
                 aria-label="New tab"
               >
                 <Plus size={16} />

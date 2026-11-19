@@ -358,8 +358,27 @@ describe("browser automation from the CLI", () => {
     await app.page.keyboard.press("Escape");
     await quickOpen.waitFor({ state: "hidden" });
 
+    // Cmd+T opens a tab with a page, like the pane it's pressed in
     await clickPage(0);
     await app.page.keyboard.press("Meta+t");
+    await selectedTab(1).waitFor();
+    await until(
+      () =>
+        app.page.evaluate(() => {
+          const input = document.activeElement as HTMLInputElement | null;
+          return (
+            input?.placeholder === "Search or enter address" &&
+            input.checkVisibility()
+          );
+        }),
+      "the new tab's address bar to take the keys",
+    );
+    await app.page.keyboard.press("Meta+w");
+    await until(
+      async () => (await app.page.getByRole("tab").count()) === 1,
+      "the new tab to close",
+    );
+    await runCommand(app.page, "New Tab with Terminal");
     await selectedTab(1).waitFor();
     await app.page.keyboard.press("Meta+1");
     await selectedTab(0).waitFor();

@@ -20,7 +20,7 @@ beforeAll(async () => {
 
 afterAll(() => server?.close());
 
-describe("a hyper terminal being dragged", () => {
+describe("a hyper terminal", () => {
   let app: Conduit;
 
   beforeAll(async () => {
@@ -113,7 +113,7 @@ describe("a hyper terminal being dragged", () => {
 
   // The pointer gets ahead of the title bar until the hyper terminal catches
   // up with it, and it mustn't reach what's behind meanwhile
-  it("keeps the pointer from the panes behind it, which look and act the same", async () => {
+  it("keeps the pointer from the panes behind it as it's dragged, which look and act the same", async () => {
     await until(
       async () => (await inWebview(webview(), "document.title")) === "Page",
       "the page to load",
@@ -175,5 +175,35 @@ describe("a hyper terminal being dragged", () => {
     expect(await isTyping()).toBe(true);
     await app.page.mouse.up();
     expect(await isTyping()).toBe(true);
+  });
+
+  // It has the keys, rather than the editor under it
+  it("opens a tab with only a terminal from Cmd+T in it", async () => {
+    const typing = hyper().locator(".xterm-helper-textarea");
+    await hyper().locator(".xterm-screen").click();
+    await until(
+      () => typing.evaluate((e) => e === document.activeElement),
+      "the keyboard in the hyper terminal",
+    );
+
+    await app.page.keyboard.press("Meta+t");
+    await app.page
+      .getByRole("tab")
+      .nth(1)
+      .and(app.page.getByRole("tab", { selected: true }))
+      .waitFor();
+    await until(
+      () =>
+        app.page.evaluate(() => {
+          const panel = [
+            ...document.querySelectorAll('[role="tabpanel"]'),
+          ].find((panel) => panel.checkVisibility())!;
+          return (
+            panel.querySelectorAll("[data-node-id]").length === 1 &&
+            panel.querySelectorAll(".xterm").length === 1
+          );
+        }),
+      "a tab with only a terminal",
+    );
   });
 });

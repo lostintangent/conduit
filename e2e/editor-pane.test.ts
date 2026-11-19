@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Locator } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, git, launch, until } from "./app";
+import { type Conduit, git, launch, runCommand, until } from "./app";
 
 /**
  * An editor pane in a tab, next to the terminal that opened it, on a repo that
@@ -402,9 +402,11 @@ describe("editor pane", () => {
     const tabs = app.page.getByRole("tab");
     const selectedTab = (index: number) =>
       tabs.nth(index).and(app.page.getByRole("tab", { selected: true }));
-    await app.page.keyboard.press(
-      (await tabs.count()) < 2 ? "Meta+t" : "Meta+2",
-    );
+    if ((await tabs.count()) < 2) {
+      await runCommand(app.page, "New Tab with Terminal");
+    } else {
+      await app.page.keyboard.press("Meta+2");
+    }
     await selectedTab(1).waitFor();
     commitAll("Change c");
     // The hidden pane names its folder once it has gone back to its tree.

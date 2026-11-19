@@ -18,6 +18,7 @@ import {
 import type { CommandDescriptor } from "@/commands/core/types";
 import { MenuId } from "@/commands/menus/types";
 import { toggleFocusMode } from "@features/workbench/client/actions/focusMode";
+import { hasHyperTerminalFocus } from "@features/workbench/client/actions/hyperTerminal";
 import { enqueueNotification } from "@features/workbench/client/actions/notifications";
 import {
   cloneTerminalPane,
@@ -34,7 +35,6 @@ import {
   lockTab,
   movePaneToTab,
   openQuickTabInStrip,
-  openTab,
   openTabWithPane,
   unlockTab,
   updateTabProperty,
@@ -49,18 +49,19 @@ import type { PaneType } from "@shared/types/panes";
 import { ApplicationCommands } from "@shared/commands";
 import { ArrowUpRight, X } from "lucide-react";
 
-/** What a tab or a quick pane can open with. New Tab itself has a terminal. */
+/** What a tab or a quick pane can open with */
 const PANE_TYPES: {
   type: PaneType;
   name: string;
   pane: string;
-  newTab?: string;
+  newTab: string;
   quick: string;
 }[] = [
   {
     type: "terminal",
     name: "Terminal",
     pane: "a terminal",
+    newTab: ApplicationCommands.TAB_NEW_WITH_TERMINAL,
     quick: ApplicationCommands.TAB_QUICK_TERMINAL,
   },
   {
@@ -160,29 +161,29 @@ export default [
   {
     id: ApplicationCommands.TAB_NEW,
     title: "New Tab",
-    description: "Create a new terminal tab",
+    description:
+      "Create a new tab with the same kind of pane as the one with the keys, or a terminal",
     category: "Tab",
     keybinding: { key: "Cmd+T" },
     when: quickPaneOpen.isFalse(),
-    run: () => {
-      void openTab();
+    run: (context) => {
+      const pane = context.activeTab?.panes[context.activeTab.activePaneId];
+      void openTabWithPane(
+        hasHyperTerminalFocus() ? "terminal" : (pane?.type ?? "terminal"),
+      );
     },
   },
 
-  // Tab: New with Browser, Editor or Canvas, and Quick Terminal, Browser,
-  // Editor or Canvas
+  // Tab: New with Terminal, Browser, Editor or Canvas, and Quick Terminal,
+  // Browser, Editor or Canvas
   ...PANE_TYPES.flatMap(({ type, name, pane, newTab, quick }) => [
-    ...(newTab
-      ? [
-          {
-            id: newTab,
-            title: `New Tab with ${name}`,
-            description: `Create a new tab with ${pane}`,
-            category: "Tab",
-            run: () => openTabWithPane(type),
-          } satisfies CommandDescriptor,
-        ]
-      : []),
+    {
+      id: newTab,
+      title: `New Tab with ${name}`,
+      description: `Create a new tab with ${pane}`,
+      category: "Tab",
+      run: () => openTabWithPane(type),
+    } satisfies CommandDescriptor,
     {
       id: quick,
       title: `Quick ${name}`,

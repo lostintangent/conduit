@@ -75,7 +75,7 @@ describe("applicationCommands", () => {
     it("should register all commands", () => {
       registerApplicationCommands(mockRegistry);
 
-      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(94);
+      expect(mockRegistry.registerCommand).toHaveBeenCalledTimes(95);
 
       // View commands
       expect(
@@ -329,13 +329,26 @@ describe("applicationCommands", () => {
     });
 
     describe("TAB_NEW", () => {
-      it("should call openTab action", () => {
-        const command = registeredCommands.get(ApplicationCommands.TAB_NEW)!;
-        const mockContext = commandContext();
+      const newTab = () => registeredCommands.get(ApplicationCommands.TAB_NEW)!;
 
-        command.run(mockContext);
+      it("opens a tab with the same kind of pane as the active one", () => {
+        newTab().run(
+          commandContext({
+            activeTab: {
+              id: "tab-1",
+              activePaneId: "page",
+              panes: { page: { id: "page", type: "browser" } },
+            },
+          }),
+        );
 
-        expect(tabActions.openTab).toHaveBeenCalled();
+        expect(tabActions.openTabWithPane).toHaveBeenCalledWith("browser");
+      });
+
+      it("opens a tab with a terminal without an active tab", () => {
+        newTab().run(commandContext());
+
+        expect(tabActions.openTabWithPane).toHaveBeenCalledWith("terminal");
       });
     });
 
