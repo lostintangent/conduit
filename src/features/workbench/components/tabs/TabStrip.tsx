@@ -133,14 +133,13 @@ export const TabStrip = ({
   // The preview shows a scaled-down version of a tab when hovering over its button.
   // Users can move their mouse into the preview and click on individual panes to
   // switch to that tab and activate the specific pane.
+  // The preview closes itself once the pointer leaves the tab and it.
   const [hoverPreview, setHoverPreview] = useState<{
     tabId: string;
+    tab: HTMLElement;
     left: number;
     top: number;
   } | null>(null);
-
-  const [isPreviewHovered, setIsPreviewHovered] = useState(false);
-  const previewCloseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Command hooks for button actions
   const toggleFocusModeCmd = useCommand(
@@ -195,18 +194,10 @@ export const TabStrip = ({
     paneDragHoverTabRef.current = null;
   };
 
-  const clearPreviewCloseTimeout = () => {
-    if (previewCloseTimeoutRef.current) {
-      clearTimeout(previewCloseTimeoutRef.current);
-      previewCloseTimeoutRef.current = null;
-    }
-  };
-
   const clearDragState = () => {
     setDraggingTab(null);
     setDropTargetIndex(null);
     clearPaneDragHoverTimeout();
-    clearPreviewCloseTimeout();
     setHoverPreview(null);
   };
 
@@ -221,32 +212,21 @@ export const TabStrip = ({
 
   useEffect(() => {
     if (!activeTabId || isInOverviewMode) {
-      clearPreviewCloseTimeout();
       setHoverPreview(null);
-      setIsPreviewHovered(false);
       return;
     }
 
     if (hoverPreview && hoverPreview.tabId === activeTabId) {
       setHoverPreview(null);
     }
-  }, [activeTabId, hoverPreview, clearPreviewCloseTimeout, isInOverviewMode]);
+  }, [activeTabId, hoverPreview, isInOverviewMode]);
 
   // Clear preview when entering design mode
   useEffect(() => {
     if (isDesignMode && hoverPreview) {
-      clearPreviewCloseTimeout();
       setHoverPreview(null);
-      setIsPreviewHovered(false);
     }
-  }, [isDesignMode, hoverPreview, clearPreviewCloseTimeout]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      clearPreviewCloseTimeout();
-    };
-  }, [clearPreviewCloseTimeout]);
+  }, [isDesignMode, hoverPreview]);
 
   // TODO: See if we can remove this code in favor of mergining it with the descriptors and tabs w/placeholders memos
   const { reorderableTabIds, placeholderIndex, nonDraggingIndexById } =
@@ -274,52 +254,22 @@ export const TabStrip = ({
     setHoverPreview(null);
   };
 
-  const handlePreviewHoverChange = (isHovering: boolean) => {
-    if (isHovering) {
-      // Mouse entered - cancel any pending close timeout
-      clearPreviewCloseTimeout();
-      setIsPreviewHovered(true);
-    } else {
-      // Mouse truly left (relatedTarget check passed) - close immediately
-      setIsPreviewHovered(false);
-      setHoverPreview(null);
-    }
-  };
-
-  const handleTabHoverChange = (
-    tabId: string,
-    element: HTMLButtonElement | null,
-  ) => {
+  const handleTabHover = (tabId: string, tab: HTMLButtonElement) => {
     // Don't show preview while dragging or in design mode
     if (draggingTab !== null || isDesignMode) {
       return;
     }
 
-    if (!element) {
-      // Mouse left the tab button - start a delay before closing the preview
-      // This gives the user time to move their mouse into the preview area
-      if (!isPreviewHovered) {
-        clearPreviewCloseTimeout();
-        previewCloseTimeoutRef.current = setTimeout(() => {
-          setHoverPreview(null);
-          previewCloseTimeoutRef.current = null;
-        }, 2000); // 2 second delay to give time to move mouse to preview
-      }
-      return;
-    }
-
     if (tabId === activeTabId) {
       // Hovering over active tab, clear any preview
-      clearPreviewCloseTimeout();
       setHoverPreview(null);
       return;
     }
 
-    // Mouse entered a tab button - cancel any pending close and show preview immediately
-    clearPreviewCloseTimeout();
-    const rect = element.getBoundingClientRect();
+    const rect = tab.getBoundingClientRect();
     setHoverPreview({
       tabId,
+      tab,
       left: rect.left,
       top: rect.top,
     });
@@ -452,7 +402,7 @@ export const TabStrip = ({
           onDragLeave={handleDragLeaveTab}
           onDrop={handleDrop}
           onDragEnd={clearDragState}
-          onHoverChange={handleTabHoverChange}
+          onHover={handleTabHover}
         />,
       );
     }
@@ -715,7 +665,7 @@ export const TabStrip = ({
 
       <TabPreviewOverlay
         preview={hoverPreview}
-        onPreviewHoverChange={handlePreviewHoverChange}
+        onClose={() => setHoverPreview(null)}
       />
     </>
   );

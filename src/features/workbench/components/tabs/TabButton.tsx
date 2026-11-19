@@ -39,7 +39,8 @@ type TabButtonProps = {
   ) => void;
   onDrop: (event: React.DragEvent<Element>) => void;
   onDragEnd: () => void;
-  onHoverChange?: (tabId: string, element: HTMLButtonElement | null) => void;
+  /** The pointer came onto the tab. */
+  onHover?: (tabId: string, element: HTMLButtonElement) => void;
 };
 
 export function TabButton({
@@ -52,7 +53,7 @@ export function TabButton({
   onDragLeave,
   onDrop,
   onDragEnd,
-  onHoverChange,
+  onHover,
 }: TabButtonProps) {
   // Selected here rather than passed down, so that a tab's button re-renders
   // only when its own label changes
@@ -160,12 +161,9 @@ export function TabButton({
       }}
       onMouseEnter={(event) => {
         setIsHovered(true);
-        onHoverChange?.(tab.id, event.currentTarget);
+        onHover?.(tab.id, event.currentTarget);
       }}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        onHoverChange?.(tab.id, null);
-      }}
+      onMouseLeave={() => setIsHovered(false)}
       onContextMenu={
         onContextMenu ? (event) => onContextMenu(event, tab.id) : undefined
       }

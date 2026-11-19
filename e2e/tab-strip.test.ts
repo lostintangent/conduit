@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { type Conduit, launch, runCommand, until } from "./app";
+import { type Conduit, happens, launch, runCommand, until } from "./app";
 
 describe("the tab strip", () => {
   let app: Conduit;
@@ -174,6 +174,60 @@ describe("the tab strip", () => {
       })),
     );
     expect((await scrollThrough(["start"])).fades).toEqual([["0px", "0px"]]);
+  });
+
+  describe("a tab's preview", () => {
+    const preview = () => app.page.locator("[data-tab-preview]");
+    const isClosed = async () => (await preview().count()) === 0;
+
+    const tab = (name: string) =>
+      app.page.getByRole("tab", { name: new RegExp(`^${name}`) });
+
+    /**
+     * Hovers a tab, then moves up into its preview a pixel at a time, as a
+     * hand would, and returns where the pointer ends up.
+     */
+    async function enterPreview(name: string) {
+      await tab(name).hover();
+      const from = (await tab(name).boundingBox())!;
+      const to = (await preview().boundingBox())!;
+      const x = from.x + from.width / 2;
+      const y = to.y + to.height - 10;
+      await app.page.mouse.move(x, y, {
+        steps: Math.ceil(from.y + from.height / 2 - y),
+      });
+      return { x, y };
+    }
+
+    it("stays as the pointer crosses into it, where a click opens its tab", async () => {
+      const { x, y } = await enterPreview("Two");
+      expect(await happens(isClosed, "the preview to close")).toBe(false);
+
+      await app.page.mouse.click(x, y);
+      await tab("Two")
+        .and(app.page.getByRole("tab", { selected: true }))
+        .waitFor();
+      await preview().waitFor({ state: "detached" });
+      await tab("One").click();
+    });
+
+    it("closes once the pointer leaves the tab for elsewhere in the window", async () => {
+      await tab("Two").hover();
+      await preview().waitFor();
+      const { x, y } = await app.page.evaluate(() => ({
+        x: innerWidth / 2,
+        y: innerHeight / 3,
+      }));
+      await app.page.mouse.move(x, y, { steps: 10 });
+      await preview().waitFor({ state: "detached" });
+    });
+
+    it("closes once the pointer leaves the window from it", async () => {
+      const { x } = await enterPreview("Two");
+      // Straight out, so the preview is the last thing it's on
+      await app.page.mouse.move(x, -40);
+      await preview().waitFor({ state: "detached" });
+    });
   });
 
   /** Opens a tab one way, and waits for it to be the selected one. */
